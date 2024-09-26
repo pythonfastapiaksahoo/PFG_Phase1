@@ -1,0 +1,270 @@
+<mxfile host="app.diagrams.net" modified="2024-07-10T13:08:55.875Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" etag="HwVy5t9U5872UzmR9Tca" version="24.6.4" type="device">
+  <diagram name="Page-1" id="MRbIRcgbJE-VeMgaqCbG">
+    <mxGraphModel dx="1434" dy="818" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="LMSLpLEVshk23Z4s47nO-23" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="435" y="196.5" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-14" value="" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="185" y="160" width="645" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-22" target="LMSLpLEVshk23Z4s47nO-24" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-22" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="205" y="190" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=-0.026;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="LMSLpLEVshk23Z4s47nO-1" target="LMSLpLEVshk23Z4s47nO-10" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="255" y="500" />
+              <mxPoint x="359" y="500" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-1" value="Application Gateway" style="image;sketch=0;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/mscae/Application_Gateway.svg;" parent="1" vertex="1">
+          <mxGeometry x="230" y="390" width="50" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-2" target="LMSLpLEVshk23Z4s47nO-1" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-2" value="Admin user" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.user;" parent="1" vertex="1">
+          <mxGeometry x="60" y="400" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-4" value="Authentication&lt;div&gt;AAD Single Sign On&lt;/div&gt;" style="outlineConnect=0;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;shape=mxgraph.aws3.add_on;fillColor=#759C3E;gradientColor=none;" parent="1" vertex="1">
+          <mxGeometry x="260" y="490" width="49.5" height="27" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-6" value="Web Portal" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/app_services/App_Services.svg;" parent="1" vertex="1">
+          <mxGeometry x="360" y="300" width="50" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=-0.02;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="LMSLpLEVshk23Z4s47nO-6" target="LMSLpLEVshk23Z4s47nO-1" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=-0.08;entryY=0.56;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="LMSLpLEVshk23Z4s47nO-1" target="LMSLpLEVshk23Z4s47nO-6" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="255" y="325" />
+              <mxPoint x="356" y="325" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-12" value="Private links" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-9" vertex="1" connectable="0">
+          <mxGeometry x="0.1105" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-38" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-10" target="LMSLpLEVshk23Z4s47nO-35" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="385" y="760" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-39" value="Private Endpoint" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-38" vertex="1" connectable="0">
+          <mxGeometry x="-0.0445" y="-3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-47" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-10" target="LMSLpLEVshk23Z4s47nO-46" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="270" y="570" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-48" value="Private Link" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-47" vertex="1" connectable="0">
+          <mxGeometry x="-0.0338" y="-2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-10" value="Web API" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/app_services/App_Services.svg;" parent="1" vertex="1">
+          <mxGeometry x="360" y="530" width="50" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-13" value="Virtual Network" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Virtual_Networks.svg;" parent="1" vertex="1">
+          <mxGeometry x="720" y="171.75" width="67" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-15" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.mail;" parent="1" vertex="1">
+          <mxGeometry x="220" y="211.75" width="30" height="16.5" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-16" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.mail;" parent="1" vertex="1">
+          <mxGeometry x="280" y="211.75" width="30" height="16.5" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-17" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.mail;" parent="1" vertex="1">
+          <mxGeometry x="340" y="211.75" width="30" height="16.5" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-18" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.mail;" parent="1" vertex="1">
+          <mxGeometry x="340" y="240" width="30" height="16.5" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-19" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.mail;" parent="1" vertex="1">
+          <mxGeometry x="280" y="240" width="30" height="16.5" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-20" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.mail;" parent="1" vertex="1">
+          <mxGeometry x="220" y="240" width="30" height="16.5" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-21" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.mail;" parent="1" vertex="1">
+          <mxGeometry x="280" y="263.5" width="30" height="16.5" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-24" target="LMSLpLEVshk23Z4s47nO-22" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-27" value="Private link&lt;div&gt;+ Oauth Authentication&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-25" vertex="1" connectable="0">
+          <mxGeometry x="-0.0195" y="-3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-24" target="LMSLpLEVshk23Z4s47nO-32" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-43" value="Private link" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-33" vertex="1" connectable="0">
+          <mxGeometry x="0.1021" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-24" value="Mail Listener" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/compute/Function_Apps.svg;" parent="1" vertex="1">
+          <mxGeometry x="560" y="223.5" width="45.33" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-28" target="LMSLpLEVshk23Z4s47nO-40" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-42" value="Private link" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-41" vertex="1" connectable="0">
+          <mxGeometry x="-0.1862" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-28" value="Invoice Classifier &amp;amp; Processor" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/compute/Function_Apps.svg;" parent="1" vertex="1">
+          <mxGeometry x="559.9900000000001" y="600" width="45.33" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-29" target="LMSLpLEVshk23Z4s47nO-28" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-29" value="Event Grid Topic" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/integration/Event_Grid_Topics.svg;" parent="1" vertex="1">
+          <mxGeometry x="559.9899999999999" y="500" width="44.67" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-44" target="LMSLpLEVshk23Z4s47nO-29" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-32" value="Storage Account" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;" parent="1" vertex="1">
+          <mxGeometry x="568.91" y="340" width="27.5" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-35" value="Postgresql DB" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/databases/Azure_Database_PostgreSQL_Server.svg;" parent="1" vertex="1">
+          <mxGeometry x="560.66" y="740" width="48" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.446;entryY=0.024;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="LMSLpLEVshk23Z4s47nO-28" target="LMSLpLEVshk23Z4s47nO-35" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-37" value="Private Endpoint" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-36" vertex="1" connectable="0">
+          <mxGeometry x="-0.2335" y="-3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-40" value="Azure DI +&amp;nbsp;&lt;div&gt;Azure Open AI&lt;/div&gt;" style="image;sketch=0;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/mscae/Cognitive_Services.svg;" parent="1" vertex="1">
+          <mxGeometry x="728.5" y="605" width="50" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-45" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-32" target="LMSLpLEVshk23Z4s47nO-44" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="583" y="362" as="sourcePoint" />
+            <mxPoint x="582" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-44" value="Blob Listener" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/compute/Function_Apps.svg;" parent="1" vertex="1">
+          <mxGeometry x="565.32" y="410" width="34" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-46" value="Azure Key Vault" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/security/Key_Vaults.svg;" parent="1" vertex="1">
+          <mxGeometry x="250" y="640" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-50" value="Github Actions" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.github" parent="1" vertex="1">
+          <mxGeometry x="660" y="55" width="45.18" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-51" value="Dev" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.user;" parent="1" vertex="1">
+          <mxGeometry x="150" y="60" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-55" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-52" target="LMSLpLEVshk23Z4s47nO-51" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="400" y="20" />
+              <mxPoint x="165" y="20" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-56" value="Reviews with Actions" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-55" vertex="1" connectable="0">
+          <mxGeometry x="-0.1836" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-57" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-52" target="LMSLpLEVshk23Z4s47nO-50" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-58" value="Auto Trigger Deployment" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-57" vertex="1" connectable="0">
+          <mxGeometry x="-0.3173" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-52" value="Reviewer" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.user;" parent="1" vertex="1">
+          <mxGeometry x="390" y="60" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-53" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=-0.024;entryY=0.487;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="LMSLpLEVshk23Z4s47nO-51" target="LMSLpLEVshk23Z4s47nO-52" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-54" value="Creates a PR" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-53" vertex="1" connectable="0">
+          <mxGeometry x="-0.4304" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-59" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.6;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="LMSLpLEVshk23Z4s47nO-50" target="LMSLpLEVshk23Z4s47nO-6" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="683" y="130" />
+              <mxPoint x="535" y="130" />
+              <mxPoint x="535" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-60" value="SSO Authentication" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-59" vertex="1" connectable="0">
+          <mxGeometry x="-0.5175" y="3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-61" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.4;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="LMSLpLEVshk23Z4s47nO-50" target="LMSLpLEVshk23Z4s47nO-10" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="683" y="150" />
+              <mxPoint x="535" y="150" />
+              <mxPoint x="535" y="550" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-62" value="SSO Authentication" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="LMSLpLEVshk23Z4s47nO-61" vertex="1" connectable="0">
+          <mxGeometry x="-0.7866" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-63" value="Outlook DSD and Corporate Expense Email Inbox" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="180" y="160" width="230" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-65" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="LMSLpLEVshk23Z4s47nO-64" target="LMSLpLEVshk23Z4s47nO-22" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LMSLpLEVshk23Z4s47nO-64" value="AP User" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.user;" parent="1" vertex="1">
+          <mxGeometry x="40" y="225" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="l0Dubt6GowrFwtCZz6OE-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" edge="1" parent="1" source="l0Dubt6GowrFwtCZz6OE-1" target="LMSLpLEVshk23Z4s47nO-22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l0Dubt6GowrFwtCZz6OE-1" value="Vendor" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.user;" vertex="1" parent="1">
+          <mxGeometry x="40" y="160" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="l0Dubt6GowrFwtCZz6OE-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.02;entryY=0.38;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="LMSLpLEVshk23Z4s47nO-64" target="LMSLpLEVshk23Z4s47nO-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="55" y="340" />
+              <mxPoint x="150" y="340" />
+              <mxPoint x="150" y="409" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
