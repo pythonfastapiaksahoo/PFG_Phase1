@@ -51,7 +51,7 @@ repos:
           entry: gitleaks detect --source .
           language: system
           types: [text]
-          args: ["--no-git", "--config", ".gitleaks.toml", "--report-path", "gitleaks-report.json", "--report-format", "json"]
+          args: ["--no-git", "--config", ".gitleaks.toml", "--verbose"]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: 'v1.11.2'
