@@ -334,9 +334,11 @@ async def read_paginate_doc_inv_list(
                 (model.Document.docheaderID.ilike(f"%{uni_api_filter}%"))
                 | (model.Document.documentDate.ilike(f"%{uni_api_filter}%"))
                 | (model.Document.sender.ilike(f"%{uni_api_filter}%"))
-                |
-                # Use a numeric comparison for `totalAmount` instead of `LIKE`
-                (cast(model.Document.totalAmount, String).ilike(f"%{uni_api_filter}%"))
+                | (
+                    cast(model.Document.totalAmount, String).ilike(
+                        f"%{uni_api_filter}%"
+                    )
+                )  # Use a numeric comparison for `totalAmount` instead of `LIKE`
                 | (
                     func.to_char(
                         model.Document.CreatedOn, "YYYY-MM-DD HH24:MI:SS"
