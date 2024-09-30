@@ -1,17 +1,15 @@
 # from sqlalchemy.orm import
 import json
 import os
-import sys
 import traceback
 from datetime import datetime
 
-import model
 import pytz as tz
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 
-sys.path.append("..")
+import pfg_app.model as model
 
 credential = DefaultAzureCredential()
 

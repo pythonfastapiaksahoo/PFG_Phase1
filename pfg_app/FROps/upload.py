@@ -395,3 +395,14 @@ def upload_files_to_azure(
         fnl_upload_status = 0
         fnl_upload_msg = str(e)
     return fnl_upload_status, fnl_upload_msg, blob_fld_name
+
+
+"""
+min_no = 4
+max_no = 25
+accepted_file_type = ['pdf']
+file_size_accepted = 50  # in MB
+cnt_str = "DefaultEndpointsProtocol=https;AccountName=testblob0203;AccountKey=h3ro+ZcNm1Y7F2GZz1ESrRbz6kiu5PBKTAmK2iB+KNdlnw8ZaAycjjwrsvO6drtBQHYMR/NlwdOBi1BJKojJLg==;EndpointSuffix=core.windows.net"  # connection string
+cnt_nm = "upload1"  # container name
+# folder name local path
+"""

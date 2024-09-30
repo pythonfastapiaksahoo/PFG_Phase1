@@ -1,13 +1,20 @@
-import datetime
+import base64
 import traceback
 
-import model
 import requests
-from core.config import settings
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
 from fastapi import HTTPException, Response
-from schemas.ERPIntegrationSchema import InvoiceResponseItem
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import load_only
+
+import pfg_app.model as model
+from pfg_app import settings
+
+credential = DefaultAzureCredential()
+import datetime
+import os
 
 
 async def getDepartmentMaster(db):
@@ -15,7 +22,8 @@ async def getDepartmentMaster(db):
     try:
         return db.query(model.PFGDepartment).all()
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('pfgdepartment API',traceback.format_exc(),1)
+        return Response(status_code=500)
     finally:
         db.close()
 
@@ -25,7 +33,8 @@ async def getStoreMaster(db):
     try:
         return db.query(model.PFGStore).all()
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('pfgstore API',traceback.format_exc(),1)
+        return Response(status_code=500)
     finally:
         db.close()
 
@@ -35,7 +44,8 @@ async def getAccountMaster(db):
     try:
         return db.query(model.PFGAccount).all()
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('pfgaccount API',traceback.format_exc(),1)
+        return Response(status_code=500)
     finally:
         db.close()
 
@@ -62,7 +72,8 @@ async def getVendorMaster(db):
         return vendor_list
 
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('pfgvendor API', traceback.format_exc(), 1)
+        return Response(status_code=500)
 
     finally:
         db.close()
@@ -73,7 +84,8 @@ async def getProjectMaster(db):
     try:
         return db.query(model.PFGProject).all()
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('pfgproject API',traceback.format_exc(),1)
+        return Response(status_code=500)
     finally:
         db.close()
 
@@ -83,7 +95,8 @@ async def getProjectActivityMaster(db):
     try:
         return db.query(model.PFGProjectActivity).all()
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('pfgprojectactivity API',traceback.format_exc(),1)
+        return Response(status_code=500)
     finally:
         db.close()
 
@@ -93,7 +106,8 @@ async def getReceiptMaster(db):
     try:
         return db.query(model.PFGReceipt).all()
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('pfgreceipt API',traceback.format_exc(),1)
+        return Response(status_code=500)
     finally:
         db.close()
 
@@ -264,8 +278,7 @@ async def updateVendorMaster(vendordata, db):
             # Convert Pydantic model to dict and handle nested objects
             vendor_data = data.dict()
             # print("vendor_data_dict :",vendor_data )
-            # Extract and remove VENDOR_LOC and VENDOR_ADDR for separate
-            # processing
+            # Extract and remove VENDOR_LOC and VENDOR_ADDR for separate processing
             vendor_loc_data = vendor_data.pop("VENDOR_LOC", [])
             vendor_addr_data = vendor_data.pop("VENDOR_ADDR", [])
 
@@ -309,8 +322,7 @@ async def updateVendorMaster(vendordata, db):
                         for key, value in loc.items():
                             existing_loc[key] = value
                     else:
-                        # Append loc to existing_vendor.VENDOR_LOC if it
-                        # doesn't already exist
+                        # Append loc to existing_vendor.VENDOR_LOC if it doesn't already exist
                         print(f"Appending new location: {loc}")
                         existing_vendor_loc.append(loc)
 
@@ -336,8 +348,7 @@ async def updateVendorMaster(vendordata, db):
                         for key, value in addr.items():
                             existing_addr[key] = value
                     else:
-                        # Append addr to existing_vendor.VENDOR_ADDR if it
-                        # doesn't already exist
+                        # Append addr to existing_vendor.VENDOR_ADDR if it doesn't already exist
                         existing_vendor_addr.append(addr)
                 # print(f"Final existing_vendor_addr: {existing_vendor.VENDOR_ADDR}")
 
@@ -582,16 +593,14 @@ async def updateReceiptMaster(Receiptdata, db):
                         detail="BUSINESS_UNIT and RECEIVER_ID must match between RECV_HDR and RECV_LN_DISTRIB.",
                     )
 
-            # Flatten the combined PFGReceipt and RECV_LN_DISTRIB into one
-            # dictionary
+            # Flatten the combined PFGReceipt and RECV_LN_DISTRIB into one dictionary
             receipt_data = data.dict()
             distrib_data = data.RECV_LN_DISTRIB.dict() if data.RECV_LN_DISTRIB else {}
 
             # Merge RECV_LN_DISTRIB into receipt_data for a flattened structure
             receipt_data.update(distrib_data)
 
-            # Find existing record by unique combination of BUSINESS_UNIT,
-            # RECEIVER_ID, RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LN_NUM
+            # Find existing record by unique combination of BUSINESS_UNIT, RECEIVER_ID, RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LN_NUM
             existing_receipt = (
                 db.query(model.PFGReceipt)
                 .filter(
@@ -626,8 +635,7 @@ async def updateReceiptMaster(Receiptdata, db):
         print("Error: ", traceback.format_exc())
         db.rollback()
         raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while processing the request.{e}",
+            status_code=500, detail="An error occurred while processing the request."
         )
 
     finally:
@@ -639,8 +647,7 @@ async def SyncDepartmentMaster(db, Departmentdata):
         to_update = []
         to_insert = []
         for row in Departmentdata:
-            # Check if the Department already exists in the Department table
-            # based on DEPTID (which corresponds to Department_ID)
+            # Check if the Department already exists in the Department table based on DEPTID (which corresponds to Department_ID)
             existing_department = (
                 db.query(model.Department)
                 .filter(model.Department.DEPTID == row.DEPTID)
@@ -720,16 +727,14 @@ async def SyncVendorMaster(db, vendordata):
             # # Concatenate NAME1 and NAME2
             # full_vendor_name = f"{row.NAME1.strip()} {row.NAME2.strip()}".strip()
 
-            # Check if the vendor already exists in the Vendor table based on
-            # VendorCode (which corresponds to VENDOR_ID)
+            # Check if the vendor already exists in the Vendor table based on VendorCode (which corresponds to VENDOR_ID)
             existing_vendor = (
                 db.query(model.Vendor)
                 .filter(model.Vendor.VendorCode == row.VENDOR_ID)
                 .first()
             )
 
-            # Assuming you're only working with the first address in the
-            # VENDOR_ADDR list (adjust as necessary)
+            # Assuming you're only working with the first address in the VENDOR_ADDR list (adjust as necessary)
             primary_address = row.VENDOR_ADDR[0] if row.VENDOR_ADDR else {}
 
             # Concatenate the ADDRESS1, ADDRESS2, ADDRESS3, and ADDRESS4 fields
@@ -809,89 +814,38 @@ async def SyncVendorMaster(db, vendordata):
         db.close()
 
 
-def updateInvoiceStatus(request_data):
+# CRUD function to process the invoice voucher and send it to peoplesoft
+def processInvoiceVoucher(doc_id, db):
     try:
-        # Extract INV_STAT_RQST from the RequestBody
-        req = request_data.RequestBody.INV_STAT_RQST  # Access through RequestBody
-
-        # Simulating invoice processing and generating response data
-        request_data = InvoiceResponseItem(
-            BUSINESS_UNIT=req.BUSINESS_UNIT,
-            INVOICE_ID=req.INVOICE_ID,
-            INVOICE_DT=req.INVOICE_DT,
-            VENDOR_SETID=req.VENDOR_SETID,
-            VENDOR_ID=req.VENDOR_ID,
-        )
-        # Convert response_data (InvoiceResponseItem) to a dictionary
-        request_data_dict = request_data.dict()  # This makes it JSON serializable
-        # Make a POST request to the external API endpoint
-        api_url = settings.erp_invoice_status_endpoint
-        headers = {"Content-Type": "application/json"}
-        username = settings.erp_user
-        password = settings.erp_password
-
-        try:
-            # Make the POST request with basic authentication
-            response = requests.post(
-                api_url,
-                json=request_data_dict,
-                headers=headers,
-                auth=(username, password),
-            )
-            response.raise_for_status()  # Raises an HTTPError if the response was unsuccessful
-            print("Response Status: ", response.status_code)
-            # Check for success
-            if response.status_code == 200:
-                return {"message": "Success", "data": response.json()}
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP error occurred: {traceback.format_exc()}")
-            print("Response content:", response.content.decode())
-        except requests.exceptions.RequestException as e:
-            print(
-                f"Error occurred while sending voucher data to the API: {traceback.format_exc()}"
-            )
-        except Exception as e:
-            print(
-                f"Unexpected error while sending voucher data to the API: {traceback.format_exc()}"
-            )
-    except Exception as e:
-        print("Error: ", traceback.format_exc())
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
-        )
-    return response.json()
-
-
-# # Helper function to read the file and convert it to base64
-# def convert_file_to_base64(file_path: str) -> str:
-#     try:
-#         with open(file_path, "rb") as file:
-#             base64_encoded = base64.b64encode(file.read()).decode("utf-8")
-#         return base64_encoded
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
-
-
-# CRUD function to process the invoice voucher
-def processInvoiceVoucher(db):
-    try:
-        # # Fetch the document details from the Document table having status sent to ERP
-        # documents = db.query(model.Document.idDocument).filter(model.Document.documentStatusID == 2).all()
-
-        # if not document:
-        #     raise HTTPException(status_code=404, detail="No documents found with status id 2 >> Processing Document")
-
-        # for document in documents:
+        # Fetch the invoice details from the voucherdata table
         voucherdata = (
             db.query(model.VoucherData)
-            .filter(model.VoucherData.documentID == 422)
+            .filter(model.VoucherData.documentID == doc_id)
             .scalar()
         )
         if not voucherdata:
             raise HTTPException(status_code=404, detail="Voucherdata not found")
-        # # Convert the file to base64
-        # base64file = convert_file_to_base64(file_path)
+
+        # # Call the function to get the base64 file
+        base64file = read_invoice_file(doc_id, db)
+
+        # Check if the returned value contains an error
+        if "error" in base64file:
+            return Response(
+                status_code=500,
+                headers={
+                    "codeError": base64file["error"],
+                    "message": base64file["message"],
+                },
+            )
+
+        # If no error, process the file
+        filepath = base64file["filepath"]
+        content_type = base64file["content_type"]
+
+        # Continue processing the file
+        print(f"Filepath (Base64 Encoded): {filepath}")
+        print(f"Content Type: {content_type}")
 
         request_payload = {
             "RequestBody": [
@@ -907,7 +861,7 @@ def processInvoiceVoucher(db):
                                     "VENDOR_SETID": voucherdata.Vendor_Setid or "",
                                     "VENDOR_ID": voucherdata.Vendor_ID or "",
                                     "ORIGIN": "IDP",
-                                    "ACCOUNTING_DT": "2024-09-10",
+                                    "ACCOUNTING_DT": "",
                                     "VOUCHER_ID_RELATED": " ",
                                     "GROSS_AMT": (
                                         voucherdata.Gross_Amt
@@ -917,9 +871,9 @@ def processInvoiceVoucher(db):
                                     "SALETX_AMT": 0,
                                     "FREIGHT_AMT": 0,
                                     "MISC_AMT": 0,
-                                    "PYMNT_TERMS_CD": "N30",
-                                    "TXN_CURRENCY_CD": "CAD",
-                                    "VAT_ENTRD_AMT": 81.320,
+                                    "PYMNT_TERMS_CD": "",
+                                    "TXN_CURRENCY_CD": "",
+                                    "VAT_ENTRD_AMT": 0,
                                     "VCHR_LINE_STG": [
                                         {
                                             "BUSINESS_UNIT": voucherdata.Business_unit
@@ -936,13 +890,13 @@ def processInvoiceVoucher(db):
                                                 else 0
                                             ),
                                             "QTY_VCHR": 1,
-                                            "UNIT_OF_MEASURE": "EA",
-                                            "UNIT_PRICE": 1870.86,
-                                            "VAT_APPLICABILITY": "T",
+                                            "UNIT_OF_MEASURE": "",
+                                            "UNIT_PRICE": 0,
+                                            "VAT_APPLICABILITY": "",
                                             "BUSINESS_UNIT_RECV": "OFGDS",
-                                            "RECEIVER_ID": "141942045",
+                                            "RECEIVER_ID": "",
                                             "RECV_LN_NBR": 1,
-                                            "SHIPTO_ID": "5540",
+                                            "SHIPTO_ID": "",
                                             "VCHR_DIST_STG": [
                                                 {
                                                     "BUSINESS_UNIT": voucherdata.Business_unit
@@ -961,7 +915,7 @@ def processInvoiceVoucher(db):
                                                     "ACCOUNT": voucherdata.Account
                                                     or "",
                                                     "DEPTID": voucherdata.Deptid or "",
-                                                    "OPERATING_UNIT": "5540",
+                                                    "OPERATING_UNIT": "",
                                                     "MERCHANDISE_AMT": (
                                                         voucherdata.Merchandise_Amt
                                                         if voucherdata.Merchandise_Amt
@@ -999,7 +953,7 @@ def processInvoiceVoucher(db):
         headers = {"Content-Type": "application/json"}
         username = settings.erp_user
         password = settings.erp_password
-
+        responsedata = {}
         try:
             # Make the POST request with basic authentication
             response = requests.post(
@@ -1013,23 +967,203 @@ def processInvoiceVoucher(db):
             print("Response Status: ", response.status_code)
             print("Response Headers: ", response.headers)
             print("Response Content: ", response.content.decode())  # Full content
+
             # Check for success
             if response.status_code == 200:
-                return {"message": "Success", "data": response.json()}
+
+                responsedata = {"message": "Success", "data": response.json()}
+
         except requests.exceptions.HTTPError as e:
             print(f"HTTP error occurred: {traceback.format_exc()}")
             print("Response content:", response.content.decode())
-        except requests.exceptions.RequestException as e:
-            print(
-                f"Error occurred while sending voucher data to the API: {traceback.format_exc()}"
+            responsedata = {"message": str(e), "data": response.json()}
+
+    except Exception as e:
+        responsedata = {
+            "message": "InternalError",
+            "data": {"Http Response": "500", "Status": "Fail"},
+        }
+        print("Error: ", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
+        )
+
+    return responsedata
+
+
+def updateInvoiceStatus(doc_id, db):
+    try:
+        voucherdata = (
+            db.query(model.VoucherData)
+            .filter(model.VoucherData.documentID == doc_id)
+            .scalar()
+        )
+        if not voucherdata:
+            raise HTTPException(status_code=404, detail="Voucherdata not found")
+        invoice_status_payload = {
+            "RequestBody": {
+                "INV_STAT_RQST": {
+                    "BUSINESS_UNIT": voucherdata.Business_unit,
+                    "INVOICE_ID": voucherdata.Invoice_Id,
+                    "INVOICE_DT": voucherdata.Invoice_Dt,
+                    "VENDOR_SETID": voucherdata.Vendor_Setid,
+                    "VENDOR_ID": voucherdata.Vendor_ID,
+                }
+            }
+        }
+        # Make a POST request to the external API endpoint
+        api_url = settings.erp_invoice_status_endpoint
+        headers = {"Content-Type": "application/json"}
+        username = settings.erp_user
+        password = settings.erp_password
+
+        response = (
+            None  # Initialize response to avoid 'referenced before assignment' error
+        )
+
+        try:
+            # Make the POST request with basic authentication
+            response = requests.post(
+                api_url,
+                json=invoice_status_payload,
+                headers=headers,
+                auth=(username, password),
             )
-        except Exception as e:
-            print(
-                f"Unexpected error while sending voucher data to the API: {traceback.format_exc()}"
-            )
+            response.raise_for_status()  # Raises an HTTPError if the response was unsuccessful
+            print("Response Status: ", response.status_code)
+            # Check for success
+            if response.status_code == 200:
+
+                invoice_data = response.json()  # Parse the response JSON data
+                entry_status = invoice_data.get(
+                    "ENTRY_STATUS"
+                )  # Get the ENTRY_STATUS field
+                voucher_id = invoice_data.get("VOUCHER_ID")
+                # Set the documentstatusid based on the ENTRY_STATUS value
+                if entry_status == "STG":
+                    documentstatusid = 7
+                elif entry_status == "NF":
+                    documentstatusid = 11
+                elif entry_status == "QCK":
+                    documentstatusid = 10
+                elif entry_status == "P":
+                    documentstatusid = 8
+                else:
+                    documentstatusid = None  # Default if ENTRY_STATUS is not recognized
+
+                # Now update the documentstatusid in the document table
+                if documentstatusid is not None:
+                    # # Assuming 'doc_id' is the identifier of the document you want to update
+                    # db.query(model.Document).filter(model.Document.documentStatusID == doc_id).update({model.Document.documentStatusID: documentstatusid})
+                    # db.commit()  # Commit the transaction to save the changes
+                    print("DocumentStatusID: ", documentstatusid)
+                invoice_status = {"message": "Success", "data": response.json()}
+            else:
+                # Return a meaningful message if the status code is not 200
+                invoice_status = {
+                    "message": "Failed",
+                    "status_code": response.status_code,
+                    "details": response.content.decode(),
+                }
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP error occurred: {traceback.format_exc()}")
+            if response:
+                return {
+                    "message": "HTTP error occurred",
+                    "status_code": response.status_code,
+                    "details": response.content.decode(),
+                }
+            else:
+                return {
+                    "message": "HTTP error occurred, no response",
+                    "details": str(e),
+                }
+
     except Exception as e:
         print("Error: ", traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
         )
+    return invoice_status
+
+
+async def read_invoice_file(u_id, inv_id, db):
+    try:
+        content_type = "application/pdf"
+        max_size = 5 * 1024 * 1024  # 5 MB in bytes
+
+        # getting invoice data for later operation
+        invdat = (
+            db.query(model.Document)
+            .options(load_only("docPath", "supplierAccountID", "vendorAccountID"))
+            .filter_by(idDocument=inv_id)
+            .one()
+        )
+
+        # check if file path is present and give base64 coded image url
+        if invdat.docPath:
+            try:
+                # Get the Blob service client
+                fr_data = (
+                    db.query(model.FRConfiguration)
+                    .options(
+                        load_only(
+                            "ConnectionString", "ContainerName", "ServiceContainerName"
+                        )
+                    )
+                    .filter_by(idCustomer=1)
+                    .one()
+                )
+                account_name = fr_data.ConnectionString.split("AccountName=")[1].split(
+                    ";AccountKey"
+                )[0]
+                account_url = f"https://{account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=credential
+                )
+
+                # Create the BlobClient
+                if invdat.supplierAccountID:
+                    blob_client = blob_service_client.get_blob_client(
+                        container=fr_data.ContainerName, blob=invdat.docPath
+                    )
+                if invdat.vendorAccountID:
+                    blob_client = blob_service_client.get_blob_client(
+                        container=fr_data.ContainerName, blob=invdat.docPath
+                    )
+
+                # Get file properties to check the size
+                properties = blob_client.get_blob_properties()
+                file_size = properties.size
+
+                # Check if the file size is larger than 5 MB
+                if file_size > max_size:
+                    return {
+                        "result": "File size is more than 5MB",
+                        "file_size": f"{file_size / (1024 * 1024):.2f} MB",
+                    }
+
+                # If the file size is within the limit, proceed to read and encode
+                filetype = os.path.splitext(invdat.docPath)[1].lower()
+                if filetype == ".png":
+                    content_type = "image/png"
+                elif filetype == ".jpg" or filetype == ".jpeg":
+                    content_type = "image/jpg"
+                else:
+                    content_type = "application/pdf"
+
+                # Download and encode the file as base64
+                file_data = blob_client.download_blob().readall()
+                invdat.docPath = base64.b64encode(file_data)
+
+            except:
+                invdat.docPath = ""
+
+        return {"result": {"filepath": invdat.docPath, "content_type": content_type}}
+
+    except Exception as e:
+        return Response(status_code=500, headers={"codeError": "Server Error"})
+    finally:
+        db.close()

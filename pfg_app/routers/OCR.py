@@ -1,38 +1,41 @@
 # import logging
 import json
 import os
-import sys
 import time
 from datetime import datetime, timezone
 
-import model
 import pandas as pd
 import psycopg2
 import pytz as tz
-from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
-from FROps.SplitDoc import splitDoc
+from fastapi import APIRouter, File, Form, Response, UploadFile
 from psycopg2 import extras
-from PyPDF2 import PdfReader
-from sqlalchemy.orm import Load, Session
-from sse_starlette.sse import EventSourceResponse
-
-sys.path.append("..")
-from auth import AuthHandler
-from FROps.azure_fr import get_fr_data
-from FROps.postprocessing import getFrData_MNF, postpro
-from FROps.preprocessing import fr_preprocessing
-from FROps.stampData import is_valid_date
-from logger_module import logger
-
-# from logModule import email_sender
-from session import SQLALCHEMY_DATABASE_URL, get_db
+from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sqlalchemy.orm import Load
 
+import pfg_app.model as model
+from pfg_app import settings
+from pfg_app.auth import AuthHandler
+from pfg_app.core.azure_fr import get_fr_data
+from pfg_app.FROps.pfg_trigger import (
+    IntegratedvoucherData,
+    nonIntegratedVoucherData,
+    pfg_sync,
+)
+from pfg_app.FROps.postprocessing import getFrData_MNF, postpro
+from pfg_app.FROps.preprocessing import fr_preprocessing
+from pfg_app.FROps.SplitDoc import splitDoc
+from pfg_app.FROps.stampData import is_valid_date
+from pfg_app.logger_module import logger
+
+# from logModule import email_sender
+from pfg_app.session import SQLALCHEMY_DATABASE_URL, get_db
+
+# model.Base.metadata.create_all(bind=engine)
 auth_handler = AuthHandler()
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
-
 
 router = APIRouter(
     prefix="/apiv1.1/ocr",
@@ -47,24 +50,6 @@ docLabelMap = {
     "InvoiceDate": "documentDate",
     "PurchaseOrder": "PODocumentID",
 }
-
-
-# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
-def runStatus_2(request, db):
-    while True:
-        yield {"event": "update", "retry": 3000, "data": str(time.time())}
-        logger.info(f"line 64: {str(time.time())}")
-        time.sleep(10)
-
-        # break
-
-
-@router.get("/status/stream_2")
-async def runStatus_1(request: Request, db: Session = Depends(get_db)):
-    event_generator = runStatus_2(request, db)
-    return EventSourceResponse(event_generator)
 
 
 status_stream_delay = 1  # second
@@ -86,31 +71,22 @@ def runStatus(
         file_type, 'source': 'Azure Blob Storage', 'invoice_type':
         invoice_type."""
 
-        pushFRDataBulk = {}  # type: ignore
-        pushStampBulk = {}  # type: ignore
         logger.info(
             f"file_path: {file_path}, filename: {filename}, file_type: {file_type}, source: {source}, invoice_type: {invoice_type}"
         )
         db = next(get_db())
-        # print("into run")
-        # invoice_type = "pdf"
-        containername = "invoicesplit-test"
-        # blob_name = "dsd/1289781BCLTD-1.pdf"
-        # connection_string = "DefaultEndpointsProtocol=https;AccountName=apinvoicestv2;AccountKey=1GEhUGS8AP/KofJFBTHBYjHlWyrGH4dKIJ7icgqMM/D9+ucJ1R5KctVGHlUS3XKHp+sunlYWEk7z+AStgay/tQ==;EndpointSuffix=core.windows.net"
-        connection_string = "DefaultEndpointsProtocol=https;AccountName=apinvoicestv2;AccountKey=1GEhUGS8AP/KofJFBTHBYjHlWyrGH4dKIJ7icgqMM/D9+ucJ1R5KctVGHlUS3XKHp+sunlYWEk7z+AStgay/tQ==;EndpointSuffix=core.windows.net"
-        # container_name = "invoicesplit-test"
-        entityBody = 1
-        subfolder_name = "DSD/splitInvo"
-        destination_container_name = "apinvoice-container"
-        fr_API_version = "2023-07-31"
+        containername = "invoicesplit-test"  # TODO move to settings
+        subfolder_name = "DSD/splitInvo"  # TODO move to settings
+        destination_container_name = "apinvoice-container"  # TODO move to settings
+        fr_API_version = "2023-07-31"  # TODO move to settings
 
         prompt = """This is an invoice document. It may contain a receiver's stamp and might have inventory or supplies marked or circled with a pen, circled is selected. It contains store number as "STR #"
         InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No. If a stamp is present, identify any markings on the document related to
         Inventory or Supplies, specifically if they are marked or circled with a pen. If a stamp is present, extract the following handwritten details
         from the stamp: ConfirmationNumber (the confirmation number labeled as 'Confirmation' on the stamp), ReceivingDate (the date when the goods were received),
-        Receiver (the name of the person or department who received the goods), and Department (the department name or code, which may be either 'Inventory' or 'Supplies',
-        or another specified department). Provide all information in the following JSON format: {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'(which ever is circled more/marked only),
-        'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data', 'Receiver': 'Extracted data', 'Department': 'Dept code','Store Number':,'VendorName':}.Output should be just json"""
+        Receiver (the name of the person or department who received the goods), and Department (the handwritten department name or code,
+        or another specified departmentname), MarkedDept (which may be either 'Inventory' or 'Supplies', based on pen marking). Provide all information in the following JSON format: {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'(which ever is circled more/marked only),
+        'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data', 'Receiver': 'Extracted data', 'Department': 'Dept code','Store Number':,'VendorName':}.Output should be just json"""  # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
 
@@ -128,20 +104,17 @@ def runStatus(
             subfolder_name,
             destination_container_name,
             prompt,
-            # openAI_deployment_name,
-            # OpenAI_api_base,
-            # OpenAI_api_key,
-            # openAI_api_version,
+            settings.form_recognizer_endpoint,
             fr_API_version,
         )
         if fr_model_status == 1:
             # logger.info(f"StampDataList: {StampDataList}")
             conn_params = {
-                "dbname": "pfg_db",
-                "user": "pfg_user",
-                "password": "Connect1234",
-                "host": "ap-postgres-dev.postgres.database.azure.com",
-                "port": "5432",
+                "dbname": settings.db_name,
+                "user": settings.db_user,
+                "password": settings.db_password,
+                "host": settings.db_host,
+                "port": settings.db_port,
             }
 
             conn = psycopg2.connect(**conn_params)
@@ -382,7 +355,6 @@ def runStatus(
                         accepted_file_type = metadata.InvoiceFormat.split(",")
                         date_format = metadata.DateFormat
                         endpoint = configs.Endpoint
-                        apim_key = configs.Key1
                         inv_model_id = modelData.modelID
                         API_version = configs.ApiVersion
 
@@ -390,7 +362,6 @@ def runStatus(
                             "spltFileName": spltFileName,
                             "accepted_file_type": accepted_file_type,
                             "file_size_accepted": file_size_accepted,
-                            "apim_key": apim_key,
                             "API_version": API_version,
                             "endpoint": endpoint,
                             "inv_model_id": inv_model_id,
@@ -409,7 +380,6 @@ def runStatus(
                             "source": source,
                             "sender": sender,
                             "containername": containername,
-                            "connection_string": connection_string,
                             "pdf_stream": pdf_stream,
                             "destination_container_name": destination_container_name,
                             "StampDataList": StampDataList,
@@ -590,6 +560,13 @@ def runStatus(
                                     ]
                                     try:
                                         try:
+                                            storenumber = str(
+                                                "".join(
+                                                    filter(
+                                                        str.isdigit, str(storenumber)
+                                                    )
+                                                )
+                                            )
                                             # Fetch specific columns as a list of dictionaries using .values()
                                             results = db.query(
                                                 model.NonintegratedStores
@@ -604,7 +581,8 @@ def runStatus(
                                                 int(
                                                     "".join(
                                                         filter(
-                                                            str.isdigit, str(nonIntStr)
+                                                            str.isdigit,
+                                                            str(storenumber),
                                                         )
                                                     )
                                                 )
@@ -720,6 +698,13 @@ def runStatus(
                                         f"stampdata insertion exception: {str(e)}"
                                     )
                                     # db.rollback()
+                            try:
+                                if store_type == "Integrated":
+                                    IntegratedvoucherData(invoId, db)
+                                elif store_type == "Non-Integrated":
+                                    nonIntegratedVoucherData(invoId, db)
+                            except Exception as er:
+                                logger.info(f"VoucherDateException:{er}")
 
                         #
                         # except Exception as er:
@@ -747,7 +732,7 @@ def runStatus(
                         invoice_ID = push_frdata(
                             preBltFrdata,
                             999999,
-                            file_path,
+                            spltFileName,
                             1,
                             1,
                             0,
@@ -777,20 +762,37 @@ def runStatus(
                     logger.info("vendor not found!!")
                     try:
                         cur = conn.cursor()
-                        sql_updateFR = """UPDATE pfg_schema.frtrigger_tab SET "status" = %s, sender = %s WHERE "blobpath" = %s; """
-                        FRvalues = ("VendorNotFound", sender, spltFileName)  # type: ignore
-                        cur.execute(sql_updateFR, FRvalues)
+                        sql_updateFR_1 = """
+                            UPDATE pfg_schema.frtrigger_tab
+                            SET "status" = %(status)s, sender = %(sender)s
+                            WHERE "blobpath" = %(blobpath)s;
+                        """
+                        FRvalues_1 = {
+                            "status": "VendorNotFound",
+                            "sender": sender,
+                            "blobpath": spltFileName,
+                        }
+
+                        cur.execute(sql_updateFR_1, FRvalues_1)
                         conn.commit()
                     except Exception as et:
-                        print(f"frtrigger_tab update exception: {str(et)}")
                         try:
                             cur = conn.cursor()
-                            sql_updateFR = """UPDATE pfg_schema.frtrigger_tab SET "status" = %s, "sender" = %s WHERE "blobpath" = %s;"""
-                            FRvalues = (str(et), sender, spltFileName)  # type: ignore
-                            cur.execute(sql_updateFR, FRvalues)
+                            sql_updateFR_2 = """
+                                UPDATE pfg_schema.frtrigger_tab
+                                SET "status" = %(status)s, "sender" = %(sender)s
+                                WHERE "blobpath" = %(blobpath)s;
+                            """
+                            FRvalues_2 = {
+                                "status": str(et),
+                                "sender": sender,
+                                "blobpath": spltFileName,
+                            }
+
+                            cur.execute(sql_updateFR_2, FRvalues_2)
                             conn.commit()
                         except Exception as e:
-                            print(f"frtrigger_tab update exception: {str(e)}")
+                            print("frtrigger_tab update exception: ", str(e))
 
                         logger.error(f"frtrigger_tab update exception: {str(et)}")
 
@@ -812,6 +814,11 @@ def runStatus(
         logger.error(f"API exception ocr.py: {str(err)}")
         status = "error: " + str(err)
 
+    try:
+        pfg_sync(invoId, db)
+        logger.info("pfg_sync Done!")
+    except Exception as Er:
+        logger.info(f"Ocr.py SyncError: {Er}")
     return status
 
 
@@ -898,8 +905,6 @@ def live_model_fn_1(generatorObj):
     # spltFileName = generatorObj['spltFileName']
     file_path = generatorObj["file_path"]
     container = generatorObj["containername"]
-    connection_string = generatorObj["connection_string"]
-    apim_key = generatorObj["apim_key"]
     API_version = generatorObj["API_version"]
     endpoint = generatorObj["endpoint"]
     inv_model_id = generatorObj["inv_model_id"]
@@ -941,7 +946,6 @@ def live_model_fn_1(generatorObj):
             filename,
             spltFileName,
             destination_container_name,
-            connection_string,
             db,
         )
     )
@@ -967,10 +971,9 @@ def live_model_fn_1(generatorObj):
         model_type = "custom"
 
         cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
-            get_fr_data(
+            get_fr_data(  # check from where this function is coming (this is coming from core/azure_fr.py)
                 input_data,
                 file_type,
-                apim_key,
                 API_version,
                 endpoint,
                 model_type,
@@ -979,14 +982,15 @@ def live_model_fn_1(generatorObj):
         )
 
         model_type = "prebuilt"
-        pre_model_status, pre_model_msg, pre_data, pre_status = get_fr_data(
-            input_data,
-            file_type,
-            apim_key,
-            API_version,
-            endpoint,
-            model_type,
-            inv_model_id,
+        pre_model_status, pre_model_msg, pre_data, pre_status = (
+            get_fr_data(  # check from where this function is coming (this is coming from core/azure_fr.py)
+                input_data,
+                file_type,
+                API_version,
+                endpoint,
+                model_type,
+                inv_model_id,
+            )
         )
 
         if isComposed == False:
@@ -1193,7 +1197,6 @@ def push_frdata(
             doc_header["documentDate"] if "documentDate" in doc_header else ""
         ),
         "vendorAccountID": vendorAccountID,
-        # "docPath": blobPath,
         "documentTotalPages": no_pages_processed,
         "CreatedOn": current_ime,
         "sourcetype": source,

@@ -1,11 +1,9 @@
 import json
-import sys
 import time
 
 import requests
-from logger_module import logger
 
-sys.path.append("..")
+from pfg_app.logger_module import logger
 
 
 def get_fr_data(

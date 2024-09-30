@@ -1,8 +1,9 @@
 from typing import Any
 
-from azuread.AzureADAuthorization import authorize
-from azuread.schemas import AzureUser
 from fastapi import Depends, HTTPException, status
+
+from pfg_app.azuread.AzureADAuthorization import authorize
+from pfg_app.azuread.schemas import AzureUser
 
 
 class ForbiddenAccess(HTTPException):

@@ -1,13 +1,11 @@
-import sys
 import traceback
 
-import model as models
 from fastapi import Depends, HTTPException
-from schemas import permissionssm
-from session import Session
 from sqlalchemy.orm import scoped_session
 
-sys.path.append("..")
+import pfg_app.model as models
+from pfg_app.schemas import permissionssm
+from pfg_app.session import Session
 
 
 def get_db():

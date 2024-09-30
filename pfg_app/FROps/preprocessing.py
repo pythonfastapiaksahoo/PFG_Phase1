@@ -3,15 +3,15 @@
 # application/pdf, image/jpeg, image/png, or image/tiff
 import json
 import math
-import sys
 from io import BytesIO
 
 import requests
 from azure.storage.blob import BlobServiceClient
 from PIL import Image
-from PyPDF2 import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter
 
-sys.path.append("..")
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
 
 
 def check_file_exist(vendorAccountID, entityID, filename, file_path, bg_task, db):
@@ -279,15 +279,16 @@ accepted_pixel_min = 50
 accepted_filesize_max = 50
 
 
-def get_binary_data(file_type, spltFileName, container, connection_string):
+def get_binary_data(file_type, spltFileName, container):
     global accepted_inch, accepted_pixel_max, accepted_pixel_min, accepted_filesize_max
     try:
         # resp = requests.get(file_path)
         print("spltFileName prepro 282: ", spltFileName)
         print("container: ", container)
         spltFileName = spltFileName.replace("//", "/")
-        blob_service_client = BlobServiceClient.from_connection_string(
-            connection_string
+        blob_service_client = BlobServiceClient(
+            account_url=f"https://{settings.storage_account_name}.blob.core.windows.net",
+            credential=get_credential(),
         )
         blob_client = blob_service_client.get_blob_client(
             container=container, blob=spltFileName
@@ -362,7 +363,6 @@ def fr_preprocessing(
     filename,
     spltFileName,
     container,
-    connection_string,
     db,
 ):
     fr_preprocessing_status_msg = ""
@@ -388,7 +388,6 @@ def fr_preprocessing(
                         filename.lower().split(".")[-1],
                         spltFileName,
                         container,
-                        connection_string,
                     )
                     # (file_type, spltFileName, container, connection_string)
 

@@ -1,12 +1,10 @@
 import os
-import sys
 from datetime import datetime
 
-import model
 import pytz as tz
 from fastapi.responses import Response
 
-sys.path.append("..")
+import pfg_app.model as model
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)

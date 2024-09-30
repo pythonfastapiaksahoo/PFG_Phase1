@@ -1,12 +1,10 @@
-import json
-
 import numpy as np
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-from core.config import settings
 from pdf2image import convert_from_bytes
 
 credential = DefaultAzureCredential()
+import json
 
 """req_fields_accuracy = 99.2
 req_model_accuracy = 99.5
@@ -33,7 +31,7 @@ def model_validate(
         tag_list = []
 
         field_acc_status = 1
-        if data["modelInfo"] and data["modelInfo"]["attributes"]["isComposed"]:
+        if data["modelInfo"] and data["modelInfo"]["attributes"]["isComposed"] == True:
             key = "composedTrainResults"
             if key in data:
                 index = next(
@@ -113,7 +111,7 @@ def model_validate(
                 model_validate_status = 0
                 # model_validate_msg = "Model is rejected"
         else:
-            if set(mand_fld_list).issubset(set(tag_list)):
+            if set(mand_fld_list).issubset(set(tag_list)) == True:
                 mand_fld_list_status = 1
             else:
                 mand_fld_list_status = 0
@@ -134,15 +132,8 @@ def model_validate(
     return model_validate_status, model_validate_msg, model_id, trin_doc_path
 
 
-cnt_nm = "upload1"
-VendorAccount = "123"
-ServiceAccount = "456"
-model_id = "456789"
-old_fld_name = "1623148701_5608163"
-template_metadata = {}  # type: ignore
-
-
 def db_push_data(
+    cnt_str,
     cnt_nm,
     VendorAccount,
     ServiceAccount,
@@ -158,7 +149,7 @@ def db_push_data(
     file_path = temp_dir + "/" + old_fld_name + ".json"
     try:
 
-        account_name = settings.storage_account_name
+        account_name = cnt_str.split("AccountName=")[1].split(";AccountKey")[0]
         account_url = f"https://{account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
             account_url=account_url, credential=credential
@@ -192,7 +183,8 @@ def db_push_data(
         data = json.loads(lbl_byts)
         if blb_file_ext == "pdf":
             img = convert_from_bytes(pdf_byts, poppler_path=r"/usr/bin")
-            # img = convert_from_bytes(pdf_byts,poppler_path=r'D:\\poppler-0.68.0\\bin')
+            # img = convert_from_bytes(pdf_byts,poppler_path=r'C:\poppler-24.07.0\Library\bin')
+            mlt_ig = 1
             for ig in img:
                 image = np.array(ig)
             image.shape
@@ -384,6 +376,7 @@ def model_validate_final(
                     if labelfound:
                         break
             db_push_status, db_push_msg, file_path, data = db_push_data(
+                cnt_str,
                 cnt_nm,
                 VendorAccount,
                 ServiceAccount,

@@ -69,3 +69,6 @@ venv8
 myvenv
 myenv
 venv311
+
+# ENV FILE
+.env

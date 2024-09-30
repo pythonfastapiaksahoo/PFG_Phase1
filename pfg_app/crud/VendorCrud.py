@@ -1,19 +1,17 @@
 import io
 import os
-import sys
 import traceback
 from datetime import datetime
 
-import model
 import pandas as pd
 import pytz as tz
 from fastapi.responses import Response
 from fuzzywuzzy import process
-from logger_module import logger
 from sqlalchemy import and_, case, exc, func, or_
 from sqlalchemy.orm import Load, Session, load_only
 
-sys.path.append("..")
+import pfg_app.model as model
+from pfg_app.logger_module import logger
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
@@ -212,8 +210,7 @@ async def NewVendorUser(u_id, ven_user, ven_user_type, db):
             user_access.append(basedata.copy())
         user_access = [model.VendorUserAccess(**row) for row in user_access]
         db.add_all(user_access)
-        # notifying changes to the db but not committing since next stage it
-        # will be committed
+        # notifying changes to the db but not committing since next stage it will be committed
         db.flush()
         db.add(
             model.AccessPermission(
@@ -221,8 +218,7 @@ async def NewVendorUser(u_id, ven_user, ven_user_type, db):
             )
         )
         db.flush()
-        # returning the customer details with custom function from model to
-        # avoid all columns
+        # returning the customer details with custom function from model to avoid all columns
         return n_usr.datadict(), ven_user_type
     except exc.IntegrityError as e:
         print(traceback.print_exc())
@@ -271,17 +267,33 @@ def NewVendorUserInvoiceAccess(VendorUserID, NewVendorInvAccs, db):
         db.close()
 
 
-async def readvendor(db):
-    """This function read a Vendor.
+async def readvendorname(u_id, db):
+    """This function read list of VendorNames.
 
-    It contains 1 parameter.
+    It contains 2 parameter.
+    :param u_id: The user ID for which to fetch vendor data.
     :param db: It provides a session to interact with the backend
         Database,that is of Session Object Type.
     :return: It return a result of dictionary type.
     """
     try:
-        return db.query(model.Vendor).all()
+        # Query to get vendor names and filter by VENDOR_STATUS
+        query = db.query(model.Vendor.VendorName).filter(
+            func.jsonb_extract_path_text(model.Vendor.miscellaneous, "VENDOR_STATUS")
+            == "A"
+        )
+
+        # # Get distinct count of vendors
+        # total_count = db.query(model.Vendor.idVendor).filter(
+        #     func.jsonb_extract_path_text(model.Vendor.miscellaneous, 'VENDOR_STATUS') == 'A'
+        # ).distinct().count()
+
+        # Execute the original query and fetch results
+        data = query.all()
+        return data
+
     except Exception as e:
+        print(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -347,7 +359,7 @@ async def readvendorbyuid(u_id, vendor_type, db, off_limit, api_filter):
             )
             .options(
                 Load(model.Vendor).load_only(
-                    "VendorName", "VendorCode", "Email", "Contact", "TRNNumber"
+                    "VendorName", "VendorCode", "vendorType", "Address", "City"
                 ),
                 Load(model.Entity).load_only("EntityName"),
             )
@@ -441,8 +453,9 @@ async def readvendorbyuid(u_id, vendor_type, db, off_limit, api_filter):
                         "idVendor": col.idVendor,
                         "VendorName": col.VendorName,
                         "VendorCode": col.VendorCode,
-                        "Email": col.Email,
-                        "Contact": col.Contact,
+                        "vendorType": col.vendorType,
+                        "Address": col.Address,
+                        "City": col.City,
                     }
                 elif isinstance(col, model.Entity):
                     row_dict["Entity"] = {
@@ -727,28 +740,6 @@ async def readvendorbyid(db: Session, v_id: int):
             .options(load_only("VendorName", "VendorCode", "Contact", "TRNNumber"))
             .filter(model.Vendor.idVendor == v_id)
             .all()
-        )
-    except Exception as e:
-        return Response(
-            status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
-        )
-    finally:
-        db.close()
-
-
-async def readvendoruser(db: Session, v_id: int):
-    """This function read a Vendor user.
-
-    It contains 2 parameter.
-    :param v_id: It is a function parameters that is of integer type, it
-        provides the vendor Id.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of dictionary type.
-    """
-    try:
-        return (
-            db.query(model.VendorUser).filter(model.VendorUser.vendorID == v_id).all()
         )
     except Exception as e:
         return Response(

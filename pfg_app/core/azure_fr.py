@@ -5,8 +5,9 @@ from azure.ai.formrecognizer import (
     DocumentModelAdministrationClient,
 )
 from azure.core.pipeline.policies import RetryPolicy
-from core.utils import get_credential
-from logger_module import logger
+
+from pfg_app.core.utils import get_credential
+from pfg_app.logger_module import logger
 
 
 def get_fr_data(

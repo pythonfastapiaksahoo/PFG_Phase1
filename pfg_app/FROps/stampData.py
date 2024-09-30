@@ -15,6 +15,7 @@ def stamnpDataFn(blob_data, prompt, deployment_name, api_base, api_key, api_vers
         base_url=f"{api_base}openai/deployments/{deployment_name}",
     )
     pdf_img = convert_from_bytes(blob_data)
+    # pdf_img = convert_from_bytes(blob_data,poppler_path=r'C:\poppler-24.07.0\Library\bin')
     buffered = io.BytesIO()
     pdf_img[0].save(buffered, format="PNG")
     encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
@@ -46,12 +47,13 @@ def stamnpDataFn(blob_data, prompt, deployment_name, api_base, api_key, api_vers
     )
     try:
         stampData = json.loads(cl_data)
-    except BaseException:
+    except:
         try:
             cl_data_corrected = cl_data.replace("'", '"')
             stampData = json.loads(cl_data_corrected)
-        except BaseException:
+        except:
             stampData = cl_data
+            pass
     # print(stampData)
     return stampData
 
@@ -87,7 +89,7 @@ def VndMatchFn(vndMth_prompt, client):
             vndMth_ck = 1
         if vndMth["addressMatching"] == "yes":
             vndMth_address_ck = 1
-    except BaseException:
+    except:
         try:
             cl_data_corrected = cl_mtch.replace("'", '"')
             vndMth = json.loads(cl_data_corrected)
@@ -96,7 +98,7 @@ def VndMatchFn(vndMth_prompt, client):
             if vndMth["addressMatching"] == "yes":
                 vndMth_address_ck = 1
 
-        except BaseException:
+        except:
             vndMth = cl_mtch
             if '"vendorMatching": "yes"' in content:
                 vndMth_ck = 1
@@ -108,7 +110,7 @@ def VndMatchFn(vndMth_prompt, client):
 
 def is_valid_date(date_string):
     try:
-        parser.parse(date_string)
+        parsed_date = parser.parse(date_string)
         return True
     except (ValueError, OverflowError):
         return False

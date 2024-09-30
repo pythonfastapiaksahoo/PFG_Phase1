@@ -1,4 +1,3 @@
-from session.session import Base
 from sqlalchemy import (
     JSON,
     TEXT,
@@ -14,6 +13,8 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+
+from pfg_app.session.session import Base
 
 # from sqlalchemy.ext.automap import automap_base
 # from sqlalchemy import MetaData
@@ -1392,6 +1393,7 @@ class frtrigger_tab(Base):
     status = Column(String, nullable=True)
     timestamp = Column(DateTime, nullable=True)
     sender = Column(String, nullable=True)
+    docstatus_sync = Column(JSON, nullable=True)
 
 
 # Vendor Table
@@ -1444,24 +1446,25 @@ class VendorAccount3(Base):
     CreatedOn = Column(DateTime, nullable=True)
     UpdatedOn = Column(DateTime, nullable=True)
 
-    class VoucherData(Base):
-        __tablename__ = "voucherdata"
-        voucherdataID = Column(Integer, primary_key=True, autoincrement=True)
-        documentID = Column(Integer, nullable=False)
-        Business_unit = Column(String(5), nullable=True)
-        Invoice_Id = Column(String(30), nullable=True)
-        Invoice_Dt = Column(String(10), nullable=True)
-        Vendor_Setid = Column(String(5), nullable=True)
-        Vendor_ID = Column(String(10), nullable=True)
-        Origin = Column(String(10), nullable=True)
-        Gross_Amt = Column(Float, nullable=True)
-        Voucher_Line_num = Column(Integer, nullable=True)
-        Merchandise_Amt = Column(Float, nullable=True)
-        Distrib_Line_num = Column(Integer, nullable=True)
-        Account = Column(String(10), nullable=True)
-        Deptid = Column(String(10), nullable=True)
-        Image_Nbr = Column(Integer, nullable=True)
-        File_Name = Column(String, nullable=True)
+
+class VoucherData(Base):
+    __tablename__ = "voucherdata"
+    voucherdataID = Column(Integer, primary_key=True, autoincrement=True)
+    documentID = Column(Integer, nullable=False)
+    Business_unit = Column(String(5), nullable=True)
+    Invoice_Id = Column(String(30), nullable=True)
+    Invoice_Dt = Column(String(10), nullable=True)
+    Vendor_Setid = Column(String(5), nullable=True)
+    Vendor_ID = Column(String(10), nullable=True)
+    Origin = Column(String(10), nullable=True)
+    Gross_Amt = Column(Float, nullable=True)
+    Voucher_Line_num = Column(Integer, nullable=True)
+    Merchandise_Amt = Column(Float, nullable=True)
+    Distrib_Line_num = Column(Integer, nullable=True)
+    Account = Column(String(10), nullable=True)
+    Deptid = Column(String(10), nullable=True)
+    Image_Nbr = Column(Integer, nullable=True)
+    File_Name = Column(String, nullable=True)
 
 
 class NonintegratedStores(Base):

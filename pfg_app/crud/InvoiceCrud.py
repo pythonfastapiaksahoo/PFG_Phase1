@@ -1,23 +1,21 @@
 # from sqlalchemy.orm import
 import base64
 import os
-import re
-import sys
 import traceback
 from datetime import datetime, timedelta
 
-import model
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 from sqlalchemy import String, and_, case, cast, func, or_
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, load_only
 
 credential = DefaultAzureCredential()
+import re
 
+from sqlalchemy.exc import SQLAlchemyError
 
-sys.path.append("..")
+import pfg_app.model as model
 
 status = [
     "System Check In - Progress",
@@ -26,7 +24,7 @@ status = [
     "Need To Review",
     "Edit in Progress",
     "Awaiting Edit Approval",
-    "Sent to ERP",
+    "Sent to PeopleSoft",
     "Payment Cleared",
     "Payment Partially Paid",
     "Invoice Rejected",
@@ -164,13 +162,14 @@ async def read_doc_inv_list(u_id, ven_id, inv_type, stat, db):
 
     except Exception as e:
         print(traceback.format_exc())
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('readDocumentINVList API',traceback.format_exc(),u_id)
+        return Response(status_code=500)
     finally:
         db.close()
 
 
 async def read_paginate_doc_inv_list(
-    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter
+    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status
 ):
     """This function reads document invoice list, contains following parameters
     :param u_id: It is a function parameters that is of integer type, it
@@ -304,6 +303,23 @@ async def read_paginate_doc_inv_list(
             .filter(model.Document.vendorAccountID.isnot(None))
         )
 
+        if ven_status:
+            if ven_status == "A":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "A"
+                )
+
+            elif ven_status == "I":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "I"
+                )
+
         # Pagination
         offset, limit = off_limit
         off_val = (offset - 1) * limit
@@ -350,7 +366,297 @@ async def read_paginate_doc_inv_list(
 
     except Exception as e:
         print(traceback.format_exc())
-        return Response(status_code=500, content=str(e))
+        # applicationlogging.logs_to_table_storage('readDocumentINVList API',traceback.format_exc(),u_id)
+        return Response(status_code=500)
+    finally:
+        db.close()
+
+
+async def read_paginate_doc_inv_list_with_ln_items(
+    ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status
+):
+    """This function reads document invoice list with pagination and
+    filtering."""
+    try:
+        all_status = {
+            "posted": 14,
+            "rejected": 10,
+            "exception": 4,
+            "VendorNotOnboarded": 25,
+            "VendorUnidentified": 26,
+        }
+
+        # Build doc_status case statement for labeling
+        doc_status = case(
+            [
+                (model.Document.documentsubstatusID == value[0], value[1])
+                for value in substatus
+            ]
+            + [
+                (model.Document.documentStatusID == value[0] + 1, value[1])
+                for value in enumerate(status)
+            ]
+            + [
+                (
+                    model.Document.documentStatusID == all_status["VendorUnidentified"],
+                    "VendorUnidentified",
+                ),
+                (
+                    model.Document.documentStatusID == all_status["VendorNotOnboarded"],
+                    "VendorNotOnboarded",
+                ),
+            ],
+            else_="",
+        ).label("docstatus")
+
+        inv_choice = {
+            "ser": (
+                model.ServiceProvider,
+                model.ServiceAccount,
+                Load(model.ServiceProvider).load_only("ServiceProviderName"),
+                Load(model.ServiceAccount).load_only("Account"),
+            ),
+            "ven": (
+                model.Vendor,
+                model.VendorAccount,
+                Load(model.Vendor).load_only("VendorName", "Address"),
+                Load(model.VendorAccount).load_only("Account"),
+            ),
+        }
+
+        # Initial query setup for documents
+        data_query = db.query(
+            model.Document,
+            doc_status,
+            model.DocumentSubStatus,
+            inv_choice[inv_type][0],
+            inv_choice[inv_type][1],
+        ).filter(model.Document.idDocumentType == 3)
+
+        # Apply vendor ID filter if provided
+        if ven_id:
+            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
+                vendorID=ven_id
+            )
+            data_query = data_query.filter(
+                model.Document.vendorAccountID.in_(sub_query)
+            )
+
+        # Filter by status if provided
+        if stat:
+            data_query = data_query.filter(
+                model.Document.documentStatusID == all_status[stat]
+            )
+
+        # Apply necessary joins and options for fetching document data
+        data_query = (
+            data_query.options(
+                Load(model.Document).load_only(
+                    "docheaderID",
+                    "totalAmount",
+                    "documentStatusID",
+                    "CreatedOn",
+                    "documentsubstatusID",
+                    "sender",
+                    "JournalNumber",
+                    "UploadDocType",
+                    "store",
+                    "dept",
+                    "documentDate",
+                ),
+                Load(model.DocumentSubStatus).load_only("status"),
+                inv_choice[inv_type][2],
+                inv_choice[inv_type][3],
+            )
+            .join(
+                model.DocumentSubStatus,
+                model.DocumentSubStatus.idDocumentSubstatus
+                == model.Document.documentsubstatusID,
+                isouter=True,
+            )
+            .join(
+                model.DocumentHistoryLogs,
+                model.DocumentHistoryLogs.documentID == model.Document.idDocument,
+                isouter=True,
+            )
+            .join(
+                model.VendorAccount,
+                model.VendorAccount.idVendorAccount == model.Document.vendorAccountID,
+                isouter=True,
+            )
+            .join(
+                model.Vendor,
+                model.Vendor.idVendor == model.VendorAccount.vendorID,
+                isouter=True,
+            )
+            .join(
+                model.DocumentStatus,
+                model.DocumentStatus.idDocumentstatus
+                == model.Document.documentStatusID,
+                isouter=True,
+            )
+            .filter(model.Document.vendorAccountID.isnot(None))
+        )
+
+        # Apply vendor status filter if provided
+        if ven_status:
+            if ven_status == "A":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "A"
+                )
+            elif ven_status == "I":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "I"
+                )
+
+        # Apply universal API filter if provided, including line items
+        if uni_api_filter:
+            filter_condition = or_(
+                model.Document.docheaderID.ilike(f"%{uni_api_filter}%"),
+                model.Document.documentDate.ilike(f"%{uni_api_filter}%"),
+                model.Document.sender.ilike(f"%{uni_api_filter}%"),
+                cast(model.Document.totalAmount, String).ilike(f"%{uni_api_filter}%"),
+                func.to_char(model.Document.CreatedOn, "YYYY-MM-DD HH24:MI:SS").ilike(
+                    f"%{uni_api_filter}%"
+                ),
+                model.Document.JournalNumber.ilike(f"%{uni_api_filter}%"),
+                model.Document.UploadDocType.ilike(f"%{uni_api_filter}%"),
+                model.Document.store.ilike(f"%{uni_api_filter}%"),
+                model.Document.dept.ilike(f"%{uni_api_filter}%"),
+                model.Vendor.VendorName.ilike(f"%{uni_api_filter}%"),
+                model.Vendor.Address.ilike(f"%{uni_api_filter}%"),
+                model.DocumentSubStatus.status.ilike(f"%{uni_api_filter}%"),
+                inv_choice[inv_type][1].Account.ilike(f"%{uni_api_filter}%"),
+                # New condition: Check if any related DocumentLineItems.Value matches the filter
+                # exists().where(
+                #     (model.DocumentLineItems.documentID == model.Document.idDocument) &
+                #     (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
+                # )
+            )
+            data_query = data_query.filter(filter_condition)
+
+        # Get the total count of records before applying limit and offset
+        total_count = data_query.distinct(model.Document.idDocument).count()
+
+        # Pagination
+        offset, limit = off_limit
+        off_val = (offset - 1) * limit
+        if off_val < 0:
+            return Response(
+                status_code=403,
+                headers={"ClientError": "Please provide a valid offset value."},
+            )
+
+        # Apply pagination
+        Documentdata = (
+            data_query.order_by(model.Document.CreatedOn.desc())
+            .limit(limit)
+            .offset(off_val)
+            .all()
+        )
+
+        # If uni_api_filter exists, fetch line items
+        result = []
+        if uni_api_filter:
+            for doc_row in Documentdata:
+                document = doc_row.Document  # Access the Document model instance
+                inv_id = document.idDocument  # Extract document ID
+
+                # Fetch all related line item tag descriptions
+                doclinetags = (
+                    db.query(model.DocumentLineItemTags)
+                    .options(Load(model.DocumentLineItemTags).load_only("TagName"))
+                    .filter(
+                        model.DocumentLineItemTags.idDocumentLineItemTags.in_(
+                            db.query(model.DocumentLineItems.lineItemtagID)
+                            .filter_by(documentID=inv_id)
+                            .distinct()
+                        )
+                    )
+                    .all()
+                )
+
+                # For each line tag, fetch its associated line items and updates
+                for row in doclinetags:
+                    query = (
+                        db.query(model.DocumentLineItems, model.DocumentUpdates)
+                        .options(
+                            Load(model.DocumentLineItems).load_only(
+                                "Value",
+                                "IsUpdated",
+                                "isError",
+                                "ErrorDesc",
+                                "Xcord",
+                                "Ycord",
+                                "Width",
+                                "Height",
+                                "itemCode",
+                            ),
+                            Load(model.DocumentUpdates).load_only(
+                                "OldValue", "UpdatedOn"
+                            ),
+                        )
+                        .filter(
+                            model.DocumentLineItems.lineItemtagID
+                            == row.idDocumentLineItemTags,
+                            model.DocumentLineItems.documentID == inv_id,
+                        )
+                        .join(
+                            model.DocumentUpdates,
+                            model.DocumentUpdates.documentLineItemID
+                            == model.DocumentLineItems.idDocumentLineItems,
+                            isouter=True,
+                        )
+                        .filter(
+                            or_(
+                                model.DocumentLineItems.IsUpdated == 0,
+                                model.DocumentUpdates.IsActive == 1,
+                            )
+                        )
+                    )
+
+                    # Apply universal search filter for line items if necessary
+                    if uni_api_filter:
+                        query = query.filter(
+                            or_(
+                                model.DocumentLineItems.Value.ilike(
+                                    f"%{uni_api_filter}%"
+                                ),
+                                model.DocumentLineItems.ErrorDesc.ilike(
+                                    f"%{uni_api_filter}%"
+                                ),
+                            )
+                        )
+
+                    # Retrieve the line item data
+                    linedata = query.all()
+
+                    # Attach the line item data to the document
+                    row.linedata = linedata
+
+                # Attach the document with its line items and line tags to the result
+                result.append(
+                    {
+                        "document": doc_row,
+                        "lineitems": doclinetags,  # Attach all line tags and their items for this document
+                    }
+                )
+        else:
+            # If no uni_api_filter, just return document data without line items
+            result = [{"document": doc_row} for doc_row in Documentdata]
+        # Return paginated document data with line items
+        return {"ok": {"Documentdata": result, "TotalCount": total_count}}
+
+    except Exception as e:
+        print(traceback.format_exc())
+        # applicationlogging.logs_to_table_storage('readDocumentINVList API', traceback.format_exc(), u_id)
+        return Response(status_code=500)
     finally:
         db.close()
 
@@ -494,8 +800,7 @@ async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
         #         model.DocumentUpdates,
         #         model.DocumentUpdates.documentLineItemID == model.DocumentLineItems.idDocumentLineItems,
         #         isouter=True).filter(
-        # or_(model.DocumentLineItems.IsUpdated == 0,
-        # model.DocumentUpdates.IsActive == 1)).all()
+        #         or_(model.DocumentLineItems.IsUpdated == 0, model.DocumentUpdates.IsActive == 1)).all()
 
         #     row.linedata = linedata
 
@@ -535,8 +840,7 @@ async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
                 )
             )
 
-            # Apply the filter if uni_api_filter is present (before executing
-            # the query)
+            # Apply the filter if uni_api_filter is present (before executing the query)
             if uni_api_filter:
                 query = query.filter(
                     (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
@@ -561,9 +865,7 @@ async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
 
     except Exception as e:
         print("Error in line item :", traceback.format_exc())
-        return Response(
-            status_code=500, headers={"codeError": "Server Error"}, content=str(e)
-        )
+        return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()
 
@@ -616,16 +918,16 @@ async def read_invoice_file(u_id, inv_id, db):
                         content_type = "image/jpg"
                     else:
                         content_type = "application/pdf"
-                except BaseException:
-                    pass
+                except Exception as e:
+                    print(f"Error in file type : {e}")
                 invdat.docPath = base64.b64encode(blob_client.download_blob().readall())
-            except BaseException:
+            except:
                 invdat.docPath = ""
 
         return {"result": {"filepath": invdat.docPath, "content_type": content_type}}
 
     except Exception as e:
-        return Response(status_code=500, headers={"codeError": f"Server Error {e}"})
+        return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()
 
@@ -661,10 +963,8 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                 return Response(
                     status_code=403,
                     headers={"ClientError": "invoice and value mismatch"},
-                    content=str(e),
                 )
-            # to check if the document update table, already has rows present
-            # in it
+            # to check if the document update table, already has rows present in it
             inv_up_data_id = (
                 db.query(model.DocumentUpdates.idDocumentUpdates)
                 .filter_by(documentDataID=row.documentDataID)
@@ -723,8 +1023,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     db.query(model.Document).filter_by(
                         idDocument=tag_def_inv_id.documentID
                     ).update({doc_table_match[label]: data.NewValue})
-                # to update the document if header data is updated for service
-                # provider
+                # to update the document if header data is updated for service provider
                 if label in ser_doc_table_match.keys():
                     value = data.NewValue
                     if label == "Total Due Inc VAT":
@@ -748,9 +1047,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
         return {"result": "success"}
     except Exception as ex:
         db.rollback()
-        return Response(
-            status_code=500, headers={"Error": "Server error"}, content=str(ex)
-        )
+        return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
 
@@ -1012,7 +1309,7 @@ async def read_invoice_status_history(u_id, inv_id, db):
                 (
                     and_(
                         model.DocumentHistoryLogs.documentSubStatusID == 3,
-                        model.DocumentHistoryLogs.documentStatusID is None,
+                        model.DocumentHistoryLogs.documentStatusID == None,
                     ),
                     "OCR Error Corrected",
                 ),
@@ -1028,7 +1325,7 @@ async def read_invoice_status_history(u_id, inv_id, db):
                     model.DocumentHistoryLogs.documentStatusID == 6,
                     "Awaiting Edit Approval",
                 ),
-                (model.DocumentHistoryLogs.documentStatusID == 7, "Sent to ERP"),
+                (model.DocumentHistoryLogs.documentStatusID == 7, "Sent to PeopleSoft"),
                 (model.DocumentHistoryLogs.documentStatusID == 8, "Payment Cleared"),
                 (
                     model.DocumentHistoryLogs.documentStatusID == 9,
@@ -1210,7 +1507,7 @@ async def read_doc_history(inv_id, db):
                 (
                     and_(
                         model.DocumentHistoryLogs.documentSubStatusID == 3,
-                        model.DocumentHistoryLogs.documentStatusID is None,
+                        model.DocumentHistoryLogs.documentStatusID == None,
                     ),
                     "OCR Error Corrected",
                 ),
@@ -1284,8 +1581,7 @@ async def read_document_lock_status(u_id, inv_id, client_ip, db):
             lock_datetime = datetime.strptime(
                 lock_info[0]["lock_date_time"], "%Y-%m-%d %H:%M:%S"
             )
-            # if lock info not null, compare the lock session time, if lesser
-            # than current time reset info
+            # if lock info not null, compare the lock session time, if lesser than current time reset info
             if lock_datetime < current_datetime:
                 db.query(model.Document).filter_by(idDocument=inv_id).update(
                     {"lock_info": None, "lock_user_id": None}
@@ -1322,8 +1618,7 @@ async def update_document_lock_status(u_id, inv_id, session_datetime, db):
         )
         # session status value
         session_datetime = dict(session_datetime)
-        # if user id is not null or lock uid is some other user raise return
-        # response
+        # if user id is not null or lock uid is some other user raise return response
         if lock_uid and lock_uid != u_id:
             return Response(
                 status_code=403,
@@ -1514,20 +1809,17 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     )
                     continue
 
-                # Update the OldValue, stampvalue (new value), IsUpdated, and
-                # UpdatedOn
+                # Update the OldValue, stampvalue (new value), IsUpdated, and UpdatedOn
                 stamp_data.OldValue = old_value
                 stamp_data.stampvalue = new_value
                 stamp_data.IsUpdated = 1
                 stamp_data.UpdatedOn = dt
 
-                # Add the updated object to the list (it will be refreshed
-                # later)
+                # Add the updated object to the list (it will be refreshed later)
                 updated_records.append(stamp_data)
 
             except SQLAlchemyError as e:
-                # Catch any SQLAlchemy-specific error during the update of a
-                # single record
+                # Catch any SQLAlchemy-specific error during the update of a single record
                 updated_records.append(
                     {
                         "stamptagname": stamptagname,

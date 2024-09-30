@@ -1,3 +1,4 @@
+import os
 import traceback
 from datetime import datetime, timedelta
 
@@ -6,15 +7,8 @@ from fastapi.responses import Response
 from sqlalchemy import and_, case, func
 from sqlalchemy.orm import load_only
 
-try:
-    import model as models
-except ImportError:
-    from .. import model as models
+import pfg_app.model as models
 
-import os
-import sys
-
-sys.path.append("..")
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
 

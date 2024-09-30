@@ -3,10 +3,11 @@ import json
 from io import BytesIO
 
 import requests
-from core.config import settings
-from core.utils import get_credential
-from logger_module import logger
 from pdf2image import convert_from_bytes
+
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
+from pfg_app.logger_module import logger
 
 
 def get_open_ai_token():

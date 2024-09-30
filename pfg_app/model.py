@@ -1,4 +1,3 @@
-from session.session import Base
 from sqlalchemy import (
     JSON,
     TEXT,
@@ -13,6 +12,9 @@ from sqlalchemy import (
     SmallInteger,
     String,
 )
+from sqlalchemy.dialects.postgresql import JSONB
+
+from pfg_app.session.session import Base
 
 # from sqlalchemy.ext.automap import automap_base
 # from sqlalchemy import MetaData
@@ -534,7 +536,7 @@ class Vendor(Base):
     entityID = Column(Integer, nullable=True)
     Synonyms = Column(String(100), nullable=True)
     vendorType = Column(String(100), nullable=True)
-    miscellaneous = Column(JSON, nullable=True)
+    miscellaneous = Column(JSONB, nullable=True)
 
     # __mapper_args__ = {"eager_defaults": True}
 
@@ -1344,7 +1346,7 @@ class PFGReceipt(Base):
     RECV_STATUS = Column(String(1), nullable=True)
     RECV_LN_NBR = Column(Integer, nullable=True)
     RECV_SHIP_SEQ_NBR = Column(Integer, nullable=True)
-    DISTRIB_LN_NUM = Column(Integer, nullable=True)
+    DISTRIB_LINE_NUM = Column(Integer, nullable=True)
     MERCHANDISE_AMT = Column(Float, nullable=True)
     ACCOUNT = Column(String(10), nullable=True)
     DEPTID = Column(String(10), nullable=True)
@@ -1365,6 +1367,20 @@ class StampData(Base):
     storenumber = Column(String, nullable=True)
 
 
+class StampDataValidation(Base):
+    __tablename__ = "stampdatavalidation"
+    StampDataValidationID = Column(Integer, primary_key=True, autoincrement=True)
+    documentid = Column(Integer, nullable=False)
+    stamptagname = Column(String, nullable=True)
+    stampvalue = Column(String, nullable=True)
+    is_error = Column(Integer, nullable=True)
+    IsUpdated = Column(Integer, nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    UpdatedOn = Column(DateTime, nullable=True)
+    OldValue = Column(String, nullable=True)
+    errordesc = Column(String, nullable=True)
+
+
 class frtrigger_tab(Base):
     __tablename__ = "frtrigger_tab"
     frtrigger_id = Column(Integer, primary_key=True, autoincrement=True)
@@ -1377,6 +1393,7 @@ class frtrigger_tab(Base):
     status = Column(String, nullable=True)
     timestamp = Column(DateTime, nullable=True)
     sender = Column(String, nullable=True)
+    docstatus_sync = Column(JSON, nullable=True)
 
 
 # Vendor Table
@@ -1428,3 +1445,34 @@ class VendorAccount3(Base):
     LocationCode = Column(String(45), nullable=True)
     CreatedOn = Column(DateTime, nullable=True)
     UpdatedOn = Column(DateTime, nullable=True)
+
+
+class VoucherData(Base):
+    __tablename__ = "voucherdata"
+    voucherdataID = Column(Integer, primary_key=True, autoincrement=True)
+    documentID = Column(Integer, nullable=False)
+    Business_unit = Column(String(5), nullable=True)
+    Invoice_Id = Column(String(30), nullable=True)
+    Invoice_Dt = Column(String(10), nullable=True)
+    Vendor_Setid = Column(String(5), nullable=True)
+    Vendor_ID = Column(String(10), nullable=True)
+    Origin = Column(String(10), nullable=True)
+    Gross_Amt = Column(Float, nullable=True)
+    Voucher_Line_num = Column(Integer, nullable=True)
+    Merchandise_Amt = Column(Float, nullable=True)
+    Distrib_Line_num = Column(Integer, nullable=True)
+    Account = Column(String(10), nullable=True)
+    Deptid = Column(String(10), nullable=True)
+    Image_Nbr = Column(Integer, nullable=True)
+    File_Name = Column(String, nullable=True)
+
+
+class NonintegratedStores(Base):
+    __tablename__ = "nonintegrated_stores"
+
+    nonintegrated_id = Column(Integer, primary_key=True, index=True)
+    store_name = Column(String(345), nullable=True)
+    store_number = Column(Integer, nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    updated_on = Column(DateTime, nullable=True)
+    created_by = Column(String(145), nullable=True)

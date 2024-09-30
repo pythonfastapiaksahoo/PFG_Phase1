@@ -1,11 +1,9 @@
-import sys
 import time
 
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-from FROps.upload import reupload_files_to_azure
 
-sys.path.append("..")
+from pfg_app.FROps.upload import reupload_files_to_azure
 
 credential = DefaultAzureCredential()
 ts = str(time.time())

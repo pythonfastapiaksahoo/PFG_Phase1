@@ -2,23 +2,21 @@ import datetime
 import json
 import os
 import re
-import sys
 from collections import Counter
 
 import pandas as pd
-from sqlalchemy import join
-
-sys.path.append("..")
-import model
 import pytz as tz
-from FROps.stampData import VndMatchFn
 
 # SQL_DB = SCHEMA
 from fuzzywuzzy import fuzz
-from logger_module import logger
-from session import SCHEMA, SQLALCHEMY_DATABASE_URL
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sqlalchemy import join
+
+import pfg_app.model as model
+from pfg_app.FROps.stampData import VndMatchFn
+from pfg_app.logger_module import logger
+from pfg_app.session import SCHEMA, SQLALCHEMY_DATABASE_URL
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
@@ -374,7 +372,7 @@ def cln_amt(amt):
         cl_amt = amt
     try:
         cl_amt = round(cl_amt, 2)
-    except Exception:
+    except:
         cl_amt = amt
     return cl_amt
 
@@ -1577,7 +1575,7 @@ def postpro(
                     doc_VendorAddress = dt["header"][tg]["data"]["value"]
 
             except Exception as e:
-                print(str(e))
+                print(f"Except in vendor name and address: {str(e)}")
 
             if subtotal_Cal == 1:
                 if dt["header"][tg]["tag"] == "InvoiceTotal":

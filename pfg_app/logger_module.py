@@ -1,9 +1,10 @@
 import logging
 import os
 
-from core.config import settings
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 from opencensus.trace import execution_context
+
+from pfg_app import settings
 
 
 class TraceIdFilter(logging.Filter):

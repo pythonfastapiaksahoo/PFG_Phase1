@@ -1,27 +1,22 @@
-# from model import Vendor
-# some_file.py
-
-from azuread import config
-from core.config import settings
 from fastapi import FastAPI, Request
 
 # from dependency.dependencies import get_query_token, get_token_header
 from fastapi.middleware.cors import CORSMiddleware
-from logger_module import logger
 from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.trace import execution_context
 from opencensus.trace.propagation.trace_context_http_header_format import (
     TraceContextPropagator,
 )
-from routers import (  # maillistener,
+
+from pfg_app import settings
+from pfg_app.logger_module import logger
+from pfg_app.routers import (  # maillistener,
     FR,
     OCR,
     ERPIntegrationapi,
-    VendorPortal,
     batchexception,
     invoice,
     modelonboarding,
-    summary,
     vendor,
 )
 
@@ -32,8 +27,8 @@ app = FastAPI(
     swagger_ui_oauth2_redirect_url="/oauth2-redirect",
     swagger_ui_init_oauth={
         "usePkceWithAuthorizationCodeGrant": True,
-        "clientId": config.SWAGGER_UI_CLIENT_ID,
-        "scopes": [f"api://{config.API_CLIENT_ID}/access_as_user"],
+        "clientId": settings.swagger_ui_client_id,
+        "scopes": [f"api://{settings.api_client_id}/access_as_user"],
     },
 )
 
@@ -79,8 +74,6 @@ app.include_router(invoice.router)
 app.include_router(FR.router)
 app.include_router(OCR.router)
 app.include_router(modelonboarding.router)
-app.include_router(VendorPortal.router)
-app.include_router(summary.router)
 app.include_router(ERPIntegrationapi.router)
 app.include_router(batchexception.router)
 
@@ -93,7 +86,7 @@ async def app_startup():
     # # Load the files as BytesIO from TestData
     # import os, tempfile
     # from io import BytesIO
-    # from PyPDF2 import PdfReader, PdfWriter
+    # from pypdf import PdfReader, PdfWriter
 
     # for pdf in os.listdir("TestData"):
     #     data_list = []
@@ -116,7 +109,7 @@ async def app_startup():
     #             data_list.append(temp_file.read())
     #         # call azure fr
     #     from core.azure_fr import get_fr_data
-    #     from core.config import settings
+    #     from pfg_app import settings
     #     result = get_fr_data(
     #         inputdata_list=data_list,
     #         API_version=settings.api_version,
