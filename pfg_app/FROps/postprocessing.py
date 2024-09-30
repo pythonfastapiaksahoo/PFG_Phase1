@@ -123,7 +123,7 @@ def date_cnv(doc_date, date_format):
                 req_date = yy + "-" + mm + "-" + dd
                 date_status = 1
             elif len(doc_dt_slt) == 2:
-                date_res = re.split("([-+]?\d+\.\d+)|([-+]?\d+)", doc_date.strip())
+                date_res = re.split(r"([-+]?\d+\.\d+)|([-+]?\d+)", doc_date.strip())
                 res_f = [
                     r.strip() for r in date_res if r is not None and r.strip() != ""
                 ]
@@ -184,7 +184,7 @@ def date_cnv(doc_date, date_format):
                 date_status = 1
             elif len(doc_dt_slt) == 2:
                 date_res = re.split(
-                    "([-+/]?!S)|([-+]?\d+\.\d+)|([-+/]?\d+)", doc_date.strip()
+                    r"([-+/]?!S)|([-+]?\d+\.\d+)|([-+/]?\d+)", doc_date.strip()
                 )
                 res_f = [
                     r.strip() for r in date_res if r is not None and r.strip() != ""
@@ -248,7 +248,7 @@ def date_cnv(doc_date, date_format):
 
 def po_cvn(po_extracted, entityID):
 
-    po_extracted_cln = re.sub("\W+", "", po_extracted)
+    po_extracted_cln = re.sub(r"\W+", "", po_extracted)
 
     # po_extracted1 = po_extracted_cln[:11]
 
@@ -357,14 +357,14 @@ def cln_amt(amt):
         amt = amt_cpy
 
     if len(amt) > 0:
-        if len(re.findall("\d+\,\d+\d+\.\d+", amt)) > 0:
-            cl_amt = re.findall("\d+\,\d+\d+\.\d+", amt)[0]
+        if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
             cl_amt = float(cl_amt.replace(",", ""))
-        elif len(re.findall("\d+\.\d+", amt)) > 0:
-            cl_amt = re.findall("\d+\.\d+", amt)[0]
+        elif len(re.findall(r"\d+\.\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+\.\d+", amt)[0]
             cl_amt = float(cl_amt)
-        elif len(re.findall("\d+", amt)) > 0:
-            cl_amt = re.findall("\d+", amt)[0]
+        elif len(re.findall(r"\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+", amt)[0]
             cl_amt = float(cl_amt)
         else:
             cl_amt = amt

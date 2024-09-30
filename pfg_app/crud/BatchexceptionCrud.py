@@ -2374,14 +2374,14 @@ def prepare_inv_header_data(header_data):
 def cln_amt(amt):
     amt = str(amt)
     if len(amt) > 0:
-        if len(re.findall("\d+\,\d+\d+\.\d+", amt)) > 0:
-            cl_amt = re.findall("\d+\,\d+\d+\.\d+", amt)[0]
+        if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
             cl_amt = float(cl_amt.replace(",", ""))
-        elif len(re.findall("\d+\.\d+", amt)) > 0:
-            cl_amt = re.findall("\d+\.\d+", amt)[0]
+        elif len(re.findall(r"\d+\.\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+\.\d+", amt)[0]
             cl_amt = float(cl_amt)
-        elif len(re.findall("\d+", amt)) > 0:
-            cl_amt = re.findall("\d+", amt)[0]
+        elif len(re.findall(r"\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+", amt)[0]
             cl_amt = float(cl_amt)
         else:
             cl_amt = amt
