@@ -14,7 +14,7 @@ from pfg_app.schemas.ERPIntegrationSchema import (
     PFGStore,
     PFGVendor,
 )
-from pfg_app.session import get_db
+from pfg_app.session.session import get_db
 
 auth_handler = AuthHandler()
 

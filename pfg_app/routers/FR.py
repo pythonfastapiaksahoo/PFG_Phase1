@@ -19,7 +19,7 @@ from pfg_app.FROps.model_validate import model_validate_final
 from pfg_app.FROps.reupload import reupload_file_azure
 from pfg_app.FROps.upload import upload_files_to_azure
 from pfg_app.schemas import FRSchema as schema
-from pfg_app.session import get_db
+from pfg_app.session.session import get_db
 
 auth_handler = AuthHandler()
 

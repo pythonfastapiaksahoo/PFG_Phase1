@@ -6,7 +6,7 @@ from sqlalchemy.orm import scoped_session
 import pfg_app.model as models
 from pfg_app.logger_module import logger
 from pfg_app.schemas import permissionssm
-from pfg_app.session import Session
+from pfg_app.session.session import Session
 
 
 def get_db():

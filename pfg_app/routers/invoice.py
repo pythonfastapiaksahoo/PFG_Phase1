@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from pfg_app.azuread.auth import get_user
 from pfg_app.crud import InvoiceCrud as crud
 from pfg_app.schemas import InvoiceSchema as schema
-from pfg_app.session import get_db
+from pfg_app.session.session import get_db
 
 router = APIRouter(
     prefix="/apiv1.1/Invoice",

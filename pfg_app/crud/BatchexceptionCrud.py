@@ -11,7 +11,7 @@ from fastapi.responses import Response
 from sqlalchemy import and_, case, or_
 from sqlalchemy.orm import Load, Session, load_only
 
-from pfg_app.session import DB, SQLALCHEMY_DATABASE_URL, engine
+from pfg_app.session.session import DB, SQLALCHEMY_DATABASE_URL, engine
 
 credential = DefaultAzureCredential()
 import json

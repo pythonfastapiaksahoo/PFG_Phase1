@@ -15,7 +15,7 @@ from sqlalchemy import join
 import pfg_app.model as model
 from pfg_app.FROps.stampData import VndMatchFn
 from pfg_app.logger_module import logger
-from pfg_app.session import SCHEMA, SQLALCHEMY_DATABASE_URL
+from pfg_app.session.session import SCHEMA, SQLALCHEMY_DATABASE_URL
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)

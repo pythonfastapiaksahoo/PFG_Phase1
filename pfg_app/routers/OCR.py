@@ -31,7 +31,7 @@ from pfg_app.FROps.stampData import is_valid_date
 from pfg_app.logger_module import logger
 
 # from logModule import email_sender
-from pfg_app.session import SQLALCHEMY_DATABASE_URL, get_db
+from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 
 # model.Base.metadata.create_all(bind=engine)
 auth_handler = AuthHandler()

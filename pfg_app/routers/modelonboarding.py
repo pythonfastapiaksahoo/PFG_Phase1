@@ -26,7 +26,7 @@ from pfg_app.FROps import form_recognizer as fr
 from pfg_app.FROps import util as ut
 from pfg_app.logger_module import logger
 from pfg_app.schemas import InvoiceSchema as schema
-from pfg_app.session import get_db
+from pfg_app.session.session import get_db
 
 credential = DefaultAzureCredential()
 
