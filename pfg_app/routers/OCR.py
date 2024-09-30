@@ -496,7 +496,7 @@ def runStatus(
                                     ReceivingDate = StampDataList[splt_map[fl]][
                                         "ReceivingDate"
                                     ]
-                                    if is_valid_date(ReceivingDate) == True:
+                                    if is_valid_date(ReceivingDate):
                                         RevDateCk_isErr = 0
                                         RevDateCk_msg = ""
                                     else:
@@ -967,7 +967,7 @@ def live_model_fn_1(generatorObj):
         ):
             valid_file = True
 
-        if valid_file == True:
+        if valid_file:
             pass
             # live_model_status = 0  # TODO: Unused variable
             # live_model_msg = "Please upload jpg or pdf file"  # TODO: Unused variable
@@ -996,7 +996,7 @@ def live_model_fn_1(generatorObj):
             )
         )
 
-        if isComposed == False:
+        if not isComposed:
             modelID = modelDetails[-1]["IdDocumentModel"]
         else:
             # modeldict = next(x for x in modelDetails if x["modelName"].lower() == template.lower())

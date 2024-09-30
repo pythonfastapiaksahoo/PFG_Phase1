@@ -240,7 +240,7 @@ def date_cnv(doc_date, date_format):
             correctDate = True
         except ValueError:
             correctDate = False
-        if correctDate == False:
+        if not correctDate:
             date_status = 0
 
     return req_date, date_status
@@ -1364,7 +1364,7 @@ def postpro(
                 if skp_tab_mand_ck == 1:
                     missing_rw_tab = []
                 else:
-                    if set(mandatory_tab_col).issubset(set(prst_rw_val)) == False:
+                    if not set(mandatory_tab_col).issubset(set(prst_rw_val)):
                         missing_rw_tab = list(set(mandatory_tab_col) - set(prst_rw_val))
 
                     for mis_rw_val in missing_rw_tab:
@@ -1793,7 +1793,7 @@ def postpro(
         except Exception as e:
             logger.error(f"postpro line 1347: {str(e)}")
             # (str(e))
-        if set(mandatory_header).issubset(set(present_header)) == False:
+        if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
         for msg_itm_ck in missing_header:
             # notification missing header = msg_itm_ck

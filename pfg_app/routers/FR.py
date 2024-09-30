@@ -197,7 +197,7 @@ async def update_metadata(
                 )
                 labjson = json.loads(blob)
                 for line in labjson["labels"]:
-                    if line["label"].startswith("tab_1") == False:
+                    if not line["label"].startswith("tab_1"):
                         if (
                             line["label"] not in mandatoryheadertags
                             and line["label"] not in optionalheadertags

@@ -31,7 +31,7 @@ def model_validate(
         tag_list = []
 
         field_acc_status = 1
-        if data["modelInfo"] and data["modelInfo"]["attributes"]["isComposed"] == True:
+        if data["modelInfo"] and data["modelInfo"]["attributes"]["isComposed"]:
             key = "composedTrainResults"
             if key in data:
                 index = next(
@@ -111,7 +111,7 @@ def model_validate(
                 model_validate_status = 0
                 # model_validate_msg = "Model is rejected"
         else:
-            if set(mand_fld_list).issubset(set(tag_list)) == True:
+            if set(mand_fld_list).issubset(set(tag_list)):
                 mand_fld_list_status = 1
             else:
                 mand_fld_list_status = 0
