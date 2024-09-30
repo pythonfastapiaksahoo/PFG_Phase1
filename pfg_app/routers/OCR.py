@@ -2,6 +2,7 @@
 import json
 import os
 import time
+import traceback
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -152,8 +153,8 @@ def runStatus(
             grp_pages = sorted(grp_pages)
             for spltInv in grp_pages:
                 vectorizer = TfidfVectorizer()
-                hdr = [spltInv[0] - 1][0]
-                ltPg = [spltInv[1] - 1][0]
+                # hdr = [spltInv[0] - 1][0]  # TODO: Unused variable
+                # ltPg = [spltInv[1] - 1][0]  # TODO: Unused variable
                 vdrFound = 0
                 spltFileName = splitfileNames[splt_map[fl]]
                 try:
@@ -185,7 +186,7 @@ def runStatus(
                     stamp_inv_vendorName = ""
 
                 try:
-                    output_data = rwOcrData[hdr]
+                    # output_data = rwOcrData[hdr]  # TODO: Unused variable
 
                     spltFileName = splitfileNames[fl]
                     try:
@@ -347,8 +348,8 @@ def runStatus(
 
                         logger.info(f"got Model {modelData}, model Name {modelData}")
                         ruledata = getRuleData(modelData.idDocumentModel, db)
-                        folder_name = modelData.folderPath
-                        id_check = modelData.idDocumentModel
+                        # folder_name = modelData.folderPath  # TODO: Unused variable
+                        # id_check = modelData.idDocumentModel  # TODO: Unused variable
 
                         entityBodyID = 1
                         file_size_accepted = 100
@@ -824,6 +825,7 @@ def runStatus(
 
 def nomodelfound():
     current_status = {"percentage": 0, "status": "Model not Found!"}
+    return current_status
     # yield {
     #     "event": "end",
     #     "data": json.dumps(current_status)
@@ -893,7 +895,8 @@ def getOcrParameters(customerID, db):
             .first()
         )
         return configs
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"DB Error": "Failed to get OCR parameters"}
         )
@@ -904,7 +907,7 @@ def live_model_fn_1(generatorObj):
     logger.info("live_model_fn_1 started")
     # spltFileName = generatorObj['spltFileName']
     file_path = generatorObj["file_path"]
-    container = generatorObj["containername"]
+    # container = generatorObj["containername"]  # TODO: Unused variable
     API_version = generatorObj["API_version"]
     endpoint = generatorObj["endpoint"]
     inv_model_id = generatorObj["inv_model_id"]
@@ -922,7 +925,7 @@ def live_model_fn_1(generatorObj):
     sender = generatorObj["sender"]
     db = generatorObj["db"]
     source = generatorObj["source"]
-    pdf_data_bytes = generatorObj["pdf_stream"]
+    # pdf_data_bytes = generatorObj["pdf_stream"]  # TODO: Unused variable
     fr_data = {}
     spltFileName = generatorObj["spltFileName"]
     vendorAccountID = generatorObj["vendorAccountID"]
@@ -966,8 +969,9 @@ def live_model_fn_1(generatorObj):
             valid_file = True
 
         if valid_file == True:
-            live_model_status = 0
-            live_model_msg = "Please upload jpg or pdf file"
+            pass
+            # live_model_status = 0  # TODO: Unused variable
+            # live_model_msg = "Please upload jpg or pdf file"  # TODO: Unused variable
         model_type = "custom"
 
         cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
@@ -1087,8 +1091,8 @@ def live_model_fn_1(generatorObj):
                     # {"DB error": "Error while inserting data"}
 
                 db.close()
-                live_model_status = 1
-                live_model_msg = "Data extracted"
+                # live_model_status = 1  # TODO: Unused variable
+                # live_model_msg = "Data extracted"  # TODO: Unused variable
                 current_status = {"percentage": 75, "status": "Post-Processing ⌛"}
                 # print("current_status: line 466: ",current_status)
                 logger.info(f"current_status: line 466: {current_status}")
@@ -1099,8 +1103,8 @@ def live_model_fn_1(generatorObj):
 
                 logger.info(f"current_status: line 479:{current_status}")
             else:
-                live_model_status = 0
-                live_model_msg = postprocess_status
+                # live_model_status = 0  # TODO: Unused variable
+                # live_model_msg = postprocess_status  # TODO: Unused variable
                 current_status = {"percentage": 75, "status": postprocess_msg}
                 # print("current_status: line 521: ", current_status)
                 logger.info(f"current_status: line 521:{current_status}")
@@ -1116,22 +1120,26 @@ def live_model_fn_1(generatorObj):
 
             logger.info(f"current_status: line 529: {current_status}")
             if cst_status != "succeeded":
-                live_model_status = 0
-                live_model_msg = cst_model_msg
+                pass
+                # live_model_status = 0  # TODO: Unused variable
+                # live_model_msg = cst_model_msg  # TODO: Unused variable
             elif pre_status != "succeeded":
-                live_model_status = 0
-                live_model_msg = pre_model_msg
+                pass
+                # live_model_status = 0  # TODO: Unused variable
+                # live_model_msg = pre_model_msg  # TODO: Unused variable
             elif pre_status == cst_status != "succeeded":
-                live_model_status = 0
-                live_model_msg = (
-                    "Custom model: "
-                    + cst_model_msg
-                    + ". Prebuilt Model: "
-                    + pre_model_msg
-                )
+                pass
+                # live_model_status = 0  # TODO: Unused variable
+                # live_model_msg = (
+                #     "Custom model: "
+                #     + cst_model_msg
+                #     + ". Prebuilt Model: "
+                #     + pre_model_msg
+                # )  # TODO: Unused variable
             else:
-                live_model_status = 0
-                live_model_msg = "Azure FR api issue"
+                pass
+                # live_model_status = 0  # TODO: Unused variable
+                # live_model_msg = "Azure FR api issue"  # TODO: Unused variable
 
     else:
         pass
@@ -1171,7 +1179,8 @@ def push_frdata(
             poNumber = list(
                 filter(lambda d: d["tag"] == "PurchaseOrder", data["header"])
             )[0]["data"]["value"]
-        except Exception as e:
+        except Exception:
+            logger.error(traceback.format_exc())
             poNumber = ""
     # resp = requests.get(filepath)
     # file_content = BytesIO(resp.content).getvalue()
@@ -1343,7 +1352,8 @@ def parse_labels(label_data, db, poNumber, modelID):
                 doc_header[docLabelMap[label["tag"]]] = label["data"]["value"]
             data_to_add.append(db_data)
         return data_to_add, doc_header, error_labels_tag_ids
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return {"DB error": "Error while inserting document data"}
 
 
@@ -1410,6 +1420,7 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         db.add(model.DocumentHistoryLogs(**docHistory))
         db.commit()
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         db.rollback()
         return {"DB error": "Error while inserting document history"}

@@ -140,10 +140,6 @@ def splitDoc(
     subfolder_name,
     destination_container_name,
     prompt,
-    # deployment_name,
-    # OpenAI_api_base,
-    # OpenAI_api_key,
-    # openAI_api_version,
     fr_endpoint,
     fr_api_version,
 ):
@@ -172,11 +168,7 @@ def splitDoc(
     # invoice_ids = [result["analyzeResult"]["documents"][
     #             0]["fields"]["InvoiceId"]["content"] for result in output_data]
 
-    cnt = 0
     pageInvoDate = {}
-    data_1 = []
-    subtotal_conf = {}
-    invocieID_conf = {}
 
     pageInvoDate = {}
     try:

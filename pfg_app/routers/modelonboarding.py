@@ -24,6 +24,7 @@ from pfg_app.azuread.auth import get_admin_user
 from pfg_app.crud import ModelOnBoardCrud as crud
 from pfg_app.FROps import form_recognizer as fr
 from pfg_app.FROps import util as ut
+from pfg_app.logger_module import logger
 from pfg_app.schemas import InvoiceSchema as schema
 from pfg_app.session import get_db
 
@@ -380,7 +381,8 @@ async def create_result(request: Request, db: Session = Depends(get_db)):
         docid = req_body["docid"]
         create_result = crud.updateTrainingResult(docid, fr_result, db)
         return {"message": create_result}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return {"message": "exception"}
     finally:
         db.close()
@@ -440,8 +442,8 @@ async def create_result_compose_result(request: Request, db: Session = Depends(g
                 crud.createOrUpdateComposeModel(req_body, db)
 
         return {"message": "success"}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return {"message": "exception"}
     finally:
         db.close()
@@ -577,7 +579,8 @@ def getOcrParameters(customerID, db):
             .first()
         )
         return configs
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"DB Error": "Failed to get OCR parameters"}
         )
@@ -856,8 +859,8 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
 
         savelabelsfile(labels_json, document_name, db)
 
-    except Exception as ex:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
 
 
 def getlabels(filedata, document_name, db, keyfields, ocr_engine):
@@ -1000,5 +1003,5 @@ def savelabelsfile(json_string, filename, db):
         json_string = json.dumps(json_string)
         blob_client.upload_blob(json_string, overwrite=True)
         print(f"saved: {filename+'.labels.json'}")
-    except Exception as ex:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())

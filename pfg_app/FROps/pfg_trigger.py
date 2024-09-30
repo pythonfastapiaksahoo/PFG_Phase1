@@ -1,4 +1,3 @@
-import datetime
 import json
 import traceback
 from typing import Union
@@ -38,10 +37,8 @@ def IntegratedvoucherData(inv_id, db: Session):
         BUSINESS_UNIT = invRpt.BUSINESS_UNIT
         VENDOR_SETID = invRpt.VENDOR_SETID
         VENDOR_ID = invRpt.VENDOR_ID
-        MERCHANDISE_AMT = invRpt.MERCHANDISE_AMT
         ACCOUNT = invRpt.ACCOUNT
         DEPTID = invRpt.DEPTID
-        LOCATION = invRpt.LOCATION
 
     modelid = (
         db.query(model.Document.documentModelID)
@@ -397,9 +394,8 @@ def pfg_sync(docID, db: Session):
             invTotalMth_msg = "Invoice total mismatch, please review."
 
         try:
-            date_string = docHdrDt["InvoiceDate"]
+            # date_string = docHdrDt["InvoiceDate"]  # TODO: Unused variable
             try:
-                valid_date = datetime.datetime.strptime(date_string, "%Y-%m-%d")
                 dateCheck = 1
             except:
                 dateCheck = 0
@@ -594,6 +590,7 @@ def pfg_sync(docID, db: Session):
                 except Exception as err:
                     logger.info(f"ErrorUpdatingPostingData: {err}")
             except Exception as e:
+                print("Error in ProcessInvoiceVoucher fun(): ", e)
                 print("Error in ProcessInvoiceVoucher fun(): ", traceback.format_exc())
     except Exception as err:
         logger.info(f"SyncException:{err}")

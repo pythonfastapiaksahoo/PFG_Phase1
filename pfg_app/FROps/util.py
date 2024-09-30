@@ -67,6 +67,7 @@ def rotate_custom(image, angle, center=None, scale=1.0):
 
         return rotated
     except Exception as e:
+        print(f"exception in rotate_custom {e}")
         return image
 
 

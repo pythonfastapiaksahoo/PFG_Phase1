@@ -110,7 +110,7 @@ def VndMatchFn(vndMth_prompt, client):
 
 def is_valid_date(date_string):
     try:
-        parsed_date = parser.parse(date_string)
+        parser.parse(date_string)
         return True
     except (ValueError, OverflowError):
         return False

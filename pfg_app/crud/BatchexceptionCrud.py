@@ -25,6 +25,7 @@ import pandas as pd
 from sqlalchemy.exc import SQLAlchemyError
 
 import pfg_app.model as model
+from pfg_app.logger_module import logger
 
 po_tag_map = {
     "PurchQty": "Quantity",
@@ -154,6 +155,7 @@ async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
             print("Invalid Document id", inv_id)
 
     except Exception as e:
+        logger.error(f"Error in switch_data: {e}")
         return Response(status_code=500)
 
 
@@ -523,6 +525,7 @@ async def update_entity(
                 db.commit()
 
     except Exception as e:
+        logger.error(f"Error in update_entity: {e}")
         return Response(status_code=500)
 
 
@@ -700,6 +703,7 @@ async def readbatchprocessdetails(u_id: int, db: Session):
 
         return data
     except Exception as e:
+        logger.error(f"Error in readbatchprocessdetails: {e}")
         print(traceback.format_exc())
         return Response(status_code=500)
     finally:
@@ -759,6 +763,7 @@ async def send_to_batch_approval(u_id: int, rule_id: int, inv_id: int, db: Sessi
         db.commit()
         return {"result": "success"}
     except Exception as e:
+        logger.error(f"Error in send_to_batch_approval: {e}")
         return Response(status_code=500)
 
 
@@ -777,6 +782,7 @@ async def send_to_manual_approval(u_id: int, inv_id: int, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
+        logger.error(f"Error in send_to_manual_approval: {e}")
         return Response(status_code=500)
 
 
@@ -851,6 +857,7 @@ async def readbatchprocessdetailsAdmin(u_id: int, db: Session):
 
         return data
     except Exception as e:
+        logger.error(f"Error in readbatchprocessdetailsAdmin: {e}")
         return Response(status_code=500)
 
 
@@ -867,11 +874,11 @@ async def send_to_batch_approval_Admin(u_id: int, inv_id: int, db: Session):
             sub_status_idt = 75
         else:
             sub_status_idt = 24
-        sub_status_id = (
-            db.query(model.DocumentSubStatus.idDocumentSubstatus)
-            .filter(model.DocumentSubStatus.status == "Batch Edit Approved")
-            .one()
-        )
+        # sub_status_id = (
+        #     db.query(model.DocumentSubStatus.idDocumentSubstatus)
+        #     .filter(model.DocumentSubStatus.status == "Batch Edit Approved")
+        #     .one()
+        # )  # TODO: Unused variable
 
         db.query(model.Document).filter_by(idDocument=inv_id).update(
             {"documentsubstatusID": sub_status_idt, "documentStatusID": 1}
@@ -882,6 +889,7 @@ async def send_to_batch_approval_Admin(u_id: int, inv_id: int, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
+        logger.error(f"Error in send_to_batch_approval_Admin: {e}")
         return Response(status_code=500)
 
 
@@ -900,6 +908,7 @@ async def send_to_manual_approval_Admin(u_id: int, inv_id: int, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
+        logger.error(f"Error in send_to_manual_approval_Admin: {e}")
         return Response(status_code=500)
 
 
@@ -959,6 +968,7 @@ async def readInvokebatchsummary(u_id: int, db: Session):
 
         return data
     except Exception as e:
+        logger.error(f"Error in readInvokebatchsummary: {e}")
         return Response(status_code=500)
 
 
@@ -976,15 +986,15 @@ async def readfinancialapprovalsummary(u_id: int, db: Session):
             .filter_by(UserID=u_id, isActive=1)
             .distinct()
         )
-        sub_status = (
-            db.query(model.DocumentSubStatus.idDocumentSubstatus)
-            .filter(
-                model.DocumentSubStatus.status.in_(
-                    ["System Check", "Batch Edit Approved", "Manual Check Approved"]
-                )
-            )
-            .distinct()
-        )
+        # sub_status = (
+        #     db.query(model.DocumentSubStatus.idDocumentSubstatus)
+        #     .filter(
+        #         model.DocumentSubStatus.status.in_(
+        #             ["System Check", "Batch Edit Approved", "Manual Check Approved"]
+        #         )
+        #     )
+        #     .distinct()
+        # )  # TODO: Unused variable
         approval_type = case(
             [
                 (model.DocumentSubStatus.idDocumentSubstatus == 5, "Batch Approval"),
@@ -1016,6 +1026,7 @@ async def readfinancialapprovalsummary(u_id: int, db: Session):
 
         return data1
     except Exception as e:
+        logger.error(f"Error in readfinancialapprovalsummary: {e}")
         return Response(status_code=500)
 
 
@@ -1297,6 +1308,7 @@ async def test_batchdata(u_id: int, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
+        logger.error(f"Error in test_batchdata: {e}")
         return Response(status_code=500)
 
 
@@ -1412,6 +1424,7 @@ async def readlinedatatest(u_id: int, inv_id: int, db: Session):
         }
 
     except Exception as e:
+        logger.error(f"Error in readlinedatatest: {e}")
         print(traceback.format_exc())
         return Response(status_code=500)
 
@@ -1481,6 +1494,7 @@ async def readinvoicefilepath(u_id: int, inv_id: int, db: Session):
         return {"filepath": invdat.docPath, "content_type": content_type}
 
     except Exception as e:
+        logger.error(f"Error in readinvoicefilepath: {e}")
         return Response(status_code=500)
 
 
@@ -1495,6 +1509,7 @@ async def update_po_number(inv_id: int, po_num: str, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
+        logger.error(f"Error in update_po_number: {e}")
         return Response(status_code=500)
 
 
@@ -1527,6 +1542,7 @@ async def get_all_itemcode(inv_id: int, db: Session):
 
         return {"description": all_description}
     except Exception as e:
+        logger.error(f"Error in get_all_itemcode: {e}")
         return Response(status_code=500)
 
 
@@ -1789,7 +1805,7 @@ async def get_po_line_items(u_id, inv_id, po_number, db):
             po_lines_dict.append(data)
         return {"Po_line_details": po_lines_dict}
     except SQLAlchemyError as e:
-        error_msg = e
+        logger.error(e)
         traceback.print_exc()
         return Response(status_code=500)
     finally:
@@ -2001,6 +2017,7 @@ def get_invoiceTotal(inv_id, db):
             inv_subtotal = inv_total - inv_tax
         return inv_subtotal
     except SQLAlchemyError as e:
+        logger.error(e)
         traceback.print_exc()
         print("error fetching invoice total")
         return 0
@@ -2113,6 +2130,7 @@ def flip_po_to_invoice(po_lines, inv_id, db, u_id, id_doc_modelid):
         else:
             return {"result": "No Po lines selected for PO Flip"}
     except SQLAlchemyError as e:
+        logger.error(e)
         return Response(status_code=500)
     finally:
         db.close()
@@ -2277,7 +2295,7 @@ async def send_mail_to_zoho(u_id, inv_id, db):
         else:
             return {"message": "No details found for the specified invoice ID."}
 
-    except Exception as e:
+    except Exception:
         print(traceback.format_exc())
         return Response(status_code=500)
     finally:

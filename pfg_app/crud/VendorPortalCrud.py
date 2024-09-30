@@ -1,10 +1,12 @@
 import os
+import traceback
 from datetime import datetime
 
 import pytz as tz
 from fastapi.responses import Response
 
 import pfg_app.model as model
+from pfg_app.logger_module import logger
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
@@ -31,7 +33,8 @@ async def read_po_numbers(u_id, vendorAccountID, ent_id, db):
             )
             .all()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -56,7 +59,8 @@ async def add_label(invoicemodelID, labelDef, db):
         db.add(tagsDB)
         db.commit()
         return {"result": "Updated", "records": labelDef}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -77,7 +81,8 @@ async def add_linetemtag(invoicemodelID, lineitemDef, db):
         db.add(tagsDB)
         db.commit()
         return {"result": "Updated", "records": lineitemDef}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()

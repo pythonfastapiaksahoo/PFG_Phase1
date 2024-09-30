@@ -16,6 +16,7 @@ import re
 from sqlalchemy.exc import SQLAlchemyError
 
 import pfg_app.model as model
+from pfg_app.logger_module import logger
 
 status = [
     "System Check In - Progress",
@@ -160,9 +161,8 @@ async def read_doc_inv_list(u_id, ven_id, inv_type, stat, db):
             }
         }
 
-    except Exception as e:
-        print(traceback.format_exc())
-        # applicationlogging.logs_to_table_storage('readDocumentINVList API',traceback.format_exc(),u_id)
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -366,9 +366,8 @@ async def read_paginate_doc_inv_list(
 
         return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
 
-    except Exception as e:
-        print(traceback.format_exc())
-        # applicationlogging.logs_to_table_storage('readDocumentINVList API',traceback.format_exc(),u_id)
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -655,9 +654,8 @@ async def read_paginate_doc_inv_list_with_ln_items(
         # Return paginated document data with line items
         return {"ok": {"Documentdata": result, "TotalCount": total_count}}
 
-    except Exception as e:
-        print(traceback.format_exc())
-        # applicationlogging.logs_to_table_storage('readDocumentINVList API', traceback.format_exc(), u_id)
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -865,8 +863,8 @@ async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
             }
         }
 
-    except Exception as e:
-        print("Error in line item :", traceback.format_exc())
+    except Exception:
+        logger.error(f"Error in line item :{traceback.format_exc()}")
         return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()
@@ -928,7 +926,8 @@ async def read_invoice_file(u_id, inv_id, db):
 
         return {"result": {"filepath": invdat.docPath, "content_type": content_type}}
 
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()
@@ -961,7 +960,8 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     db.query(model.DocumentLineItems).filter_by(
                         documentID=inv_id, idDocumentLineItems=row.documentLineItemID
                     ).scalar()
-            except Exception as e:
+            except Exception:
+                logger.error(traceback.format_exc())
                 return Response(
                     status_code=403,
                     headers={"ClientError": "invoice and value mismatch"},
@@ -1047,7 +1047,8 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
         )
         db.commit()
         return {"result": "success"}
-    except Exception as ex:
+    except Exception:
+        logger.error(traceback.format_exc())
         db.rollback()
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
@@ -1073,17 +1074,17 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
             items = dict(items)
             items["UpdatedOn"] = UpdatedOn
             items["documentColumnPos"] = items.pop("ColumnPos")
-            result = (
-                db.query(model.DocumentColumnPos)
-                .filter_by(idDocumentColumn=items.pop("idtabColumn"))
-                .filter_by(uid=u_id)
-                .filter_by(tabtype=tabtype)
-                .update(items)
-            )
+            # result = (
+            #     db.query(model.DocumentColumnPos)
+            #     .filter_by(idDocumentColumn=items.pop("idtabColumn"))
+            #     .filter_by(uid=u_id)
+            #     .filter_by(tabtype=tabtype)
+            #     .update(items)
+            # )  # TODO: Unused variable
         db.commit()
         return {"result": "updated"}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=403,
             headers={f"{traceback.format_exc()}clientError": "update failed"},
@@ -1177,8 +1178,8 @@ async def read_column_pos(u_id, tabtype, db):
                     }
             column_data_list.append(row_dict)
         return {"col_data": column_data_list}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -1195,7 +1196,8 @@ async def get_role_priority(u_id, db):
             .filter_by(idAccessPermissionDef=sub_query.scalar_subquery())
             .scalar()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return 0
     finally:
         db.close()
@@ -1247,7 +1249,8 @@ async def setdochistorylog(u_id, inv_id, stat_id, dochist, db):
         db.add(dochist)
         db.commit()
         return 1
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return None
     finally:
         db.close()
@@ -1381,7 +1384,8 @@ async def read_invoice_status_history(u_id, inv_id, db):
             .order_by(model.DocumentHistoryLogs.CreatedOn)
             .all()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server Error"})
     finally:
         db.close()
@@ -1556,7 +1560,8 @@ async def read_doc_history(inv_id, db):
             .filter(model.Document.idDocument == inv_id)
             .all()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server Error"})
     finally:
         db.close()
@@ -1603,8 +1608,8 @@ async def read_document_lock_status(u_id, inv_id, client_ip, db):
                 "User": {"firstName": "", "idUser": None, "lastName": ""},
             }
         return {"result": lock_info}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
@@ -1648,8 +1653,8 @@ async def update_document_lock_status(u_id, inv_id, session_datetime, db):
                 )
             db.commit()
             return {"result": "updated", "session_end_time": session_time}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
@@ -1760,14 +1765,15 @@ async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
 
         return stamp_data_records
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         # Handle any SQLAlchemy-specific error and rollback
+        logger.error(traceback.format_exc())
         db.rollback()
         return {"error": f"Database error occurred: {str(traceback.format_exc())}"}
 
-    except Exception as e:
+    except Exception:
         # Handle any other general exceptions
-        print(traceback.format_exc())
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Internal Server error"})
 
 
@@ -1820,7 +1826,8 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                 # Add the updated object to the list (it will be refreshed later)
                 updated_records.append(stamp_data)
 
-            except SQLAlchemyError as e:
+            except SQLAlchemyError:
+                logger.error(traceback.format_exc())
                 # Catch any SQLAlchemy-specific error during the update of a single record
                 updated_records.append(
                     {
@@ -1838,14 +1845,16 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
             if isinstance(stamp_data, model.StampDataValidation):
                 db.refresh(stamp_data)
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
+        logger.error(traceback.format_exc())
         # Handle any general SQLAlchemy error and rollback the transaction
         db.rollback()
         return {
             "error": f"Transaction failed due to a database error: {str(traceback.format_exc())}"
         }
 
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         # Handle any other unexpected errors and rollback
         db.rollback()
         print(traceback.format_exc())

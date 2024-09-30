@@ -14,6 +14,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Load, load_only
 
 import pfg_app.model as model
+from pfg_app.logger_module import logger
 from pfg_app.session import DB, SQLALCHEMY_DATABASE_URL
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
@@ -35,7 +36,8 @@ async def getFRConfig(userID, db):
             .filter(model.FRConfiguration.idCustomer == customer_id)
             .first()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -61,7 +63,8 @@ async def updateFRConfig(userID, frConfig, db):
         ).update(frConfig)
         db.commit()
         return {"result": "Updated", "records": frConfig}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -369,8 +372,8 @@ def copymodelsSP(serviceaccountId, modelname, db):
                     db.add(documentlinedefDB)
                     db.commit()
         return {"message": "success"}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return {"message": "exception"}
     finally:
         db.close()
@@ -397,8 +400,8 @@ async def updateMetadata(documentId, frmetadata, db):
             db.add(model.FRMetaData(**frmetadata))
         db.commit()
         return {"result": "Updated", "records": frmetadata_copy}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return {"result": "Failed", "records": {}}
     finally:
         db.close()
@@ -418,16 +421,16 @@ def createInvoiceModel(userID, user, invoiceModel, db):
         ts = str(time.time())
         fld_name = ts.replace(".", "_") + "/train"
 
-        user_details = (
-            db.query(model.User.firstName, model.User.lastName)
-            .filter(model.User.idUser == userID)
-            .first()
-        )
-        user_name = (
-            user_details[0]
-            if user_details[0] is not None
-            else "" + " " + user_details[1] if user_details[1] is not None else ""
-        )
+        # user_details = (
+        #     db.query(model.User.firstName, model.User.lastName)
+        #     .filter(model.User.idUser == userID)
+        #     .first()
+        # )  # TODO: Unused variable
+        # user_name = (
+        #     user_details[0]
+        #     if user_details[0] is not None
+        #     else "" + " " + user_details[1] if user_details[1] is not None else ""
+        # )  # TODO: Unused variable
         # Add user authentication
         invoiceModel = dict(invoiceModel)
         print(invoiceModel)
@@ -454,8 +457,8 @@ def createInvoiceModel(userID, user, invoiceModel, db):
         db.commit()
         # return the updated record
         return {"result": "Updated", "records": invoiceModel}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -485,7 +488,8 @@ def updateInvoiceModel(modelID, invoiceModel, db):
         db.commit()
         # return the updated record
         return {"result": "Updated", "records": invoiceModel}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -516,8 +520,8 @@ def getmodellist(vendorID, db):
         if not main_query:
             return []
         return main_query
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return []
     finally:
         db.close()
@@ -542,8 +546,8 @@ def getmodellistsp(serviceProviderID, db):
         if not main_query:
             return Response(status_code=404)
         return main_query
-    except Exception as e:
-        print(e)
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -563,7 +567,8 @@ async def readvendor(db):
             .filter(or_(model.Vendor.idVendor <= 5, model.Vendor.idVendor == 2916))
             .all()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -585,7 +590,8 @@ async def readvendoraccount(db, v_id: int):
             .filter(model.VendorAccount.vendorID == v_id)
             .all()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -607,7 +613,8 @@ async def readspaccount(db, s_id: int):
             .filter(model.ServiceAccount.serviceProviderID == s_id)
             .all()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -626,7 +633,8 @@ async def addOCRLog(logData, db):
         db.add(model.OCRLogs(**logData))
         db.commit()
         return {"result": "Updated", "records": logData}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -644,7 +652,8 @@ async def addItemMapping(mapData, db):
         db.add(model.UserItemMapping(**mapData))
         db.commit()
         return {"result": "Updated", "records": mapData}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -664,7 +673,8 @@ async def addfrMetadata(m_id: int, r_id: int, n_fr_mdata, db):
         db.add(model.FRMetaData(**frmData))
         db.commit()
         return {"result": "Inserted", "records": frmData}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -979,7 +989,8 @@ async def getall_tags(tagtype, db):
             .all()
         )
         return {"header": header_tags, "line": line_tags}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -1096,7 +1107,8 @@ async def readdocumentrules(db):
     """
     try:
         return db.query(model.Rule).all()
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -1112,7 +1124,8 @@ async def readnewdocrules(db):
     """
     try:
         return db.query(model.AGIRule).all()
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -1181,9 +1194,9 @@ async def update_email_info(emailInfo, db):
         else:
             return {"result": "No email_listener_info provided"}
 
-    except Exception as e:
-        print("Error: ", traceback.format_exc())
+    except Exception:
         # Log the exception with application logging
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500,
             content="Failed to save email info, please try again later.",
@@ -1210,8 +1223,9 @@ async def get_email_info(db):
         else:
             return {"result": "No email_listener_info found"}
 
-    except Exception as e:
+    except Exception:
         # Log the exception with application logging
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500,
             content="Failed to retrieve email info, please try again later.",
@@ -1434,8 +1448,8 @@ def copymodels(vendoraccountId, modelname, db):
                     db.add(documentlinedefDB)
                     db.commit()
         return {"message": "success"}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return {"message": "exception"}
     finally:
         db.close()

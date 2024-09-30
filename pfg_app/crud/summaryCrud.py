@@ -8,6 +8,7 @@ from sqlalchemy import and_, case, func
 from sqlalchemy.orm import load_only
 
 import pfg_app.model as models
+from pfg_app.logger_module import logger
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
@@ -179,8 +180,8 @@ async def read_galadhari_summary(u_id, ftdate, sp_id, fentity, db):
                 "drill_down_data": drill_down_data.all(),
             }
         }
-    except Exception as e:
-        traceback.print_exc()
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -418,7 +419,8 @@ async def read_entity_filter(u_id, db):
                 .all()
             )
         return {"result": entity_list}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -432,7 +434,8 @@ async def read_service_filter(u_id, db):
             .all()
         )
         return {"result": service_list}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()

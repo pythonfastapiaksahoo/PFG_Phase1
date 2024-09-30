@@ -10,6 +10,7 @@ from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 
 import pfg_app.model as model
+from pfg_app.logger_module import logger
 
 credential = DefaultAzureCredential()
 
@@ -25,7 +26,8 @@ def getOcrParameters(customerID, db):
             .first()
         )
         return configs
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
 
 
@@ -186,8 +188,8 @@ def addTagDefinition(models, tags, db):
                     ).delete()
             db.commit()
         return tags
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
 
 
@@ -243,7 +245,8 @@ def updateLabels(documentId, labelVal, db):
         ).update({"labels": labelVal})
         db.commit()
         return "success"
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return "exception"
 
 
@@ -327,7 +330,8 @@ def updateFields(documentId, fieldsVal, db):
         ).update({"fields": fieldsVal})
         db.commit()
         return "success"
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return "exception"
 
 
@@ -361,7 +365,8 @@ def createOrUpdateComposeModel(composeObj, db):
             db.add(model.DocumentModelComposed(**composeObj))
             db.commit()
         return f"success {add}"
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return "exception"
 
 
@@ -372,7 +377,8 @@ def updateTrainingResult(documentId, result, db):
         ).update({"training_result": result})
         db.commit()
         return "success"
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return "exception"
 
 

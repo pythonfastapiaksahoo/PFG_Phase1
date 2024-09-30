@@ -11,6 +11,7 @@ from sqlalchemy.orm import load_only
 
 import pfg_app.model as model
 from pfg_app import settings
+from pfg_app.logger_module import logger
 
 credential = DefaultAzureCredential()
 import datetime
@@ -21,8 +22,8 @@ async def getDepartmentMaster(db):
 
     try:
         return db.query(model.PFGDepartment).all()
-    except Exception as e:
-        # applicationlogging.logs_to_table_storage('pfgdepartment API',traceback.format_exc(),1)
+    except Exception:
+        logger.error(f"Error: { traceback.format_exc()}")
         return Response(status_code=500)
     finally:
         db.close()
@@ -32,8 +33,8 @@ async def getStoreMaster(db):
 
     try:
         return db.query(model.PFGStore).all()
-    except Exception as e:
-        # applicationlogging.logs_to_table_storage('pfgstore API',traceback.format_exc(),1)
+    except Exception:
+        logger.error(f"Error: { traceback.format_exc()}")
         return Response(status_code=500)
     finally:
         db.close()
@@ -43,8 +44,8 @@ async def getAccountMaster(db):
 
     try:
         return db.query(model.PFGAccount).all()
-    except Exception as e:
-        # applicationlogging.logs_to_table_storage('pfgaccount API',traceback.format_exc(),1)
+    except Exception:
+        logger.error(f"Error: { traceback.format_exc()}")
         return Response(status_code=500)
     finally:
         db.close()
@@ -71,8 +72,8 @@ async def getVendorMaster(db):
 
         return vendor_list
 
-    except Exception as e:
-        # applicationlogging.logs_to_table_storage('pfgvendor API', traceback.format_exc(), 1)
+    except Exception:
+        logger.error(f"Error: { traceback.format_exc()}")
         return Response(status_code=500)
 
     finally:
@@ -83,8 +84,8 @@ async def getProjectMaster(db):
 
     try:
         return db.query(model.PFGProject).all()
-    except Exception as e:
-        # applicationlogging.logs_to_table_storage('pfgproject API',traceback.format_exc(),1)
+    except Exception:
+        logger.error(f"Error: { traceback.format_exc()}")
         return Response(status_code=500)
     finally:
         db.close()
@@ -94,8 +95,8 @@ async def getProjectActivityMaster(db):
 
     try:
         return db.query(model.PFGProjectActivity).all()
-    except Exception as e:
-        # applicationlogging.logs_to_table_storage('pfgprojectactivity API',traceback.format_exc(),1)
+    except Exception:
+        logger.error(f"Error: { traceback.format_exc()}")
         return Response(status_code=500)
     finally:
         db.close()
@@ -105,8 +106,8 @@ async def getReceiptMaster(db):
 
     try:
         return db.query(model.PFGReceipt).all()
-    except Exception as e:
-        # applicationlogging.logs_to_table_storage('pfgreceipt API',traceback.format_exc(),1)
+    except Exception:
+        logger.error(f"Error: { traceback.format_exc()}")
         return Response(status_code=500)
     finally:
         db.close()
@@ -154,8 +155,8 @@ async def updateDepartmentMaster(Departmentdata, db):
 
         await SyncDepartmentMaster(db, Departmentdata)
         return {"result": "Updated", "records": response}
-    except SQLAlchemyError as e:
-        # applicationlogging.logs_to_table_storage('updateDepartmentMaster API', traceback.format_exc(),1)
+    except SQLAlchemyError:
+        logger.error(f"Error: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -205,9 +206,8 @@ async def updateStoreMaster(Storedata, db):
                 response.append(new_store)
 
         return {"result": "Updated", "records": response}
-    except SQLAlchemyError as e:
-        print("error : ", e)
-        # applicationlogging.logs_to_table_storage('updateStoreMaster API', traceback.format_exc(),1)
+    except SQLAlchemyError:
+        logger.error(f"Error: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -444,8 +444,8 @@ async def updateAccountMaster(Accountdata, db):
                 response.append(new_account)
 
         return {"result": "Updated", "records": response}
-    except SQLAlchemyError as e:
-        # applicationlogging.logs_to_table_storage('updateAccountMaster API', traceback.format_exc(), 1)
+    except SQLAlchemyError:
+        logger.error(f"Error: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -495,8 +495,8 @@ async def updateProjectMaster(Projectdata, db):
                 response.append(new_project)
 
         return {"result": "Updated", "records": response}
-    except SQLAlchemyError as e:
-        # applicationlogging.logs_to_table_storage('updateProjectMaster API', traceback.format_exc(),1)
+    except SQLAlchemyError:
+        logger.error(f"Error: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -547,9 +547,8 @@ async def updateProjectActivityMaster(ProjectActivitydata, db):
                 response.append(new_project_activity)
 
         return {"result": "Updated", "records": response}
-    except SQLAlchemyError as e:
-        print("Error: ", traceback.format_exc())
-        # applicationlogging.logs_to_table_storage('updateProjectActivityMaster API', traceback.format_exc(),1)
+    except SQLAlchemyError:
+        logger.error(f"Error: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -631,8 +630,8 @@ async def updateReceiptMaster(Receiptdata, db):
 
         return {"result": "Receipt Master Data Updated"}
 
-    except Exception as e:
-        print("Error: ", traceback.format_exc())
+    except Exception:
+        logger.error(f"Error: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -687,9 +686,8 @@ async def SyncDepartmentMaster(db, Departmentdata):
 
         return {"result": "Synchronization completed"}
 
-    except SQLAlchemyError as e:
-        print("error:", traceback.format_exc())
-        # applicationlogging.logs_to_table_storage('SyncDepartmentMaster API', traceback.format_exc(), 1)
+    except SQLAlchemyError:
+        logger.error(f"Error: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,
@@ -802,8 +800,8 @@ async def SyncVendorMaster(db, vendordata):
 
         return {"result": "Vendor table updation completed"}
 
-    except SQLAlchemyError as e:
-        print("error:", traceback.format_exc())
+    except SQLAlchemyError:
+        logger.error(f"error: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,
@@ -978,12 +976,12 @@ def processInvoiceVoucher(doc_id, db):
             print("Response content:", response.content.decode())
             responsedata = {"message": str(e), "data": response.json()}
 
-    except Exception as e:
+    except Exception:
         responsedata = {
             "message": "InternalError",
             "data": {"Http Response": "500", "Status": "Fail"},
         }
-        print("Error: ", traceback.format_exc())
+        logger.error(f"Error: { traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
@@ -1039,7 +1037,7 @@ def updateInvoiceStatus(doc_id, db):
                 entry_status = invoice_data.get(
                     "ENTRY_STATUS"
                 )  # Get the ENTRY_STATUS field
-                voucher_id = invoice_data.get("VOUCHER_ID")
+                # voucher_id = invoice_data.get("VOUCHER_ID")  # TODO: Unused variable
                 # Set the documentstatusid based on the ENTRY_STATUS value
                 if entry_status == "STG":
                     documentstatusid = 7
@@ -1080,8 +1078,8 @@ def updateInvoiceStatus(doc_id, db):
                     "details": str(e),
                 }
 
-    except Exception as e:
-        print("Error: ", traceback.format_exc())
+    except Exception:
+        logger.error(f"Error: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
@@ -1163,7 +1161,8 @@ async def read_invoice_file(u_id, inv_id, db):
 
         return {"result": {"filepath": invdat.docPath, "content_type": content_type}}
 
-    except Exception as e:
+    except Exception:
+        logger.error(f"Error reading invoice file: {traceback.format_exc()}")
         return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()

@@ -331,7 +331,8 @@ def reupload_files_to_azure(
         )
     except Exception as e:
         print(
-            "Error in reupload_files_to_azure func() line 250: ", traceback.format_exc()
+            f"Error in reupload_files_to_azure func() line 250: {e}",
+            traceback.format_exc(),
         )
     return fnl_upload_status, fnl_upload_msg, blob_fld_name
 
