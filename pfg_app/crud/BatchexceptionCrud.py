@@ -1489,7 +1489,7 @@ async def readinvoicefilepath(u_id: int, inv_id: int, db: Session):
                     print(f"Error in getting file type: {e}")
                 invdat.docPath = base64.b64encode(blob_client.download_blob().readall())
 
-            except:
+            except Exception:
                 invdat.docPath = ""
         return {"filepath": invdat.docPath, "content_type": content_type}
 
@@ -1837,8 +1837,8 @@ def get_po_total(po_lines):
                     "status": f"Quantity {line.Quantity} greater than PurchQty {line.PurchQty}for the line {line.LineNumber}",
                 }
         return {"po_tot_amt": po_tot_amt, "status": "success"}
-    except:
-        print(traceback.print_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         po_tot_amt = 0
         return po_tot_amt
 
@@ -1861,8 +1861,8 @@ def chk_tag_availability(fields, id_doc_modelid, db):
             if field in tags.keys():
                 avail_tags_len = avail_tags_len + 1
         return avail_tags_len, tags
-    except:
-        print(traceback.print_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return None
 
 
@@ -2051,8 +2051,8 @@ def flip_po_to_invoice(po_lines, inv_id, db, u_id, id_doc_modelid):
                                 model.DocumentLineItems.documentID == inv_id
                             ).delete()
                             db.commit()
-                        except:
-                            print(traceback.print_exc())
+                        except Exception:
+                            logger.error(traceback.format_exc())
 
                     # calculating discount from po line and preparing data for insertion to db
                     inv_line_number = 0
@@ -2123,7 +2123,8 @@ def flip_po_to_invoice(po_lines, inv_id, db, u_id, id_doc_modelid):
                             error_msg = "error in saving the po lines"
                             return {"result": error_msg}
                     return {"result": "Success"}
-                except:
+                except Exception:
+                    logger.error(traceback.format_exc())
                     return {"result": "Unsuccessfull"}
             else:
                 return {"result": "one or more tags missing"}
@@ -2153,11 +2154,13 @@ def addLineData(line, itemcode, db, inv_id, tags, po_line_num):
             try:
                 db.add(model.DocumentLineItems(**db_data))
                 db.commit()
-            except:
+            except Exception:
+                logger.error(traceback.format_exc())
                 error_msg = "Failed to save line"
                 return {"Status": error_msg}
         return {"result": "success"}
-    except:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -2177,7 +2180,8 @@ async def check_inv_status(u_id, inv_id, db):
             "substatus": status_id.documentsubstatusID,
         }
         return {"result": status_id}
-    except:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()

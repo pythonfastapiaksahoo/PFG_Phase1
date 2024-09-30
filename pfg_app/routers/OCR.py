@@ -290,13 +290,13 @@ def runStatus(
                         metaVendorAdd = vendorName_df[
                             vendorName_df["idVendor"] == vendorID
                         ]["Address"][0]
-                    except:
+                    except Exception:
                         metaVendorAdd = ""
                     try:
                         metaVendorName = vendorName_df[
                             vendorName_df["idVendor"] == vendorID
                         ]["VendorName"][0]
-                    except:
+                    except Exception:
                         metaVendorName = ""
                     vendorAccountID = str(vendorID)
                     poNumber = "nonPO"

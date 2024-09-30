@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import traceback
 from collections import Counter
 
 import pandas as pd
@@ -372,7 +373,8 @@ def cln_amt(amt):
         cl_amt = amt
     try:
         cl_amt = round(cl_amt, 2)
-    except:
+    except Exception:
+        logger.error(traceback.format_exc())
         cl_amt = amt
     return cl_amt
 
@@ -694,7 +696,8 @@ def postpro(
                                 "boundingRegions"
                             ]
                         )
-                    except:
+                    except Exception:
+                        logger.error(traceback.format_exc())
                         boundingRegions = ""
                     cst_tmp_dict[cst_hd] = {
                         "content": cst_data["analyzeResult"]["documents"][0]["fields"][
@@ -1000,7 +1003,8 @@ def postpro(
                                         if type(bo_bx[0]) == dict:
                                             bx = polygon_to_bbox(bo_bx[0]["polygon"])
                                             # bo_bx[0]['polygon']
-                                    except:
+                                    except Exception:
+                                        logger.error(traceback.format_exc())
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                         x = str(bo_bx[0])
                                         y = str(bo_bx[1])
@@ -1625,7 +1629,8 @@ def postpro(
         try:
             vndMth_prompt = f"vendor1 = {metaVendorName} , vendor2 = {doc_VendorName}  ,vendor1Address = {metaVendorAdd} ,vendor2Address = {doc_VendorAddress} . You are given vendor data from two sources: vendor1 from master data and vendor2 from an OCR model. Your task is to confirm if both vendor names and their addresses are the same. Compare the vendor names, ignoring case sensitivity and trimming extra spaces. For addresses, normalize the text by handling common abbreviations like 'Road' and 'RD'. Return a response in JSON format only with two keys: vendorMatching and addressMatching, each having a value of either 'yes' or 'no' based on the comparison."
             vndMth_ck, vndMth_address_ck = VndMatchFn(vndMth_prompt, OpenAI_client)
-        except:
+        except Exception:
+            logger.error(traceback.format_exc())
             vndMth_ck = 0
             vndMth_address_ck = 0
 

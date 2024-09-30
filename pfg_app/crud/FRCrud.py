@@ -448,7 +448,7 @@ def createInvoiceModel(userID, user, invoiceModel, db):
         try:
             invoiceModel["userID"] = user.name
             invoiceModel["update_by"] = user.name
-        except:
+        except Exception:
             invoiceModel["userID"] = None
             invoiceModel["update_by"] = None
         # create sqlalchemy model, push and commit to db
@@ -716,8 +716,8 @@ async def getMetaData(documentId: int, db):
         # Combine the data into a single dictionary
         merged_data = {"frmetadata": frmetadata_dict, "synonyms": synonyms}
         return merged_data
-    except:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -731,7 +731,8 @@ async def getTrainTestRes(modelId: int, db):
             .filter(model.DocumentModel.idDocumentModel == modelId)
             .first()
         )
-    except:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()

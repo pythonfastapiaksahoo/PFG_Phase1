@@ -921,7 +921,7 @@ async def read_invoice_file(u_id, inv_id, db):
                 except Exception as e:
                     print(f"Error in file type : {e}")
                 invdat.docPath = base64.b64encode(blob_client.download_blob().readall())
-            except:
+            except Exception:
                 invdat.docPath = ""
 
         return {"result": {"filepath": invdat.docPath, "content_type": content_type}}

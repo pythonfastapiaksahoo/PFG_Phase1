@@ -389,7 +389,8 @@ def pfg_sync(docID, db: Session):
             else:
                 invTotalMth = 0
                 invTotalMth_msg = "Invoice total mismatch, please review."
-        except:
+        except Exception:
+            logger.error(traceback.format_exc())
             invTotalMth = 0
             invTotalMth_msg = "Invoice total mismatch, please review."
 
@@ -397,10 +398,12 @@ def pfg_sync(docID, db: Session):
             # date_string = docHdrDt["InvoiceDate"]  # TODO: Unused variable
             try:
                 dateCheck = 1
-            except:
+            except Exception:
+                logger.error(traceback.format_exc())
                 dateCheck = 0
                 dateCheck_msg = "Invoice date is invalid,Please review."
-        except:
+        except Exception:
+            logger.error(traceback.format_exc())
             dateCheck = 0
             dateCheck_msg = "Failed to validate the invoice date,Please review."
 
@@ -453,7 +456,8 @@ def pfg_sync(docID, db: Session):
                 else:
                     strCk = 0
                     strCk_msg.append("Invalid Store Type")
-            except:
+            except Exception:
+                logger.error(traceback.format_exc())
                 strCk = 0
                 strCk_msg.append("Invalid Store Type")
 
