@@ -199,7 +199,7 @@ def runStatus(
                                 # print("syn: ",syn,"   vName: ",vName)
                             if (syn != None) or (str(syn) != "None"):
                                 synlt = json.loads(syn)
-                                if type(synlt) == list:
+                                if isinstance(synlt, list):
                                     for syn1 in synlt:
                                         syn_1 = syn1.split(",")
 
@@ -834,7 +834,6 @@ def nomodelfound():
 
 
 def getModelData(vendorAccountID, db):
-    # print("vendorAccountID: line 300",vendorAccountID,type(vendorAccountID))
     modelDetails = []
     modelData = (
         db.query(model.DocumentModel)

@@ -478,9 +478,8 @@ def getFrData_MNF(input_data):
 
                         if prTg in ["InvoiceTotal", "SubTotal", "TotalTax"]:
 
-                            if (
-                                type(tb_cln_amt(getData_headerPg[prTg]["content"]))
-                                == float
+                            if isinstance(
+                                tb_cln_amt(getData_headerPg[prTg]["content"]), float
                             ):
                                 sbTmpPrblt["value"] = tb_cln_amt(
                                     getData_headerPg[prTg]["content"]
@@ -883,7 +882,7 @@ def postpro(
                     )
                     ovrll_conf_ck = ovrll_conf_ck * 0
                 if ct_tag in ["InvoiceTotal", "SubTotal", "TotalTax"]:
-                    if type(tb_cln_amt(cst_dict[ct_tag]["content"])) == float:
+                    if isinstance(tb_cln_amt(cst_dict[ct_tag]["content"]), float):
                         tag_status = 1
                     else:
                         tag_status = 0
@@ -1000,7 +999,7 @@ def postpro(
                                     except KeyError:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                     try:
-                                        if type(bo_bx[0]) == dict:
+                                        if isinstance(bo_bx[0], dict):
                                             bx = polygon_to_bbox(bo_bx[0]["polygon"])
                                             # bo_bx[0]['polygon']
                                     except Exception:
@@ -1026,7 +1025,7 @@ def postpro(
                                         # call
                                         cl_dt = tb_cln_amt(tmp_dict["data"])
                                         tmp_dict["data"] = str(cl_dt)
-                                        if type(cl_dt) == str:
+                                        if isinstance(cl_dt, str):
                                             tmp_dict["status"] = 0
                                             tmp_dict["status_message"] = (
                                                 "Low Confidence or Missing Value Detected"
@@ -1117,12 +1116,12 @@ def postpro(
                     ):
                         try:
                             qty_ck_cl = cln_amt(itm_list[rw_ck_1][ech_tg]["data"])
-                            if type(qty_ck_cl) == str:
+                            if isinstance(qty_ck_cl, str):
                                 itm_list[rw_ck_1][ech_tg]["status"] = 0
                                 itm_list[rw_ck_1][ech_tg][
                                     "status_message"
                                 ] = "Low Confidence Detected"
-                            elif type(qty_ck_cl) == float:
+                            elif isinstance(qty_ck_cl, float):
                                 itm_list[rw_ck_1][ech_tg]["data"] = str(qty_ck_cl)
                             else:
                                 itm_list[rw_ck_1][ech_tg]["status"] = 0
@@ -1161,7 +1160,7 @@ def postpro(
                                 qty_rw_status = ech_tg_1["status"]
                             else:
                                 cln_qty_ck = tb_cln_amt(qty_rw)
-                                if type(cln_qty_ck) == float:
+                                if isinstance(cln_qty_ck, float):
                                     qty_rw_status = 1
                                 else:
                                     qty_rw_status = 0
@@ -1172,7 +1171,7 @@ def postpro(
                                 discount_rw_status = ech_tg_1["status"]
                             else:
                                 cln_dis_cmt = tb_cln_amt(discount_rw)
-                                if type(cln_dis_cmt) == float:
+                                if isinstance(cln_dis_cmt, float):
                                     discount_rw_status = 1
                                 else:
                                     discount_rw_status = 0
@@ -1183,7 +1182,7 @@ def postpro(
                                 utprice_rw_status = ech_tg_1["status"]
                             else:
                                 qt_cln_val = tb_cln_amt(utprice_rw)
-                                if type(qt_cln_val) == float:
+                                if isinstance(qt_cln_val, float):
                                     utprice_rw_status = 1
                                 else:
                                     utprice_rw_status = 0
@@ -1194,7 +1193,7 @@ def postpro(
                                 amt_withTax_rw_status = ech_tg_1["status"]
                             else:
                                 cl_val = tb_cln_amt(amt_withTax_rw)
-                                if type(cl_val) == float:
+                                if isinstance(cl_val, float):
                                     amt_withTax_rw_status = 1
                                 else:
                                     amt_withTax_rw_status = 0
@@ -1204,7 +1203,7 @@ def postpro(
                                 amt_withTax_rw_status = ech_tg_1["status"]
                             else:
                                 vtcln_amt = tb_cln_amt(vatAmt_rw)
-                                if type(vtcln_amt) == float:
+                                if isinstance(vtcln_amt, float):
                                     vatAmt_rw_status = 1
                                 else:
                                     vatAmt_rw_status = 0
@@ -1591,7 +1590,7 @@ def postpro(
             if subtotal_Cal == 1:
                 if dt["header"][tg]["tag"] == "InvoiceTotal":
                     invoiceTotal_rw = tb_cln_amt(dt["header"][tg]["data"]["value"])
-                    if type(invoiceTotal_rw) != float:
+                    if not isinstance(invoiceTotal_rw, float):
                         # dt['header'][tg]['data']['value']
                         dt["header"][tg][
                             "status_message"
@@ -1601,7 +1600,7 @@ def postpro(
 
                 if dt["header"][tg]["tag"] == "SubTotal":
                     subtotal_rw = tb_cln_amt(dt["header"][tg]["data"]["value"])
-                    if type(subtotal_rw) != float:
+                    if not isinstance(subtotal_rw, float):
                         dt["header"][tg][
                             "status_message"
                         ] = "Invalid Value, Please review"
@@ -1610,7 +1609,7 @@ def postpro(
 
                 if dt["header"][tg]["tag"] == "TotalDiscount":
                     totaldiscount_rw = tb_cln_amt(dt["header"][tg]["data"]["value"])
-                    if type(totaldiscount_rw) != float:
+                    if not isinstance(totaldiscount_rw, float):
                         dt["header"][tg][
                             "status_message"
                         ] = "Invalid Value, Please review"
@@ -1619,7 +1618,7 @@ def postpro(
 
                 if dt["header"][tg]["tag"] == "TotalTax":
                     totalTax_rw = tb_cln_amt(dt["header"][tg]["data"]["value"])
-                    if type(totalTax_rw) != float:
+                    if not isinstance(totalTax_rw, float):
                         dt["header"][tg][
                             "status_message"
                         ] = "Invalid Value, Please review"

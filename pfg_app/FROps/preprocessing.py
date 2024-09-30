@@ -392,7 +392,6 @@ def fr_preprocessing(
                     # (file_type, spltFileName, container, connection_string)
 
                     if get_binary_status == 1:
-                        # if type(input_data) == bytes:
                         if len(input_data) > 0:
                             fr_preprocessing_data = input_data
                             fr_preprocessing_status = 1
