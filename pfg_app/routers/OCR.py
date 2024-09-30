@@ -197,7 +197,7 @@ def runStatus(
                             if stop:
                                 break
                                 # print("syn: ",syn,"   vName: ",vName)
-                            if (syn != None) or (str(syn) != "None"):
+                            if syn is not None or str(syn) != "None":
                                 synlt = json.loads(syn)
                                 if isinstance(synlt, list):
                                     for syn1 in synlt:

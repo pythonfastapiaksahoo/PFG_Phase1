@@ -940,7 +940,7 @@ def postpro(
 
                             if (
                                 fields[tbs]["valueArray"][itm_no]["valueObject"][ky]
-                                == None
+                                is None
                             ):
                                 tmp_dict["tag"] = ky
                                 if (

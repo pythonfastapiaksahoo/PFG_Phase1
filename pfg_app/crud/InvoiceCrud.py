@@ -1314,7 +1314,7 @@ async def read_invoice_status_history(u_id, inv_id, db):
                 (
                     and_(
                         model.DocumentHistoryLogs.documentSubStatusID == 3,
-                        model.DocumentHistoryLogs.documentStatusID == None,
+                        model.DocumentHistoryLogs.documentStatusID is None,
                     ),
                     "OCR Error Corrected",
                 ),
@@ -1513,7 +1513,7 @@ async def read_doc_history(inv_id, db):
                 (
                     and_(
                         model.DocumentHistoryLogs.documentSubStatusID == 3,
-                        model.DocumentHistoryLogs.documentStatusID == None,
+                        model.DocumentHistoryLogs.documentStatusID is None,
                     ),
                     "OCR Error Corrected",
                 ),
