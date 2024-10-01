@@ -1392,68 +1392,18 @@ class StampDataValidation(Base):
 
 class frtrigger_tab(Base):
     __tablename__ = "frtrigger_tab"
+
     frtrigger_id = Column(Integer, primary_key=True, autoincrement=True)
     splitdoc_id = Column(Integer, nullable=True)
     pagecount = Column(Integer, nullable=True)
-    prebuilt_headerdata = Column(JSON, nullable=True)
-    prebuilt_linedata = Column(JSON, nullable=True)
-    blobpath = Column(String, nullable=True)
-    vendorID = Column(String, nullable=True)
+    prebuilt_headerdata = Column(JSONB, nullable=True)
+    prebuilt_linedata = Column(JSONB, nullable=True)
+    blobpath = Column(String(350), nullable=True)
+    vendorID = Column(String(250), nullable=True)
     status = Column(String, nullable=True)
-    timestamp = Column(DateTime, nullable=True)
+    created_on = Column(DateTime, nullable=True)
     sender = Column(String, nullable=True)
-    docstatus_sync = Column(JSON, nullable=True)
-
-
-# Vendor Table
-class Vendor3(Base):
-    __tablename__ = "vendor3"
-
-    idVendor = Column(Integer, primary_key=True, index=True)
-    VendorName = Column(String(100), nullable=True)
-    Address = Column(String(255), nullable=True)
-    City = Column(String(45), nullable=True)
-    Country = Column(String(100), nullable=True)
-    Desc = Column(String(255), nullable=True)
-    VendorCode = Column(String(45), nullable=True)
-    Email = Column(String(100), nullable=True)
-    Contact = Column(String(100), nullable=True)
-    Website = Column(String(100), nullable=True)
-    Salutation = Column(String(100), nullable=True)
-    FirstName = Column(String(100), nullable=True)
-    LastName = Column(String(100), nullable=True)
-    Designation = Column(String(100), nullable=True)
-    TradeLicense = Column(String(100), nullable=True)
-    VATLicense = Column(String(100), nullable=True)
-    TLExpiryDate = Column(String(100), nullable=True)
-    VLExpiryDate = Column(String(100), nullable=True)
-    TRNNumber = Column(String(100), nullable=True)
-    createdBy = Column(Integer, nullable=True)
-    CreatedOn = Column(DateTime, nullable=True)
-    UpdatedOn = Column(DateTime, nullable=True)
-    entityID = Column(Integer, nullable=True)
-    Synonyms = Column(String(100), nullable=True)
-    vendorType = Column(String(100), nullable=True)
-    miscellaneous = Column(JSON, nullable=True)
-
-    # __mapper_args__ = {"eager_defaults": True}
-
-
-# VendorAccount Table
-class VendorAccount3(Base):
-    __tablename__ = "vendoraccount3"
-
-    idVendorAccount = Column(Integer, primary_key=True, index=True)
-    vendorID = Column(Integer, ForeignKey("vendor3.idVendor"), nullable=False)
-    AccountType = Column(String(45), nullable=True)
-    Account = Column(String(45), nullable=True)
-    entityID = Column(Integer, ForeignKey("entity.idEntity"), nullable=True)
-    entityBodyID = Column(Integer, ForeignKey("entitybody.idEntityBody"), nullable=True)
-    City = Column(String(45), nullable=True)
-    Country = Column(String(45), nullable=True)
-    LocationCode = Column(String(45), nullable=True)
-    CreatedOn = Column(DateTime, nullable=True)
-    UpdatedOn = Column(DateTime, nullable=True)
+    page_number = Column(String, nullable=True)
 
 
 class VoucherData(Base):
@@ -1485,3 +1435,19 @@ class NonintegratedStores(Base):
     created_on = Column(DateTime, nullable=True)
     updated_on = Column(DateTime, nullable=True)
     created_by = Column(String(145), nullable=True)
+
+
+class SplitDocTab(Base):
+    __tablename__ = "splitdoctab"
+
+    splitdoc_id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_path = Column(TEXT, nullable=True)
+    emailbody_path = Column(TEXT, nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    totalpagecount = Column(Integer, nullable=True)
+    pages_processed = Column(TEXT, nullable=True)
+    vendortype = Column(String(50), nullable=True)
+    status = Column(String(50), nullable=True)
+    email_subject = Column(String, nullable=True)
+    sender = Column(String, nullable=True)
+    updated_on = Column(DateTime, nullable=True)

@@ -41,147 +41,33 @@ substatus = [
     (78, "GRN Approval Pending"),
 ]
 
-# Sql case statement for re placing number with string status
-
-
-doc_status = case(
-    *(
-        (model.Document.documentsubstatusID == value[0], value[1])
-        for value in substatus
-    ),
-    *(
-        (model.Document.documentStatusID == value[0] + 1, value[1])
-        for value in enumerate(status)
-    ),
-    else_="",
-).label("docstatus")
-
-
-async def read_doc_inv_list(u_id, ven_id, inv_type, stat, db):
-    """This function reads document invoice list, contains following parameters
-    :param u_id: It is a function parameters that is of integer type, it
-    provides the user Id.
-
-    :param sp_id: It is a function parameters that is of integer type,
-        it provides the service provider Id.
-    :param ven_id: It is a function parameters that is of integer type,
-        it provides the vendor Id.
-    :param usertype: It is a function parameters that is of integer
-        type, it provides the user type.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of list type.
-    """
-    try:
-        all_status = {"posted": 14, "rejected": 10, "exception": 4}
-        inv_choice = {
-            "ser": (
-                model.ServiceProvider,
-                model.ServiceAccount,
-                Load(model.ServiceProvider).load_only("ServiceProviderName"),
-                Load(model.ServiceAccount).load_only("Account"),
-            ),
-            "ven": (
-                model.Vendor,
-                model.VendorAccount,
-                Load(model.Vendor).load_only("VendorName", "Address"),
-                Load(model.VendorAccount).load_only("Account"),
-            ),
-        }
-        data = db.query(
-            model.Document,
-            doc_status,
-            model.DocumentSubStatus,
-            inv_choice[inv_type][0],
-            inv_choice[inv_type][1],
-        ).filter(model.Document.idDocumentType == 3)
-        # filters for query parameters
-        if ven_id:
-            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
-                vendorID=ven_id
-            )
-            data = data.filter(model.Document.vendorAccountID.in_(sub_query))
-        # filter by status
-        if stat:
-            data = data.filter(model.Document.documentStatusID == all_status[stat])
-        # Fetching Document data
-        Documentdata = (
-            data.options(
-                Load(model.Document).load_only(
-                    "docheaderID",
-                    "totalAmount",
-                    "documentStatusID",
-                    "CreatedOn",
-                    "documentsubstatusID",
-                    "sender",
-                    "JournalNumber",
-                    "UploadDocType",
-                    "store",
-                    "dept",
-                    "documentDate",
-                ),
-                Load(model.DocumentSubStatus).load_only("status"),
-                inv_choice[inv_type][2],
-                inv_choice[inv_type][3],
-            )
-            .join(
-                model.DocumentSubStatus,
-                model.DocumentSubStatus.idDocumentSubstatus
-                == model.Document.documentsubstatusID,
-                isouter=True,
-            )
-            .join(
-                model.DocumentHistoryLogs,
-                model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-                isouter=True,
-            )
-        )
-
-        Documentdata = (
-            Documentdata.join(
-                model.VendorAccount,
-                model.VendorAccount.idVendorAccount == model.Document.vendorAccountID,
-                isouter=True,
-            )
-            .join(
-                model.Vendor,
-                model.Vendor.idVendor == model.VendorAccount.vendorID,
-                isouter=True,
-            )
-            .filter(model.Document.vendorAccountID.isnot(None))
-        )
-        return {
-            "ok": {
-                "Documentdata": Documentdata.order_by(
-                    model.Document.CreatedOn.desc()
-                ).all(),
-                "Count": len(Documentdata.all()),
-            }
-        }
-
-    except Exception:
-        logger.error(traceback.format_exc())
-        return Response(status_code=500)
-    finally:
-        db.close()
-
 
 async def read_paginate_doc_inv_list(
     u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status
 ):
-    """This function reads document invoice list, contains following parameters
-    :param u_id: It is a function parameters that is of integer type, it
-    provides the user Id.
+    """Function to read the paginated document invoice list.
 
-    :param sp_id: It is a function parameters that is of integer type,
-        it provides the service provider Id.
-    :param ven_id: It is a function parameters that is of integer type,
-        it provides the vendor Id.
-    :param usertype: It is a function parameters that is of integer
-        type, it provides the user type.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of list type.
+    Parameters:
+    ----------
+    ven_id : int
+        The ID of the vendor to filter the invoice documents.
+    inv_type : str
+        The type of invoice to filter the results.
+    stat : Optional[str]
+        The status of the invoice for filtering purposes.
+    off_limit : tuple
+        A tuple containing offset and limit for pagination.
+    db : Session
+        Database session object used to interact with the backend database.
+    uni_api_filter : Optional[str]
+        A universal filter for API queries.
+    ven_status : Optional[str]
+        Status of the vendor to filter the results.
+
+    Returns:
+    -------
+    list
+        A list containing the filtered document invoice data.
     """
     try:
         all_status = {
@@ -372,10 +258,32 @@ async def read_paginate_doc_inv_list(
 
 
 async def read_paginate_doc_inv_list_with_ln_items(
-    ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status
+    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status
 ):
-    """This function reads document invoice list with pagination and
-    filtering."""
+    """Function to read the paginated document invoice list.
+
+    Parameters:
+    ----------
+    ven_id : int
+        The ID of the vendor to filter the invoice documents.
+    inv_type : str
+        The type of invoice to filter the results.
+    stat : Optional[str]
+        The status of the invoice for filtering purposes.
+    off_limit : tuple
+        A tuple containing offset and limit for pagination.
+    db : Session
+        Database session object used to interact with the backend database.
+    uni_api_filter : Optional[str]
+        A universal filter for API queries.
+    ven_status : Optional[str]
+        Status of the vendor to filter the results.
+
+    Returns:
+    -------
+    list
+        A list containing the filtered document invoice data.
+    """
     try:
         all_status = {
             "posted": 14,
@@ -661,58 +569,34 @@ async def read_paginate_doc_inv_list_with_ln_items(
         db.close()
 
 
-async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
-    """This function reads the invoice list, contains following parameters
-    :u_id: It is a function parameters that is of integer type, it provides the
-    user Id.
+async def read_invoice_data(u_id, inv_id, db):
+    """
+    This function reads the invoice list and contains the following parameters:
 
-    :inv_id : It is a function parameter that is of integer type, it
-    provides the invoice id. :db: It provides a session to interact with
-    the backend Database,that is of Session Object Type.
-    :return: It return a result of dict type.
+    Parameters:
+    -----------
+    u_id : int
+        The user ID provided as a function parameter.
+    inv_id : int
+        The invoice ID provided as a function parameter.
+    db : Session
+        A session object that interacts with the backend database.
+
+    Returns:
+    --------
+    dict
+        A dictionary containing the result of the vendordata, invoice header,
+        line items and upload time .
     """
     try:
-        servicedata = ""
         vendordata = ""
         # getting invoice data for later operation
         invdat = (
             db.query(model.Document)
-            .options(
-                load_only(
-                    "docPath", "supplierAccountID", "vendorAccountID", "uploadtime"
-                )
-            )
+            .options(load_only("docPath", "vendorAccountID", "uploadtime"))
             .filter_by(idDocument=inv_id)
             .one()
         )
-
-        # provide service provider details
-        if invdat.supplierAccountID:
-            servicedata = (
-                db.query(model.ServiceProvider, model.ServiceAccount)
-                .options(
-                    Load(model.ServiceProvider).load_only(
-                        "ServiceProviderName",
-                        "ServiceProviderCode",
-                        "LocationCode",
-                        "City",
-                        "Country",
-                    ),
-                    Load(model.ServiceAccount).load_only(
-                        "Account", "Email", "MeterNumber"
-                    ),
-                )
-                .filter(
-                    model.ServiceAccount.idServiceAccount == invdat.supplierAccountID
-                )
-                .join(
-                    model.ServiceAccount,
-                    model.ServiceAccount.serviceProviderID
-                    == model.ServiceProvider.idServiceProvider,
-                    isouter=True,
-                )
-                .all()
-            )
 
         # provide vendor details
         if invdat.vendorAccountID:
@@ -823,14 +707,6 @@ async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
                     )
                 )
             )
-
-            # Apply the filter if uni_api_filter is present (before executing the query)
-            if uni_api_filter:
-                query = query.filter(
-                    (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
-                    | (model.DocumentLineItems.ErrorDesc.ilike(f"%{uni_api_filter}%"))
-                )
-
             # Execute the query to retrieve the data
             linedata = query.all()
 
@@ -840,7 +716,6 @@ async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
         return {
             "ok": {
                 "vendordata": vendordata,
-                "servicedata": servicedata,
                 "headerdata": headerdata,
                 "linedata": doclinetags,
                 "uploadtime": invdat.uploadtime,
@@ -855,6 +730,23 @@ async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
 
 
 async def read_invoice_file(u_id, inv_id, db):
+    """Function to read the invoice file and return its base64 encoded content
+    along with the content type.
+
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    inv_id : int
+        Invoice ID for which the file is to be retrieved.
+    db : Session
+        Database session object used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the file path in base64 format and its content type.
+    """
     try:
         content_type = "application/pdf"
         # getting invoice data for later operation
@@ -918,21 +810,28 @@ async def read_invoice_file(u_id, inv_id, db):
 
 
 async def update_invoice_data(u_id, inv_id, inv_data, db):
-    """This function update the invoice line item data, contains following
-    parameters :u_id: It is a function parameters that is of integer type, it
-    provides the user Id.
+    """Function to update the invoice line item data.
 
-    :inv_id : It is a function parameter that is of integer type, it
-    provides the invoice id.
-    :param inv_data: It is Body parameter that is of a Pydantic type
-        object, It takes member data for updating of new invoice line
-        item. :db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of dict type.
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    inv_id : int
+        Invoice ID for the invoice line item to be updated.
+    inv_data : PydanticModel
+        Pydantic model object containing the member data for updating the invoice line
+        item.
+    db : Session
+        Database session object, used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update operation.
     """
     try:
         # avoid data updates by other users if in lock
-        dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for row in inv_data:
             try:
                 # check to see if the document id and document data are related
@@ -1040,20 +939,28 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
 
 
 async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
-    """This function update column position of the tab, contains following
-    parameters :param u_id: It is a function parameters that is of integer
-    type, it provides the user Id.
+    """Function to update the column position of a specified tab.
 
-    :param tabtype: It is a function parameters that is of string type,
-        it provides the type of tab.
-    :param col_data: It is a function parameters that is of Pydantic
-        type, It provides column data for updating column position.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of dict type.
+    Parameters:
+    ----------
+    u_id : int
+        User ID provided as a function parameter.
+    tabtype : str
+        Tab type used to identify which tab's column position to update.
+    col_data : PydanticModel
+        Pydantic model containing the column data for updating the column position.
+    bg_task : BackgroundTasks
+        Background task manager for handling asynchronous tasks.
+    db : Session
+        Database session object, used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update operation.
     """
     try:
-        UpdatedOn = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        UpdatedOn = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for items in col_data:
             items = dict(items)
             items["UpdatedOn"] = UpdatedOn
@@ -1078,15 +985,21 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
 
 
 async def read_column_pos(u_id, tabtype, db):
-    """This function reads the column position of a given tab type, contains
-    following parameters :param u_id: It is a function parameters that is of
-    integer type, it provides the user Id.
+    """Function to retrieve the column position based on the tab type.
 
-    :param tabtype: It is a function parameters that is of string type,
-        it provides the type of tab.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of dict type.
+    Parameters:
+    ----------
+    u_id : int
+        User ID provided as a function parameter.
+    tabtype : str
+        Tab type used to filter and retrieve the column positions.
+    db : Session
+        Database session object, used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the column positions for the specified tab type.
     """
     try:
         column_data = (
@@ -1322,70 +1235,6 @@ async def read_invoice_status_history(u_id, inv_id, db):
         db.close()
 
 
-async def read_doc_data(inv_id, db):
-    data = (
-        db.query(
-            model.Document.entityID,
-            model.Document.vendorAccountID,
-            model.Document.supplierAccountID,
-            model.Document.documentDate,
-            model.Document.PODocumentID,
-            model.Document.docheaderID,
-        )
-        .filter(model.Document.idDocument == inv_id)
-        .first()
-    )
-    entityID = data[0]
-    vendoraccountId = data[1]
-    supplierAccountId = data[2]
-    inv_date = data[3]
-    po = data[4]
-    invoicenum = data[5]
-    grndata = (
-        db.query(model.Document.docheaderID)
-        .filter(model.Document.PODocumentID == po, model.Document.idDocumentType == 2)
-        .first()
-    )
-    grn = grndata[0] if grndata is not None else ""
-    if vendoraccountId is not None:
-        vendordata = (
-            db.query(model.VendorAccount.vendorID)
-            .filter(model.VendorAccount.idVendorAccount == vendoraccountId)
-            .first()
-        )
-        vendor = (
-            db.query(model.Vendor.VendorName)
-            .filter(model.Vendor.idVendor == vendordata[0])
-            .first()
-        )
-    if supplierAccountId is not None:
-        spdata = (
-            db.query(model.ServiceAccount.serviceProviderID)
-            .filter(model.ServiceAccount.idServiceAccount == supplierAccountId)
-            .first()
-        )
-        vendor = (
-            db.query(model.ServiceProvider.ServiceProviderName)
-            .filter(model.ServiceProvider.idServiceProvider == spdata[0])
-            .first()
-        )
-    entity = (
-        db.query(model.Entity.EntityName)
-        .filter(model.Entity.idEntity == entityID)
-        .first()
-    )
-    return {
-        "Entity": entity[0],
-        "Vendor": vendor[0],
-        "InvoiceDate": (
-            inv_date.strftime("%Y-%m-%d %H:%M:%S") if inv_date is not None else ""
-        ),
-        "PO": po if po is not None else "",
-        "GRN": grn if grn is not None else "",
-        "InvoiceNumber": invoicenum if invoicenum is not None else "",
-    }
-
-
 async def read_doc_history(inv_id, db):
     """This function is used to read invoice history logs, contains following
     parameters.
@@ -1592,90 +1441,29 @@ async def update_document_lock_status(u_id, inv_id, session_datetime, db):
         db.close()
 
 
-async def get_stamp_data_fields(u_id, inv_id, db):
-    """Function to get stamp data fields based on document ID.
-
-    :param u_id: User ID of the requestor.
-    :param inv_id: Document ID to filter stamp data.
-    :param db: Async session to interact with the database.
-    :return: Stamp data matching the document ID, with specific fields.
-    """
-    # Query to get StampData filtered by document ID
-    stamp_data = (
-        db.query(model.StampData)
-        .filter(model.StampData.DOCUMENT_ID == inv_id)
-        .options(
-            Load(model.StampData).load_only(
-                "DEPTNAME",
-                "RECEIVING_DATE",
-                "CONFIRMATION_NUMBER",
-                "RECEIVER",
-                "SELECTED_DEPT",
-                "storenumber",
-            )
-        )
-        .first()
-    )
-
-    # If no data is found, return None or handle accordingly
-    if not stamp_data:
-        return {"message": "No stamp data found for the provided document ID."}
-
-    return stamp_data
-
-
-async def update_stamp_data_fields(u_id, inv_id, update_data, db):
-    """Function to update stamp data fields based on document ID.
-
-    :param u_id: User ID of the requestor.
-    :param inv_id: Document ID to filter the stamp data for updating.
-    :param update_data: Data to update the specific fields.
-    :param db: Session to interact with the database.
-    :return: The updated StampData object.
-    """
-    # Query to get the specific StampData by document ID
-    stamp_data = (
-        db.query(model.StampData).filter(model.StampData.DOCUMENT_ID == inv_id).first()
-    )
-
-    # If no data is found, return None
-    if not stamp_data:
-        return None
-
-    # Update the fields if they are provided in the update_data
-    if update_data.DEPTNAME is not None:
-        stamp_data.DEPTNAME = update_data.DEPTNAME
-    if update_data.RECEIVING_DATE is not None:
-        stamp_data.RECEIVING_DATE = update_data.RECEIVING_DATE
-    if update_data.CONFIRMATION_NUMBER is not None:
-        stamp_data.CONFIRMATION_NUMBER = update_data.CONFIRMATION_NUMBER
-    if update_data.RECEIVER is not None:
-        stamp_data.RECEIVER = update_data.RECEIVER
-    if update_data.SELECTED_DEPT is not None:
-        stamp_data.SELECTED_DEPT = update_data.SELECTED_DEPT
-    if update_data.storenumber is not None:
-        stamp_data.storenumber = update_data.storenumber
-
-    # Update the `updated_at` field with the current timestamp
-    stamp_data.UPDATED_ON = datetime.now()
-
-    # Commit the transaction to save the changes
-    db.commit()
-
-    # Refresh the instance to reflect the updated state
-    db.refresh(stamp_data)
-
-    return stamp_data
-
-
 async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
-    """Function to retrieve all stamptagname with their respective stampvalue
-    from the StampDataValidation table based on the document ID.
+    """Function to retrieve stamp data fields based on the document ID.
 
-    :param inv_id: Document ID to filter the stamp data.
-    :param db: Session to interact with the database.
-    :return: A list of dictionaries containing stamptagname and
-        stampvalue.
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requestor.
+    inv_id : int
+        Document ID used to filter the stamp data.
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    dict or model.StampData
+        Returns a dictionary with a message if no data is found, otherwise returns
+        the stamp data containing selected fields:
+        - DEPTNAME
+        - RECEIVING_DATE
+        - CONFIRMATION_NUMBER
+        - RECEIVER
+        - SELECTED_DEPT
+        - storenumber
     """
     try:
         # Query to filter records based on the document ID
