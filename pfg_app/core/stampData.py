@@ -44,7 +44,9 @@ def stampDataFn(blob_data, prompt):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    response = requests.post(settings.open_ai_endpoint, headers=headers, json=data)
+    response = requests.post(
+        settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+    )
 
     # Check and process the response
     if response.status_code == 200:
@@ -93,7 +95,9 @@ def VndMatchFn(vndMth_prompt):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    response = requests.post(settings.open_ai_endpoint, headers=headers, json=messages)
+    response = requests.post(
+        settings.open_ai_endpoint, headers=headers, json=messages, timeout=60
+    )
 
     # Check and process the response
     if response.status_code == 200:

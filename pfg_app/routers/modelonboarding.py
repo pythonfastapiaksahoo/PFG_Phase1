@@ -473,7 +473,7 @@ async def compose_model(request: Request, db: Session = Depends(get_db)):
             "Content-Type": "application/json",
             "Ocp-Apim-Subscription-Key": fr_key,
         }
-        requests.post(compose_url, data=json.dumps(body), headers=headers)
+        requests.post(compose_url, data=json.dumps(body), headers=headers, timeout=60)
         json_resp = fr.getmodel(fr_endpoint, modelName, headers)
         if json_resp["result"] is None:
             json_resp = fr.getmodel(fr_endpoint, modelName, headers)
@@ -555,7 +555,7 @@ async def train_model(request: Request, db: Session = Depends(get_db)):
         print(json_resp)
         if json_resp["result"] is None:
             post_resp = requests.post(
-                training_url, data=json.dumps(body), headers=headers
+                training_url, data=json.dumps(body), headers=headers, timeout=60
             )
             print(post_resp.status_code, post_resp.text)
             if post_resp.status_code == 202:
@@ -764,6 +764,7 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
                     "Content-Type": "image/jpg",
                     "Ocp-Apim-Subscription-Key": fr_key,
                 },
+                timeout=60,
             )
             if post_resp.status_code == 202:
                 get_url = post_resp.headers["operation-location"]
@@ -775,6 +776,7 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
                             "Content-Type": "image/jpeg",
                             "Ocp-Apim-Subscription-Key": fr_key,
                         },
+                        timeout=60,
                     )
                     status = get_resp.json()["status"]
         except Exception as ex:
@@ -896,6 +898,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                     "Content-Type": "application/pdf",
                     "Ocp-Apim-Subscription-Key": fr_key,
                 },
+                timeout=60,
             )
             if post_resp.status_code == 202:
                 get_url = post_resp.headers["operation-location"]
@@ -907,6 +910,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                             "Content-Type": "application/json",
                             "Ocp-Apim-Subscription-Key": fr_key,
                         },
+                        timeout=60,
                     )
                     status = get_resp.json()["status"]
         except Exception as ex:

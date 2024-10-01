@@ -971,6 +971,7 @@ def processInvoiceVoucher(doc_id, db):
                 json=request_payload,
                 headers=headers,
                 auth=(username, password),
+                timeout=60,  # Set a timeout of 60 seconds
             )
             response.raise_for_status()
             # Raises an HTTPError if the response was unsuccessful
@@ -1040,6 +1041,7 @@ def updateInvoiceStatus(doc_id, db):
                 json=invoice_status_payload,
                 headers=headers,
                 auth=(username, password),
+                timeout=60,  # Set a timeout of 60 seconds
             )
             response.raise_for_status()
             # Raises an HTTPError if the response was unsuccessful

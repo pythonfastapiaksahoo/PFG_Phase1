@@ -35,7 +35,7 @@ repos:
     rev: '1.7.10'
     hooks:
       - id: bandit
-        args: ['--skip', 'B113,B608']
+        args: ['--skip', 'B608']
 
   - repo: https://github.com/myint/docformatter
     rev: 'v1.7.5'

@@ -125,7 +125,8 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
         Cache all AAD JWT keys - so we don't have to make a web call each auth request
         """
         response = requests.get(
-            f"{self.base_auth_url}/v2.0/.well-known/openid-configuration"
+            f"{self.base_auth_url}/v2.0/.well-known/openid-configuration",
+            timeout=60,
         )
         aad_metadata = response.json() if response.ok else None
         jwks_uri = (
@@ -134,7 +135,7 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
             else None
         )
         if jwks_uri:
-            response = requests.get(jwks_uri)
+            response = requests.get(jwks_uri, timeout=60)
             keys = response.json() if response.ok else None
             if keys and "keys" in keys:
                 for key in keys["keys"]:

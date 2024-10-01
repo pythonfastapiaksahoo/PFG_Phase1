@@ -18,7 +18,7 @@ def check_file_exist(vendorAccountID, entityID, filename, file_path, bg_task, db
     """Check if the file exist, return==0 => file missing, return==1 => file
     found :param file_path:str, File path :return:int."""
     # print(file_path)
-    resp = requests.get(file_path)
+    resp = requests.get(file_path, timeout=60)
 
     if resp.status_code == 200:
         file_exists_status = 1
@@ -65,7 +65,7 @@ def ck_size_limit(
     try:
 
         # skip if it is symbolic link
-        resp = requests.get(file_path)
+        resp = requests.get(file_path, timeout=60)
         if resp.status_code == 200:
             # print(fp)
             # print(f,'--------------',os.path.getsize(fp))
