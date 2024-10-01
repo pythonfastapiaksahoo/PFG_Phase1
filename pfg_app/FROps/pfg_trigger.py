@@ -144,11 +144,6 @@ def IntegratedvoucherData(inv_id, db: Session):
     # Commit the changes to the database
     db.commit()
 
-    # VoucherData_insert_data = {'documentID':inv_id,'Business_unit':BUSINESS_UNIT,'Invoice_Id':invo_ID,'Invoice_Dt':invo_Date,'Vendor_Setid':VENDOR_SETID,'Vendor_ID':VENDOR_ID,'Deptid':DEPTID,'Account':ACCOUNT,'Gross_Amt':invo_SubTotal,'Merchandise_Amt':invo_total,'File_Name':docPath.split('/')[-1],'Distrib_Line_num':1,'Voucher_Line_num':1,'Image_Nbr':1,'Origin':invoice_type}
-    # VD_db_data = model.VoucherData(**VoucherData_insert_data)
-    # db.add(VD_db_data)
-    # db.commit()
-
 
 def nonIntegratedVoucherData(inv_id, db: Session):
 
@@ -252,12 +247,6 @@ def nonIntegratedVoucherData(inv_id, db: Session):
         else:
             dpt_cd.append(stmpData["Department"])
 
-        #     dpt_cd_dt = db.query(model.PFGDepartment).filter(or_(
-        #             model.PFGDepartment.DEPTID.in_(dpt_cd),  # Contains '30' anywhere
-        #             model.PFGDepartment.DEPTID ==stmpData['Department']     # Exact match with '30'
-        #         )
-        #     ).all()
-
         dpt_cd_dt = (
             db.query(model.PFGDepartment)
             .filter(
@@ -339,14 +328,6 @@ def nonIntegratedVoucherData(inv_id, db: Session):
 
     # Commit the changes to the database
     db.commit()
-
-    # VoucherData_insert_data = {'documentID':inv_id,'Business_unit':BUSINESS_UNIT,'Invoice_Id':invo_ID,'Invoice_Dt':invo_Date,'Vendor_Setid':VENDOR_SETID,'Vendor_ID':VENDOR_ID,'Deptid':DEPTID,'Account':ACCOUNT,'Gross_Amt':invo_SubTotal,'Merchandise_Amt':invo_total,'File_Name':docPath.split('/')[-1],'Distrib_Line_num':1,'Voucher_Line_num':1,'Image_Nbr':1,'Origin':invoice_type}
-    # VD_db_data = model.VoucherData(**VoucherData_insert_data)
-    # db.add(VD_db_data)
-    # db.commit()
-
-
-# ocr check:  check1
 
 
 def pfg_sync(docID, db: Session):
@@ -541,7 +522,8 @@ def pfg_sync(docID, db: Session):
                                     docSubStatus = 43
 
                                 elif RespCodeInt == 400:
-                                    # Failure: Data Error - IICS could not process the message
+                                    # Failure:
+                                    # Data Error - IICS could not process the message
                                     docStatus = 21
                                     docSubStatus = 108
 
@@ -551,17 +533,20 @@ def pfg_sync(docID, db: Session):
                                     docSubStatus = 109
 
                                 elif RespCodeInt == 422:
-                                    # Failure: PeopleSoft could not parse the json message
+                                    # Failure:
+                                    # PeopleSoft could not parse the json message
                                     docStatus = 21
                                     docSubStatus = 110
 
                                 elif RespCodeInt == 424:
-                                    # Failure: File Attachment could not loaded to File Server
+                                    # Failure:
+                                    # File Attachment could not loaded to File Server
                                     docStatus = 21
                                     docSubStatus = 111
 
                                 elif RespCodeInt == 500:
-                                    # Internal Server Error - Could not connect to IICS or to PeopleSoft
+                                    # Internal Server Error -
+                                    # Could not connect to IICS or to PeopleSoft
                                     docStatus = 21
                                     docSubStatus = 53
                                 else:

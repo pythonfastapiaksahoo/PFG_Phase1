@@ -18,7 +18,6 @@ def stamnpDataFn(blob_data, prompt, deployment_name, api_base, api_key, api_vers
         base_url=f"{api_base}openai/deployments/{deployment_name}",
     )
     pdf_img = convert_from_bytes(blob_data)
-    # pdf_img = convert_from_bytes(blob_data,poppler_path=r'C:\poppler-24.07.0\Library\bin')
     buffered = io.BytesIO()
     pdf_img[0].save(buffered, format="PNG")
     encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")

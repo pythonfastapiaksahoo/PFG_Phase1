@@ -54,7 +54,8 @@ class VendorUser(BaseModel):
     idAccessPermissionDef: Optional[int] = None
 
 
-# # new Vendor Invoice Access Structure # TODO this was commented because it is already defined above
+# # new Vendor Invoice Access Structure
+# # TODO this was commented because it is already defined above
 # class VendorInvoiceAccess(BaseModel):
 #     vendorAccountID: int
 #     accessPermissionID: int

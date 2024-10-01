@@ -73,7 +73,8 @@ def runStatus(
         invoice_type."""
 
         logger.info(
-            f"file_path: {file_path}, filename: {filename}, file_type: {file_type}, source: {source}, invoice_type: {invoice_type}"
+            f"file_path: {file_path}, filename: {filename}, file_type: {file_type},\
+            source: {source}, invoice_type: {invoice_type}"
         )
         db = next(get_db())
         containername = "invoicesplit-test"  # TODO move to settings
@@ -81,13 +82,27 @@ def runStatus(
         destination_container_name = "apinvoice-container"  # TODO move to settings
         fr_API_version = "2023-07-31"  # TODO move to settings
 
-        prompt = """This is an invoice document. It may contain a receiver's stamp and might have inventory or supplies marked or circled with a pen, circled is selected. It contains store number as "STR #"
-        InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No. If a stamp is present, identify any markings on the document related to
-        Inventory or Supplies, specifically if they are marked or circled with a pen. If a stamp is present, extract the following handwritten details
-        from the stamp: ConfirmationNumber (the confirmation number labeled as 'Confirmation' on the stamp), ReceivingDate (the date when the goods were received),
-        Receiver (the name of the person or department who received the goods), and Department (the handwritten department name or code,
-        or another specified departmentname), MarkedDept (which may be either 'Inventory' or 'Supplies', based on pen marking). Provide all information in the following JSON format: {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'(which ever is circled more/marked only),
-        'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data', 'Receiver': 'Extracted data', 'Department': 'Dept code','Store Number':,'VendorName':}.Output should be just json"""  # TODO move to settings
+        prompt = """This is an invoice document. It may contain a receiver's stamp and
+        might have inventory or supplies marked or circled with a pen, circled is
+        selected. It contains store number as "STR #"
+        InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No.
+        If a stamp is present, identify any markings on the document related to
+        Inventory or Supplies, specifically if they are marked or circled with a pen.
+        If a stamp is present, extract the following handwritten details
+        from the stamp: ConfirmationNumber (the confirmation number labeled as
+        'Confirmation' on the stamp),
+        ReceivingDate (the date when the goods were received),
+        Receiver (the name of the person or department who received the goods), and
+        Department (the handwritten department name or code,
+        or another specified departmentname), MarkedDept (which may be either
+        'Inventory' or 'Supplies', based on pen marking).
+        Provide all information in the following JSON format:
+        {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'
+        (which ever is circled more/marked only),
+        'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
+        'Receiver': 'Extracted data', 'Department': 'Dept code',
+        'Store Number':,'VendorName':}.Output should be just json"""
+        # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
 
@@ -121,7 +136,8 @@ def runStatus(
             conn = psycopg2.connect(**conn_params)
             cursor = conn.cursor()
             cursor.execute(
-                'SELECT "idVendor","VendorName","Synonyms","Address" FROM pfg_schema.vendor;'
+                'SELECT "idVendor","VendorName","Synonyms","Address" \
+                    FROM pfg_schema.vendor;'
             )
             rows = cursor.fetchall()
 
@@ -130,7 +146,9 @@ def runStatus(
             time.sleep(0.5)
             cursor = conn.cursor()
             insert_splitTab_query = """
-                INSERT INTO pfg_schema.splitdoctab (invoice_path, totalpagecount, pages_processed, status,emailbody_path)
+                INSERT INTO pfg_schema.splitdoctab \
+                    (invoice_path, totalpagecount, pages_processed, status,\
+                        emailbody_path)
                 VALUES (%s, %s, %s, %s, %s);
             """
 
@@ -226,7 +244,8 @@ def runStatus(
                                                 vdrFound = 1
                                                 vendorID = vName
                                                 logger.info(
-                                                    f"cos_sim:{cos_sim_di} , vendor:{vName}"
+                                                    f"cos_sim:{cos_sim_di} , \
+                                                        vendor:{vName}"
                                                 )
                                                 stop = True
                                                 break
@@ -234,7 +253,8 @@ def runStatus(
                                                 vdrFound = 1
                                                 vendorID = vName
                                                 logger.info(
-                                                    f"cos_sim:{cos_sim_stmp} , vendor:{vName}"
+                                                    f"cos_sim:{cos_sim_stmp} , \
+                                                        vendor:{vName}"
                                                 )
                                                 stop = True
                                                 break
@@ -452,7 +472,9 @@ def runStatus(
                                     if len(Confirmation) == 9:
                                         try:
 
-                                            query = 'SELECT * FROM pfg_schema.pfgreceipt WHERE "RECEIVER_ID" = %s'
+                                            query = 'SELECT * \
+                                                FROM pfg_schema.pfgreceipt \
+                                                    WHERE "RECEIVER_ID" = %s'
                                             cursor.execute(query, (Confirmation,))
                                             row = cursor.fetchone()
                                             if row:
@@ -568,7 +590,8 @@ def runStatus(
                                                     )
                                                 )
                                             )
-                                            # Fetch specific columns as a list of dictionaries using .values()
+                                            # Fetch specific columns as a list
+                                            # of dictionaries using .values()
                                             results = db.query(
                                                 model.NonintegratedStores
                                             ).values(
@@ -639,7 +662,10 @@ def runStatus(
                                 stm_dt_lt.append(stmp_dt)
                                 try:
                                     try:
-                                        insert_query = """ INSERT INTO stampdatavalidation (documentid, stamptagname, stampvalue, is_error, errordesc, created_on)
+                                        insert_query = """ INSERT INTO \
+                                            stampdatavalidation \
+                                                (documentid, stamptagname, stampvalue,\
+                                                      is_error, errordesc, created_on)
                                                         VALUES %s
                                                         """
                                         extras.execute_values(
@@ -654,7 +680,13 @@ def runStatus(
                                         )
                                     cursor = conn.cursor()
                                     insert_query = """
-                                    INSERT INTO pfg_schema.stampdata ("DOCUMENT_ID", "DEPTNAME", "RECEIVING_DATE", "CONFIRMATION_NUMBER","RECEIVER", "SELECTED_DEPT","storenumber")
+                                    INSERT INTO \
+                                        pfg_schema.stampdata \
+                                            ("DOCUMENT_ID", "DEPTNAME", \
+                                                "RECEIVING_DATE", \
+                                                    "CONFIRMATION_NUMBER",\
+                                                        "RECEIVER", "SELECTED_DEPT",\
+                                                            "storenumber")
                                                 VALUES (%s, %s, %s, %s, %s, %s, %s);
                                     """
 
@@ -716,7 +748,9 @@ def runStatus(
 
                         try:
                             cur = conn.cursor()
-                            sql_updateFR = """UPDATE pfg_schema.frtrigger_tab SET "status" = %s, "sender" = %s, "vendorID" = %s WHERE "blobpath" = %s; """
+                            sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
+                                SET "status" = %s, "sender" = %s, "vendorID" = %s \
+                                    WHERE "blobpath" = %s; """
                             FRvalues = ("Processed", sender, vendorID, spltFileName)
                             cur.execute(sql_updateFR, FRvalues)
                             conn.commit()
@@ -972,9 +1006,10 @@ def live_model_fn_1(generatorObj):
             # live_model_status = 0  # TODO: Unused variable
             # live_model_msg = "Please upload jpg or pdf file"  # TODO: Unused variable
         model_type = "custom"
-
+        # check from where this function is coming
+        # (this is coming from core/azure_fr.py)
         cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
-            get_fr_data(  # check from where this function is coming (this is coming from core/azure_fr.py)
+            get_fr_data(
                 input_data,
                 file_type,
                 API_version,
@@ -985,21 +1020,22 @@ def live_model_fn_1(generatorObj):
         )
 
         model_type = "prebuilt"
-        pre_model_status, pre_model_msg, pre_data, pre_status = (
-            get_fr_data(  # check from where this function is coming (this is coming from core/azure_fr.py)
-                input_data,
-                file_type,
-                API_version,
-                endpoint,
-                model_type,
-                inv_model_id,
-            )
+        # check from where this function is coming
+        # (this is coming from core/azure_fr.py)
+        pre_model_status, pre_model_msg, pre_data, pre_status = get_fr_data(
+            input_data,
+            file_type,
+            API_version,
+            endpoint,
+            model_type,
+            inv_model_id,
         )
 
         if not isComposed:
             modelID = modelDetails[-1]["IdDocumentModel"]
         else:
-            # modeldict = next(x for x in modelDetails if x["modelName"].lower() == template.lower())
+            # modeldict = next(x for x in modelDetails
+            # if x["modelName"].lower() == template.lower())
             modelID = modelDetails[-1]["IdDocumentModel"]
 
         no_pages_processed = len(input_data)
@@ -1280,44 +1316,6 @@ def push_frdata(
         else "" + " " + user_details[1] if user_details[1] is not None else ""
     )
     update_docHistory(invoiceID, userID, 0, f"Invoice Uploaded By {user_name}", db)
-
-    # if len(error_labels if error_labels else [] + error_line_items if error_line_items else []):
-    # ############ start of notification trigger #############
-    # # getting recipients for sending notification
-    # # filter based on role if added
-    # try:
-    #     role_id = db.query(model.NotificationCategoryRecipient.roles).filter_by(entityID=entityID,
-    #                                                                             notificationTypeID=2).scalar()
-    #     # getting recipients for sending notification
-    #     recepients = db.query(model.AccessPermission.userID).filter(
-    #         model.AccessPermission.permissionDefID.in_(role_id["roles"])).distinct()
-    #     recepients = db.query(model.User.idUser, model.User.email, model.User.firstName,
-    #                           model.User.lastName).filter(model.User.idUser.in_(recepients)).filter(
-    #         model.User.isActive == 1).filter(model.UserAccess.UserID == model.User.idUser).filter(
-    #         model.UserAccess.EntityID == entityID, model.UserAccess.isActive == 1).all()
-    #     user_ids, *email = zip(*list(recepients))
-    #     # just format update
-    #     email_ids = list(zip(email[0], email[1], email[2]))
-    #     cc_email_ids = []
-    #     try:
-    #         isdefaultrep = db.query(model.NotificationCategoryRecipient.isDefaultRecepients,
-    #                                 model.NotificationCategoryRecipient.notificationrecipient).filter(
-    #             model.NotificationCategoryRecipient.entityID == entityID,
-    #             model.NotificationCategoryRecipient.notificationTypeID == 2).one()
-    #     except Exception as e:
-    #         pass
-    #     if isdefaultrep and isdefaultrep.isDefaultRecepients and len(
-    #             isdefaultrep.notificationrecipient["to_addr"]) > 0:
-    #         email_ids.extend([(x, "Serina", "User") for x in isdefaultrep.notificationrecipient["to_addr"]])
-    #         cc_email_ids = isdefaultrep.notificationrecipient["cc_addr"]
-    #     cust_id = db.query(model.Entity.customerID).filter_by(idEntity=entityID).scalar()
-    #     details = {"user_id": user_ids, "trigger_code": 7003, "cust_id": cust_id, "inv_id": invoiceID,
-    #                "additional_details": {"subject": "Label Error",
-    #                                       "keylabel": str(error_labels + error_line_items),
-    #                                       "recipients": email_ids, "cc": cc_email_ids}}
-    #     ############ End of notification trigger #############
-    # except Exception as e:
-    #     print(e)
 
     # update document history table
     return invoiceID

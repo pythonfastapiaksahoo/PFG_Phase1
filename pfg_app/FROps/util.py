@@ -104,7 +104,8 @@ async def get_file(file, w):
 def preprocess(file_name, file_bytes, file_type):
     try:
 
-        global accepted_inch, accepted_pixel_max, accepted_pixel_min, accepted_filesize_max
+        global accepted_inch, accepted_pixel_max
+        global accepted_pixel_min, accepted_filesize_max
         if file_type == "application/pdf":
             pdf = PdfReader(file_bytes, strict=False)
             if not pdf.isEncrypted:

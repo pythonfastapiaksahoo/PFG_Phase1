@@ -16,9 +16,6 @@ from pfg_app.session.session import DB, SQLALCHEMY_DATABASE_URL, engine
 credential = DefaultAzureCredential()
 import json
 import re
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from itertools import groupby
 
 import pandas as pd
@@ -76,12 +73,14 @@ async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
                         and "value" in d["data"]
                     ):
                         result_dict[d["tag"]] = d["data"]["value"]
-                # result_dict = {d["tag"]: d["data"]["value"] for d in prebuilt_data} # commented  this line and added above line
+                # result_dict = {d["tag"]: d["data"]["value"] for d in prebuilt_data}
+                # # commented  this line and added above line
                 print(result_dict)
 
                 update_query = """
                 UPDATE {DB}.documentdata AS t2
-                JOIN {DB}.documenttagdef AS t1 ON t2.documentTagDefID = t1.idDocumentTagDef
+                JOIN {DB}.documenttagdef AS t1
+                ON t2.documentTagDefID = t1.idDocumentTagDef
                 SET t2.value = CASE
                     {update_cases}
                     ELSE t2.value
@@ -122,12 +121,14 @@ async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
                         and "value" in d["data"]
                     ):
                         result_dict_custom[d["tag"]] = d["data"]["value"]
-                # result_dict = {d["tag"]: d["data"]["value"] for d in custom_data} # commented  this line and added above line
+                # result_dict = {d["tag"]: d["data"]["value"] for d in custom_data}
+                # # commented  this line and added above line
                 print(result_dict_custom)
 
                 update_query = """
                 UPDATE {DB}.documentdata AS t2
-                JOIN {DB}.documenttagdef AS t1 ON t2.documentTagDefID = t1.idDocumentTagDef
+                JOIN {DB}.documenttagdef AS t1 ON
+                t2.documentTagDefID = t1.idDocumentTagDef
                 SET t2.value = CASE
                     {update_cases}
                     ELSE t2.value
@@ -394,15 +395,12 @@ async def update_entity(
 
                     # update the document tagdef ID's
                     query = (
-                        "UPDATE "
-                        + DB
-                        + ".documentdata SET documentTagDefID = CASE {documentTagDefID} ELSE NULL END WHERE documentID = {inv_id};".format(
-                            documentTagDefID=" ".join(
-                                f"WHEN documentTagDefID = {documentTagDefID} THEN {idDocumentTagDef_new}"
-                                for documentTagDefID, idDocumentTagDef_new in update_tagID.items()
-                            ),
-                            inv_id=inv_id,
+                        f"UPDATE {DB}.documentdata SET documentTagDefID = CASE "
+                        + " ".join(
+                            f"WHEN documentTagDefID = {documentTagDefID} THEN {_new}"
+                            for documentTagDefID, _new in update_tagID.items()
                         )
+                        + f" ELSE NULL END WHERE documentID = {inv_id};"
                     )
                     engine.execute(query)
                     print(query)
@@ -507,17 +505,14 @@ async def update_entity(
 
                     print("updateline_tagID", updateline_tagID)
 
-                    # update the documentlineitems ID's
+                    # Update the documentlineitems IDs
                     query = (
-                        "UPDATE "
-                        + DB
-                        + ".documentlineitems SET lineItemtagID = CASE {lineItemtagID} ELSE NULL END WHERE documentID = {inv_id};".format(
-                            lineItemtagID=" ".join(
-                                f"WHEN lineItemtagID = {idDocumentLineItemTags_old} THEN {idDocumentLineItemTags_new}"
-                                for idDocumentLineItemTags_old, idDocumentLineItemTags_new in updateline_tagID.items()
-                            ),
-                            inv_id=inv_id,
+                        f"UPDATE {DB}.documentlineitems SET lineItemtagID = CASE "
+                        + " ".join(
+                            f"WHEN lineItemtagID = {_old} " + f"THEN {_new}"
+                            for _old, _new in updateline_tagID.items()
                         )
+                        + f" ELSE NULL END WHERE documentID = {inv_id};"
                     )
                     engine.execute(query)
                     print(query)
@@ -578,7 +573,8 @@ async def readbatchprocessdetails(u_id: int, db: Session):
                             "Purchase order is no longer confirmed%"
                         ),
                         model.Document.documentDescription.like(
-                            "The fiscal period is closed for module Purchase order on the date%"
+                            "The fiscal period is closed for "
+                            + "module Purchase order on the date%"
                         ),
                     ),
                     "PO Not Confirmed - Posting Cancelled",
@@ -672,10 +668,7 @@ async def readbatchprocessdetails(u_id: int, db: Session):
             )
             data = data.filter(model.Document.entityID.in_(sub_query_ent)).all()
             if data:
-                po_document_ids = [
-                    doc.PODocumentID
-                    for doc, document_sub_status, vendor, vendr_account, entity, _ in data
-                ]
+                po_document_ids = [doc.PODocumentID for doc, _, _, _, _, _ in data]
                 requestor_names = (
                     db.query(model.Document.PODocumentID, model.Document.sender)
                     .filter(
@@ -1312,7 +1305,7 @@ async def test_batchdata(u_id: int, db: Session):
         return Response(status_code=500)
 
 
-#################################################################################################
+############################################
 
 
 async def loadpodata(u_id: int, inv_id: int, db: Session):
@@ -1529,7 +1522,6 @@ async def get_all_itemcode(inv_id: int, db: Session):
             )
             .one()
         )
-        # subquery1 = db.query(model.DocumentLineItems.itemCode).filter_by(documentID=po_doc_id[0]).distinct().all()
 
         all_description = (
             db.query(model.DocumentLineItems)
@@ -1834,7 +1826,8 @@ def get_po_total(po_lines):
                 po_tot_amt = 0
                 return {
                     "po_tot_amt": po_tot_amt,
-                    "status": f"Quantity {line.Quantity} greater than PurchQty {line.PurchQty}for the line {line.LineNumber}",
+                    "status": f"Quantity {line.Quantity} greater "
+                    + f"than PurchQty {line.PurchQty}for the line {line.LineNumber}",
                 }
         return {"po_tot_amt": po_tot_amt, "status": "success"}
     except Exception:
@@ -1913,10 +1906,6 @@ async def save_po_lines_to_invoice(u_id, inv_id, po_lines, db):
                 )
                 .scalar()
             )
-            # prev_sub_tot = db.query(model.DocumentData.Value).filter(model.DocumentData.documentTagDefID == sub_tg_id,model.DocumentData.documentID == inv_id).scalar()
-            # prev_data = {""}
-            # db.add(model.DocumentLineItemTags(**prev_data))
-            # db.commit()
             db.query(model.DocumentData).filter(
                 model.DocumentData.documentTagDefID == sub_tg_id,
                 model.DocumentData.documentID == inv_id,
@@ -2054,7 +2043,8 @@ def flip_po_to_invoice(po_lines, inv_id, db, u_id, id_doc_modelid):
                         except Exception:
                             logger.error(traceback.format_exc())
 
-                    # calculating discount from po line and preparing data for insertion to db
+                    # calculating discount from po line
+                    # and preparing data for insertion to db
                     inv_line_number = 0
                     for line in po_lines:
                         inv_line_number += 1
@@ -2182,125 +2172,6 @@ async def check_inv_status(u_id, inv_id, db):
         return {"result": status_id}
     except Exception:
         logger.error(traceback.format_exc())
-        return Response(status_code=500)
-    finally:
-        db.close()
-
-
-async def send_mail_to_zoho(u_id, inv_id, db):
-    try:
-        user_mail = (
-            db.query(model.User.email)
-            .filter_by(idUser=u_id, isActive=1)
-            .distinct()
-            .scalar()
-        )
-        data = (
-            db.query(
-                model.Document,
-                model.DocumentSubStatus,
-                model.Entity,
-                model.Vendor,
-                model.User,
-            )
-            .options(
-                Load(model.Document).load_only("docheaderID", "PODocumentID", "sender"),
-                Load(model.DocumentSubStatus).load_only("status"),
-                Load(model.Entity).load_only("EntityName"),
-                Load(model.Vendor).load_only("VendorName"),
-                Load(model.User).load_only("email"),
-            )
-            .join(
-                model.DocumentSubStatus,
-                model.DocumentSubStatus.idDocumentSubstatus
-                == model.Document.documentsubstatusID,
-            )
-            .join(model.Entity, model.Entity.idEntity == model.Document.entityID)
-            .join(model.Vendor, model.Vendor.entityID == model.Entity.idEntity)
-            .filter(model.Document.idDocument == inv_id)
-            .first()
-        )
-        print(inv_id)
-
-        if data:
-            document = data[0]
-
-            po_number = document.PODocumentID
-            invoice_id = document.docheaderID
-            entity_name = data[2].EntityName
-            status_exception = data[1].status
-            vendor_name = data[3].VendorName
-            sender_email = user_mail
-            Sender = document.sender
-
-            smtp_server = "smtp-mail.outlook.com"
-            smtp_port = 587
-
-            from_address = "serinaplus.dev@datasemantics.co"
-            to_address = "support@dsplpvtltd.zohodesk.com"
-            subject = "Details for Invoice and POs"
-
-            msg = MIMEMultipart()
-            msg["Subject"] = subject
-            msg["From"] = from_address
-            msg["To"] = to_address
-
-            body = f"""<html>
-                            <body style="font-family: Segoe UI !important;height: 100% !important;margin: 0 !important;padding: 20px !important;color: #272727 !important;">
-                            <!-- #original_sender -->
-                            <p style="margin: 0;">#original_sender {sender_email}</p>
-                            <p style="margin: 10px 0;"></p>
-                            <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse: collapse;">
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Invoice ID</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{invoice_id}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">PO Number</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{po_number}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Status</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{status_exception}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Entity</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{entity_name}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Vendor</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{vendor_name}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Uploaded_by</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{Sender}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Reference URL</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;"><a href="https://rovedev.serinaplus.com/customer/ExceptionManagement/batchProcess/comparision-docs/{inv_id}">Reference URL</a></td>
-                                        </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                            </body>
-                        </html>"""
-
-            msg.attach(MIMEText(body, "html"))
-
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(from_address, "passwordchangedduetospam@1234")
-                server.sendmail(from_address, to_address, msg.as_string())
-            return {"message": "Email sent to Zoho Desk successfully."}
-        else:
-            return {"message": "No details found for the specified invoice ID."}
-
-    except Exception:
-        print(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()

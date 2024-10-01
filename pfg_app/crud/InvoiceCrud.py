@@ -534,10 +534,11 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.Vendor.Address.ilike(f"%{uni_api_filter}%"),
                 model.DocumentSubStatus.status.ilike(f"%{uni_api_filter}%"),
                 inv_choice[inv_type][1].Account.ilike(f"%{uni_api_filter}%"),
-                # New condition: Check if any related DocumentLineItems.Value matches the filter
+                # New condition: Check if any related
+                # DocumentLineItems.Value matches the filter
                 # exists().where(
-                #     (model.DocumentLineItems.documentID == model.Document.idDocument) &
-                #     (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
+                # (model.DocumentLineItems.documentID == model.Document.idDocument) &
+                #   (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
                 # )
             )
             data_query = data_query.filter(filter_condition)
@@ -645,7 +646,8 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 result.append(
                     {
                         "document": doc_row,
-                        "lineitems": doclinetags,  # Attach all line tags and their items for this document
+                        "lineitems": doclinetags,
+                        # Attach all line tags and their items for this document
                     }
                 )
         else:
@@ -787,22 +789,6 @@ async def read_invoice_data(u_id, inv_id, db, uni_api_filter):
             .filter(model.DocumentLineItemTags.idDocumentLineItemTags.in_(subquery))
             .all()
         )
-
-        # # form a line item structure
-        # for row in doclinetags:
-        #     linedata = db.query(model.DocumentLineItems, model.DocumentUpdates).options(
-        #         Load(model.DocumentLineItems).load_only("Value", "IsUpdated", "isError",
-        #                                                 "ErrorDesc", "Xcord", "Ycord", "Width",
-        #                                                 "Height", "itemCode"),
-        #         Load(model.DocumentUpdates).load_only("OldValue", "UpdatedOn")).filter(
-        #         model.DocumentLineItems.lineItemtagID == row.idDocumentLineItemTags,
-        #         model.DocumentLineItems.documentID == inv_id).join(
-        #         model.DocumentUpdates,
-        #         model.DocumentUpdates.documentLineItemID == model.DocumentLineItems.idDocumentLineItems,
-        #         isouter=True).filter(
-        #         or_(model.DocumentLineItems.IsUpdated == 0, model.DocumentUpdates.IsActive == 1)).all()
-
-        #     row.linedata = linedata
 
         for row in doclinetags:
             # Build the initial query for line data
@@ -1203,59 +1189,6 @@ async def get_role_priority(u_id, db):
         db.close()
 
 
-async def setdochistorylog(u_id, inv_id, stat_id, dochist, db):
-    """This function saves the status of the invoice thus preserving its
-    history , contains following parameters.
-
-    :param u_id: It is a function parameters that is of integer type, it
-        provides the user Id.
-    :param inv_id: It is a function parameters that is of integer type,
-        it provides the invoice Id.
-    :param stat_id:
-    :param dochist: It is a function parameters that is of dict type, it
-        provides the description and amount which are optional.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of 1 integer type.
-    """
-    # return dochist["documentdescription"]
-    if (
-        dochist["documentdescription"] is None
-        or "documentdescription" not in dochist.keys()
-    ):
-        user_name = (
-            db.query(model.User.firstName, model.User.lastName)
-            .filter_by(idUser=u_id)
-            .one()
-        )
-        description = {
-            1: f"Edit approved by user {user_name[0] if user_name[0] else ''} {user_name[1] if user_name[1] else ''}",
-            5: f"Invoice assigned to id {user_name[0] if user_name[0] else ''} {user_name[1] if user_name[1] else ''}",
-            6: f"Invoice edited by user id {user_name[0] if user_name[0] else ''} {user_name[1] if user_name[1] else ''}",
-        }
-        dochist["documentdescription"] = description[stat_id]
-    try:
-        db.query(model.Document).filter_by(idDocument=inv_id).update(
-            {
-                "UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                "documentStatusID": stat_id,
-            }
-        )
-        dochist["documentID"] = inv_id
-        dochist["documentStatusID"] = stat_id
-        dochist["userID"] = u_id
-        dochist["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        dochist = model.DocumentHistoryLogs(**dochist)
-        db.add(dochist)
-        db.commit()
-        return 1
-    except Exception:
-        logger.error(traceback.format_exc())
-        return None
-    finally:
-        db.close()
-
-
 async def read_invoice_status_history(u_id, inv_id, db):
     """This function is used to read invoice history logs, contains following
     parameters.
@@ -1588,7 +1521,8 @@ async def read_document_lock_status(u_id, inv_id, client_ip, db):
             lock_datetime = datetime.strptime(
                 lock_info[0]["lock_date_time"], "%Y-%m-%d %H:%M:%S"
             )
-            # if lock info not null, compare the lock session time, if lesser than current time reset info
+            # if lock info not null, compare the lock
+            # session time, if lesser than current time reset info
             if lock_datetime < current_datetime:
                 db.query(model.Document).filter_by(idDocument=inv_id).update(
                     {"lock_info": None, "lock_user_id": None}
@@ -1812,7 +1746,8 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     updated_records.append(
                         {
                             "stamptagname": stamptagname,
-                            "error": f"No matching stamp data found for stamptagname: {stamptagname}",
+                            "error": "No matching stamp data found for "
+                            + f"stamptagname: {stamptagname}",
                         }
                     )
                     continue
@@ -1828,11 +1763,13 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
 
             except SQLAlchemyError:
                 logger.error(traceback.format_exc())
-                # Catch any SQLAlchemy-specific error during the update of a single record
+                # Catch any SQLAlchemy-specific error
+                # during the update of a single record
                 updated_records.append(
                     {
                         "stamptagname": stamptagname,
-                        "error": f"Database error occurred: {str(traceback.format_exc())}",
+                        "error": "Database error occurred: "
+                        + f"{str(traceback.format_exc())}",
                     }
                 )
                 # Continue to next record without breaking the loop
@@ -1850,7 +1787,8 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
         # Handle any general SQLAlchemy error and rollback the transaction
         db.rollback()
         return {
-            "error": f"Transaction failed due to a database error: {str(traceback.format_exc())}"
+            "error": "Transaction failed due to a "
+            + f"database error: {str(traceback.format_exc())}"
         }
 
     except Exception:

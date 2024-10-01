@@ -55,7 +55,8 @@ async def onboard_invoice_model(
 
     - userID : Unique indetifier used to indentify a user
     - invoiceTemplate: The Form Recognizer output, passed as API body
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     - return: It returns the result status.
 
     <b> CRUD Ops</b>
@@ -113,7 +114,6 @@ async def get_tagging_details(
                 filename = b.name.split("/")[-1]
                 if os.path.splitext(b.name)[1].lower() == ".pdf":
                     images = convert_from_bytes(bdata, dpi=92, poppler_path="/usr/bin")
-                    # images = convert_from_bytes(bdata,poppler_path=r'D:\\poppler-0.68.0\\bin')
 
                     for i in images:
                         im_bytes = BytesIO()
@@ -256,7 +256,9 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
             + token
         )
         print(fr_endpoint)
-        url = f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-layout:analyze?api-version=2023-07-31&stringIndexType=utf16CodeUnit&features=ocrHighResolution"
+        url = f"{fr_endpoint}/formrecognizer/documentModels/\
+            prebuilt-layout:analyze?api-version=2023-07-31\
+                &stringIndexType=utf16CodeUnit&features=ocrHighResolution"
         account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
         account_url = f"https://{account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
@@ -320,7 +322,8 @@ async def get_test_result(
         frconfigs = getOcrParameters(1, db)
         fr_endpoint = frconfigs.Endpoint
         fr_key = frconfigs.Key1
-        url = f"{fr_endpoint}/formrecognizer/documentModels/{modelid}:analyze?api-version=2023-07-31"
+        url = f"{fr_endpoint}/formrecognizer/\
+            documentModels/{modelid}:analyze?api-version=2023-07-31"
         metadata, f, valid_file = await ut.get_file(file, 900)
         if not valid_file:
             return {"message": "File is invalid"}
@@ -459,7 +462,8 @@ async def compose_model(request: Request, db: Session = Depends(get_db)):
         frconfigs = getOcrParameters(1, db)
         fr_endpoint = frconfigs.Endpoint
         fr_key = frconfigs.Key1
-        compose_url = f"{fr_endpoint}/formrecognizer/documentModels:compose?api-version=2023-07-31"
+        compose_url = f"{fr_endpoint}/\
+            formrecognizer/documentModels:compose?api-version=2023-07-31"
         body = {
             "modelId": modelName,
             "description": "",
@@ -622,7 +626,10 @@ async def get_result_run_layout(folder: str, db: Session = Depends(get_db)):
                     content_type = "image/png"
                 else:
                     content_type = "application/pdf"
-                url = f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-layout:analyze?api-version=2023-07-31&stringIndexType=utf16CodeUnit&features=ocrHighResolution"
+                url = f"{fr_endpoint}/\
+                    formrecognizer/documentModels/prebuilt-layout:analyze\
+                        ?api-version=2023-07-31\
+                            &stringIndexType=utf16CodeUnit&features=ocrHighResolution"
                 blob_client = blob_service_client.get_blob_client(
                     containername, blob=blob.name + ".ocr.json"
                 )
@@ -748,7 +755,10 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
         )
         try:
             post_resp = requests.post(
-                f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-invoice:analyze?api-version=2023-07-31&locale={language[0]}&stringIndexType=textElements&features=ocrHighResolution",
+                f"{fr_endpoint}/\
+                    formrecognizer/documentModels/prebuilt-invoice:analyze\
+                        ?api-version=2023-07-31&locale={language[0]}&\
+                            stringIndexType=textElements&features=ocrHighResolution",
                 data=filedata,
                 headers={
                     "Content-Type": "image/jpg",
@@ -779,7 +789,8 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
         tags = {"VendorTaxId": "TRN", "CustomerTaxId": "CustomerTRN"}
         table_tags = {"TotalTax": "Tax"}
         labels_json = {
-            "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/labels.json",
+            "$schema": "https://schema.cognitiveservices.azure.com/\
+                formrecognizer/2021-03-01/labels.json",
             "document": document_name.split("/")[-1],
             "labels": [],
             "labelingState": 2,
@@ -877,7 +888,9 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
         )
         try:
             post_resp = requests.post(
-                f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-invoice:analyze?api-version=2023-07-31&locale={language[0]}&stringIndexType=textElements&features=ocrHighResolution",
+                f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-invoice:analyze\
+                    ?api-version=2023-07-31&locale={language[0]}&\
+                        stringIndexType=textElements&features=ocrHighResolution",
                 data=filedata,
                 headers={
                     "Content-Type": "application/pdf",
@@ -906,7 +919,8 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
         header = keyfields["header"]
         line = keyfields["line"]
         labels_json = {
-            "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/labels.json",
+            "$schema": "https://schema.cognitiveservices.azure.com/\
+                formrecognizer/2021-03-01/labels.json",
             "document": document_name.split("/")[-1],
             "labels": [],
             "labelingState": 2,

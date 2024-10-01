@@ -236,7 +236,8 @@ def date_cnv(doc_date, date_format):
         req_date = doc_date
     if date_status == 1:
         try:
-            # newDate = datetime.datetime(int(yy), int(mm), int(dd))  # TODO: Unused variable
+            # newDate = datetime.datetime(int(yy), int(mm), int(dd))
+            # # TODO: Unused variable
             correctDate = True
         except ValueError:
             correctDate = False
@@ -628,7 +629,9 @@ def postpro(
     metaVendorAdd,
     OpenAI_client,
 ):
-    global qty_rw_status, amt_withTax_rw_status, vatAmt_rw_status, utprice_rw_status, vatAmt_rw, amt_withTax_rw, discount_rw_status
+    global qty_rw_status, amt_withTax_rw_status  # TODO dont use global variable
+    global vatAmt_rw_status, utprice_rw_status  # TODO dont use global variable
+    global vatAmt_rw, amt_withTax_rw, discount_rw_status  # TODO no global variable
     duplicate_status = 1
     default_qty_ut = 0
     tab_cal_unitprice = 0
@@ -669,10 +672,6 @@ def postpro(
         #     .scalar()
         # )  # TODO: Unused variable
 
-        # fr_lab_String = 'SELECT mandatoryheadertags,mandatorylinetags,"DateFormat","idInvoiceModel" FROM ' + SCHEMA + '.frmetadata WHERE "idInvoiceModel"=' + str(
-        #     invo_model_id) + ';'
-
-        # fr_lab_df = pd.read_sql(fr_lab_String, SQLALCHEMY_DATABASE_URL)
         mandatory_header = mandatoryheadertags.split(",")
 
         mandatory_tab_col = mandatorylinetags.split(",")
@@ -793,7 +792,8 @@ def postpro(
                     )
                 except Exception as et:
                     logger.error(
-                        f"Exception in postprocessing:(Low confidence,Please review.) {str(et)}"
+                        "Exception in postprocessing:"
+                        + f"(Low confidence,Please review.) {str(et)}"
                     )
                     status_message = "Low confidence,Please review."
 
@@ -1028,7 +1028,8 @@ def postpro(
                                         if isinstance(cl_dt, str):
                                             tmp_dict["status"] = 0
                                             tmp_dict["status_message"] = (
-                                                "Low Confidence or Missing Value Detected"
+                                                "Low Confidence "
+                                                + "or Missing Value Detected"
                                             )
 
                                     if default_qty_ut == 1:
@@ -1048,7 +1049,6 @@ def postpro(
                                 else:
                                     tmp_dict["data"] = ""
                                     tmp_dict["boundingRegions"] = None
-                                # tmp_dict[ky] = fields[tbs]['valueArray'][itm_no]['valueObject'][ky]['content']
 
                     if tab_cal_unitprice_AmtExcTax == 1:
                         if "AmountExcTax" not in present_tab_header:
@@ -1233,7 +1233,10 @@ def postpro(
                                 cal_utprice_rw = utprice_rw - (discount_rw / qty_rw)
                             except Exception as cl:
                                 logger.error(
-                                    f"exception in postprocess cln for (cal_utprice_rw = utprice_rw - (discount_rw / qty_rw)): { str(cl)}"
+                                    "exception in postprocess cln for "
+                                    + "(cal_utprice_rw = "
+                                    + "utprice_rw - "
+                                    + f"(discount_rw / qty_rw)): { str(cl)}"
                                 )
                                 cal_utprice_rw = ""
 
@@ -1241,7 +1244,9 @@ def postpro(
                                 cal_amtExTx_PE = amt_excTax_cal / qty_rw
                             except Exception as cl:
                                 logger.error(
-                                    f"exception in postprocess cln for (cal_amtExTx_PE = amt_excTax_cal / qty_rw): { str(cl)}"
+                                    "exception in postprocess cln for "
+                                    + "(cal_amtExTx_PE = "
+                                    + f" amt_excTax_cal / qty_rw): { str(cl)}"
                                 )
                                 cal_amtExTx_PE = ""
 
@@ -1275,7 +1280,8 @@ def postpro(
                                         itm_list[rw_ck_1][ech_tg_2]["status"] = 0
                                         itm_list[rw_ck_1][ech_tg_2][
                                             "status_message"
-                                        ] = "Unit Price Calculation with Discount Failed"
+                                        ] = "Unit Price Calculation "
+                                        +"with Discount Failed"
                                     if (
                                         itm_list[rw_ck_1][ech_tg_2]["tag"]
                                         == "AmountExcTax"
@@ -1284,8 +1290,8 @@ def postpro(
                                         itm_list[rw_ck_1][ech_tg_2]["status"] = 0
                                         itm_list[rw_ck_1][ech_tg_2][
                                             "status_message"
-                                        ] = "AmountExcTax calculation with discount failed"
-                                # itm_list[rw_ck_1][ech_tg_2].append({'tag': 'AmountExcTax','data': '','status': 0,'status_message': 'AmountExcTax calculation with discount failed'})
+                                        ] = "AmountExcTax calculation "
+                                        +"with discount failed"
                         else:
 
                             for ech_tg_2 in range(0, len(itm_list[rw_ck_1])):
@@ -1300,7 +1306,6 @@ def postpro(
                                     itm_list[rw_ck_1][ech_tg_2][
                                         "status_message"
                                     ] = "AmountExcTax calculation with discount failed"
-                            # itm_list[rw_ck_1][ech_tg_2].append({'tag': 'AmountExcTax','data': '','status': 0,'status_message': 'AmountExcTax calculation with discount failed'})
                     else:
                         for ech_tg_2 in range(0, len(itm_list[rw_ck_1])):
                             if itm_list[rw_ck_1][ech_tg_2]["tag"] == "UnitPrice":
@@ -1313,8 +1318,6 @@ def postpro(
                                 itm_list[rw_ck_1][ech_tg_2][
                                     "status_message"
                                 ] = "AmountExcTax calculation with discount failed"
-                        # itm_list[rw_ck_1][ech_tg_2].append({'tag': 'AmountExcTax', 'data': '', 'status': 0,
-                        #                                     'status_message': 'AmountExcTax calculation with discount failed'})
 
                 if tab_cal_unitprice == 1:
                     if (
@@ -1400,7 +1403,8 @@ def postpro(
             + SCHEMA
             + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
             + SCHEMA
-            + '.vendoraccount where "idVendorAccount" in (SELECT "idVendorAccount" FROM '
+            + '.vendoraccount where "idVendorAccount" in '
+            + '(SELECT "idVendorAccount" FROM '
             + SCHEMA
             + '.documentmodel WHERE "idDocumentModel"='
             + str(invo_model_id)
@@ -1496,7 +1500,8 @@ def postpro(
                         + SCHEMA
                         + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
                         + SCHEMA
-                        + '.vendoraccount where "idVendorAccount" in (SELECT "idVendorAccount" FROM '
+                        + '.vendoraccount where "idVendorAccount" in '
+                        + '(SELECT "idVendorAccount" FROM '
                         + SCHEMA
                         + '.documentmodel WHERE "idDocumentModel"='
                         + str(invo_model_id)
@@ -1626,7 +1631,20 @@ def postpro(
                         totalTax_rw = ""
 
         try:
-            vndMth_prompt = f"vendor1 = {metaVendorName} , vendor2 = {doc_VendorName}  ,vendor1Address = {metaVendorAdd} ,vendor2Address = {doc_VendorAddress} . You are given vendor data from two sources: vendor1 from master data and vendor2 from an OCR model. Your task is to confirm if both vendor names and their addresses are the same. Compare the vendor names, ignoring case sensitivity and trimming extra spaces. For addresses, normalize the text by handling common abbreviations like 'Road' and 'RD'. Return a response in JSON format only with two keys: vendorMatching and addressMatching, each having a value of either 'yes' or 'no' based on the comparison."
+            vndMth_prompt = f"vendor1 = {metaVendorName} ,"
+            +f"vendor2 = {doc_VendorName}  ,"
+            +f"vendor1Address = {metaVendorAdd} ,"
+            +f"vendor2Address = {doc_VendorAddress} ."
+            +"You are given vendor data from two sources:"
+            +"vendor1 from master data and vendor2 from an OCR model."
+            +"Your task is to confirm if both vendor names and "
+            +"their addresses are the same. Compare the vendor names, "
+            +"ignoring case sensitivity and trimming extra spaces. "
+            +"For addresses, normalize the text by handling "
+            +"common abbreviations like 'Road' and 'RD'."
+            +"Return a response in JSON format only with two keys: "
+            +"vendorMatching and addressMatching, each having a value of "
+            +"either 'yes' or 'no' based on the comparison."
             vndMth_ck, vndMth_address_ck = VndMatchFn(vndMth_prompt, OpenAI_client)
         except Exception:
             logger.error(traceback.format_exc())
@@ -1674,7 +1692,8 @@ def postpro(
                                 dt["header"][tg]["status"] = 1
 
                                 logger.info(
-                                    f"cos_sim:{doc_VendorName} , vendor:{metaVendorName}"
+                                    f"cos_sim:{doc_VendorName} ,"
+                                    + f"vendor:{metaVendorName}"
                                 )
 
                             else:
@@ -1707,7 +1726,8 @@ def postpro(
                 dt["header"][tg]["data"]["value"] = cln_amt(
                     dt["header"][tg]["data"]["value"]
                 )
-                # InvoiceTotal_val = dt["header"][tg]["data"]["value"] # TODO: Unused variable
+                # InvoiceTotal_val = dt["header"][tg]["data"]["value"]
+                # # TODO: Unused variable
                 fr_data = dt
             if dt["header"][tg]["tag"] == "SubTotal":
                 dt["header"][tg]["data"]["value"] = cln_amt(
@@ -1816,7 +1836,8 @@ def postpro(
             postprocess_msg = "Please check the document uploaded! - Model not found."
             postprocess_status = 0
             logger.error(
-                f"Please check the document uploaded! - Model not found: {postprocess_msg}"
+                "Please check the document uploaded! - Model not found:"
+                + f"{postprocess_msg}"
             )
 
         else:
@@ -1858,11 +1879,12 @@ def postpro(
                         ):
                             sts_hdr_ck = 0
                             logger.info(
-                                f"low confidence tag: {fr_data['header'][cfd_ck]['tag']}"
+                                "low confidence tag:"
+                                + f"{fr_data['header'][cfd_ck]['tag']}"
                             )
-                            logger.info(
-                                f"confidence score: {float(fr_data['header'][0]['data']['custom_confidence'])*100}"
-                            )
+                            _s = fr_data["header"][0]["data"]["custom_confidence"]
+                            _sPercent = float(_s) * 100
+                            logger.info("confidence score:" + f"{_sPercent}")
                     except Exception as tr:
                         logger.error(f"postpro line 1425: {str(tr)} ")
                         sts_hdr_ck = 0
@@ -1873,12 +1895,3 @@ def postpro(
         logger.error(f"postpro line 1431 exception: {qw} , {sts_hdr_ck}")
         sts_hdr_ck = 0
     return fr_data, postprocess_msg, postprocess_status, duplicate_status, sts_hdr_ck
-
-
-"""fr_data, postprocess_msg, postprocess_status = postpro(cst_data, pre_data)
-with open('fr_data.txt', 'w') as fl:
-    fl.write(json.dumps(fr_data))
-fl.close()
-"""
-
-# fr_data = postpro(cst_data, pre_data)

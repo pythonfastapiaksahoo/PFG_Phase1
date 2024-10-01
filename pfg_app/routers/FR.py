@@ -42,7 +42,8 @@ async def get_fr_config(userID: int, db: Session = Depends(get_db)):
     following parameters.</b>
 
     - userID : Unique indetifier used to indentify a user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It returns the result status.
     """
     return await crud.getFRConfig(userID, db)
@@ -249,13 +250,15 @@ async def update_metadata(
                 }
             )
             jso = {
-                "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/fields.json",
+                "$schema": "https://schema.cognitiveservices.azure.com/"
+                + "formrecognizer/2021-03-01/fields.json",
                 "definitions": definitions,
                 "fields": mandatoryheaderfields,
             }
         else:
             jso = {
-                "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/fields.json",
+                "$schema": "https://schema.cognitiveservices.azure.com/"
+                + "formrecognizer/2021-03-01/fields.json",
                 "fields": mandatoryheaderfields,
             }
         data = json.dumps(jso)
@@ -397,9 +400,12 @@ async def create_invoice_model(
     definitions. It contains following parameters.</b>
 
     - userID : Unique indetifier used to indentify a user
-    - invoiceModel: It is Body parameter that is of a Pydantic class object, creates member data for creating a new Invoice Model
-    - tags: It is Body parameter that is of a Pydantic class object, creates member data for creating a set of tag definitions
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - invoiceModel: It is Body parameter that is of a Pydantic class object,
+    creates member data for creating a new Invoice Model
+    - tags: It is Body parameter that is of a Pydantic class object,
+    creates member data for creating a set of tag definitions
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It returns the result status.
     """
 
@@ -429,8 +435,10 @@ async def update_invoicemodel(
 
     - userID : Unique indetifier used to indentify a user
     - invoiceID : Unique indetifier used to indentify a particular invoice in database
-    - invoiceStatus: It is Body parameter that is of a Pydantic class object, creates member data for updating invoice status
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - invoiceStatus: It is Body parameter that is of a Pydantic class object,
+    creates member data for updating invoice status
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It returns the result status.
     """
     try:
@@ -455,7 +463,8 @@ async def get_modellist(vendorID: int, db: Session = Depends(get_db)):
     following parameters.</b>
 
     - userID : Unique indetifier used to indentify a user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It returns the result status.
     """
     return crud.getmodellist(vendorID, db)

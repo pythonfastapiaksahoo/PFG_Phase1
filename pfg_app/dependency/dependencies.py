@@ -87,8 +87,10 @@ async def check_update_user(u_id: int, db: scoped_session = Depends(get_db)):
     :return: return user id or raise an exception
     """
     try:
-        # sub_query = db.query(models.AccessPermission.permissionDefID).filter_by(userID=u_id)
-        # main_query = db.query(models.AccessPermissionDef.Permissions).filter_by(idAccessPermissionDef=sub_query).scalar()
+        # sub_query = db.query(models.AccessPermission.permissionDefID).
+        # filter_by(userID=u_id)
+        # main_query = db.query(models.AccessPermissionDef.Permissions).
+        # filter_by(idAccessPermissionDef=sub_query).scalar()
         # if main_query == 1:
         return u_id
         raise HTTPException(status_code=403, detail="Permission Denied")

@@ -120,16 +120,29 @@ async def app_startup():
     #     # logger.info(result)
     #     logger.info('completed')
 
-    #     # call stampData only if the model_type is custom with the first page as blob_data
+    #     # call stampData only if the model_type is custom with the
+    #     # first page as blob_data
     #     if model_type == "custom" and len(data_list) > 0:
     #         from core.stampData import stampDataFn
-    #         prompt = '''This is an invoice document. It may contain a receiver's stamp and might have inventory or supplies marked or circled with a pen, circled is selected. It contains store number as "STR #"
-    #     InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No. If a stamp is present, identify any markings on the document related to
-    #     Inventory or Supplies, specifically if they are marked or circled with a pen. If a stamp is present, extract the following handwritten details
-    #     from the stamp: ConfirmationNumber (the confirmation number labeled as 'Confirmation' on the stamp), ReceivingDate (the date when the goods were received),
-    #     Receiver (the name of the person or department who received the goods), and Department (the department name or code, which may be either 'Inventory' or 'Supplies',
-    #     or another specified department). Provide all information in the following JSON format: {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'(which ever is circled more/marked only),
-    #     'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data', 'Receiver': 'Extracted data', 'Department': 'Dept code','Store Number':,'VendorName':}.Output should be just json'''
+    #         prompt = '''This is an invoice document. It may contain a receiver's
+    # stamp and might have inventory or supplies marked or circled with a pen,
+    # circled is selected. It contains store number as "STR #"
+    #     InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No.
+    # If a stamp is present, identify any markings on the document related to
+    #     Inventory or Supplies, specifically if they are marked or circled with a pen.
+    # If a stamp is present, extract the following handwritten details
+    #     from the stamp: ConfirmationNumber (the confirmation number labeled as
+    # 'Confirmation' on the stamp), ReceivingDate
+    # (the date when the goods were received),
+    #     Receiver (the name of the person or department who received the goods),
+    # and Department (the department name or code, which may be either 'Inventory'
+    # or 'Supplies',
+    #     or another specified department). Provide all information in the following
+    # JSON format: {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'
+    # (which ever is circled more/marked only),
+    #     'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
+    # 'Receiver': 'Extracted data', 'Department': 'Dept code','Store Number':,
+    # 'VendorName':}.Output should be just json'''
     #         result = stampDataFn(data_list[0], prompt)
     #         logger.info(result)
 

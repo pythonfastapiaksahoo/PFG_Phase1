@@ -121,8 +121,10 @@ def createInvoiceModel(invoiceModel, db):
     parameters.
 
     - userID: unique identifier for a particular user
-    - invoiceModel: It is function parameter that is of a Pydantic class object, It takes member data for creation of new Vendor.
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - invoiceModel: It is function parameter that is of a Pydantic class object,
+    It takes member data for creation of new Vendor.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -148,8 +150,10 @@ def addTagDefinition(models, tags, db):
     parameters.
 
     - modelID: unique identifier for a particular model created in the DB
-    - tags: It is function parameter that is list of a Pydantic class object, It takes member data for creation of new tag definition.
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - tags: It is function parameter that is list of a Pydantic class object,
+    It takes member data for creation of new tag definition.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -198,8 +202,10 @@ def addLineItemTag(models, lineItemTag, db):
     following parameters.
 
     - modelID: unique identifier for a particular model created in the DB
-    - lineItemTag: It is function parameter that is list of a Pydantic class object, It takes member data for creation of new line item tag definition.
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - lineItemTag: It is function parameter that is list of a Pydantic
+    class object, It takes member data for creation of new line item tag definition.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:

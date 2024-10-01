@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 # class PFGVendorAddr(BaseModel):
 #     SETID: str = Field(max_length=5)
 #     VENDOR_ID: str = Field(max_length=10)
-#     ADDRESS_SEQ_NUM: int = Field(ge=1, le=999)  # Address sequence number must be a positive integer
+#     ADDRESS_SEQ_NUM: int = Field(ge=1, le=999)
+# # Address sequence number must be a positive integer
 #     EFFDT: Optional[str] = Field(max_length=10)
 #     EFF_STATUS: Optional[Literal['A', 'I']]
 #     ADDRESS1: Optional[str] = Field(None, max_length=55)

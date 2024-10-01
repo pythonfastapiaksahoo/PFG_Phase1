@@ -117,7 +117,8 @@ def copy_model(
 
     while not copy_result.done():
         logger.info(
-            f"Copying model {source_model_id} from {source_endpoint} to {target_endpoint}"
+            f"Copying model {source_model_id} from "
+            + f"{source_endpoint} to {target_endpoint}"
         )
         time.sleep(5)  # Polling interval
 

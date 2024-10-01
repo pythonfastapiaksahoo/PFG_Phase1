@@ -248,7 +248,8 @@ async def updateVendorMaster(vendordata, db):
                     if loc["SETID"] != data.SETID or loc["VENDOR_ID"] != data.VENDOR_ID:
                         raise HTTPException(
                             status_code=400,
-                            detail="SETID and VENDOR_ID must match between vendor_data and VENDOR_LOC.",
+                            detail="SETID and VENDOR_ID must match "
+                            + "between vendor_data and VENDOR_LOC.",
                         )
 
             # Validate required fields in VENDOR_ADDR
@@ -272,7 +273,8 @@ async def updateVendorMaster(vendordata, db):
                     ):
                         raise HTTPException(
                             status_code=400,
-                            detail="SETID and VENDOR_ID must match between vendor_data and VENDOR_ADDR.",
+                            detail="SETID and VENDOR_ID must match "
+                            + "between vendor_data and VENDOR_ADDR.",
                         )
 
             # Convert Pydantic model to dict and handle nested objects
@@ -322,7 +324,8 @@ async def updateVendorMaster(vendordata, db):
                         for key, value in loc.items():
                             existing_loc[key] = value
                     else:
-                        # Append loc to existing_vendor.VENDOR_LOC if it doesn't already exist
+                        # Append loc to existing_vendor.VENDOR_LOC
+                        # if it doesn't already exist
                         print(f"Appending new location: {loc}")
                         existing_vendor_loc.append(loc)
 
@@ -348,7 +351,8 @@ async def updateVendorMaster(vendordata, db):
                         for key, value in addr.items():
                             existing_addr[key] = value
                     else:
-                        # Append addr to existing_vendor.VENDOR_ADDR if it doesn't already exist
+                        # Append addr to existing_vendor.VENDOR_ADDR
+                        #  if it doesn't already exist
                         existing_vendor_addr.append(addr)
                 # print(f"Final existing_vendor_addr: {existing_vendor.VENDOR_ADDR}")
 
@@ -363,7 +367,8 @@ async def updateVendorMaster(vendordata, db):
                 )
 
                 print(
-                    f"Updating VENDOR_LOC and VENDOR_ADDR for existing vendor_id: {existing_vendor.VENDOR_ID}"
+                    "Updating VENDOR_LOC and VENDOR_ADDR "
+                    + f"for existing vendor_id: {existing_vendor.VENDOR_ID}"
                 )
                 db.commit()
                 db.refresh(existing_vendor)
@@ -589,7 +594,8 @@ async def updateReceiptMaster(Receiptdata, db):
                 ):
                     raise HTTPException(
                         status_code=400,
-                        detail="BUSINESS_UNIT and RECEIVER_ID must match between RECV_HDR and RECV_LN_DISTRIB.",
+                        detail="BUSINESS_UNIT and RECEIVER_ID"
+                        + " must match between RECV_HDR and RECV_LN_DISTRIB.",
                     )
 
             # Flatten the combined PFGReceipt and RECV_LN_DISTRIB into one dictionary
@@ -599,7 +605,9 @@ async def updateReceiptMaster(Receiptdata, db):
             # Merge RECV_LN_DISTRIB into receipt_data for a flattened structure
             receipt_data.update(distrib_data)
 
-            # Find existing record by unique combination of BUSINESS_UNIT, RECEIVER_ID, RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LN_NUM
+            # Find existing record by unique combination of
+            # BUSINESS_UNIT, RECEIVER_ID,
+            # RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LN_NUM
             existing_receipt = (
                 db.query(model.PFGReceipt)
                 .filter(
@@ -646,7 +654,9 @@ async def SyncDepartmentMaster(db, Departmentdata):
         to_update = []
         to_insert = []
         for row in Departmentdata:
-            # Check if the Department already exists in the Department table based on DEPTID (which corresponds to Department_ID)
+            # Check if the Department already exists in the
+            # Department table based on DEPTID
+            # (which corresponds to Department_ID)
             existing_department = (
                 db.query(model.Department)
                 .filter(model.Department.DEPTID == row.DEPTID)
@@ -725,14 +735,16 @@ async def SyncVendorMaster(db, vendordata):
             # # Concatenate NAME1 and NAME2
             # full_vendor_name = f"{row.NAME1.strip()} {row.NAME2.strip()}".strip()
 
-            # Check if the vendor already exists in the Vendor table based on VendorCode (which corresponds to VENDOR_ID)
+            # Check if the vendor already exists in the
+            # Vendor table based on VendorCode (which corresponds to VENDOR_ID)
             existing_vendor = (
                 db.query(model.Vendor)
                 .filter(model.Vendor.VendorCode == row.VENDOR_ID)
                 .first()
             )
 
-            # Assuming you're only working with the first address in the VENDOR_ADDR list (adjust as necessary)
+            # Assuming you're only working with
+            # the first address in the VENDOR_ADDR list (adjust as necessary)
             primary_address = row.VENDOR_ADDR[0] if row.VENDOR_ADDR else {}
 
             # Concatenate the ADDRESS1, ADDRESS2, ADDRESS3, and ADDRESS4 fields
@@ -844,7 +856,7 @@ def processInvoiceVoucher(doc_id, db):
         # Continue processing the file
         print(f"Filepath (Base64 Encoded): {filepath}")
         print(f"Content Type: {content_type}")
-
+        vdbu = voucherdata.Business_unit
         request_payload = {
             "RequestBody": [
                 {
@@ -897,7 +909,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "SHIPTO_ID": "",
                                             "VCHR_DIST_STG": [
                                                 {
-                                                    "BUSINESS_UNIT": voucherdata.Business_unit
+                                                    "BUSINESS_UNIT": vdbu  # look above
                                                     or "",
                                                     "VOUCHER_LINE_NUM": (
                                                         voucherdata.Voucher_Line_num
@@ -960,7 +972,8 @@ def processInvoiceVoucher(doc_id, db):
                 headers=headers,
                 auth=(username, password),
             )
-            response.raise_for_status()  # Raises an HTTPError if the response was unsuccessful
+            response.raise_for_status()
+            # Raises an HTTPError if the response was unsuccessful
             # Log full response details
             print("Response Status: ", response.status_code)
             print("Response Headers: ", response.headers)
@@ -1028,7 +1041,8 @@ def updateInvoiceStatus(doc_id, db):
                 headers=headers,
                 auth=(username, password),
             )
-            response.raise_for_status()  # Raises an HTTPError if the response was unsuccessful
+            response.raise_for_status()
+            # Raises an HTTPError if the response was unsuccessful
             print("Response Status: ", response.status_code)
             # Check for success
             if response.status_code == 200:
@@ -1052,8 +1066,11 @@ def updateInvoiceStatus(doc_id, db):
 
                 # Now update the documentstatusid in the document table
                 if documentstatusid is not None:
-                    # # Assuming 'doc_id' is the identifier of the document you want to update
-                    # db.query(model.Document).filter(model.Document.documentStatusID == doc_id).update({model.Document.documentStatusID: documentstatusid})
+                    # # Assuming 'doc_id'
+                    # is the identifier of the document you want to update
+                    # db.query(model.Document).filter
+                    # (model.Document.documentStatusID == doc_id).
+                    # update({model.Document.documentStatusID: documentstatusid})
                     # db.commit()  # Commit the transaction to save the changes
                     print("DocumentStatusID: ", documentstatusid)
                 invoice_status = {"message": "Success", "data": response.json()}

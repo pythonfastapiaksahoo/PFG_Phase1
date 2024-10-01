@@ -168,22 +168,9 @@ def db_push_data(
             blb_container.get_blob_client(label_blb_pth).download_blob().readall()
         )
 
-        # container_client.upload_blob(name=temp_dir+"/"+old_fld_name + ".pdf", data=pdf_byts)
-        # with open(temp_dir+"/"+old_fld_name + ".pdf", "wb") as f:
-        #     f.write(pdf_byts)
-        #     f.close()
-        # container_client.upload_blob(name=temp_dir+"/"+old_fld_name + ".pdf.labels.json", data=lbl_byts)
-        # with open(old_fld_name + ".pdf.labels.json", "wb") as f:
-        #     f.write(lbl_byts)
-        #     f.close()
-
-        # with open(old_fld_name + '.pdf.labels.json', encoding='utf-8') as f:
-        #     data = json.load(f)
-        #     f.close()
         data = json.loads(lbl_byts)
         if blb_file_ext == "pdf":
             img = convert_from_bytes(pdf_byts, poppler_path=r"/usr/bin")
-            # img = convert_from_bytes(pdf_byts,poppler_path=r'C:\poppler-24.07.0\Library\bin')
             for ig in img:
                 image = np.array(ig)
             image.shape

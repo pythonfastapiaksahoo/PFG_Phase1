@@ -26,7 +26,8 @@ async def getFRConfig(userID, db):
     contains following parameters.
 
     - userID: unique identifier for a particular user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -48,7 +49,8 @@ async def updateFRConfig(userID, frConfig, db):
     contains following parameters.
 
     - userID: unique identifier for a particular user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -111,108 +113,6 @@ def check_same_vendors_different_entities(vendoraccountId, modelname, db):
         return {"message": "exception"}
     finally:
         db.close()
-
-
-# def check_same_sp_different_entities(serviceaccountID,modelname,db):
-#     try:
-#         sp = db.query(model.ServiceProvider.ServiceProviderName).filter(model.ServiceProvider.idServiceProvider == serviceaccountID).first()
-#         ServiceProviderName = sp[0]
-#         sps = db.query(model.ServiceProvider.idServiceProvider).filter(model.ServiceProvider.ServiceProviderName == ServiceProviderName).all()
-#         count = 0
-#         for v in sps:
-#             checkmodel = db.query(model.DocumentModel).filter(model.DocumentModel.serviceproviderID == v[0],model.DocumentModel.modelName == modelname).first()
-#             if checkmodel is None:
-#                 count = count + 1
-#         if count > 1:
-#             return {"message":"exists","sp":ServiceProviderName,"count":count-1}
-#         else:
-#             return {"message":"not exists","sp":ServiceProviderName,"count":count}
-#     except Exception as e:
-#         print(e)
-#         return {"message":"exception"}
-#     finally:
-#         db.close()
-
-# def copymodels(vendoraccountId,modelname,db):
-#     try:
-#         account = db.query(model.VendorAccount.Account).filter(model.VendorAccount.idVendorAccount == vendoraccountId).first()
-#         vendorcode = account[0]
-#         vendors = db.query(model.VendorAccount.idVendorAccount).filter(model.VendorAccount.Account == vendorcode).all()
-#         docmodelqr = "SELECT * FROM "+DB+".documentmodel WHERE idVendorAccount="+str(vendoraccountId)+" and modelName = '"+modelname+"';"
-#         docmodel = pd.read_sql(docmodelqr, SQLALCHEMY_DATABASE_URL)
-#         inputmodel = {}
-#         for d in docmodel.head():
-#             inputmodel[d] = docmodel[d][0]
-#         model_id = inputmodel['idDocumentModel']
-#         frmetadataqr = "SELECT * FROM "+DB+".frmetadata WHERE idInvoiceModel="+str(model_id)+""
-#         frmetadatares = pd.read_sql(frmetadataqr, SQLALCHEMY_DATABASE_URL)
-#         frmetadata = {}
-#         for f in frmetadatares.head():
-#             frmetadata[f] = frmetadatares[f][0]
-#         del frmetadata['idFrMetaData']
-#         del inputmodel['idDocumentModel']
-#         allmodelid = []
-#         for v in vendors:
-#             if v[0] != vendoraccountId:
-#                 iddocqr = db.query(model.DocumentModel.idDocumentModel).filter(model.DocumentModel.idVendorAccount == v[0],model.DocumentModel.modelName == modelname).first()
-#                 if iddocqr is None:
-#                     inputmodel['idVendorAccount'] = v[0]
-#                     inputmodel["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-#                     inputmodel["UpdatedOn"] = inputmodel["CreatedOn"]
-#                     invoiceModelDB = model.DocumentModel(**inputmodel)
-#                     db.add(invoiceModelDB)
-#                     db.commit()
-#                     print(v[0])
-#                     allmodelid.append(invoiceModelDB.idDocumentModel)
-#         print(f"frmetadata {allmodelid}")
-#         for m in allmodelid:
-#             frmetadata['idInvoiceModel'] = m
-#             frmetaDataDB = model.FRMetaData(**frmetadata)
-#             db.add(frmetaDataDB)
-#             db.commit()
-#             print(m)
-#         documenttagdefqr = "SELECT * FROM "+DB+".documenttagdef WHERE idDocumentModel="+str(model_id)+""
-#         documenttagdefres = pd.read_sql(documenttagdefqr, SQLALCHEMY_DATABASE_URL)
-#         documenttagdef = []
-#         for i in range(len(documenttagdefres)):
-#             obj = {}
-#             for f in documenttagdefres.head():
-#                 if f != "idDocumentTagDef":
-#                     obj[f] = documenttagdefres[f][i]
-#             documenttagdef.append(obj)
-#         print(f"header tag {documenttagdef}")
-#         for m in allmodelid:
-#             checktag = db.query(model.DocumentTagDef).filter(model.DocumentTagDef.idDocumentModel == m).first()
-#             if checktag is None:
-#                 for d in documenttagdef:
-#                     d['idDocumentModel'] = m
-#                     documenttagdefDB = model.DocumentTagDef(**d)
-#                     db.add(documenttagdefDB)
-#                     db.commit()
-#         documentlinedefqr = "SELECT * FROM "+DB+".documentlineitemtags WHERE idDocumentModel="+str(model_id)+""
-#         documentlinedefres = pd.read_sql(documentlinedefqr, SQLALCHEMY_DATABASE_URL)
-#         documentlinedef = []
-#         for i in range(len(documentlinedefres)):
-#             obj = {}
-#             for f in documentlinedefres.head():
-#                 if f != "idDocumentLineItemTags":
-#                     obj[f] = documentlinedefres[f][i]
-#             documentlinedef.append(obj)
-#         print(f"line tag {documentlinedef}")
-#         for m in allmodelid:
-#             checktag = db.query(model.DocumentLineItemTags).filter(model.DocumentLineItemTags.idDocumentModel == m).first()
-#             if checktag is None:
-#                 for d in documentlinedef:
-#                     d['idDocumentModel'] = m
-#                     documentlinedefDB = model.DocumentLineItemTags(**d)
-#                     db.add(documentlinedefDB)
-#                     db.commit()
-#         return {"message":"success"}
-#     except Exception as e:
-#         print(traceback.format_exc())
-#         return {"message":"exception"}
-#     finally:
-#         db.close()
 
 
 # Define a function to parse JSON strings as JSON
@@ -379,7 +279,7 @@ def copymodelsSP(serviceaccountId, modelname, db):
         db.close()
 
 
-# -------------------Updated Frmetadata function synonyms included --------------------------
+# -------------------Updated Frmetadata function synonyms included --------------
 async def updateMetadata(documentId, frmetadata, db):
     try:
         frmetadata = dict(frmetadata)
@@ -500,7 +400,8 @@ def getmodellist(vendorID, db):
     contains following parameters.
 
     - userID: unique identifier for a particular user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -516,7 +417,8 @@ def getmodellist(vendorID, db):
             .filter(model.DocumentModel.idVendorAccount.in_(sub_query))
             .all()
         )
-        # get the user permission and check if user can create or not by checking if its not null
+        # get the user permission and check if user
+        # can create or not by checking if its not null
         if not main_query:
             return []
         return main_query
@@ -532,7 +434,8 @@ def getmodellistsp(serviceProviderID, db):
     contains following parameters.
 
     - userID: unique identifier for a particular user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -542,7 +445,8 @@ def getmodellistsp(serviceProviderID, db):
             .filter(model.DocumentModel.serviceproviderID == serviceProviderID)
             .all()
         )
-        # get the user permission and check if user can create or not by checking if its not null
+        # get the user permission and check if user
+        # can create or not by checking if its not null
         if not main_query:
             return Response(status_code=404)
         return main_query
@@ -625,7 +529,8 @@ async def addOCRLog(logData, db):
     a document.
 
     - logData: pydantic class object of the log data obtained from the OCR run
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     """
     try:
         logData = dict(logData)
@@ -644,7 +549,8 @@ async def addItemMapping(mapData, db):
     """This functions creates a new user defined item mapping.
 
     - mapData: pydantic class object of the item mapping
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     """
     try:
         mapData = dict(mapData)
@@ -663,7 +569,8 @@ async def addfrMetadata(m_id: int, r_id: int, n_fr_mdata, db):
     """This functions creates a new user defined item mapping.
 
     - frmData: pydantic class object of the fr meta data
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     """
     try:
 
@@ -844,7 +751,8 @@ async def getActualAccuracy(tp: str, nm: str, db):
 
         final_dict["DocumentCount"] = {
             "count": len(documents)
-        }  # instead of int value, it should be a dict to avoid confusion and type issues
+        }  # instead of int value, it should be
+        # a dict to avoid confusion and type issues
         return final_dict
     except Exception as e:
         print(e)
@@ -995,20 +903,6 @@ async def getall_tags(tagtype, db):
         return Response(status_code=500)
     finally:
         db.close()
-
-
-# async def get_entity_level_taggedInfo():
-#     try:
-#         connection = engine.connect()
-#         df = pd.read_sql("select EntityName as Entity,VendorName as Vendor,mandatoryheadertags as `Mandatory Header Tags`,mandatorylinetags as `Mandatory Line Item Tags`,optionalheadertags as `Optional Header Tags`,optionallinertags as `Optional Line Item Tags` from frmetadata as f, documentmodel as dm, vendoraccount as va, vendor as v, entity as e where f.idInvoiceModel = dm.idDocumentModel and dm.idVendorAccount = va.idVendorAccount and va.vendorID = v.idVendor and v.entityID = e.idEntity",connection)
-#         df.to_excel("VendorsTaggedInfo.xlsx",index=False)
-#         return "VendorsTaggedInfo.xlsx"
-#     except Exception as e:
-#         df = pd.DataFrame()
-#         df.to_excel("VendorsTaggedInfo.xlsx",index=False)
-#         return "VendorsTaggedInfo.xlsx"
-#     finally:
-#         connection.close()
 
 
 async def get_entity_level_taggedInfo(db):
@@ -1164,7 +1058,8 @@ async def update_email_info(emailInfo, db):
             if not existing_config:
                 return {"result": "No existing configuration found"}
 
-            # Initialize the email_listener_info list if it doesn't exist or is not correctly formatted
+            # Initialize the email_listener_info list
+            # if it doesn't exist or is not correctly formatted
             email_listener_info_list = existing_config.email_listener_info
             if not email_listener_info_list or not isinstance(
                 email_listener_info_list, list

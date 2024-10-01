@@ -164,7 +164,8 @@ def splitDoc(
             except Exception as e:
                 print(f"Error processing a page: {e}")
 
-    # # Get the list of Invoice IDs from the Form Recognizer results # TODO continue this refactor later
+    # # Get the list of Invoice IDs from the Form Recognizer results
+    # # TODO continue this refactor later
     # invoice_ids = [result["analyzeResult"]["documents"][
     #             0]["fields"]["InvoiceId"]["content"] for result in output_data]
 

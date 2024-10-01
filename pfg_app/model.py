@@ -207,7 +207,8 @@ class DocumentUpdates(Base):
     UpdatedOn = Column(DateTime(timezone=True), nullable=True)
 
     # documentData = relationship('DocumentData', back_populates='documentUpdates')
-    # documentLineItem = relationship('DocumentLineItems', back_populates='documentUpdates')
+    # documentLineItem = relationship('DocumentLineItems',
+    # back_populates='documentUpdates')
     # user = relationship('User', back_populates='documentUpdates')
 
 
@@ -625,7 +626,8 @@ class ServiceAccount(Base):
 
     # # Relationships to the referenced tables for ORM purposes
     # created_by_user = relationship('User', back_populates='created_service_accounts')
-    # service_provider = relationship('ServiceProvider', back_populates='service_accounts')
+    # service_provider = relationship('ServiceProvider',
+    # back_populates='service_accounts')
     # entity = relationship('Entity', back_populates='service_accounts')
     # entity_body = relationship('EntityBody', back_populates='service_accounts')
 
@@ -929,7 +931,8 @@ class UserItemMapping(Base):
     createdOn = Column(DateTime, nullable=True)
 
     # # Relationship to DocumentModel table for ORM purposes
-    # document_model = relationship('DocumentModel', back_populates='user_item_mappings')
+    # document_model = relationship('DocumentModel',
+    # back_populates='user_item_mappings')
 
 
 # Application General config
@@ -1071,8 +1074,10 @@ class PullNotification(Base):
 
     # # Relationships to the referenced tables for ORM purposes
     # user = relationship('User', back_populates='pull_notifications')
-    # notification_priority = relationship('NotificationPriority', back_populates='pull_notifications')
-    # notification_type = relationship('NotificationType', back_populates='pull_notifications')
+    # notification_priority = relationship('NotificationPriority',
+    # back_populates='pull_notifications')
+    # notification_type = relationship('NotificationType',
+    # back_populates='pull_notifications')
 
 
 class PullNotificationTemplate(Base):
@@ -1101,9 +1106,12 @@ class PullNotificationTemplate(Base):
     UpdatedOn = Column(DateTime, nullable=True)
 
     # # Relationships to the referenced tables for ORM purposes
-    # notification_type = relationship('NotificationType', back_populates='pull_notification_templates')
-    # notification_priority = relationship('NotificationPriority', back_populates='pull_notification_templates')
-    # trigger_description = relationship('TriggerDescription', back_populates='pull_notification_templates')
+    # notification_type = relationship('NotificationType',
+    # back_populates='pull_notification_templates')
+    # notification_priority = relationship('NotificationPriority',
+    # back_populates='pull_notification_templates')
+    # trigger_description = relationship('TriggerDescription',
+    # back_populates='pull_notification_templates')
     # user = relationship('User', back_populates='pull_notification_templates')
 
 
@@ -1135,7 +1143,8 @@ class TriggerDescription(Base):
     UpdatedOn = Column(DateTime, nullable=True)
 
     # # Relationships to PullNotificationTemplate if needed
-    # pull_notification_templates = relationship('PullNotificationTemplate', back_populates='trigger_description')
+    # pull_notification_templates = relationship('PullNotificationTemplate',
+    # back_populates='trigger_description')
 
 
 # class BatchErrorType(Base):

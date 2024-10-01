@@ -27,7 +27,8 @@ class TraceIdFilter(logging.Filter):
 # Configure logging
 trace_id_filter = TraceIdFilter()
 formatter = logging.Formatter(
-    "%(asctime)s - %(environment)s - Worker PID: %(worker_pid)s - %(trace_id)s - %(message)s"
+    "%(asctime)s - %(environment)s - \
+        Worker PID: %(worker_pid)s - %(trace_id)s - %(message)s"
 )
 handler = AzureLogHandler(
     connection_string=settings.application_insights_instrumentation_key

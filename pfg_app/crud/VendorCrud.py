@@ -214,7 +214,8 @@ async def NewVendorUser(u_id, ven_user, ven_user_type, db):
             user_access.append(basedata.copy())
         user_access = [model.VendorUserAccess(**row) for row in user_access]
         db.add_all(user_access)
-        # notifying changes to the db but not committing since next stage it will be committed
+        # notifying changes to the db but not committing since
+        # next stage it will be committed
         db.flush()
         db.add(
             model.AccessPermission(
@@ -222,7 +223,8 @@ async def NewVendorUser(u_id, ven_user, ven_user_type, db):
             )
         )
         db.flush()
-        # returning the customer details with custom function from model to avoid all columns
+        # returning the customer details with custom function
+        # from model to avoid all columns
         return n_usr.datadict(), ven_user_type
     except exc.IntegrityError:
         logger.error(traceback.format_exc())
@@ -290,7 +292,8 @@ async def readvendorname(u_id, db):
 
         # # Get distinct count of vendors
         # total_count = db.query(model.Vendor.idVendor).filter(
-        #     func.jsonb_extract_path_text(model.Vendor.miscellaneous, 'VENDOR_STATUS') == 'A'
+        #     func.jsonb_extract_path_text(model.Vendor.miscellaneous,
+        # 'VENDOR_STATUS') == 'A'
         # ).distinct().count()
 
         # Execute the original query and fetch results
@@ -834,9 +837,16 @@ async def readvendoraccount_uploadpo(db, u_id: int):
 
         if en_ids:
             data = db.execute(
-                f"SELECT EntityName, (select JSON_ARRAYAGG(JSON_OBJECT('Account',Account,'idVendorAccount', \
-                idVendorAccount)) from vendoraccount where entityID = vend.idEntity and vendorID in {vuen_id if len(vuen_id) > 1 else '(' + str(vuen_id[0]) + ')'}) as vendoraccounts FROM \
-                Entity as vend where vend.idEntity in {en_ids if len(en_ids) > 1 else '(' + str(en_ids[0]) + ')'}"
+                "SELECT EntityName, (\
+                    select JSON_ARRAYAGG(\
+                        JSON_OBJECT('Account',Account,'idVendorAccount', \
+                idVendorAccount)) from vendoraccount \
+                    where entityID = vend.idEntity and \
+                        vendorID in "
+                + f"{vuen_id if len(vuen_id) > 1  else '(' + str(vuen_id[0]) + ')'}"
+                + ") as vendoraccounts FROM \
+                Entity as vend where vend.idEntity in"
+                + f"{en_ids if len(en_ids) > 1  else '(' + str(en_ids[0]) + ')'}"
             ).fetchall()
             return {"result": data}
         return {"result": None}
