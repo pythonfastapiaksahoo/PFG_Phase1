@@ -1,6 +1,7 @@
 # from sqlalchemy.orm import
 import base64
 import os
+import re
 import traceback
 from datetime import datetime, timedelta
 
@@ -8,16 +9,13 @@ from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 from sqlalchemy import String, and_, case, cast, func, or_
-from sqlalchemy.orm import Load, load_only
-
-credential = DefaultAzureCredential()
-import re
-
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Load, load_only
 
 import pfg_app.model as model
 from pfg_app.logger_module import logger
 
+credential = DefaultAzureCredential()
 status = [
     "System Check In - Progress",
     "Processing Document",

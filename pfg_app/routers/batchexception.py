@@ -2,14 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from pfg_app.auth import AuthHandler
+from pfg_app.azuread.auth import get_user
 from pfg_app.crud import BatchexceptionCrud as crud
+from pfg_app.FROps.pfg_trigger import pfg_sync
 from pfg_app.session.session import get_db
 
 auth_handler = AuthHandler()
-
-from pfg_app.azuread.auth import get_user
-from pfg_app.FROps.pfg_trigger import pfg_sync
-
 router = APIRouter(
     prefix="/apiv1.1/Exception",
     tags=["Exception"],

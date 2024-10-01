@@ -1,10 +1,11 @@
+import json
+
 import numpy as np
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from pdf2image import convert_from_bytes
 
 credential = DefaultAzureCredential()
-import json
 
 """req_fields_accuracy = 99.2
 req_model_accuracy = 99.5

@@ -1,4 +1,6 @@
 import base64
+import datetime
+import os
 import traceback
 
 import requests
@@ -14,8 +16,6 @@ from pfg_app import settings
 from pfg_app.logger_module import logger
 
 credential = DefaultAzureCredential()
-import datetime
-import os
 
 
 async def getDepartmentMaster(db):
