@@ -36,16 +36,31 @@ async def read_paginate_doc_inv_list_item(
     db: Session = Depends(get_db),
     user=Depends(get_user),
 ):
-    """API route to read the Invoice Documents.
+    """API route to retrieve a paginated list of invoice documents with various
+    filters.
 
-    :param u_id: Unique identifier used to identify a user.
-    :param ven_id: Optional parameter for filtering documents based on
-        vendor ID, of int type.
-    :param sp_id: Optional parameter for filtering documents based on
-        service provider ID, of int type.
-    :param usertype: Dependent function which returns the type of user.
-    :param db: Provides a session to interact with the backend Database.
-    :return: Invoice document list.
+    Parameters:
+    ----------
+    ven_id : int, optional
+        Vendor ID for filtering documents (default is None).
+    status : Literal, optional
+        Status of the invoice document to filter by.
+        Options: 'posted', 'rejected', 'exception', 'VendorNotOnboarded',
+        'VendorUnidentified' (default is None).
+    offset : int
+        The page number for pagination (default is 1).
+    limit : int
+        Number of records per page (default is 10).
+    uni_search : str, optional
+        Universal search term to filter documents (default is None).
+    ven_status : str, optional
+        Vendor status to filter documents (default is None).
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of invoice documents filtered and paginated according to the input parameters.
     """
     return await crud.read_paginate_doc_inv_list(
         user.id, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
@@ -72,42 +87,61 @@ async def read_paginate_doc_inv_list_with_ln_item(
     db: Session = Depends(get_db),
     user=Depends(get_user),
 ):
-    """API route to read the Invoice Documents.
+    """API route to retrieve a paginated list of invoice documents with line
+    item details as optional when filters is applied  .
 
-    :param u_id: Unique identifier used to identify a user.
-    :param ven_id: Optional parameter for filtering documents based on
-        vendor ID, of int type.
-    :param sp_id: Optional parameter for filtering documents based on
-        service provider ID, of int type.
-    :param usertype: Dependent function which returns the type of user.
-    :param db: Provides a session to interact with the backend Database.
-    :return: Invoice document list.
+    Parameters:
+    ----------
+    ven_id : int, optional
+        Vendor ID for filtering documents (default is None).
+    status : Literal, optional
+        Status of the invoice document to filter by.
+        Options: 'posted', 'rejected', 'exception', 'VendorNotOnboarded',
+        'VendorUnidentified' (default is None).
+    offset : int
+        The page number for pagination (default is 1).
+    limit : int
+        Number of records per page (default is 10).
+    uni_search : str, optional
+        Universal search term to filter documents (default is None).
+    ven_status : str, optional
+        Vendor status to filter documents (default is None).
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of invoice documents filtered and paginated according to the input parameters.
     """
     return await crud.read_paginate_doc_inv_list_with_ln_items(
-        ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
+        user.id, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
     )
 
 
-# Checked - used in the frontend
 @router.get("/readInvoiceData/idInvoice/{inv_id}")
 async def read_invoice_data_item(
     inv_id: int,
-    uni_search: Optional[str] = None,
     db: Session = Depends(get_db),
     user=Depends(get_user),
 ):
-    """### API route to read Document data.
+    """API route to retrieve invoice document data based on the invoice ID.
 
-    It contains following parameters.
-    :param u_id: Unique Unique identifier used to identify a user.
-    :param inv_id: It is an path parameter for selecting document id to
-        return its data, it is of int type.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It returns the Document data [header details, line details,
-        base64pdf string].
+    Parameters:
+    ----------
+    inv_id : int
+        Invoice ID used to select the document and return its data.
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    Dictionary containing the invoice document data, including:
+        - Vendor details
+        - Header details
+        - Line details
+        - upload time
     """
-    return await crud.read_invoice_data(user.id, inv_id, db, uni_search)
+    return await crud.read_invoice_data(user.id, inv_id, db)
 
 
 # Checked - used in the frontend
@@ -115,16 +149,20 @@ async def read_invoice_data_item(
 async def read_invoice_file_item(
     inv_id: int, db: Session = Depends(get_db), user=Depends(get_user)
 ):
-    """### API route to read Document data.
+    """API route to retrieve invoice file data based on the invoice ID.
 
-    It contains following parameters.
-    :param u_id: Unique Unique identifier used to identify a user.
-    :param inv_id: It is an path parameter for selecting document id to
-        return its data, it is of int type.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It returns the Document data [header details, line details,
-        base64pdf string].
+    Parameters:
+    ----------
+    inv_id : int
+        Invoice ID used to select the document and return its data.
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    Dictionary containing the following:
+        - Base64-encoded PDF string
+        - content_type
     """
     return await crud.read_invoice_file(user.id, inv_id, db)
 
@@ -137,17 +175,28 @@ async def update_invoice_data_item(
     db: Session = Depends(get_db),
     user=Depends(get_user),
 ):
-    """### API route to update Document data.
+    """API route to update invoice document data.
 
-    It contains following parameters.
-    :param u_id: Unique Unique identifier used to identify a user.
-    :param inv_id: It is an path parameter for selecting document id to
-        return its data, it is of int type.
-    :param inv_data: It is Body parameter that is of a Pydantic class
-        object, holds list of updated invoice data for updating.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return flag result [success or failed]
+    Parameters:
+    ----------
+    inv_id : int
+        Invoice ID provided as a path parameter to identify
+        which document to update.
+    inv_data : List[UpdateServiceAccountInvoiceData]
+        Body parameter containing a list of updated invoice
+        data represented as a Pydantic model.
+    db : Session
+        Database session object used to interact with the
+        backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update
+        operation, indicating success or failure.
     """
     return await crud.update_invoice_data(user.id, inv_id, inv_data, db)
 
@@ -160,17 +209,26 @@ async def update_column_pos_item(
     db: Session = Depends(get_db),
     user=Depends(get_user),
 ):
-    """### API route to update column position of a user.
+    """API route to update the column position for a user.
 
-    It contains following parameters.
-    :param u_id: Unique Unique identifier used to identify a user.
-    :param tabtype: It is an path parameter for selecting the tab, it is
-        of string type.
-    :param col_data: It is Body parameter that is of a Pydantic class
-        object, hold list of column position for updating the tab.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return flag result [success or failed]
+    Parameters:
+    ----------
+    bg_task : BackgroundTasks
+        Background task manager for handling asynchronous tasks.
+    col_data : List[columnpos]
+        Body parameter containing a list of column positions
+        represented as a Pydantic model.
+    db : Session
+        Database session object used to interact with the backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update operation,
+        indicating success or failure.
     """
     return await crud.update_column_pos(user.id, 1, col_data, bg_task, db)
 
@@ -178,15 +236,20 @@ async def update_column_pos_item(
 # Checked - used in the frontend
 @router.get("/readColumnPos")
 async def read_column_pos_item(db: Session = Depends(get_db), user=Depends(get_user)):
-    """### API route to read column position of a user.
+    """API route to read the column position for a user.
 
-    It contains following parameters.
-    :param u_id: Unique Unique identifier used to identify a user.
-    :param tabtype: It is an path parameter for selecting the tab, it is
-        of string type.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return the column position data for a tab.
+    Parameters:
+    ----------
+    db : Session
+        Database session object used to interact with the backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the column position data for the specified tab.
     """
     data = await crud.read_column_pos(user.id, 1, db)
     return data
@@ -197,15 +260,22 @@ async def read_column_pos_item(db: Session = Depends(get_db), user=Depends(get_u
 async def new_get_stamp_data_fields(
     inv_id: int, db: Session = Depends(get_db), user=Depends(get_user)
 ):
-    """### API route to read Stamp data fields.
+    """API route to retrieve stamp data fields based on the document ID.
 
-    It contains following parameters.
-    :param u_id: u_id: Unique Unique identifier used to identify a user.
-    :param inv_id: It is an path parameter for selecting document id to
-        return its data, it is of int type.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It returns Invoice Stamp data fields.
+    Parameters:
+    ----------
+    inv_id : int
+        Document ID used to select and return its associated stamp data fields.
+    db : Session
+        Database session object, used to interact with the backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
+    Returns:
+    -------
+    dict
+        Returns the invoice stamp data fields.
     """
     return await crud.new_get_stamp_data_by_document_id(user.id, inv_id, db)
 
@@ -218,12 +288,25 @@ async def new_update_stamp_data(
     db: Session = Depends(get_db),
     user=Depends(get_user),
 ):
-    """API route to update Stamp data fields.
+    """API route to update stamp data fields for a given document.
 
-    :param inv_id: Document ID to filter the stamp data for updating.
-    :param update_data: Data to update the specific fields.
-    :param db: Session to interact with the backend Database.
-    :return: A message indicating the result of the operation.
+    Parameters:
+    ----------
+    inv_id : int
+        Document ID used to filter the stamp data for updating.
+    update_data : List[UpdateStampData]
+        List of fields to update, including the tag name, old value, and new value.
+    db : Session
+        Database session object, used to interact with the backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system to identify
+        the user making the request.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the response message indicating
+        the result of the operation.
     """
     updated_stamp_data = await crud.new_update_stamp_data_fields(
         user.id, inv_id, update_data, db
