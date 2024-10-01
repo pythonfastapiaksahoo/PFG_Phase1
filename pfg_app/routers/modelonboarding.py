@@ -1,15 +1,12 @@
 import base64
 import json
 import os
-import sys
 import traceback
 from datetime import datetime, timedelta
 from io import BytesIO
 from typing import Optional
 
-import model
 import requests
-from auth import AuthHandler
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import (
     BlobServiceClient,
@@ -17,20 +14,21 @@ from azure.storage.blob import (
     generate_blob_sas,
     generate_container_sas,
 )
-from azuread.auth import get_admin_user
-from crud import ModelOnBoardCrud as crud
 from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
-from FROps import form_recognizer as fr
-from FROps import util as ut
 from pdf2image import convert_from_bytes
-from schemas import InvoiceSchema as schema
-from session import get_db
 from sqlalchemy.orm import Session
 
+import pfg_app.model as model
+from pfg_app.auth import AuthHandler
+from pfg_app.azuread.auth import get_admin_user
+from pfg_app.crud import ModelOnBoardCrud as crud
+from pfg_app.FROps import form_recognizer as fr
+from pfg_app.FROps import util as ut
+from pfg_app.logger_module import logger
+from pfg_app.schemas import InvoiceSchema as schema
+from pfg_app.session.session import get_db
+
 credential = DefaultAzureCredential()
-
-
-sys.path.append("..")
 
 
 auth_handler = AuthHandler()
@@ -43,6 +41,7 @@ router = APIRouter(
 )
 
 
+# Checked - used in the frontend
 @router.post(
     "/newModel/{modelID}/{userId}",
     status_code=status.HTTP_200_OK,
@@ -56,7 +55,8 @@ async def onboard_invoice_model(
 
     - userID : Unique indetifier used to indentify a user
     - invoiceTemplate: The Form Recognizer output, passed as API body
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with
+    the backend Database,that is of Session Object Type.
     - return: It returns the result status.
 
     <b> CRUD Ops</b>
@@ -68,6 +68,7 @@ async def onboard_invoice_model(
     return crud.ParseInvoiceData(modelID, userId, invoiceTemplate, db)
 
 
+# Checked - used in the frontend
 @router.get("/get_tagging_info/{documentId}")
 async def get_tagging_details(
     request: Request, documentId: int, db: Session = Depends(get_db)
@@ -113,7 +114,6 @@ async def get_tagging_details(
                 filename = b.name.split("/")[-1]
                 if os.path.splitext(b.name)[1].lower() == ".pdf":
                     images = convert_from_bytes(bdata, dpi=92, poppler_path="/usr/bin")
-                    # images = convert_from_bytes(bdata,poppler_path=r'D:\\poppler-0.68.0\\bin')
 
                     for i in images:
                         im_bytes = BytesIO()
@@ -146,6 +146,7 @@ async def get_tagging_details(
         db.close()
 
 
+# Checked - used in the frontend
 @router.get("/get_labels_info/{filename}")
 async def get_tagging_details_labels_info(
     request: Request, filename: str, db: Session = Depends(get_db)
@@ -183,31 +184,7 @@ async def get_tagging_details_labels_info(
         db.close()
 
 
-@router.post("/save_labels_file")
-async def save_labels_file(request: Request):
-    try:
-        body = await request.json()
-        container = body["container"]
-        filename = body["filename"]
-        connstr = body["connstr"]
-        labeljson = body["labelJson"]
-        body["saveJson"]
-        body["documentId"]
-        # crud.updateLabels(idDocumentModel,savejson,db)
-        blob_name = filename + ".labels.json"
-        json_string = json.dumps(labeljson)
-        account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
-        blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
-        )
-        bloblient = blob_service_client.get_blob_client(container, blob=blob_name)
-        bloblient.upload_blob(json_string, overwrite=True)
-        return {"message": "success"}
-    except Exception as e:
-        return {"message": f"exception {e}"}
-
-
+# Checked - used in the frontend
 @router.post("/save_fields_file")
 async def save_fields_file(request: Request, db: Session = Depends(get_db)):
     try:
@@ -234,36 +211,7 @@ async def save_fields_file(request: Request, db: Session = Depends(get_db)):
         db.close()
 
 
-@router.post("/reset_tagging")
-async def reset(request: Request, db: Session = Depends(get_db)):
-    try:
-        reqbody = await request.json()
-        model_id = reqbody["model_id"]
-        folderpath = reqbody["folderpath"]
-        configs = getOcrParameters(1, db)
-        containername = configs.ContainerName
-        connection_str = configs.ConnectionString
-        account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
-        blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
-        )
-        container_client = blob_service_client.get_container_client(containername)
-        list_of_blobs = container_client.list_blobs(name_starts_with=folderpath)
-        for b in list_of_blobs:
-            if b.name.endswith("labels.json"):
-                container_client.delete_blob(blob=b.name)
-        db.query(model.DocumentModel).filter(
-            model.DocumentModel.idDocumentModel == model_id
-        ).update({"labels": None})
-        db.commit()
-        return {"message": "success"}
-    except Exception as e:
-        return {"message": f"exception {e}"}
-    finally:
-        db.close()
-
-
+# Checked - used in the frontend
 @router.get("/get_analyze_result/{container}")
 async def get_result(request: Request, container: str, db: Session = Depends(get_db)):
     try:
@@ -308,7 +256,9 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
             + token
         )
         print(fr_endpoint)
-        url = f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-layout:analyze?api-version=2023-07-31&stringIndexType=utf16CodeUnit&features=ocrHighResolution"
+        url = f"{fr_endpoint}/formrecognizer/documentModels/\
+            prebuilt-layout:analyze?api-version=2023-07-31\
+                &stringIndexType=utf16CodeUnit&features=ocrHighResolution"
         account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
         account_url = f"https://{account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
@@ -360,6 +310,7 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
         db.close()
 
 
+# Checked - used in the frontend
 @router.post("/test_analyze_result/{modelid}")
 async def get_test_result(
     request: Request,
@@ -371,7 +322,8 @@ async def get_test_result(
         frconfigs = getOcrParameters(1, db)
         fr_endpoint = frconfigs.Endpoint
         fr_key = frconfigs.Key1
-        url = f"{fr_endpoint}/formrecognizer/documentModels/{modelid}:analyze?api-version=2023-07-31"
+        url = f"{fr_endpoint}/formrecognizer/\
+            documentModels/{modelid}:analyze?api-version=2023-07-31"
         metadata, f, valid_file = await ut.get_file(file, 900)
         if not valid_file:
             return {"message": "File is invalid"}
@@ -411,6 +363,7 @@ async def get_test_result(
         db.close()
 
 
+# Checked - used in the frontend
 @router.get("/get_training_result/{documentmodelId}")
 async def get_training_res(documentmodelId: int, db: Session = Depends(get_db)):
     try:
@@ -422,47 +375,7 @@ async def get_training_res(documentmodelId: int, db: Session = Depends(get_db)):
         db.close()
 
 
-@router.get("/check_model_status/{modelId}")
-async def check_model(modelId: str, db: Session = Depends(get_db)):
-    try:
-        frconfigs = getOcrParameters(1, db)
-        fr_endpoint = frconfigs.Endpoint
-        fr_key = frconfigs.Key1
-        url = f"{fr_endpoint}/formrecognizer/documentModels/{modelId}?api-version=2023-07-31"
-        headers = {
-            "Content-Type": "application/json",
-            "Ocp-Apim-Subscription-Key": fr_key,
-        }
-        get_resp = requests.get(url, headers=headers)
-        if get_resp.status_code == 200:
-            return get_resp.json()
-        else:
-            return {"message": "exception"}
-    except Exception as e:
-        print(e)
-        return {"message": "exception"}
-    finally:
-        db.close()
-
-
-@router.get("/get_training_result_vendor/{modeltype}/{vendorId}")
-async def get_training_res__vendor(
-    vendorId: int, modeltype: str, db: Session = Depends(get_db)
-):
-    try:
-        training_res = crud.get_fr_training_result_by_vid(db, modeltype, vendorId)
-        res = crud.get_composed_training_result_by_vid(db, modeltype, vendorId)
-        for r in res:
-            r.modelName = r.composed_name
-            r.modelID = r.composed_name
-            training_res.append(r)
-        return {"message": "success", "result": training_res}
-    except Exception as e:
-        return {"message": f"exception {e}", "result": []}
-    finally:
-        db.close()
-
-
+# Checked - used in the frontend
 @router.post("/create_training_result")
 async def create_result(request: Request, db: Session = Depends(get_db)):
     try:
@@ -471,12 +384,14 @@ async def create_result(request: Request, db: Session = Depends(get_db)):
         docid = req_body["docid"]
         create_result = crud.updateTrainingResult(docid, fr_result, db)
         return {"message": create_result}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return {"message": "exception"}
     finally:
         db.close()
 
 
+# Checked - used in the frontend
 @router.post("/create_compose_result")
 async def create_result_compose_result(request: Request, db: Session = Depends(get_db)):
     try:
@@ -530,13 +445,14 @@ async def create_result_compose_result(request: Request, db: Session = Depends(g
                 crud.createOrUpdateComposeModel(req_body, db)
 
         return {"message": "success"}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return {"message": "exception"}
     finally:
         db.close()
 
 
+# Checked - used in the frontend
 @router.post("/compose_model")
 async def compose_model(request: Request, db: Session = Depends(get_db)):
     try:
@@ -546,7 +462,8 @@ async def compose_model(request: Request, db: Session = Depends(get_db)):
         frconfigs = getOcrParameters(1, db)
         fr_endpoint = frconfigs.Endpoint
         fr_key = frconfigs.Key1
-        compose_url = f"{fr_endpoint}/formrecognizer/documentModels:compose?api-version=2023-07-31"
+        compose_url = f"{fr_endpoint}/\
+            formrecognizer/documentModels:compose?api-version=2023-07-31"
         body = {
             "modelId": modelName,
             "description": "",
@@ -556,7 +473,7 @@ async def compose_model(request: Request, db: Session = Depends(get_db)):
             "Content-Type": "application/json",
             "Ocp-Apim-Subscription-Key": fr_key,
         }
-        requests.post(compose_url, data=json.dumps(body), headers=headers)
+        requests.post(compose_url, data=json.dumps(body), headers=headers, timeout=60)
         json_resp = fr.getmodel(fr_endpoint, modelName, headers)
         if json_resp["result"] is None:
             json_resp = fr.getmodel(fr_endpoint, modelName, headers)
@@ -567,6 +484,7 @@ async def compose_model(request: Request, db: Session = Depends(get_db)):
         db.close()
 
 
+# Checked - used in the frontend
 @router.post("/train-model")
 async def train_model(request: Request, db: Session = Depends(get_db)):
     try:
@@ -637,7 +555,7 @@ async def train_model(request: Request, db: Session = Depends(get_db)):
         print(json_resp)
         if json_resp["result"] is None:
             post_resp = requests.post(
-                training_url, data=json.dumps(body), headers=headers
+                training_url, data=json.dumps(body), headers=headers, timeout=60
             )
             print(post_resp.status_code, post_resp.text)
             if post_resp.status_code == 202:
@@ -665,12 +583,14 @@ def getOcrParameters(customerID, db):
             .first()
         )
         return configs
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"DB Error": "Failed to get OCR parameters"}
         )
 
 
+# Checked - used in the frontend
 @router.delete("/DeleteBlob")
 async def delete_blob_container(blob: str, db: Session = Depends(get_db)):
     try:
@@ -682,14 +602,7 @@ async def delete_blob_container(blob: str, db: Session = Depends(get_db)):
         db.close()
 
 
-@router.get("/check_duplicate/{model_name}")
-async def check_duplicate(model_name: str, db: Session = Depends(get_db)):
-    try:
-        return await crud.check_duplicate(model_name, db)
-    except BaseException:
-        return {"status": False, "message": "exception"}
-
-
+# Checked - used in the frontend
 @router.get("/runlayout/{folder:path}")
 async def get_result_run_layout(folder: str, db: Session = Depends(get_db)):
     try:
@@ -713,7 +626,10 @@ async def get_result_run_layout(folder: str, db: Session = Depends(get_db)):
                     content_type = "image/png"
                 else:
                     content_type = "application/pdf"
-                url = f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-layout:analyze?api-version=2023-07-31&stringIndexType=utf16CodeUnit&features=ocrHighResolution"
+                url = f"{fr_endpoint}/\
+                    formrecognizer/documentModels/prebuilt-layout:analyze\
+                        ?api-version=2023-07-31\
+                            &stringIndexType=utf16CodeUnit&features=ocrHighResolution"
                 blob_client = blob_service_client.get_blob_client(
                     containername, blob=blob.name + ".ocr.json"
                 )
@@ -743,6 +659,7 @@ async def get_result_run_layout(folder: str, db: Session = Depends(get_db)):
         db.close()
 
 
+# Checked - used in the frontend
 @router.get("/autoLabels/{folder:path}")
 async def get_labels_pdf_image(
     folder: str, filename: Optional[str] = None, db: Session = Depends(get_db)
@@ -838,12 +755,16 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
         )
         try:
             post_resp = requests.post(
-                f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-invoice:analyze?api-version=2023-07-31&locale={language[0]}&stringIndexType=textElements&features=ocrHighResolution",
+                f"{fr_endpoint}/\
+                    formrecognizer/documentModels/prebuilt-invoice:analyze\
+                        ?api-version=2023-07-31&locale={language[0]}&\
+                            stringIndexType=textElements&features=ocrHighResolution",
                 data=filedata,
                 headers={
                     "Content-Type": "image/jpg",
                     "Ocp-Apim-Subscription-Key": fr_key,
                 },
+                timeout=60,
             )
             if post_resp.status_code == 202:
                 get_url = post_resp.headers["operation-location"]
@@ -855,6 +776,7 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
                             "Content-Type": "image/jpeg",
                             "Ocp-Apim-Subscription-Key": fr_key,
                         },
+                        timeout=60,
                     )
                     status = get_resp.json()["status"]
         except Exception as ex:
@@ -869,7 +791,8 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
         tags = {"VendorTaxId": "TRN", "CustomerTaxId": "CustomerTRN"}
         table_tags = {"TotalTax": "Tax"}
         labels_json = {
-            "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/labels.json",
+            "$schema": "https://schema.cognitiveservices.azure.com/\
+                formrecognizer/2021-03-01/labels.json",
             "document": document_name.split("/")[-1],
             "labels": [],
             "labelingState": 2,
@@ -949,8 +872,8 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
 
         savelabelsfile(labels_json, document_name, db)
 
-    except Exception as ex:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
 
 
 def getlabels(filedata, document_name, db, keyfields, ocr_engine):
@@ -967,12 +890,15 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
         )
         try:
             post_resp = requests.post(
-                f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-invoice:analyze?api-version=2023-07-31&locale={language[0]}&stringIndexType=textElements&features=ocrHighResolution",
+                f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-invoice:analyze\
+                    ?api-version=2023-07-31&locale={language[0]}&\
+                        stringIndexType=textElements&features=ocrHighResolution",
                 data=filedata,
                 headers={
                     "Content-Type": "application/pdf",
                     "Ocp-Apim-Subscription-Key": fr_key,
                 },
+                timeout=60,
             )
             if post_resp.status_code == 202:
                 get_url = post_resp.headers["operation-location"]
@@ -984,6 +910,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                             "Content-Type": "application/json",
                             "Ocp-Apim-Subscription-Key": fr_key,
                         },
+                        timeout=60,
                     )
                     status = get_resp.json()["status"]
         except Exception as ex:
@@ -996,7 +923,8 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
         header = keyfields["header"]
         line = keyfields["line"]
         labels_json = {
-            "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/labels.json",
+            "$schema": "https://schema.cognitiveservices.azure.com/\
+                formrecognizer/2021-03-01/labels.json",
             "document": document_name.split("/")[-1],
             "labels": [],
             "labelingState": 2,
@@ -1093,5 +1021,5 @@ def savelabelsfile(json_string, filename, db):
         json_string = json.dumps(json_string)
         blob_client.upload_blob(json_string, overwrite=True)
         print(f"saved: {filename+'.labels.json'}")
-    except Exception as ex:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())

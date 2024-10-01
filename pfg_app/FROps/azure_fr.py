@@ -1,11 +1,9 @@
 import json
-import sys
 import time
 
 import requests
-from logger_module import logger
 
-sys.path.append("..")
+from pfg_app.logger_module import logger
 
 
 def get_fr_data(
@@ -55,7 +53,7 @@ def get_fr_data(
                 "Ocp-Apim-Subscription-Key": apim_key,
             }
             response = requests.post(
-                form_recognizer_url, headers=headers, data=input_data
+                form_recognizer_url, headers=headers, data=input_data, timeout=60
             )
 
             logger.info(f"response.status_code:ln 23 {response.status_code}")
@@ -69,7 +67,7 @@ def get_fr_data(
                 break
 
         while True:
-            response = requests.get(operation_location, headers=headers)
+            response = requests.get(operation_location, headers=headers, timeout=60)
             result = response.json()
             logger.info(f"response.status_code:{response.status_code}")
             if response.status_code == 429:

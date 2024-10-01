@@ -1,17 +1,16 @@
 # from sqlalchemy.orm import
 import json
 import os
-import sys
 import traceback
 from datetime import datetime
 
-import model
 import pytz as tz
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 
-sys.path.append("..")
+import pfg_app.model as model
+from pfg_app.logger_module import logger
 
 credential = DefaultAzureCredential()
 
@@ -27,7 +26,8 @@ def getOcrParameters(customerID, db):
             .first()
         )
         return configs
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
 
 
@@ -121,8 +121,10 @@ def createInvoiceModel(invoiceModel, db):
     parameters.
 
     - userID: unique identifier for a particular user
-    - invoiceModel: It is function parameter that is of a Pydantic class object, It takes member data for creation of new Vendor.
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - invoiceModel: It is function parameter that is of a Pydantic class object,
+    It takes member data for creation of new Vendor.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -148,8 +150,10 @@ def addTagDefinition(models, tags, db):
     parameters.
 
     - modelID: unique identifier for a particular model created in the DB
-    - tags: It is function parameter that is list of a Pydantic class object, It takes member data for creation of new tag definition.
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - tags: It is function parameter that is list of a Pydantic class object,
+    It takes member data for creation of new tag definition.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -188,8 +192,8 @@ def addTagDefinition(models, tags, db):
                     ).delete()
             db.commit()
         return tags
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
 
 
@@ -198,8 +202,10 @@ def addLineItemTag(models, lineItemTag, db):
     following parameters.
 
     - modelID: unique identifier for a particular model created in the DB
-    - lineItemTag: It is function parameter that is list of a Pydantic class object, It takes member data for creation of new line item tag definition.
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - lineItemTag: It is function parameter that is list of a Pydantic
+    class object, It takes member data for creation of new line item tag definition.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It return a result of dictionary type.
     """
     try:
@@ -245,7 +251,8 @@ def updateLabels(documentId, labelVal, db):
         ).update({"labels": labelVal})
         db.commit()
         return "success"
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return "exception"
 
 
@@ -329,7 +336,8 @@ def updateFields(documentId, fieldsVal, db):
         ).update({"fields": fieldsVal})
         db.commit()
         return "success"
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return "exception"
 
 
@@ -363,7 +371,8 @@ def createOrUpdateComposeModel(composeObj, db):
             db.add(model.DocumentModelComposed(**composeObj))
             db.commit()
         return f"success {add}"
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return "exception"
 
 
@@ -374,7 +383,8 @@ def updateTrainingResult(documentId, result, db):
         ).update({"training_result": result})
         db.commit()
         return "success"
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return "exception"
 
 

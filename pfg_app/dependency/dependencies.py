@@ -1,13 +1,12 @@
-import sys
 import traceback
 
-import model as models
 from fastapi import Depends, HTTPException
-from schemas import permissionssm
-from session import Session
 from sqlalchemy.orm import scoped_session
 
-sys.path.append("..")
+import pfg_app.model as models
+from pfg_app.logger_module import logger
+from pfg_app.schemas import permissionssm
+from pfg_app.session.session import Session
 
 
 def get_db():
@@ -45,7 +44,8 @@ async def check_create_user(u_id: int, db: scoped_session = Depends(get_db)):
         if main_query == 1:
             return u_id
         raise HTTPException(status_code=403, detail="Permission Denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
 
@@ -71,7 +71,8 @@ async def check_create_vendor_user(u_id: int, db: scoped_session = Depends(get_d
         if main_query == 1:
             return u_id
         raise HTTPException(status_code=403, detail="Permission Denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
 
@@ -86,12 +87,15 @@ async def check_update_user(u_id: int, db: scoped_session = Depends(get_db)):
     :return: return user id or raise an exception
     """
     try:
-        # sub_query = db.query(models.AccessPermission.permissionDefID).filter_by(userID=u_id)
-        # main_query = db.query(models.AccessPermissionDef.Permissions).filter_by(idAccessPermissionDef=sub_query).scalar()
+        # sub_query = db.query(models.AccessPermission.permissionDefID).
+        # filter_by(userID=u_id)
+        # main_query = db.query(models.AccessPermissionDef.Permissions).
+        # filter_by(idAccessPermissionDef=sub_query).scalar()
         # if main_query == 1:
         return u_id
         raise HTTPException(status_code=403, detail="Permission Denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
 
@@ -117,7 +121,8 @@ async def check_update_vendor_user(vu_id: int, db: scoped_session = Depends(get_
         if main_query == 1:
             return vu_id
         raise HTTPException(status_code=403, detail="Permission Denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
 
@@ -143,7 +148,8 @@ async def check_user_invoice(u_id: int, db: scoped_session = Depends(get_db)):
         if main_query == 1:
             return u_id
         raise HTTPException(status_code=403, detail="Permission Denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
 
@@ -169,7 +175,8 @@ async def check_upload_vendor_user(vu_id: int, db: scoped_session = Depends(get_
         if main_query == 1:
             return vu_id
         raise HTTPException(status_code=403, detail="Permission Denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
 
@@ -228,7 +235,8 @@ def check_vendor_user_update(vu_id):
         if permissionbool.Permissions == 0:
             raise HTTPException(status_code=403, detail="Permission Denied")
         return vu_id
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         print(traceback.print_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
@@ -249,7 +257,8 @@ def check_eidt_invoice_approve_permission(u_id, inv_id):
         # check if edit permission is there
         if inv_perm.AccessPermissionTypeId < 3:
             raise HTTPException(status_code=403, detail="Permission Denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
 
@@ -268,7 +277,8 @@ def check_eidt_invoice_permission(u_id, inv_id, db: scoped_session = Depends(get
         # check if edit permission is there
         if inv_perm.AccessPermissionTypeId < 2:
             raise HTTPException(status_code=403, detail="Permission Denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Permission Denied")
 
 
@@ -284,9 +294,9 @@ def check_usertype(u_id, db: scoped_session = Depends(get_db)):
         if user_type:
             return user_type
         raise HTTPException(status_code=403, detail="Unknown user type")
-    except Exception as e:
-        return traceback.format_exc()
-        raise HTTPException(status_code=403, detail="Unknown user type")
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=403, detail=traceback.format_exc())
 
 
 async def check_finance_approve(u_id, inv_id, db: scoped_session = Depends(get_db)):
@@ -337,7 +347,8 @@ def check_user_access_customer(u_id, db: scoped_session = Depends(get_db)):
         if user_type:
             return
         raise HTTPException(status_code=403, detail="API access denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="API access denied")
 
 
@@ -353,7 +364,8 @@ def check_user_access_vendor(u_id, db: scoped_session = Depends(get_db)):
         if user_type:
             return
         raise HTTPException(status_code=403, detail="API access denied")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="API access denied")
 
 
@@ -370,7 +382,8 @@ def check_if_user_amount_approval(
         if pdef_id in (3, 9):
             return
         raise HTTPException(status_code=403, detail="Role not applicable")
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Role not applicable")
 
 
@@ -391,8 +404,8 @@ def check_if_cust_user_and_admin(u_id, db: scoped_session = Depends(get_db)):
         if type == 1 and def_id in (8, 1):
             return
         raise HTTPException(status_code=403, detail="Role not applicable")
-    except Exception as e:
-        traceback.print_exc()
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Role not applicable")
 
 
@@ -414,6 +427,6 @@ def check_if_service_trigger(u_id, db: scoped_session = Depends(get_db)):
         if allow_service_trig:
             return
         raise HTTPException(status_code=403, detail="Role not applicable")
-    except Exception as e:
-        traceback.print_exc()
+    except Exception:
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=403, detail="Role not applicable")

@@ -1,18 +1,15 @@
 import concurrent.futures
-import sys
 import time
 from io import BytesIO
 
-import PyPDF2
 from azure.storage.blob import BlobServiceClient
-from core.stampData import stampDataFn
-from logger_module import logger
-from PyPDF2 import PdfWriter
+from pypdf import PdfWriter
 
-sys.path.append("..")
-from core.azure_fr import call_form_recognizer
-from core.config import settings
-from core.utils import get_credential
+from pfg_app import settings
+from pfg_app.core.azure_fr import call_form_recognizer
+from pfg_app.core.stampData import stampDataFn
+from pfg_app.core.utils import get_credential
+from pfg_app.logger_module import logger
 
 
 def group_pages(data):
@@ -65,8 +62,8 @@ def split_pdf_and_upload(
     reader = pdf
     # Iterate over the ranges and create separate PDF files for each range
     for i, (start, end) in enumerate(ranges):
-        # writer = PyPDF2.PdfWriter()
-        writer = PyPDF2.PdfWriter()
+        # writer = pypdf.PdfWriter()
+        writer = PdfWriter()
         for page_num in range(start, end + 1):
             writer.add_page(reader.pages[page_num - 1])
 
@@ -143,10 +140,6 @@ def splitDoc(
     subfolder_name,
     destination_container_name,
     prompt,
-    # deployment_name,
-    # OpenAI_api_base,
-    # OpenAI_api_key,
-    # openAI_api_version,
     fr_endpoint,
     fr_api_version,
 ):
@@ -171,15 +164,12 @@ def splitDoc(
             except Exception as e:
                 print(f"Error processing a page: {e}")
 
-    # # Get the list of Invoice IDs from the Form Recognizer results # TODO continue this refactor later
+    # # Get the list of Invoice IDs from the Form Recognizer results
+    # # TODO continue this refactor later
     # invoice_ids = [result["analyzeResult"]["documents"][
     #             0]["fields"]["InvoiceId"]["content"] for result in output_data]
 
-    cnt = 0
     pageInvoDate = {}
-    data_1 = []
-    subtotal_conf = {}
-    invocieID_conf = {}
 
     pageInvoDate = {}
     try:

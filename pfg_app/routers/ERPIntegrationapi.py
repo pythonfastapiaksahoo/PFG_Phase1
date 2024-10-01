@@ -1,14 +1,11 @@
-import sys
 from typing import List
 
-from auth import AuthHandler
 from fastapi import APIRouter, Depends, HTTPException, status
-from session import get_db
+from sqlalchemy.orm import Session
 
-sys.path.append("..")
-from crud import ERPIntegrationCrud as crud
-from schemas.ERPIntegrationSchema import (
-    InvoiceRequest,
+from pfg_app.auth import AuthHandler
+from pfg_app.crud import ERPIntegrationCrud as crud
+from pfg_app.schemas.ERPIntegrationSchema import (
     PFGAccount,
     PFGDepartment,
     PFGProject,
@@ -17,9 +14,7 @@ from schemas.ERPIntegrationSchema import (
     PFGStore,
     PFGVendor,
 )
-from sqlalchemy.orm import Session
-
-sys.path.append("..")
+from pfg_app.session.session import get_db
 
 auth_handler = AuthHandler()
 
@@ -123,13 +118,13 @@ async def update_receipt_master(data: List[PFGReceipt], db: Session = Depends(ge
 
 # API endpoint to handle the invoice status request
 @router.post(
-    "/updateinvoicestatus",
+    "/updateinvoicestatus/{inv_id}",
     # response_model=InvoiceResponse
 )
-async def create_invoice_status(request: InvoiceRequest):
+async def update_invoice_status(inv_id: int, db: Session = Depends(get_db)):
     try:
         # Process the request using the mock CRUD function
-        response = crud.updateInvoiceStatus(request)
+        response = crud.updateInvoiceStatus(inv_id, db)
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -137,13 +132,13 @@ async def create_invoice_status(request: InvoiceRequest):
 
 # API endpoint to handle the invoice creation request
 @router.post(
-    "/createinvoicevoucher"
+    "/createinvoicevoucher/{inv_id}"
     # response_model=VchrImpResponseBody
 )
-async def create_invoice_voucher(db: Session = Depends(get_db)):
+async def create_invoice_voucher(inv_id: int, db: Session = Depends(get_db)):
     try:
         # Process the request using the mock CRUD function
-        response = crud.processInvoiceVoucher(db)
+        response = crud.processInvoiceVoucher(inv_id, db)
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

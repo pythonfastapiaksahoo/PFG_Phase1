@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 # class PFGVendorAddr(BaseModel):
 #     SETID: str = Field(max_length=5)
 #     VENDOR_ID: str = Field(max_length=10)
-#     ADDRESS_SEQ_NUM: int = Field(ge=1, le=999)  # Address sequence number must be a positive integer
+#     ADDRESS_SEQ_NUM: int = Field(ge=1, le=999)
+# # Address sequence number must be a positive integer
 #     EFFDT: Optional[str] = Field(max_length=10)
 #     EFF_STATUS: Optional[Literal['A', 'I']]
 #     ADDRESS1: Optional[str] = Field(None, max_length=55)
@@ -159,27 +160,8 @@ class PFGReceipt(BaseModel):
     RECV_LN_DISTRIB: Optional[RECV_LN_DISTRIB]
 
 
-# Invoice Request item model
-class InvoiceRequestItem(BaseModel):
-    BUSINESS_UNIT: str
-    INVOICE_ID: str
-    INVOICE_DT: str
-    VENDOR_SETID: str
-    VENDOR_ID: str
-
-
-# RequestBody wrapper model
-class RequestBody(BaseModel):
-    INV_STAT_RQST: InvoiceRequestItem
-
-
-# Main request model
+# Define the payload structure using Pydantic
 class InvoiceRequest(BaseModel):
-    RequestBody: RequestBody  # This is the mandatory RequestBody
-
-
-# Invoice Response model
-class InvoiceResponseItem(BaseModel):
     BUSINESS_UNIT: str
     INVOICE_ID: str
     INVOICE_DT: str
@@ -187,8 +169,12 @@ class InvoiceResponseItem(BaseModel):
     VENDOR_ID: str
 
 
-class InvoiceResponse(BaseModel):
-    INV_STAT_RESPONSE: List[InvoiceResponseItem]
+class RequestBody(BaseModel):
+    INV_STAT_RQST: InvoiceRequest
+
+
+class RequestPayload(BaseModel):
+    RequestBody: RequestBody
 
 
 class VchrDistStg(BaseModel):

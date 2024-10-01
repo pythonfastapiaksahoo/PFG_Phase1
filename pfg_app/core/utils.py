@@ -8,8 +8,9 @@ from azure.identity import (
     DefaultAzureCredential,
 )
 from azure.keyvault.secrets import SecretClient
-from core.config import settings
-from logger_module import logger
+
+from pfg_app import settings
+from pfg_app.logger_module import logger
 
 
 # Shared function to get the correct credential based on the environment

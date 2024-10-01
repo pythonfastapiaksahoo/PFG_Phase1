@@ -1,6 +1,3 @@
-from os import getenv
-
-from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
 
@@ -12,6 +9,22 @@ class Settings(BaseSettings):
     version: str
     description: str
     build_type: str = "debug"  # debug or release
+
+    # Azure Auth
+    api_client_id: str
+    api_client_secret: str
+    swagger_ui_client_id: str
+    aad_tenant_id: str
+    aad_instance: str
+    api_audience: str
+
+    # DB (TODO - Change to use system identity)
+    db_host: str
+    db_port: int
+    db_user: str
+    db_password: str
+    db_name: str
+    db_schema: str
 
     # Azure
     form_recognizer_endpoint: str
@@ -30,8 +43,3 @@ class Settings(BaseSettings):
     erp_invoice_status_endpoint: str
     erp_user: str
     erp_password: str
-
-
-load_dotenv(getenv("ENV_FILE"))
-
-settings = Settings()

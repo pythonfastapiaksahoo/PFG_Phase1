@@ -127,7 +127,8 @@ def ck_size_limit(fld_path, connection_str, containername, file_size_accepted):
                     fl_status = fl_status * 2
 
         if fl_status == 0:
-            fl_sts_msg = "Please check the file size. Uploaded flies should be grater than 0 Bytes and be less than 50 MB"
+            fl_sts_msg = "Please check the file size. "
+            +"Uploaded flies should be grater than 0 Bytes and be less than 50 MB"
         elif fl_status > 1:
             fl_sts_msg = "Good to upload"
             fl_status = 1
@@ -186,62 +187,6 @@ def upload_confirm(cnt_str, cnt_nm, blb_fldr):
         )
 
     return upload_confirm_status, upload_confirm_msg
-
-
-# def del_blobs(cnt_str, cnt_nm, local_path):
-#     del_cnt = 0
-#     try:
-
-#         account_name = cnt_str.split("AccountName=")[1].split(";AccountKey")[0]
-#         account_url = f"https://{account_name}.blob.core.windows.net"
-#         blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
-#         container_client = blob_service_client.get_container_client(cnt_nm)
-#         blob_list = container_client.list_blobs(name_starts_with=local_path)
-
-#         for blob in blob_list:
-#             del_cnt = del_cnt + 1
-#             container_client.delete_blobs(
-#                 blob.name)  # later check for delete_blobs status n confirm with status, for now confirming with del_cnt
-#         if del_cnt > 0:
-#             del_blobs_status = 1
-#             del_blobs_msg = str(del_cnt) + " files were deleted."
-#         else:
-#             del_blobs_status = 0
-#             del_blobs_msg = str(del_cnt) + " files were deleted. Error: "
-
-#     except Exception as e:
-#         del_blobs_status = 0
-#         del_blobs_msg = str(del_cnt) + " files were deleted. Error: " + str(e)
-#     return del_blobs_status, del_blobs_msg, del_cnt
-
-# def del_blobs(cnt_str, cnt_nm, blob_prefix):
-#     del_cnt = 0
-#     try:
-#         account_name = cnt_str.split("AccountName=")[1].split(";AccountKey")[0]
-#         account_url = f"https://{account_name}.blob.core.windows.net"
-#         blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
-#         container_client = blob_service_client.get_container_client(cnt_nm)
-
-#         # Print the prefix for debugging
-#         print(f"Deleting blobs with prefix: {blob_prefix}")
-#         blob_list = container_client.list_blobs(name_starts_with=blob_prefix)
-
-#         for blob in blob_list:
-#             print(f"Deleting blob: {blob.name}")  # For debugging
-#             del_cnt += 1
-#             container_client.delete_blobs(blob.name)  # later check for delete_blobs status n confirm with status, for now confirming with del_cnt
-
-#         if del_cnt > 0:
-#             del_blobs_status = 1
-#             del_blobs_msg = f"{del_cnt} files were deleted."
-#         else:
-#             del_blobs_status = 0
-#             del_blobs_msg = "No files were found to delete."
-#     except Exception as e:
-#         print("error from del_blobs func():",traceback.format_exc())
-#         del_blobs_status = 0
-#         del_blobs_msg = f"{del_cnt} files were deleted. Error: {str(e)}"
-#     return del_blobs_status, del_blobs_msg, del_cnt
 
 
 def del_blobs(cnt_str, cnt_nm, blob_prefix):
@@ -331,7 +276,8 @@ def reupload_files_to_azure(
         )
     except Exception as e:
         print(
-            "Error in reupload_files_to_azure func() line 250: ", traceback.format_exc()
+            f"Error in reupload_files_to_azure func() line 250: {e}",
+            traceback.format_exc(),
         )
     return fnl_upload_status, fnl_upload_msg, blob_fld_name
 

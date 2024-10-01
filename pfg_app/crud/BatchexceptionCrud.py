@@ -2,30 +2,25 @@ import base64
 import json
 import os
 import re
-import smtplib
-import sys
 import traceback
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from itertools import groupby
+from typing import Any
 
-import model
 import pandas as pd
 import pytz as tz
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
-from session import DB, SQLALCHEMY_DATABASE_URL, engine
 from sqlalchemy import and_, case, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, Session, load_only
 
+import pfg_app.model as model
+from pfg_app.logger_module import logger
+from pfg_app.session.session import DB, SQLALCHEMY_DATABASE_URL, engine
+
 credential = DefaultAzureCredential()
-
-
-sys.path.append("..")
-
 po_tag_map = {
     "PurchQty": "Quantity",
     "Name": "Description",
@@ -35,9 +30,9 @@ po_tag_map = {
 }
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
+
+
 # hello world
-
-
 async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
     try:
         if inv_id != 0:
@@ -58,15 +53,31 @@ async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
                     orient="records"
                 )
                 result = json.loads(result)
-                doc_prebuilt_data = json.loads(result[0]["DocPrebuiltData"])
+                if isinstance(result, list) and result:
+                    doc_prebuilt_data = json.loads(
+                        result[0].get("DocPrebuiltData", "{}")
+                    )
+                else:
+                    raise ValueError("Unexpected result format")
 
                 prebuilt_data = doc_prebuilt_data["prebuilt"]
-                result_dict = {d["tag"]: d["data"]["value"] for d in prebuilt_data}
+                result_dict: dict[str, Any] = {}
+                for d in prebuilt_data:
+                    if (
+                        isinstance(d, dict)
+                        and "data" in d
+                        and "tag" in d
+                        and "value" in d["data"]
+                    ):
+                        result_dict[d["tag"]] = d["data"]["value"]
+                # result_dict = {d["tag"]: d["data"]["value"] for d in prebuilt_data}
+                # # commented  this line and added above line
                 print(result_dict)
 
                 update_query = """
                 UPDATE {DB}.documentdata AS t2
-                JOIN {DB}.documenttagdef AS t1 ON t2.documentTagDefID = t1.idDocumentTagDef
+                JOIN {DB}.documenttagdef AS t1
+                ON t2.documentTagDefID = t1.idDocumentTagDef
                 SET t2.value = CASE
                     {update_cases}
                     ELSE t2.value
@@ -98,12 +109,23 @@ async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
                 doc_custom_data = json.loads(result[0]["DocCustData"])
 
                 custom_data = doc_custom_data["custom"]
-                result_dict = {d["tag"]: d["data"]["value"] for d in custom_data}
-                print(result_dict)
+                result_dict_custom: dict[str, Any] = {}
+                for d in custom_data:
+                    if (
+                        isinstance(d, dict)
+                        and "data" in d
+                        and "tag" in d
+                        and "value" in d["data"]
+                    ):
+                        result_dict_custom[d["tag"]] = d["data"]["value"]
+                # result_dict = {d["tag"]: d["data"]["value"] for d in custom_data}
+                # # commented  this line and added above line
+                print(result_dict_custom)
 
                 update_query = """
                 UPDATE {DB}.documentdata AS t2
-                JOIN {DB}.documenttagdef AS t1 ON t2.documentTagDefID = t1.idDocumentTagDef
+                JOIN {DB}.documenttagdef AS t1 ON
+                t2.documentTagDefID = t1.idDocumentTagDef
                 SET t2.value = CASE
                     {update_cases}
                     ELSE t2.value
@@ -114,11 +136,13 @@ async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
                     inv_id=inv_id,
                     update_cases=" ".join(
                         "WHEN t1.TagLabel = '{taglabel}' THEN '{tagvalue}'".format(
-                            taglabel=taglabel, tagvalue=result_dict.get(taglabel, "")
+                            taglabel=taglabel,
+                            tagvalue=result_dict_custom.get(taglabel, ""),
                         )
-                        for taglabel in result_dict.keys()
+                        for taglabel in result_dict_custom.keys()
                     ),
                 )
+                result_dict = result_dict_custom  # added this line due to custom data
 
             print("result :", result_dict)
             engine.execute(update_query)
@@ -129,7 +153,8 @@ async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
             print("Invalid Document id", inv_id)
 
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in switch_data: {e}")
+        return Response(status_code=500)
 
 
 async def update_entity(
@@ -344,10 +369,9 @@ async def update_entity(
                         print("new_val_df : ", new_val_df)
 
                     # Merge both DataFrame and drop the null values
-                    # 'outer' means outer join - merges all values
                     result_df = pd.merge(
                         new_val_df, old_val_df, on="TagLabel", how="outer"
-                    )
+                    )  # 'outer' means outer join - merges all values
                     result_df = result_df.dropna()
                     print("result_df", result_df)
 
@@ -368,14 +392,12 @@ async def update_entity(
 
                     # update the document tagdef ID's
                     query = (
-                        f"UPDATE {DB}"
-                        + ".documentdata SET documentTagDefID = CASE {documentTagDefID} ELSE NULL END WHERE documentID = {inv_id};".format(
-                            documentTagDefID=" ".join(
-                                f"WHEN documentTagDefID = {documentTagDefID} THEN {idDocumentTagDef_new}"
-                                for documentTagDefID, idDocumentTagDef_new in update_tagID.items()
-                            ),
-                            inv_id=inv_id,
+                        f"UPDATE {DB}.documentdata SET documentTagDefID = CASE "
+                        + " ".join(
+                            f"WHEN documentTagDefID = {documentTagDefID} THEN {_new}"
+                            for documentTagDefID, _new in update_tagID.items()
                         )
+                        + f" ELSE NULL END WHERE documentID = {inv_id};"
                     )
                     engine.execute(query)
                     print(query)
@@ -480,16 +502,14 @@ async def update_entity(
 
                     print("updateline_tagID", updateline_tagID)
 
-                    # update the documentlineitems ID's
+                    # Update the documentlineitems IDs
                     query = (
-                        f"UPDATE {DB}"
-                        + ".documentlineitems SET lineItemtagID = CASE {lineItemtagID} ELSE NULL END WHERE documentID = {inv_id};".format(
-                            lineItemtagID=" ".join(
-                                f"WHEN lineItemtagID = {idDocumentLineItemTags_old} THEN {idDocumentLineItemTags_new}"
-                                for idDocumentLineItemTags_old, idDocumentLineItemTags_new in updateline_tagID.items()
-                            ),
-                            inv_id=inv_id,
+                        f"UPDATE {DB}.documentlineitems SET lineItemtagID = CASE "
+                        + " ".join(
+                            f"WHEN lineItemtagID = {_old} " + f"THEN {_new}"
+                            for _old, _new in updateline_tagID.items()
                         )
+                        + f" ELSE NULL END WHERE documentID = {inv_id};"
                     )
                     engine.execute(query)
                     print(query)
@@ -497,7 +517,8 @@ async def update_entity(
                 db.commit()
 
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in update_entity: {e}")
+        return Response(status_code=500)
 
 
 async def readbatchprocessdetails(u_id: int, db: Session):
@@ -549,7 +570,8 @@ async def readbatchprocessdetails(u_id: int, db: Session):
                             "Purchase order is no longer confirmed%"
                         ),
                         model.Document.documentDescription.like(
-                            "The fiscal period is closed for module Purchase order on the date%"
+                            "The fiscal period is closed for "
+                            + "module Purchase order on the date%"
                         ),
                     ),
                     "PO Not Confirmed - Posting Cancelled",
@@ -643,10 +665,7 @@ async def readbatchprocessdetails(u_id: int, db: Session):
             )
             data = data.filter(model.Document.entityID.in_(sub_query_ent)).all()
             if data:
-                po_document_ids = [
-                    doc.PODocumentID
-                    for doc, document_sub_status, vendor, vendr_account, entity, _ in data
-                ]
+                po_document_ids = [doc.PODocumentID for doc, _, _, _, _, _ in data]
                 requestor_names = (
                     db.query(model.Document.PODocumentID, model.Document.sender)
                     .filter(
@@ -674,8 +693,9 @@ async def readbatchprocessdetails(u_id: int, db: Session):
 
         return data
     except Exception as e:
+        logger.error(f"Error in readbatchprocessdetails: {e}")
         print(traceback.format_exc())
-        return Response(status_code=500, content=str(e))
+        return Response(status_code=500)
     finally:
         db.close()
 
@@ -733,7 +753,8 @@ async def send_to_batch_approval(u_id: int, rule_id: int, inv_id: int, db: Sessi
         db.commit()
         return {"result": "success"}
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in send_to_batch_approval: {e}")
+        return Response(status_code=500)
 
 
 async def send_to_manual_approval(u_id: int, inv_id: int, db: Session):
@@ -751,7 +772,8 @@ async def send_to_manual_approval(u_id: int, inv_id: int, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in send_to_manual_approval: {e}")
+        return Response(status_code=500)
 
 
 async def readbatchprocessdetailsAdmin(u_id: int, db: Session):
@@ -825,7 +847,8 @@ async def readbatchprocessdetailsAdmin(u_id: int, db: Session):
 
         return data
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in readbatchprocessdetailsAdmin: {e}")
+        return Response(status_code=500)
 
 
 async def send_to_batch_approval_Admin(u_id: int, inv_id: int, db: Session):
@@ -841,11 +864,11 @@ async def send_to_batch_approval_Admin(u_id: int, inv_id: int, db: Session):
             sub_status_idt = 75
         else:
             sub_status_idt = 24
-        sub_status_id = (
-            db.query(model.DocumentSubStatus.idDocumentSubstatus)
-            .filter(model.DocumentSubStatus.status == "Batch Edit Approved")
-            .one()
-        )
+        # sub_status_id = (
+        #     db.query(model.DocumentSubStatus.idDocumentSubstatus)
+        #     .filter(model.DocumentSubStatus.status == "Batch Edit Approved")
+        #     .one()
+        # )  # TODO: Unused variable
 
         db.query(model.Document).filter_by(idDocument=inv_id).update(
             {"documentsubstatusID": sub_status_idt, "documentStatusID": 1}
@@ -856,7 +879,8 @@ async def send_to_batch_approval_Admin(u_id: int, inv_id: int, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in send_to_batch_approval_Admin: {e}")
+        return Response(status_code=500)
 
 
 async def send_to_manual_approval_Admin(u_id: int, inv_id: int, db: Session):
@@ -874,7 +898,8 @@ async def send_to_manual_approval_Admin(u_id: int, inv_id: int, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in send_to_manual_approval_Admin: {e}")
+        return Response(status_code=500)
 
 
 async def readInvokebatchsummary(u_id: int, db: Session):
@@ -933,7 +958,8 @@ async def readInvokebatchsummary(u_id: int, db: Session):
 
         return data
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in readInvokebatchsummary: {e}")
+        return Response(status_code=500)
 
 
 async def readfinancialapprovalsummary(u_id: int, db: Session):
@@ -950,15 +976,15 @@ async def readfinancialapprovalsummary(u_id: int, db: Session):
             .filter_by(UserID=u_id, isActive=1)
             .distinct()
         )
-        sub_status = (
-            db.query(model.DocumentSubStatus.idDocumentSubstatus)
-            .filter(
-                model.DocumentSubStatus.status.in_(
-                    ["System Check", "Batch Edit Approved", "Manual Check Approved"]
-                )
-            )
-            .distinct()
-        )
+        # sub_status = (
+        #     db.query(model.DocumentSubStatus.idDocumentSubstatus)
+        #     .filter(
+        #         model.DocumentSubStatus.status.in_(
+        #             ["System Check", "Batch Edit Approved", "Manual Check Approved"]
+        #         )
+        #     )
+        #     .distinct()
+        # )  # TODO: Unused variable
         approval_type = case(
             [
                 (model.DocumentSubStatus.idDocumentSubstatus == 5, "Batch Approval"),
@@ -990,7 +1016,8 @@ async def readfinancialapprovalsummary(u_id: int, db: Session):
 
         return data1
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in readfinancialapprovalsummary: {e}")
+        return Response(status_code=500)
 
 
 async def test_batchdata(u_id: int, db: Session):
@@ -1216,20 +1243,19 @@ async def test_batchdata(u_id: int, db: Session):
         for key, value in data.items():
             print(key)
             inv_id = key
-            data1 = value["po_grn_data"]
-            data2 = value["map_item"]
-            if isinstance(data2, dict):  # Ensure data2 is a dictionary
+            data1 = value.get("po_grn_data", {})
+            data2 = value.get("map_item", {})
+            if isinstance(data2, dict):
                 for key, value in data2.items():
                     print(value["fuzz_scr"])
                     db.query(model.DocumentLineItems).filter_by(
                         documentID=inv_id, itemCode=value["invo_itm_code"]
                     ).update({"invoice_itemcode": key, "Fuzzy_scr": value["fuzz_scr"]})
-
-            if isinstance(data1, dict):  # Ensure data1 is a dictionary
+            if isinstance(data1, dict):
                 for key, value in data1.items():
                     print(key)
                     data2 = value
-                    if isinstance(data2, dict):  # Ensure data2 is a dictionary
+                    if isinstance(data2, dict):
                         for key, value in data2.items():
                             print(key, value)
                             if key != "unit_price":
@@ -1240,21 +1266,21 @@ async def test_batchdata(u_id: int, db: Session):
                                     value["po_status"] == 1 and value["grn_status"] == 0
                                 ):
                                     error = 1
-                                    desc = f"{key} is not matching with GRN"
+                                    desc = str(key) + " is not matching with GRN"
                                 elif (
                                     value["po_status"] == 0 and value["grn_status"] == 1
                                 ):
                                     error = 1
-                                    desc = f"{key} is not matching with PO"
+                                    desc = str(key) + " is not matching with PO"
                                 elif (
                                     value["po_status"] == 0 and value["grn_status"] == 0
                                 ):
                                     error = 1
-                                    desc = f"{key} is not matching with PO and GRN"
+                                    desc = str(key) + " is not matching with PO and GRN"
                             else:
                                 if value["po_status"] == 0:
                                     error = 1
-                                    desc = f"{key} is not matching with PO"
+                                    desc = str(key) + " is not matching with PO"
                                 else:
                                     error = 0
                                     desc = None
@@ -1272,10 +1298,11 @@ async def test_batchdata(u_id: int, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in test_batchdata: {e}")
+        return Response(status_code=500)
 
 
-##########################################################################
+############################################
 
 
 async def loadpodata(u_id: int, inv_id: int, db: Session):
@@ -1387,8 +1414,9 @@ async def readlinedatatest(u_id: int, inv_id: int, db: Session):
         }
 
     except Exception as e:
+        logger.error(f"Error in readlinedatatest: {e}")
         print(traceback.format_exc())
-        return Response(status_code=500, content=str(e))
+        return Response(status_code=500)
 
 
 # to get file path
@@ -1447,16 +1475,17 @@ async def readinvoicefilepath(u_id: int, inv_id: int, db: Session):
                         content_type = "image/jpg"
                     else:
                         content_type = "application/pdf"
-                except BaseException:
-                    pass
+                except Exception as e:
+                    print(f"Error in getting file type: {e}")
                 invdat.docPath = base64.b64encode(blob_client.download_blob().readall())
 
-            except BaseException:
+            except Exception:
                 invdat.docPath = ""
         return {"filepath": invdat.docPath, "content_type": content_type}
 
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in readinvoicefilepath: {e}")
+        return Response(status_code=500)
 
 
 # to update po number
@@ -1470,7 +1499,8 @@ async def update_po_number(inv_id: int, po_num: str, db: Session):
         db.commit()
         return {"result": "success"}
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in update_po_number: {e}")
+        return Response(status_code=500)
 
 
 #############################
@@ -1489,7 +1519,6 @@ async def get_all_itemcode(inv_id: int, db: Session):
             )
             .one()
         )
-        # subquery1 = db.query(model.DocumentLineItems.itemCode).filter_by(documentID=po_doc_id[0]).distinct().all()
 
         all_description = (
             db.query(model.DocumentLineItems)
@@ -1502,188 +1531,189 @@ async def get_all_itemcode(inv_id: int, db: Session):
 
         return {"description": all_description}
     except Exception as e:
-        return Response(status_code=500, content=str(e))
+        logger.error(f"Error in get_all_itemcode: {e}")
+        return Response(status_code=500)
 
 
-async def get_all_errortypes(db: Session):
-    try:
-        error_type = db.query(model.BatchErrorType).options(load_only("name")).all()
-        return {"description": error_type}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+# async def get_all_errortypes(db: Session):
+#     try:
+#         error_type = db.query(model.BatchErrorType).options(load_only("name")).all()
+#         return {"description": error_type}
+#     except Exception as e:
+#         return Response(status_code=500)
 
 
-async def update_line_mapping(
-    inv_id: int,
-    inv_itemcode: str,
-    po_itemcode: str,
-    errotypeid: int,
-    vendoraccountID: int,
-    uid: int,
-    db: Session,
-):
-    try:
-        present_itemcode = (
-            db.query(model.DocumentLineItems.invoice_itemcode)
-            .filter_by(documentID=inv_id)
-            .distinct()
-            .all()
-        )
-        po_itemcode1 = (po_itemcode,)
-        print("po_itemcode1")
-        # for itemusermap table insert
-        model_id = (
-            db.query(model.Document.documentModelID)
-            .filter_by(idDocument=inv_id)
-            .distinct()
-            .one()
-        )
-        descline_id = (
-            db.query(model.DocumentLineItemTags.idDocumentLineItemTags)
-            .filter_by(idDocumentModel=model_id[0], TagName="Description")
-            .distinct()
-            .one()
-        )
-        mapped_invoitem_description = (
-            db.query(model.DocumentLineItems.Value)
-            .filter_by(
-                documentID=inv_id, itemCode=inv_itemcode, lineItemtagID=descline_id[0]
-            )
-            .distinct()
-            .one()
-        )
-        if po_itemcode1 in present_itemcode:
-            item_code1 = (
-                db.query(model.DocumentLineItems.itemCode)
-                .filter_by(documentID=inv_id, invoice_itemcode=po_itemcode)
-                .distinct()
-                .one()
-            )
-            inv_item_code1 = (
-                db.query(model.DocumentLineItems.invoice_itemcode)
-                .filter_by(documentID=inv_id, itemCode=inv_itemcode)
-                .distinct()
-                .one()
-            )
-            db.query(model.DocumentLineItems).filter_by(
-                documentID=inv_id, itemCode=inv_itemcode
-            ).update({"invoice_itemcode": po_itemcode, "Fuzzy_scr": 0})
+# async def update_line_mapping(
+#     inv_id: int,
+#     inv_itemcode: str,
+#     po_itemcode: str,
+#     errotypeid: int,
+#     vendoraccountID: int,
+#     uid: int,
+#     db: Session,
+# ):
+#     try:
+#         present_itemcode = (
+#             db.query(model.DocumentLineItems.invoice_itemcode)
+#             .filter_by(documentID=inv_id)
+#             .distinct()
+#             .all()
+#         )
+#         po_itemcode1 = (po_itemcode,)
+#         print("po_itemcode1")
+#         # for itemusermap table insert
+#         model_id = (
+#             db.query(model.Document.documentModelID)
+#             .filter_by(idDocument=inv_id)
+#             .distinct()
+#             .one()
+#         )
+#         descline_id = (
+#             db.query(model.DocumentLineItemTags.idDocumentLineItemTags)
+#             .filter_by(idDocumentModel=model_id[0], TagName="Description")
+#             .distinct()
+#             .one()
+#         )
+#         mapped_invoitem_description = (
+#             db.query(model.DocumentLineItems.Value)
+#             .filter_by(
+#                 documentID=inv_id, itemCode=inv_itemcode, lineItemtagID=descline_id[0]
+#             )
+#             .distinct()
+#             .one()
+#         )
+#         if po_itemcode1 in present_itemcode:
+#             item_code1 = (
+#                 db.query(model.DocumentLineItems.itemCode)
+#                 .filter_by(documentID=inv_id, invoice_itemcode=po_itemcode)
+#                 .distinct()
+#                 .one()
+#             )
+#             inv_item_code1 = (
+#                 db.query(model.DocumentLineItems.invoice_itemcode)
+#                 .filter_by(documentID=inv_id, itemCode=inv_itemcode)
+#                 .distinct()
+#                 .one()
+#             )
+#             db.query(model.DocumentLineItems).filter_by(
+#                 documentID=inv_id, itemCode=inv_itemcode
+#             ).update({"invoice_itemcode": po_itemcode, "Fuzzy_scr": 0})
 
-            db.query(model.ItemUserMap).filter_by(
-                documentID=inv_id, mappedinvoiceitemcode=inv_itemcode
-            ).delete()
-            db.commit()
-            c4 = model.ItemUserMap(
-                previousitemmetadataid=None,
-                itemmetadataid=None,
-                documentID=inv_id,
-                vendoraccountID=vendoraccountID,
-                mappedinvoiceitemcode=inv_itemcode,
-                mappedinvoitemdescription=mapped_invoitem_description[0],
-                batcherrortype=errotypeid,
-                UserID=uid,
-                createdOn=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-            )
-            db.add(c4)
-            db.query(model.DocumentLineItems).filter_by(
-                documentID=inv_id, itemCode=item_code1[0]
-            ).update({"invoice_itemcode": inv_item_code1[0]})
+#             db.query(model.ItemUserMap).filter_by(
+#                 documentID=inv_id, mappedinvoiceitemcode=inv_itemcode
+#             ).delete()
+#             db.commit()
+#             c4 = model.ItemUserMap(
+#                 previousitemmetadataid=None,
+#                 itemmetadataid=None,
+#                 documentID=inv_id,
+#                 vendoraccountID=vendoraccountID,
+#                 mappedinvoiceitemcode=inv_itemcode,
+#                 mappedinvoitemdescription=mapped_invoitem_description[0],
+#                 batcherrortype=errotypeid,
+#                 UserID=uid,
+#                 createdOn=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#             )
+#             db.add(c4)
+#             db.query(model.DocumentLineItems).filter_by(
+#                 documentID=inv_id, itemCode=item_code1[0]
+#             ).update({"invoice_itemcode": inv_item_code1[0]})
 
-        else:
+#         else:
 
-            db.query(model.DocumentLineItems).filter_by(
-                documentID=inv_id, itemCode=inv_itemcode
-            ).update({"invoice_itemcode": po_itemcode, "Fuzzy_scr": 0})
-            db.query(model.ItemUserMap).filter_by(
-                documentID=inv_id, mappedinvoiceitemcode=inv_itemcode
-            ).delete()
-            db.commit()
-            c4 = model.ItemUserMap(
-                previousitemmetadataid=None,
-                itemmetadataid=None,
-                documentID=inv_id,
-                vendoraccountID=vendoraccountID,
-                mappedinvoiceitemcode=inv_itemcode,
-                mappedinvoitemdescription=mapped_invoitem_description[0],
-                batcherrortype=errotypeid,
-                UserID=uid,
-                createdOn=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-            )
-            db.add(c4)
-            print("not present")
+#             db.query(model.DocumentLineItems).filter_by(
+#                 documentID=inv_id, itemCode=inv_itemcode
+#             ).update({"invoice_itemcode": po_itemcode, "Fuzzy_scr": 0})
+#             db.query(model.ItemUserMap).filter_by(
+#                 documentID=inv_id, mappedinvoiceitemcode=inv_itemcode
+#             ).delete()
+#             db.commit()
+#             c4 = model.ItemUserMap(
+#                 previousitemmetadataid=None,
+#                 itemmetadataid=None,
+#                 documentID=inv_id,
+#                 vendoraccountID=vendoraccountID,
+#                 mappedinvoiceitemcode=inv_itemcode,
+#                 mappedinvoitemdescription=mapped_invoitem_description[0],
+#                 batcherrortype=errotypeid,
+#                 UserID=uid,
+#                 createdOn=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#             )
+#             db.add(c4)
+#             print("not present")
 
-        db.commit()
-        return {"result": "Updated"}
-    except Exception as e:
-        print(traceback.format_exc())
-        if "Incorrect string value" in str(e):
-            return {"result": "Updated"}
-        return Response(status_code=500, content=str(e))
+#         db.commit()
+#         return {"result": "Updated"}
+#     except Exception as e:
+#         print(traceback.format_exc())
+#         if "Incorrect string value" in str(e):
+#             return {"result": "Updated"}
+#         return Response(status_code=500)
 
 
-async def get_current_itemmapped(inv_id: int, db: Session):
-    try:
-        po_num = (
-            db.query(model.Document.PODocumentID)
-            .filter(model.Document.idDocument == inv_id)
-            .scalar()
-        )
-        po_id = (
-            db.query(model.Document.idDocument)
-            .filter(
-                model.Document.PODocumentID == po_num,
-                model.Document.idDocumentType == 1,
-            )
-            .scalar()
-        )
-        pomodel = (
-            db.query(model.DocumentModel.idDocumentModel)
-            .filter(model.DocumentModel.modelID == "POMid000909")
-            .scalar()
-        )
-        DescriptionTag = (
-            db.query(model.DocumentLineItemTags.idDocumentLineItemTags)
-            .filter(
-                model.DocumentLineItemTags.TagName == "Name",
-                model.DocumentLineItemTags.idDocumentModel == pomodel,
-            )
-            .scalar()
-        )
-        item_desc1 = (
-            db.query(model.ItemUserMap)
-            .options(Load(model.ItemUserMap).load_only("mappedinvoiceitemcode"))
-            .filter(model.ItemUserMap.documentID == inv_id)
-            .all()
-        )
-        item_mapping = []
-        for item in item_desc1:
-            obj = {}
-            po_itemcode = (
-                db.query(model.DocumentLineItems.invoice_itemcode)
-                .filter_by(documentID=inv_id, itemCode=item.mappedinvoiceitemcode)
-                .first()
-            )
-            if po_itemcode:
-                po_line_val = (
-                    db.query(model.DocumentLineItems.Value)
-                    .filter_by(
-                        documentID=po_id,
-                        itemCode=po_itemcode[0],
-                        lineItemtagID=DescriptionTag,
-                    )
-                    .scalar()
-                )
-                obj = {
-                    "ItemMetaData": {"description": po_line_val},
-                    "ItemUserMap": {
-                        "mappedinvoiceitemcode": item.mappedinvoiceitemcode
-                    },
-                }
-                item_mapping.append(obj)
+# async def get_current_itemmapped(inv_id: int, db: Session):
+#     try:
+#         po_num = (
+#             db.query(model.Document.PODocumentID)
+#             .filter(model.Document.idDocument == inv_id)
+#             .scalar()
+#         )
+#         po_id = (
+#             db.query(model.Document.idDocument)
+#             .filter(
+#                 model.Document.PODocumentID == po_num,
+#                 model.Document.idDocumentType == 1,
+#             )
+#             .scalar()
+#         )
+#         pomodel = (
+#             db.query(model.DocumentModel.idDocumentModel)
+#             .filter(model.DocumentModel.modelID == "POMid000909")
+#             .scalar()
+#         )
+#         DescriptionTag = (
+#             db.query(model.DocumentLineItemTags.idDocumentLineItemTags)
+#             .filter(
+#                 model.DocumentLineItemTags.TagName == "Name",
+#                 model.DocumentLineItemTags.idDocumentModel == pomodel,
+#             )
+#             .scalar()
+#         )
+#         item_desc1 = (
+#             db.query(model.ItemUserMap)
+#             .options(Load(model.ItemUserMap).load_only("mappedinvoiceitemcode"))
+#             .filter(model.ItemUserMap.documentID == inv_id)
+#             .all()
+#         )
+#         item_mapping = []
+#         for item in item_desc1:
+#             obj = {}
+#             po_itemcode = (
+#                 db.query(model.DocumentLineItems.invoice_itemcode)
+#                 .filter_by(documentID=inv_id, itemCode=item.mappedinvoiceitemcode)
+#                 .first()
+#             )
+#             if po_itemcode:
+#                 po_line_val = (
+#                     db.query(model.DocumentLineItems.Value)
+#                     .filter_by(
+#                         documentID=po_id,
+#                         itemCode=po_itemcode[0],
+#                         lineItemtagID=DescriptionTag,
+#                     )
+#                     .scalar()
+#                 )
+#                 obj = {
+#                     "ItemMetaData": {"description": po_line_val},
+#                     "ItemUserMap": {
+#                         "mappedinvoiceitemcode": item.mappedinvoiceitemcode
+#                     },
+#                 }
+#                 item_mapping.append(obj)
 
-        return {"description": item_mapping}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+#         return {"description": item_mapping}
+#     except Exception as e:
+#         return Response(status_code=500)
 
 
 # Function to fetch the po lines based on the invoice id provided
@@ -1764,6 +1794,7 @@ async def get_po_line_items(u_id, inv_id, po_number, db):
             po_lines_dict.append(data)
         return {"Po_line_details": po_lines_dict}
     except SQLAlchemyError as e:
+        logger.error(e)
         traceback.print_exc()
         return Response(status_code=500)
     finally:
@@ -1771,8 +1802,6 @@ async def get_po_line_items(u_id, inv_id, po_number, db):
 
 
 # func to get po total
-
-
 def get_po_total(po_lines):
     po_tot_amt = 0
     try:
@@ -1794,18 +1823,17 @@ def get_po_total(po_lines):
                 po_tot_amt = 0
                 return {
                     "po_tot_amt": po_tot_amt,
-                    "status": f"Quantity {line.Quantity} greater than PurchQty {line.PurchQty}for the line {line.LineNumber}",
+                    "status": f"Quantity {line.Quantity} greater "
+                    + f"than PurchQty {line.PurchQty}for the line {line.LineNumber}",
                 }
         return {"po_tot_amt": po_tot_amt, "status": "success"}
-    except BaseException:
-        print(traceback.print_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         po_tot_amt = 0
         return po_tot_amt
 
 
 # check tags availability for inserting new data
-
-
 def chk_tag_availability(fields, id_doc_modelid, db):
     try:
         tags_ids = (
@@ -1823,14 +1851,12 @@ def chk_tag_availability(fields, id_doc_modelid, db):
             if field in tags.keys():
                 avail_tags_len = avail_tags_len + 1
         return avail_tags_len, tags
-    except BaseException:
-        print(traceback.print_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return None
 
 
 # function to save po lines to invoice lines
-
-
 async def save_po_lines_to_invoice(u_id, inv_id, po_lines, db):
     global resp
     try:
@@ -1877,10 +1903,6 @@ async def save_po_lines_to_invoice(u_id, inv_id, po_lines, db):
                 )
                 .scalar()
             )
-            # prev_sub_tot = db.query(model.DocumentData.Value).filter(model.DocumentData.documentTagDefID == sub_tg_id,model.DocumentData.documentID == inv_id).scalar()
-            # prev_data = {""}
-            # db.add(model.DocumentLineItemTags(**prev_data))
-            # db.commit()
             db.query(model.DocumentData).filter(
                 model.DocumentData.documentTagDefID == sub_tg_id,
                 model.DocumentData.documentID == inv_id,
@@ -1981,6 +2003,7 @@ def get_invoiceTotal(inv_id, db):
             inv_subtotal = inv_total - inv_tax
         return inv_subtotal
     except SQLAlchemyError as e:
+        logger.error(e)
         traceback.print_exc()
         print("error fetching invoice total")
         return 0
@@ -2014,11 +2037,11 @@ def flip_po_to_invoice(po_lines, inv_id, db, u_id, id_doc_modelid):
                                 model.DocumentLineItems.documentID == inv_id
                             ).delete()
                             db.commit()
-                        except BaseException:
-                            print(traceback.print_exc())
+                        except Exception:
+                            logger.error(traceback.format_exc())
 
-                    # calculating discount from po line and preparing data for
-                    # insertion to db
+                    # calculating discount from po line
+                    # and preparing data for insertion to db
                     inv_line_number = 0
                     for line in po_lines:
                         inv_line_number += 1
@@ -2087,13 +2110,15 @@ def flip_po_to_invoice(po_lines, inv_id, db, u_id, id_doc_modelid):
                             error_msg = "error in saving the po lines"
                             return {"result": error_msg}
                     return {"result": "Success"}
-                except BaseException:
+                except Exception:
+                    logger.error(traceback.format_exc())
                     return {"result": "Unsuccessfull"}
             else:
                 return {"result": "one or more tags missing"}
         else:
             return {"result": "No Po lines selected for PO Flip"}
     except SQLAlchemyError as e:
+        logger.error(e)
         return Response(status_code=500)
     finally:
         db.close()
@@ -2116,11 +2141,13 @@ def addLineData(line, itemcode, db, inv_id, tags, po_line_num):
             try:
                 db.add(model.DocumentLineItems(**db_data))
                 db.commit()
-            except BaseException:
+            except Exception:
+                logger.error(traceback.format_exc())
                 error_msg = "Failed to save line"
                 return {"Status": error_msg}
         return {"result": "success"}
-    except BaseException:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
@@ -2140,134 +2167,14 @@ async def check_inv_status(u_id, inv_id, db):
             "substatus": status_id.documentsubstatusID,
         }
         return {"result": status_id}
-    except BaseException:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
 
 
-async def send_mail_to_zoho(u_id, inv_id, db):
-    try:
-        user_mail = (
-            db.query(model.User.email)
-            .filter_by(idUser=u_id, isActive=1)
-            .distinct()
-            .scalar()
-        )
-        data = (
-            db.query(
-                model.Document,
-                model.DocumentSubStatus,
-                model.Entity,
-                model.Vendor,
-                model.User,
-            )
-            .options(
-                Load(model.Document).load_only("docheaderID", "PODocumentID", "sender"),
-                Load(model.DocumentSubStatus).load_only("status"),
-                Load(model.Entity).load_only("EntityName"),
-                Load(model.Vendor).load_only("VendorName"),
-                Load(model.User).load_only("email"),
-            )
-            .join(
-                model.DocumentSubStatus,
-                model.DocumentSubStatus.idDocumentSubstatus
-                == model.Document.documentsubstatusID,
-            )
-            .join(model.Entity, model.Entity.idEntity == model.Document.entityID)
-            .join(model.Vendor, model.Vendor.entityID == model.Entity.idEntity)
-            .filter(model.Document.idDocument == inv_id)
-            .first()
-        )
-        print(inv_id)
-
-        if data:
-            document = data[0]
-
-            po_number = document.PODocumentID
-            invoice_id = document.docheaderID
-            entity_name = data[2].EntityName
-            status_exception = data[1].status
-            vendor_name = data[3].VendorName
-            sender_email = user_mail
-            Sender = document.sender
-
-            smtp_server = "smtp-mail.outlook.com"
-            smtp_port = 587
-
-            from_address = "serinaplus.dev@datasemantics.co"
-            to_address = "support@dsplpvtltd.zohodesk.com"
-            subject = "Details for Invoice and POs"
-
-            msg = MIMEMultipart()
-            msg["Subject"] = subject
-            msg["From"] = from_address
-            msg["To"] = to_address
-
-            body = f"""<html>
-                            <body style="font-family: Segoe UI !important;height: 100% !important;margin: 0 !important;padding: 20px !important;color: #272727 !important;">
-                            <!-- #original_sender -->
-                            <p style="margin: 0;">#original_sender {sender_email}</p>
-                            <p style="margin: 10px 0;"></p>
-                            <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse: collapse;">
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Invoice ID</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{invoice_id}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">PO Number</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{po_number}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Status</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{status_exception}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Entity</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{entity_name}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Vendor</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{vendor_name}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Uploaded_by</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">{Sender}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid #ddd;padding: 8px;">Reference URL</td>
-                                            <td style="border: 1px solid #ddd;padding: 8px;"><a href="https://rovedev.serinaplus.com/customer/ExceptionManagement/batchProcess/comparision-docs/{inv_id}">Reference URL</a></td>
-                                        </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                            </body>
-                        </html>"""
-
-            msg.attach(MIMEText(body, "html"))
-
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(from_address, "passwordchangedduetospam@1234")
-                server.sendmail(from_address, to_address, msg.as_string())
-            return {"message": "Email sent to Zoho Desk successfully."}
-        else:
-            return {"message": "No details found for the specified invoice ID."}
-
-    except Exception as e:
-        print(traceback.format_exc())
-        return Response(status_code=500, content=str(e))
-    finally:
-        db.close()
-
-
 # prepare line details to compare
-
-
 def prepare_line_data(line_data, po_tag_map):
     key_order = [
         "Description",
@@ -2290,8 +2197,9 @@ def prepare_line_data(line_data, po_tag_map):
         "DiscPercent",
         "Discount",
     ]
-    # Sort the data based on itemCode
-    line_data.sort(key=lambda x: x.DocumentLineItems.itemCode)
+    line_data.sort(
+        key=lambda x: x.DocumentLineItems.itemCode
+    )  # Sort the data based on itemCode
     line_cleaned = []
     for key, group in groupby(line_data, key=lambda x: x.DocumentLineItems.itemCode):
         obj = {}
@@ -2338,8 +2246,6 @@ def prepare_line_data(line_data, po_tag_map):
 
 
 # prepare invoice header to compare
-
-
 def prepare_inv_header_data(header_data):
     invoice_header_cleaned = {}
     for invoice_header in header_data:
@@ -2355,19 +2261,17 @@ def prepare_inv_header_data(header_data):
 
 
 # clean amount function
-
-
 def cln_amt(amt):
     amt = str(amt)
     if len(amt) > 0:
-        if len(re.findall("\\d+\\,\\d+\\d+\\.\\d+", amt)) > 0:
-            cl_amt = re.findall("\\d+\\,\\d+\\d+\\.\\d+", amt)[0]
+        if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
             cl_amt = float(cl_amt.replace(",", ""))
-        elif len(re.findall("\\d+\\.\\d+", amt)) > 0:
-            cl_amt = re.findall("\\d+\\.\\d+", amt)[0]
+        elif len(re.findall(r"\d+\.\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+\.\d+", amt)[0]
             cl_amt = float(cl_amt)
-        elif len(re.findall("\\d+", amt)) > 0:
-            cl_amt = re.findall("\\d+", amt)[0]
+        elif len(re.findall(r"\d+", amt)) > 0:
+            cl_amt = re.findall(r"\d+", amt)[0]
             cl_amt = float(cl_amt)
         else:
             cl_amt = amt

@@ -5,10 +5,11 @@ from typing import Any, Dict, Mapping, Optional
 import requests
 import rsa
 from authlib.jose import JoseError, jwt
-from azuread import config
-from azuread.schemas import AzureUser
 from fastapi import HTTPException, Request, status
 from fastapi.security import OAuth2AuthorizationCodeBearer
+
+from pfg_app import settings
+from pfg_app.azuread.schemas import AzureUser
 
 log = logging.getLogger()
 
@@ -28,8 +29,8 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
 
     def __init__(
         self,
-        aad_instance: str = config.AAD_INSTANCE,
-        aad_tenant: str = config.AAD_TENANT_ID,
+        aad_instance: str = settings.aad_instance,
+        aad_tenant: str = settings.aad_tenant_id,
         auto_error: bool = True,
     ):
         self.scopes = ["access_as_user"]
@@ -40,7 +41,7 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
             refreshUrl=f"{self.base_auth_url}/oauth2/v2.0/token",
             scheme_name="oauth2",
             scopes={
-                f"api://{config.API_CLIENT_ID}/access_as_user": "Access API as user",
+                f"api://{settings.api_client_id}/access_as_user": "Access API as user",
             },
             auto_error=auto_error,
         )
@@ -124,7 +125,8 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
         Cache all AAD JWT keys - so we don't have to make a web call each auth request
         """
         response = requests.get(
-            f"{self.base_auth_url}/v2.0/.well-known/openid-configuration"
+            f"{self.base_auth_url}/v2.0/.well-known/openid-configuration",
+            timeout=60,
         )
         aad_metadata = response.json() if response.ok else None
         jwks_uri = (
@@ -133,7 +135,7 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
             else None
         )
         if jwks_uri:
-            response = requests.get(jwks_uri)
+            response = requests.get(jwks_uri, timeout=60)
             keys = response.json() if response.ok else None
             if keys and "keys" in keys:
                 for key in keys["keys"]:
@@ -168,7 +170,7 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
                 token=token,
                 key=key,
                 algorithms=["RS256"],
-                audience=config.API_AUDIENCE,
+                audience=settings.api_audience,
                 options=options,
             )
 

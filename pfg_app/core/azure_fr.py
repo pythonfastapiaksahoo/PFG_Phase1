@@ -5,8 +5,9 @@ from azure.ai.formrecognizer import (
     DocumentModelAdministrationClient,
 )
 from azure.core.pipeline.policies import RetryPolicy
-from core.utils import get_credential
-from logger_module import logger
+
+from pfg_app.core.utils import get_credential
+from pfg_app.logger_module import logger
 
 
 def get_fr_data(
@@ -116,7 +117,8 @@ def copy_model(
 
     while not copy_result.done():
         logger.info(
-            f"Copying model {source_model_id} from {source_endpoint} to {target_endpoint}"
+            f"Copying model {source_model_id} from "
+            + f"{source_endpoint} to {target_endpoint}"
         )
         time.sleep(5)  # Polling interval
 

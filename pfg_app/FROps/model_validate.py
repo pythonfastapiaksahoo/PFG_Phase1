@@ -3,7 +3,6 @@ import json
 import numpy as np
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-from core.config import settings
 from pdf2image import convert_from_bytes
 
 credential = DefaultAzureCredential()
@@ -134,15 +133,8 @@ def model_validate(
     return model_validate_status, model_validate_msg, model_id, trin_doc_path
 
 
-cnt_nm = "upload1"
-VendorAccount = "123"
-ServiceAccount = "456"
-model_id = "456789"
-old_fld_name = "1623148701_5608163"
-template_metadata = {}  # type: ignore
-
-
 def db_push_data(
+    cnt_str,
     cnt_nm,
     VendorAccount,
     ServiceAccount,
@@ -158,7 +150,7 @@ def db_push_data(
     file_path = temp_dir + "/" + old_fld_name + ".json"
     try:
 
-        account_name = settings.storage_account_name
+        account_name = cnt_str.split("AccountName=")[1].split(";AccountKey")[0]
         account_url = f"https://{account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
             account_url=account_url, credential=credential
@@ -177,22 +169,9 @@ def db_push_data(
             blb_container.get_blob_client(label_blb_pth).download_blob().readall()
         )
 
-        # container_client.upload_blob(name=temp_dir+"/"+old_fld_name + ".pdf", data=pdf_byts)
-        # with open(temp_dir+"/"+old_fld_name + ".pdf", "wb") as f:
-        #     f.write(pdf_byts)
-        #     f.close()
-        # container_client.upload_blob(name=temp_dir+"/"+old_fld_name + ".pdf.labels.json", data=lbl_byts)
-        # with open(old_fld_name + ".pdf.labels.json", "wb") as f:
-        #     f.write(lbl_byts)
-        #     f.close()
-
-        # with open(old_fld_name + '.pdf.labels.json', encoding='utf-8') as f:
-        #     data = json.load(f)
-        #     f.close()
         data = json.loads(lbl_byts)
         if blb_file_ext == "pdf":
             img = convert_from_bytes(pdf_byts, poppler_path=r"/usr/bin")
-            # img = convert_from_bytes(pdf_byts,poppler_path=r'D:\\poppler-0.68.0\\bin')
             for ig in img:
                 image = np.array(ig)
             image.shape
@@ -384,6 +363,7 @@ def model_validate_final(
                     if labelfound:
                         break
             db_push_status, db_push_msg, file_path, data = db_push_data(
+                cnt_str,
                 cnt_nm,
                 VendorAccount,
                 ServiceAccount,

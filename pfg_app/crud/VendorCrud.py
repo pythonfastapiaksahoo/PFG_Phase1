@@ -1,19 +1,17 @@
 import io
 import os
-import sys
 import traceback
 from datetime import datetime
 
-import model
 import pandas as pd
 import pytz as tz
 from fastapi.responses import Response
 from fuzzywuzzy import process
-from logger_module import logger
 from sqlalchemy import and_, case, exc, func, or_
 from sqlalchemy.orm import Load, Session, load_only
 
-sys.path.append("..")
+import pfg_app.model as model
+from pfg_app.logger_module import logger
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
@@ -48,7 +46,8 @@ async def UpdateVendorERP(VendorUserID, VendorID, UpdateVendor, db):
         )
         db.commit()
         return {"result": "updated", "record": UpdateVendor}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
@@ -82,7 +81,8 @@ async def UpdateVendorAccERP(VendorUserID, VendorAccID, UpdateVendorAcc, db):
         ).update(UpdateVendorAcc)
         db.commit()
         return {"result": "updated", "record": UpdateVendorAcc}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500,
             headers={"Error": "Server error", "Desc": "Invalid vendor ID"},
@@ -121,7 +121,8 @@ async def NewVendor(VendorUserID, NewVendor, db):
         else:
             idVendor = 0
         return {"result": "created", "record": NewVendor, "idVendor": idVendor}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
@@ -154,7 +155,8 @@ async def NewVendorAcc(VendorUserID, VendorID, NewVendorAcc, db):
         db.add(NewVendorAccDb)
         db.commit()
         return {"result": "created", "record": NewVendorAcc}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
@@ -212,8 +214,8 @@ async def NewVendorUser(u_id, ven_user, ven_user_type, db):
             user_access.append(basedata.copy())
         user_access = [model.VendorUserAccess(**row) for row in user_access]
         db.add_all(user_access)
-        # notifying changes to the db but not committing since next stage it
-        # will be committed
+        # notifying changes to the db but not committing since
+        # next stage it will be committed
         db.flush()
         db.add(
             model.AccessPermission(
@@ -221,18 +223,18 @@ async def NewVendorUser(u_id, ven_user, ven_user_type, db):
             )
         )
         db.flush()
-        # returning the customer details with custom function from model to
-        # avoid all columns
+        # returning the customer details with custom function
+        # from model to avoid all columns
         return n_usr.datadict(), ven_user_type
-    except exc.IntegrityError as e:
-        print(traceback.print_exc())
+    except exc.IntegrityError:
+        logger.error(traceback.format_exc())
         db.rollback()
         return Response(
             status_code=400,
             headers={"ClientError": "one or more values does not exist"},
         )
-    except Exception as e:
-        print(traceback.print_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         db.rollback()
         return Response(
             status_code=500, headers={"Error": f"{traceback.format_exc()}Server error"}
@@ -265,23 +267,41 @@ def NewVendorUserInvoiceAccess(VendorUserID, NewVendorInvAccs, db):
         db.add(NewVendorInvAccsdb)
         db.commit()
         return NewVendorInvAccs
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
 
 
-async def readvendor(db):
-    """This function read a Vendor.
+async def readvendorname(u_id, db):
+    """This function read list of VendorNames.
 
-    It contains 1 parameter.
+    It contains 2 parameter.
+    :param u_id: The user ID for which to fetch vendor data.
     :param db: It provides a session to interact with the backend
         Database,that is of Session Object Type.
     :return: It return a result of dictionary type.
     """
     try:
-        return db.query(model.Vendor).all()
-    except Exception as e:
+        # Query to get vendor names and filter by VENDOR_STATUS
+        query = db.query(model.Vendor.VendorName).filter(
+            func.jsonb_extract_path_text(model.Vendor.miscellaneous, "VENDOR_STATUS")
+            == "A"
+        )
+
+        # # Get distinct count of vendors
+        # total_count = db.query(model.Vendor.idVendor).filter(
+        #     func.jsonb_extract_path_text(model.Vendor.miscellaneous,
+        # 'VENDOR_STATUS') == 'A'
+        # ).distinct().count()
+
+        # Execute the original query and fetch results
+        data = query.all()
+        return data
+
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -347,7 +367,7 @@ async def readvendorbyuid(u_id, vendor_type, db, off_limit, api_filter):
             )
             .options(
                 Load(model.Vendor).load_only(
-                    "VendorName", "VendorCode", "Email", "Contact", "TRNNumber"
+                    "VendorName", "VendorCode", "vendorType", "Address", "City"
                 ),
                 Load(model.Entity).load_only("EntityName"),
             )
@@ -441,8 +461,9 @@ async def readvendorbyuid(u_id, vendor_type, db, off_limit, api_filter):
                         "idVendor": col.idVendor,
                         "VendorName": col.VendorName,
                         "VendorCode": col.VendorCode,
-                        "Email": col.Email,
-                        "Contact": col.Contact,
+                        "vendorType": col.vendorType,
+                        "Address": col.Address,
+                        "City": col.City,
                     }
                 elif isinstance(col, model.Entity):
                     row_dict["Entity"] = {
@@ -458,8 +479,8 @@ async def readvendorbyuid(u_id, vendor_type, db, off_limit, api_filter):
             result.append(row_dict)
 
         return result
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -654,8 +675,8 @@ async def readpaginatedvendorlist(
             result["data"].append(row_dict)
 
         return result
-    except Exception as e:
-        logger.error(f"line 363 readvendorbyuid crud : {traceback.format_exc()}")
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -703,7 +724,8 @@ async def read_vendor_account_permission(u_id, db):
             .filter(model.VendorUserAccess.vendorUserID == u_id)
             .all()
         )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -728,29 +750,8 @@ async def readvendorbyid(db: Session, v_id: int):
             .filter(model.Vendor.idVendor == v_id)
             .all()
         )
-    except Exception as e:
-        return Response(
-            status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
-        )
-    finally:
-        db.close()
-
-
-async def readvendoruser(db: Session, v_id: int):
-    """This function read a Vendor user.
-
-    It contains 2 parameter.
-    :param v_id: It is a function parameters that is of integer type, it
-        provides the vendor Id.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of dictionary type.
-    """
-    try:
-        return (
-            db.query(model.VendorUser).filter(model.VendorUser.vendorID == v_id).all()
-        )
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -801,7 +802,8 @@ async def readvendoraccount(u_id, ent_id, db):
                     model.VendorAccount.entityID == ent_id
                 )
         return {"result": vendor_account.all()}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
@@ -835,13 +837,21 @@ async def readvendoraccount_uploadpo(db, u_id: int):
 
         if en_ids:
             data = db.execute(
-                f"SELECT EntityName, (select JSON_ARRAYAGG(JSON_OBJECT('Account',Account,'idVendorAccount', \
-                idVendorAccount)) from vendoraccount where entityID = vend.idEntity and vendorID in {vuen_id if len(vuen_id) > 1 else '(' + str(vuen_id[0]) + ')'}) as vendoraccounts FROM \
-                Entity as vend where vend.idEntity in {en_ids if len(en_ids) > 1 else '(' + str(en_ids[0]) + ')'}"
+                "SELECT EntityName, (\
+                    select JSON_ARRAYAGG(\
+                        JSON_OBJECT('Account',Account,'idVendorAccount', \
+                idVendorAccount)) from vendoraccount \
+                    where entityID = vend.idEntity and \
+                        vendorID in "
+                + f"{vuen_id if len(vuen_id) > 1  else '(' + str(vuen_id[0]) + ')'}"
+                + ") as vendoraccounts FROM \
+                Entity as vend where vend.idEntity in"
+                + f"{en_ids if len(en_ids) > 1  else '(' + str(en_ids[0]) + ')'}"
             ).fetchall()
             return {"result": data}
         return {"result": None}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
@@ -900,8 +910,8 @@ async def read_vendor_details(db, vu_id):
             )
             return {"result": vendordata}
         return {"result": "no data"}
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
         db.close()
@@ -953,7 +963,8 @@ async def read_vendor_user(db, vu_id):
             )
             setattr(row[1], "vendor_name", vendor_name)
         return vendor_user_data
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -971,7 +982,8 @@ async def readvendorsites(db, u_id, v_id):
             .all()
         )
         return data
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -1139,7 +1151,8 @@ async def submit_invoice_vendor(vu_id, inv_id, re_upload, uploadtime, bg_task, d
             db.commit()
 
         return {"result": "submitted"}
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -1185,7 +1198,8 @@ async def read_vendor_name_codes(db, u_id, off_limit, ven_name):
         if off_val:
             vendor_data = vendor_data.offset(off_val)
         return vendor_data.distinct().all()
-    except Exception as e:
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
@@ -1348,8 +1362,8 @@ async def downloadvendorbyuid(u_id, vendor_type, db, api_filter):
         onboarded_file.seek(0)
         return onboarded_file
         # print(onboarded_status_dataframe.info)
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
+        logger.error(traceback.format_exc())
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )

@@ -6,9 +6,7 @@ from io import BytesIO
 import cv2
 import numpy as np
 from PIL import Image
-from PyPDF2 import PdfFileReader, PdfFileWriter
-
-# table_service = TableService(account_name=os.environ['STORAGE_ACCOUNT_NAME'], account_key=os.environ['STORAGE_ACCOUNT_KEY'])
+from pypdf import PdfReader, PdfWriter
 
 accepted_inch = 5 * 72
 accepted_pixel_max = 8000
@@ -69,6 +67,7 @@ def rotate_custom(image, angle, center=None, scale=1.0):
 
         return rotated
     except Exception as e:
+        print(f"exception in rotate_custom {e}")
         return image
 
 
@@ -105,12 +104,13 @@ async def get_file(file, w):
 def preprocess(file_name, file_bytes, file_type):
     try:
 
-        global accepted_inch, accepted_pixel_max, accepted_pixel_min, accepted_filesize_max
+        global accepted_inch, accepted_pixel_max
+        global accepted_pixel_min, accepted_filesize_max
         if file_type == "application/pdf":
-            pdf = PdfFileReader(file_bytes, strict=False)
+            pdf = PdfReader(file_bytes, strict=False)
             if not pdf.isEncrypted:
                 dimention = pdf.getPage(0).mediaBox
-                writer = PdfFileWriter()
+                writer = PdfWriter()
                 num_pages = pdf.getNumPages()
                 for page_no in range(num_pages):
                     page = pdf.getPage(page_no)

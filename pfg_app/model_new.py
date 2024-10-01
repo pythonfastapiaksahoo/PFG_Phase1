@@ -1,4 +1,3 @@
-from session.session import Base
 from sqlalchemy import (
     JSON,
     TEXT,
@@ -14,6 +13,8 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+
+from pfg_app.session.session import Base
 
 # from sqlalchemy.ext.automap import automap_base
 # from sqlalchemy import MetaData
@@ -206,7 +207,8 @@ class DocumentUpdates(Base):
     UpdatedOn = Column(DateTime(timezone=True), nullable=True)
 
     # documentData = relationship('DocumentData', back_populates='documentUpdates')
-    # documentLineItem = relationship('DocumentLineItems', back_populates='documentUpdates')
+    # documentLineItem = relationship('DocumentLineItems',
+    # back_populates='documentUpdates')
     # user = relationship('User', back_populates='documentUpdates')
 
 
@@ -624,7 +626,8 @@ class ServiceAccount(Base):
 
     # # Relationships to the referenced tables for ORM purposes
     # created_by_user = relationship('User', back_populates='created_service_accounts')
-    # service_provider = relationship('ServiceProvider', back_populates='service_accounts')
+    # service_provider = relationship('ServiceProvider',
+    # back_populates='service_accounts')
     # entity = relationship('Entity', back_populates='service_accounts')
     # entity_body = relationship('EntityBody', back_populates='service_accounts')
 
@@ -928,7 +931,8 @@ class UserItemMapping(Base):
     createdOn = Column(DateTime, nullable=True)
 
     # # Relationship to DocumentModel table for ORM purposes
-    # document_model = relationship('DocumentModel', back_populates='user_item_mappings')
+    # document_model = relationship('DocumentModel',
+    # back_populates='user_item_mappings')
 
 
 # Application General config
@@ -1070,8 +1074,10 @@ class PullNotification(Base):
 
     # # Relationships to the referenced tables for ORM purposes
     # user = relationship('User', back_populates='pull_notifications')
-    # notification_priority = relationship('NotificationPriority', back_populates='pull_notifications')
-    # notification_type = relationship('NotificationType', back_populates='pull_notifications')
+    # notification_priority = relationship('NotificationPriority',
+    # back_populates='pull_notifications')
+    # notification_type = relationship('NotificationType',
+    # back_populates='pull_notifications')
 
 
 class PullNotificationTemplate(Base):
@@ -1100,9 +1106,12 @@ class PullNotificationTemplate(Base):
     UpdatedOn = Column(DateTime, nullable=True)
 
     # # Relationships to the referenced tables for ORM purposes
-    # notification_type = relationship('NotificationType', back_populates='pull_notification_templates')
-    # notification_priority = relationship('NotificationPriority', back_populates='pull_notification_templates')
-    # trigger_description = relationship('TriggerDescription', back_populates='pull_notification_templates')
+    # notification_type = relationship('NotificationType',
+    # back_populates='pull_notification_templates')
+    # notification_priority = relationship('NotificationPriority',
+    # back_populates='pull_notification_templates')
+    # trigger_description = relationship('TriggerDescription',
+    # back_populates='pull_notification_templates')
     # user = relationship('User', back_populates='pull_notification_templates')
 
 
@@ -1134,7 +1143,8 @@ class TriggerDescription(Base):
     UpdatedOn = Column(DateTime, nullable=True)
 
     # # Relationships to PullNotificationTemplate if needed
-    # pull_notification_templates = relationship('PullNotificationTemplate', back_populates='trigger_description')
+    # pull_notification_templates = relationship('PullNotificationTemplate',
+    # back_populates='trigger_description')
 
 
 # class BatchErrorType(Base):
@@ -1392,6 +1402,7 @@ class frtrigger_tab(Base):
     status = Column(String, nullable=True)
     timestamp = Column(DateTime, nullable=True)
     sender = Column(String, nullable=True)
+    docstatus_sync = Column(JSON, nullable=True)
 
 
 # Vendor Table
@@ -1444,24 +1455,25 @@ class VendorAccount3(Base):
     CreatedOn = Column(DateTime, nullable=True)
     UpdatedOn = Column(DateTime, nullable=True)
 
-    class VoucherData(Base):
-        __tablename__ = "voucherdata"
-        voucherdataID = Column(Integer, primary_key=True, autoincrement=True)
-        documentID = Column(Integer, nullable=False)
-        Business_unit = Column(String(5), nullable=True)
-        Invoice_Id = Column(String(30), nullable=True)
-        Invoice_Dt = Column(String(10), nullable=True)
-        Vendor_Setid = Column(String(5), nullable=True)
-        Vendor_ID = Column(String(10), nullable=True)
-        Origin = Column(String(10), nullable=True)
-        Gross_Amt = Column(Float, nullable=True)
-        Voucher_Line_num = Column(Integer, nullable=True)
-        Merchandise_Amt = Column(Float, nullable=True)
-        Distrib_Line_num = Column(Integer, nullable=True)
-        Account = Column(String(10), nullable=True)
-        Deptid = Column(String(10), nullable=True)
-        Image_Nbr = Column(Integer, nullable=True)
-        File_Name = Column(String, nullable=True)
+
+class VoucherData(Base):
+    __tablename__ = "voucherdata"
+    voucherdataID = Column(Integer, primary_key=True, autoincrement=True)
+    documentID = Column(Integer, nullable=False)
+    Business_unit = Column(String(5), nullable=True)
+    Invoice_Id = Column(String(30), nullable=True)
+    Invoice_Dt = Column(String(10), nullable=True)
+    Vendor_Setid = Column(String(5), nullable=True)
+    Vendor_ID = Column(String(10), nullable=True)
+    Origin = Column(String(10), nullable=True)
+    Gross_Amt = Column(Float, nullable=True)
+    Voucher_Line_num = Column(Integer, nullable=True)
+    Merchandise_Amt = Column(Float, nullable=True)
+    Distrib_Line_num = Column(Integer, nullable=True)
+    Account = Column(String(10), nullable=True)
+    Deptid = Column(String(10), nullable=True)
+    Image_Nbr = Column(Integer, nullable=True)
+    File_Name = Column(String, nullable=True)
 
 
 class NonintegratedStores(Base):

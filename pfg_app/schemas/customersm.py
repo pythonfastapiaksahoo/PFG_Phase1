@@ -1,10 +1,8 @@
-import sys
 from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr
-from schemas import permissionssm
 
-sys.path.append("..")
+from pfg_app.schemas import permissionssm
 
 # class Customer(BaseModel):
 # CustomerName: str

@@ -11,7 +11,7 @@ def analyzeForm(url, headers, body):
             print(url)
             if retry > 15:
                 r_status = True
-            r = requests.post(url, headers=headers, data=body)
+            r = requests.post(url, headers=headers, data=body, timeout=60)
             if r.status_code == 202:
                 r_status = True
             elif "error" in r.json():
@@ -48,7 +48,7 @@ def analyzeForm(url, headers, body):
         while status != "succeeded":
             if retry > 15 and status != "succeeded":
                 return {"message": "failure to fetch"}
-            r2 = requests.get(geturl, headers=headers)
+            r2 = requests.get(geturl, headers=headers, timeout=60)
             result = r2.json()
             if r2.status_code in (404, 500, 503):
                 print(f"Form Recognizer Failure :- {result['error']['message']}")
@@ -100,7 +100,7 @@ def getModelResponse(get_url, headers):
     message = "failure"
     while not status_code:
         try:
-            resp = requests.get(url=get_url, headers=headers)
+            resp = requests.get(url=get_url, headers=headers, timeout=60)
             if resp.status_code == 200:
                 resp_json = resp.json()
                 model_status = resp_json["modelInfo"]["status"]
@@ -127,7 +127,7 @@ def getmodel(endpoint, modelId, headers):
             f"{endpoint}/formrecognizer/documentModels/{modelId}"
             f"?api-version=2023-07-31"
         )
-        resp = requests.get(url, headers=headers)
+        resp = requests.get(url, headers=headers, timeout=60)
         if resp.status_code == 200:
             if "modelId" in resp.json():
                 return {"message": "success", "result": resp.json()}
@@ -144,7 +144,7 @@ def getModelResponseV3(get_url, headers):
     message = "failure"
     while not status_code:
         try:
-            resp = requests.get(url=get_url, headers=headers)
+            resp = requests.get(url=get_url, headers=headers, timeout=60)
             if resp.status_code == 200:
                 resp_json = resp.json()
                 model_status = resp_json["status"]

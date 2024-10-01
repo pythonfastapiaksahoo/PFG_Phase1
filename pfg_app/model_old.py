@@ -1,5 +1,6 @@
-from session.session import Base, engine
 from sqlalchemy import Column, Integer, MetaData, Table
+
+from pfg_app.session.session import Base, engine
 
 metadata = MetaData()
 # creating class to load Dataswitch table
@@ -626,3 +627,13 @@ class VendorAccount3(Base):
     __table__ = Table(
         "vendoraccount3", Base.metadata, autoload=True, autoload_with=engine
     )
+
+
+class StampDataValidation(Base):
+    __table__ = Table(
+        "stampdatavalidation", Base.metadata, autoload=True, autoload_with=engine
+    )
+
+
+class VoucherData(Base):
+    __table__ = Table("voucherdata", Base.metadata, autoload=True, autoload_with=engine)

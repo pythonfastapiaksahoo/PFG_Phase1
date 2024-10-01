@@ -3,22 +3,22 @@
 # application/pdf, image/jpeg, image/png, or image/tiff
 import json
 import math
-import sys
 from io import BytesIO
 
 import requests
 from azure.storage.blob import BlobServiceClient
 from PIL import Image
-from PyPDF2 import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter
 
-sys.path.append("..")
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
 
 
 def check_file_exist(vendorAccountID, entityID, filename, file_path, bg_task, db):
     """Check if the file exist, return==0 => file missing, return==1 => file
     found :param file_path:str, File path :return:int."""
     # print(file_path)
-    resp = requests.get(file_path)
+    resp = requests.get(file_path, timeout=60)
 
     if resp.status_code == 200:
         file_exists_status = 1
@@ -26,53 +26,7 @@ def check_file_exist(vendorAccountID, entityID, filename, file_path, bg_task, db
     else:
         file_exists_status = 0
         file_exists_msg = "File Not Found"
-        # try:
-        #     ############ start of notification trigger #############
-        #     vendor = db.query(model.Vendor.VendorName).filter(
-        #         model.Vendor.idVendor == model.VendorAccount.vendorID).filter(
-        #         model.VendorAccount.idVendorAccount == vendorAccountID).scalar()
-        #     # filter based on role if added
-        #     role_id = db.query(model.NotificationCategoryRecipient.roles).filter_by(entityID=entityID,
-        #                                                                             notificationTypeID=2).scalar()
-        #     # getting recipients for sending notification
-        #     recepients1 = db.query(model.AccessPermission.userID).filter(
-        #         model.AccessPermission.permissionDefID.in_(role_id["roles"])).distinct()
-        #     recepients2 = db.query(model.VendorUserAccess.vendorUserID).filter_by(
-        #         vendorAccountID=vendorAccountID, isActive=1).distinct()
-        #     recepients = db.query(model.User.idUser, model.User.email, model.User.firstName,
-        #                           model.User.lastName).filter((model.User.idUser.in_(recepients1) |
-        #                                                           model.User.idUser.in_(recepients2))).filter(
-        #         model.User.isActive == 1).filter(model.UserAccess.UserID == model.User.idUser).filter(
-        #                     model.UserAccess.EntityID == entityID, model.UserAccess.isActive == 1).all()
-        #     user_ids, *email = zip(*list(recepients))
-        #     # just format update
-        #     email_ids = list(zip(email[0], email[1], email[2]))
-        #     try:
-        #         isdefaultrep = db.query(model.NotificationCategoryRecipient.isDefaultRecepients,
-        #                                 model.NotificationCategoryRecipient.notificationrecipient).filter(
-        #             model.NotificationCategoryRecipient.entityID == entityID,
-        #             model.NotificationCategoryRecipient.notificationTypeID == 2).one()
-        #     except Exception as e:
-        #         pass
-        #     if isdefaultrep and isdefaultrep.isDefaultRecepients and len(
-        #             isdefaultrep.notificationrecipient["to_addr"]) > 0:
-        #         email_ids.extend([(x, "Serina", "User") for x in isdefaultrep.notificationrecipient["to_addr"]])
-        #         cc_email_ids = isdefaultrep.notificationrecipient["cc_addr"]
-        #     cust_id = db.query(model.Entity.customerID).filter_by(idEntity=entityID).scalar()
-        #     details = {"user_id": user_ids, "trigger_code": 8030, "cust_id": cust_id, "inv_id": None,
-        #                "additional_details": {"subject": "Invoice Upload Issue", "recipients": email_ids, "cc": cc_email_ids,
-        #                                       "Vendor_Name": vendor,
-        #                                       "filename": filename, "desc": file_exists_msg}}
-        #     ############ End of notification trigger #############
-        # except Exception as e:
-        #     print(e)
 
-    # if os.path.exists(file_path):
-    #     file_exists_status = 1
-    #     file_exists_msg = "File Found"
-    # else:
-    #     file_exists_status = 0
-    #     file_exists_msg = "File Not Found"
     return file_exists_status, file_exists_msg
 
 
@@ -93,46 +47,7 @@ def check_single_filetype(
                 "Please check the uploaded file type, Accepted types: "
                 + str(accepted_file_type)
             )
-            # try:
-            #     ############ start of notification trigger #############
-            #     vendor = db.query(model.Vendor.VendorName).filter(
-            #         model.Vendor.idVendor == model.VendorAccount.vendorID).filter(
-            #         model.VendorAccount.idVendorAccount == vendorAccountID).scalar()
-            #     # filter based on role if added
-            #     role_id = db.query(model.NotificationCategoryRecipient.roles).filter_by(entityID=entityID,
-            #                                                                             notificationTypeID=2).scalar()
-            #     # getting recipients for sending notification
-            #     recepients1 = db.query(model.AccessPermission.userID).filter(
-            #         model.AccessPermission.permissionDefID.in_(role_id["roles"])).distinct()
-            #     recepients2 = db.query(model.VendorUserAccess.vendorUserID).filter_by(
-            #         vendorAccountID=vendorAccountID, isActive=1).distinct()
-            #     recepients = db.query(model.User.idUser, model.User.email, model.User.firstName,
-            #                           model.User.lastName).filter((model.User.idUser.in_(recepients1) |
-            #                                                       model.User.idUser.in_(recepients2))).filter(
-            #         model.User.isActive == 1).all()
-            #     user_ids, *email = zip(*list(recepients))
-            #     # just format update
-            #     email_ids = list(zip(email[0], email[1], email[2]))
-            #     # getting recipients for sending notification
-            #     try:
-            #         isdefaultrep = db.query(model.NotificationCategoryRecipient.isDefaultRecepients,
-            #                                 model.NotificationCategoryRecipient.notificationrecipient).filter(
-            #             model.NotificationCategoryRecipient.entityID == entityID,
-            #             model.NotificationCategoryRecipient.notificationTypeID == 2).one()
-            #     except Exception as e:
-            #         pass
-            #     if isdefaultrep and isdefaultrep.isDefaultRecepients and len(
-            #             isdefaultrep.notificationrecipient["to_addr"]) > 0:
-            #         email_ids.extend([(x, "Serina", "User") for x in isdefaultrep.notificationrecipient["to_addr"]])
-            #         cc_email_ids = isdefaultrep.notificationrecipient["cc_addr"]
-            #     cust_id = db.query(model.Entity.customerID).filter_by(idEntity=entityID).scalar()
-            #     details = {"user_id": user_ids, "trigger_code": 8030, "cust_id": cust_id, "inv_id": None,
-            #                "additional_details": {"subject": "Invoice Upload Issue", "recipients": email_ids, "cc": cc_email_ids,
-            #                                       "Vendor_Name": vendor,
-            #                                       "filename": filename, "desc": check_filetype_msg}}
-            #     ############ End of notification trigger #############
-            # except Exception as e:
-            #     print(e)
+
     except Exception as e:
         check_filetype_status = 0
         check_filetype_msg = str(e)
@@ -150,7 +65,7 @@ def ck_size_limit(
     try:
 
         # skip if it is symbolic link
-        resp = requests.get(file_path)
+        resp = requests.get(file_path, timeout=60)
         if resp.status_code == 200:
             # print(fp)
             # print(f,'--------------',os.path.getsize(fp))
@@ -180,92 +95,15 @@ def ck_size_limit(
             fl_status == 0
             fl_sts_msg = "File not found!: ck_size_limit"
         if fl_status == 0:
-            fl_sts_msg = "Please check the file size. Uploaded flies should be grater than 0 Bytes and be less than 50 MB"
-            # try:
-            #     ############ start of notification trigger #############
-            #     vendor = db.query(model.Vendor.VendorName).filter(
-            #         model.Vendor.idVendor == model.VendorAccount.vendorID).filter(
-            #         model.VendorAccount.idVendorAccount == vendorAccountID).scalar()
-            #     # filter based on role if added
-            #     role_id = db.query(model.NotificationCategoryRecipient.roles).filter_by(entityID=entityID,
-            #                                                                             notificationTypeID=2).scalar()
-            #     # getting recipients for sending notification
-            #     recepients1 = db.query(model.AccessPermission.userID).filter(
-            #         model.AccessPermission.permissionDefID.in_(role_id["roles"])).distinct()
-            #     recepients2 = db.query(model.VendorUserAccess.vendorUserID).filter_by(
-            #         vendorAccountID=vendorAccountID, isActive=1).distinct()
-            #     recepients = db.query(model.User.idUser, model.User.email, model.User.firstName,
-            #                           model.User.lastName).filter((model.User.idUser.in_(recepients1) |
-            #                                                       model.User.idUser.in_(recepients2))).filter(
-            #         model.User.isActive == 1).all()
-            #     user_ids, *email = zip(*list(recepients))
-            #     # just format update
-            #     email_ids = list(zip(email[0], email[1], email[2]))
-            #     # getting recipients for sending notification
-            #     try:
-            #         isdefaultrep = db.query(model.NotificationCategoryRecipient.isDefaultRecepients,
-            #                                 model.NotificationCategoryRecipient.notificationrecipient).filter(
-            #             model.NotificationCategoryRecipient.entityID == entityID,
-            #             model.NotificationCategoryRecipient.notificationTypeID == 2).one()
-            #     except Exception as e:
-            #         pass
-            #     if isdefaultrep and isdefaultrep.isDefaultRecepients and len(
-            #             isdefaultrep.notificationrecipient["to_addr"]) > 0:
-            #         email_ids.extend([(x, "Serina", "User") for x in isdefaultrep.notificationrecipient["to_addr"]])
-            #         cc_email_ids = isdefaultrep.notificationrecipient["cc_addr"]
-            #     cust_id = db.query(model.Entity.customerID).filter_by(idEntity=entityID).scalar()
-            #     details = {"user_id": user_ids, "trigger_code": 8030, "cust_id": cust_id, "inv_id": None,
-            #                "additional_details": {"subject": "Invoice Upload Issue", "recipients": email_ids, "cc": cc_email_ids,
-            #                                       "Vendor_Name": vendor,
-            #                                       "filename": filename, "desc": fl_sts_msg}}
-            #     ############ End of notification trigger #############
-            # except Exception as e:
-            #     print(e)
+            fl_sts_msg = "Please check the file size. "
+            +"Uploaded flies should be grater than 0 Bytes and be less than 50 MB"
+
         elif fl_status > 1:
             fl_sts_msg = "Good to upload"
             fl_status = 1
         else:
             fl_sts_msg = "Please check the file size"
-            # try:
-            #     ############ start of notification trigger #############
-            #     vendor = db.query(model.Vendor.VendorName).filter(
-            #         model.Vendor.idVendor == model.VendorAccount.vendorID).filter(
-            #         model.VendorAccount.idVendorAccount == vendorAccountID).scalar()
-            #     # filter based on role if added
-            #     role_id = db.query(model.NotificationCategoryRecipient.roles).filter_by(entityID=entityID,
-            #                                                                             notificationTypeID=2).scalar()
-            #     # getting recipients for sending notification
-            #     recepients1 = db.query(model.AccessPermission.userID).filter(
-            #         model.AccessPermission.permissionDefID.in_(role_id["roles"])).distinct()
-            #     recepients2 = db.query(model.VendorUserAccess.vendorUserID).filter_by(
-            #         vendorAccountID=vendorAccountID, isActive=1).distinct()
-            #     recepients = db.query(model.User.idUser, model.User.email, model.User.firstName,
-            #                           model.User.lastName).filter(model.User.idUser.in_(recepients1) |
-            #                                                       model.User.idUser.in_(recepients2)).filter(
-            #         model.User.isActive == 1).all()
-            #     user_ids, *email = zip(*list(recepients))
-            #     # just format update
-            #     email_ids = list(zip(email[0], email[1], email[2]))
-            #     # getting recipients for sending notification
-            #     try:
-            #         isdefaultrep = db.query(model.NotificationCategoryRecipient.isDefaultRecepients,
-            #                                 model.NotificationCategoryRecipient.notificationrecipient).filter(
-            #             model.NotificationCategoryRecipient.entityID == entityID,
-            #             model.NotificationCategoryRecipient.notificationTypeID == 2).one()
-            #     except Exception as e:
-            #         pass
-            #     if isdefaultrep and isdefaultrep.isDefaultRecepients and len(
-            #             isdefaultrep.notificationrecipient["to_addr"]) > 0:
-            #         email_ids.extend([(x, "Serina", "User") for x in isdefaultrep.notificationrecipient["to_addr"]])
-            #         cc_email_ids = isdefaultrep.notificationrecipient["cc_addr"]
-            #     cust_id = db.query(model.Entity.customerID).filter_by(idEntity=entityID).scalar()
-            #     details = {"user_id": user_ids, "trigger_code": 8030, "cust_id": cust_id, "inv_id": None,
-            #                "additional_details": {"subject": "Invoice Upload Issue", "recipients": email_ids, "cc": cc_email_ids,
-            #                                       "Vendor_Name": vendor,
-            #                                       "filename": filename, "desc": fl_sts_msg}}
-            #     ############ End of notification trigger #############
-            # except Exception as e:
-            #     print(e)
+
             fl_status = 0
     except Exception as e:
         fl_sts_msg = str(e)
@@ -279,15 +117,17 @@ accepted_pixel_min = 50
 accepted_filesize_max = 50
 
 
-def get_binary_data(file_type, spltFileName, container, connection_string):
+def get_binary_data(file_type, spltFileName, container):
     global accepted_inch, accepted_pixel_max, accepted_pixel_min, accepted_filesize_max
     try:
         # resp = requests.get(file_path)
         print("spltFileName prepro 282: ", spltFileName)
         print("container: ", container)
         spltFileName = spltFileName.replace("//", "/")
-        blob_service_client = BlobServiceClient.from_connection_string(
-            connection_string
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(
+            account_url=account_url,
+            credential=get_credential(),
         )
         blob_client = blob_service_client.get_blob_client(
             container=container, blob=spltFileName
@@ -362,25 +202,18 @@ def fr_preprocessing(
     filename,
     spltFileName,
     container,
-    connection_string,
     db,
 ):
     fr_preprocessing_status_msg = ""
     fr_preprocessing_data = []
     fr_preprocessing_status = 0
     try:
-        # file_exists_status, file_exists_msg = check_file_exist(vendorAccountID, entityID, filename, file_path, '',
-        #                                                        db)
         file_exists_status = 1
         file_exists_msg = "skip"
         if file_exists_status == 1:
-            # check_filetype_status, check_filetype_msg = check_single_filetype(vendorAccountID, entityID,
-            # filename, accepted_file_type, bg_task, db)
             check_filetype_status = 1
             check_filetype_msg = "skip"
             if check_filetype_status == 1:
-                # fl_status, fl_sts_msg = ck_size_limit(vendorAccountID, entityID, filename,
-                # file_path, file_size_accepted, bg_task, db)
                 fl_sts_msg = "skip"
                 fl_status = 1
                 if fl_status == 1:
@@ -388,12 +221,10 @@ def fr_preprocessing(
                         filename.lower().split(".")[-1],
                         spltFileName,
                         container,
-                        connection_string,
                     )
                     # (file_type, spltFileName, container, connection_string)
 
                     if get_binary_status == 1:
-                        # if type(input_data) == bytes:
                         if len(input_data) > 0:
                             fr_preprocessing_data = input_data
                             fr_preprocessing_status = 1

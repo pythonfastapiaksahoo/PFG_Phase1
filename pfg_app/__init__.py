@@ -1,10 +1,9 @@
 from os import getenv
 
-from core.config import Settings
 from dotenv import load_dotenv
+
+from pfg_app.core.config import Settings
 
 load_dotenv(getenv("ENV_FILE"))
 
 settings = Settings()
-
-__all__ = ["app"]

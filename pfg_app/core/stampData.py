@@ -3,10 +3,11 @@ import json
 from io import BytesIO
 
 import requests
-from core.config import settings
-from core.utils import get_credential
-from logger_module import logger
 from pdf2image import convert_from_bytes
+
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
+from pfg_app.logger_module import logger
 
 
 def get_open_ai_token():
@@ -43,7 +44,9 @@ def stampDataFn(blob_data, prompt):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    response = requests.post(settings.open_ai_endpoint, headers=headers, json=data)
+    response = requests.post(
+        settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+    )
 
     # Check and process the response
     if response.status_code == 200:
@@ -92,7 +95,9 @@ def VndMatchFn(vndMth_prompt):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    response = requests.post(settings.open_ai_endpoint, headers=headers, json=messages)
+    response = requests.post(
+        settings.open_ai_endpoint, headers=headers, json=messages, timeout=60
+    )
 
     # Check and process the response
     if response.status_code == 200:

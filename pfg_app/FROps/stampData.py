@@ -1,10 +1,13 @@
 import base64
 import io
 import json
+import traceback
 
 from dateutil import parser
 from openai import AzureOpenAI
 from pdf2image import convert_from_bytes
+
+from pfg_app.logger_module import logger
 
 
 def stamnpDataFn(blob_data, prompt, deployment_name, api_base, api_key, api_version):
@@ -46,12 +49,15 @@ def stamnpDataFn(blob_data, prompt, deployment_name, api_base, api_key, api_vers
     )
     try:
         stampData = json.loads(cl_data)
-    except BaseException:
+    except Exception:
+        logger.error(traceback.format_exc())
         try:
             cl_data_corrected = cl_data.replace("'", '"')
             stampData = json.loads(cl_data_corrected)
-        except BaseException:
+        except Exception:
+            logger.error(traceback.format_exc())
             stampData = cl_data
+            pass
     # print(stampData)
     return stampData
 
@@ -87,7 +93,8 @@ def VndMatchFn(vndMth_prompt, client):
             vndMth_ck = 1
         if vndMth["addressMatching"] == "yes":
             vndMth_address_ck = 1
-    except BaseException:
+    except Exception:
+        logger.error(traceback.format_exc())
         try:
             cl_data_corrected = cl_mtch.replace("'", '"')
             vndMth = json.loads(cl_data_corrected)
@@ -96,7 +103,8 @@ def VndMatchFn(vndMth_prompt, client):
             if vndMth["addressMatching"] == "yes":
                 vndMth_address_ck = 1
 
-        except BaseException:
+        except Exception:
+            logger.error(traceback.format_exc())
             vndMth = cl_mtch
             if '"vendorMatching": "yes"' in content:
                 vndMth_ck = 1

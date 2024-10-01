@@ -1,32 +1,25 @@
 import json
 import os
-import re
-import shutil
-import sys
-import time
 import traceback
 from datetime import datetime
-from io import BytesIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-import model
 import pandas as pd
-from auth import AuthHandler
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-from azuread.auth import get_admin_user
-from crud import FRCrud as crud
-from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import FileResponse
-from FROps.model_validate import model_validate_final
-from FROps.reupload import reupload_file_azure
-from FROps.upload import upload_files_to_azure
-from schemas import FRSchema as schema
-from session import get_db
 from sqlalchemy.orm import Session
 
-sys.path.append("..")
-
+import pfg_app.model as model
+from pfg_app.auth import AuthHandler
+from pfg_app.azuread.auth import get_admin_user
+from pfg_app.crud import FRCrud as crud
+from pfg_app.FROps.model_validate import model_validate_final
+from pfg_app.FROps.reupload import reupload_file_azure
+from pfg_app.FROps.upload import upload_files_to_azure
+from pfg_app.schemas import FRSchema as schema
+from pfg_app.session.session import get_db
 
 auth_handler = AuthHandler()
 
@@ -42,50 +35,39 @@ temp_dir_obj = None
 credential = DefaultAzureCredential()
 
 
+# Checked - used in the frontend
 @router.get("/getfrconfig/{userID}", status_code=status.HTTP_200_OK)
 async def get_fr_config(userID: int, db: Session = Depends(get_db)):
     """<b> API route to get Form Recogniser Configuration. It contains
     following parameters.</b>
 
     - userID : Unique indetifier used to indentify a user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It returns the result status.
     """
     return await crud.getFRConfig(userID, db)
 
 
-@router.post("/updatefrconfig/{userID}", status_code=status.HTTP_200_OK)
-async def update_fr_config(
-    userID: int, frConfig: schema.FrConfig, db: Session = Depends(get_db)
-):
-    """<b> API route to update invoice status. It contains following
-    parameters.</b>
-
-    - userID : Unique indetifier used to indentify a user
-    - invoiceID : Unique indetifier used to indentify a particular invoice in database
-    - invoiceStatus: It is Body parameter that is of a Pydantic class object, creates member data for updating invoice status
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
-    - return: It returns the result status.
-    """
-
-    return await crud.updateFRConfig(userID, frConfig, db)
-
-
+# Checked - used in the frontend
 @router.get("/getfrmetadata/{documentId}")
 async def get_fr_data(documentId: int, db: Session = Depends(get_db)):
     return await crud.getMetaData(documentId, db)
 
 
+# Checked - used in the frontend
 @router.get("/getTrainTestResults/{modelId}")
 async def get_test_data(modelId: int, db: Session = Depends(get_db)):
     return await crud.getTrainTestRes(modelId, db)
 
 
+# Checked - used in the frontend
 @router.get("/getActualAccuracy/{type}")
 async def getAccuracy(type: str, name: str, db: Session = Depends(get_db)):
     return await crud.getActualAccuracy(type, name, db)
 
 
+# Checked - used in the frontend
 @router.get("/getAccuracyByEntity/{type}")
 async def getAccuracyByEntity(type: str, db: Session = Depends(get_db)):
     for f in os.listdir():
@@ -100,11 +82,7 @@ async def getAccuracyByEntity(type: str, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/getalltags")
-async def get_fr_tags(tagtype: Optional[str] = None, db: Session = Depends(get_db)):
-    return await crud.getall_tags(tagtype, db)
-
-
+# Checked - used in the frontend
 @router.get("/entityTaggedInfo")
 async def get_entity_levelTaggedInfo(
     tagtype: Optional[str] = None, db: Session = Depends(get_db)
@@ -121,6 +99,7 @@ async def get_entity_levelTaggedInfo(
     )
 
 
+# Checked - used in the frontend
 @router.put("/update_metadata/{documentId}")
 async def update_metadata(
     request: Request, documentId: int, db: Session = Depends(get_db)
@@ -219,7 +198,7 @@ async def update_metadata(
                 )
                 labjson = json.loads(blob)
                 for line in labjson["labels"]:
-                    if line["label"].startswith("tab_1") == False:
+                    if not line["label"].startswith("tab_1"):
                         if (
                             line["label"] not in mandatoryheadertags
                             and line["label"] not in optionalheadertags
@@ -271,13 +250,15 @@ async def update_metadata(
                 }
             )
             jso = {
-                "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/fields.json",
+                "$schema": "https://schema.cognitiveservices.azure.com/"
+                + "formrecognizer/2021-03-01/fields.json",
                 "definitions": definitions,
                 "fields": mandatoryheaderfields,
             }
         else:
             jso = {
-                "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/fields.json",
+                "$schema": "https://schema.cognitiveservices.azure.com/"
+                + "formrecognizer/2021-03-01/fields.json",
                 "fields": mandatoryheaderfields,
             }
         data = json.dumps(jso)
@@ -291,11 +272,7 @@ async def update_metadata(
         return {"result": "Failed", "records": {}}
 
 
-# @router.post("/createtags")
-# async def create_fr_tags(Default_fields: schema.DefaultFieldsS):
-#     return await crud.create_tags(Default_fields,db)
-
-
+# Checked - used in the frontend
 @router.post("/upload_blob")
 # min_no: int, max_no: int, file_size_accepted: int, cnt_str: str, cnt_nm:
 # str, local_path: str
@@ -319,6 +296,7 @@ def upload_blob(uploadParams: schema.FrUpload):
     }
 
 
+# Checked - used in the frontend
 @router.post("/reupload_blob")
 def reupload_blob(uploadParams: schema.FrReUpload):
 
@@ -343,6 +321,7 @@ def reupload_blob(uploadParams: schema.FrReUpload):
     }
 
 
+# Checked - used in the frontend
 @router.post("/model_validate")
 def model_validate(validateParas: schema.FrValidate, db: Session = Depends(get_db)):
 
@@ -409,42 +388,7 @@ def model_validate(validateParas: schema.FrValidate, db: Session = Depends(get_d
     }
 
 
-@router.post("/uploadfile")
-async def create_upload_file(file: UploadFile = File(...)):
-    file_location = f"train_docs/{file.filename}"
-    with open(file_location, "wb+") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    return {"filepath": r"%s" % os.getcwd() + "/train_docs/" + file.filename}
-
-
-@router.post("/uploadfolder")
-async def create_upload_files(
-    files: List[UploadFile] = File(...), db: Session = Depends(get_db)
-):
-    try:
-        ts = str(time.time())
-        dir_path = ts.replace(".", "_")
-        configs = getOcrParameters(1, db)
-        containername = configs.ContainerName
-        connection_str = configs.ConnectionString
-        account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
-        blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
-        )
-        container_client = blob_service_client.get_container_client(containername)
-        for file in files:
-            content = await file.read()
-            file_location = f"{dir_path}/{re.sub('[^A-Za-z0-9.]+','',file.filename)}"
-            container_client.upload_blob(
-                name=file_location, data=BytesIO(content), overwrite=True
-            )
-        return {"filepath": dir_path}
-    except Exception as e:
-        print(e)
-        return {"filepath": ""}
-
-
+# Checked - used in the frontend
 @router.post("/createmodel/{userID}", status_code=status.HTTP_200_OK)
 async def create_invoice_model(
     userID: int,
@@ -456,89 +400,29 @@ async def create_invoice_model(
     definitions. It contains following parameters.</b>
 
     - userID : Unique indetifier used to indentify a user
-    - invoiceModel: It is Body parameter that is of a Pydantic class object, creates member data for creating a new Invoice Model
-    - tags: It is Body parameter that is of a Pydantic class object, creates member data for creating a set of tag definitions
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - invoiceModel: It is Body parameter that is of a Pydantic class object,
+    creates member data for creating a new Invoice Model
+    - tags: It is Body parameter that is of a Pydantic class object,
+    creates member data for creating a set of tag definitions
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It returns the result status.
     """
 
     return crud.createInvoiceModel(userID, user, invoiceModel, db)
 
 
+# Checked (new) - used in the frontend
 @router.get("/checkduplicatevendors/{vendoraccountID}/{modelname}")
 async def getduplicates(
     vendoraccountID: int, modelname: str, db: Session = Depends(get_db)
 ):
-    """This API checks if a vendor has multiple entities."""
-    status = crud.check_same_vendors_different_entities(vendoraccountID, modelname, db)
+    """This API checks if a same vendorname has multiple vendorcodes."""
+    status = crud.check_same_vendors_same_entity(vendoraccountID, modelname, db)
     return status
 
 
-@router.get("/checkduplicatesp/{serviceaccountID}/{modelname}")
-async def getduplicatesSP(
-    serviceaccountID: int, modelname: str, db: Session = Depends(get_db)
-):
-    """This API checks if a vendor has multiple entities."""
-    status = crud.check_same_sp_different_entities(serviceaccountID, modelname, db)
-    return status
-
-
-@router.get("/copymodels/{vendoraccountID}/{modelname}")
-async def copyallmodels(
-    vendoraccountID: int, modelname: str, db: Session = Depends(get_db)
-):
-    """This API will copy the same model for a vendor for all different
-    entities."""
-    status = crud.copymodels(vendoraccountID, modelname, db)
-    return status
-
-
-@router.get("/copymodelsSP/{serviceaccountID}/{modelname}")
-async def copyallmodelsSP(
-    serviceaccountID: int, modelname: str, db: Session = Depends(get_db)
-):
-    """This API will copy the same model for a vendor for all different
-    entities."""
-    status = crud.copymodelsSP(serviceaccountID, modelname, db)
-    return status
-
-
-@router.get("/get_entities")
-async def get_entities(db: Session = Depends(get_db)):
-    """This api will return the list of Entities."""
-    all_entities = db.query(model.Entity).all()
-    return all_entities
-
-
-@router.get("/get_all_entities/{u_id}")
-async def get_all_entities(u_id: int, db: Session = Depends(get_db)):
-    """This api will return the list of Entities per user entity access."""
-    sub_query = (
-        db.query(model.UserAccess.EntityID)
-        .filter_by(UserID=u_id, isActive=1)
-        .distinct()
-    )
-    all_entities = (
-        db.query(model.Entity).filter(model.Entity.idEntity.in_(sub_query)).all()
-    )
-    return all_entities
-
-
-@router.put("/update_entity/{eid}")
-async def update_ent(
-    eid: int, EntityModel: schema.Entity, db: Session = Depends(get_db)
-):
-    """This API will update the Entity values."""
-    try:
-        db.query(model.Entity).filter(model.Entity.idEntity == eid).update(
-            dict(EntityModel)
-        )
-        db.commit()
-        return {"message": "success"}
-    except Exception as e:
-        return {"message": f"exception {e}"}
-
-
+# Checked - used in the frontend
 @router.post("/updatemodel/{modelID}", status_code=status.HTTP_200_OK)
 async def update_invoicemodel(
     modelID: int,
@@ -551,8 +435,10 @@ async def update_invoicemodel(
 
     - userID : Unique indetifier used to indentify a user
     - invoiceID : Unique indetifier used to indentify a particular invoice in database
-    - invoiceStatus: It is Body parameter that is of a Pydantic class object, creates member data for updating invoice status
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - invoiceStatus: It is Body parameter that is of a Pydantic class object,
+    creates member data for updating invoice status
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It returns the result status.
     """
     try:
@@ -570,101 +456,27 @@ async def update_invoicemodel(
     return crud.updateInvoiceModel(modelID, invoiceModel, db)
 
 
+# Checked - used in the frontend
 @router.get("/getmodellist/{vendorID}")
 async def get_modellist(vendorID: int, db: Session = Depends(get_db)):
     """<b> API route to get Form Recogniser Configuration. It contains
     following parameters.</b>
 
     - userID : Unique indetifier used to indentify a user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
+    - db: It provides a session to interact with the backend Database,
+    that is of Session Object Type.
     - return: It returns the result status.
     """
     return crud.getmodellist(vendorID, db)
 
 
-@router.get("/getmodellistsp/{serviceProviderID}")
-async def get_modellistsp(serviceProviderID: int, db: Session = Depends(get_db)):
-    """<b> API route to get Form Recogniser Configuration. It contains
-    following parameters.</b>
-
-    - userID : Unique indetifier used to indentify a user
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
-    - return: It returns the result status.
-    """
-    return crud.getmodellistsp(serviceProviderID, db)
-
-
-@router.get("/getfinaldata/{modelID}")
-async def get_finaldata(modelID: str, db: Session = Depends(get_db)):
-    """<b> API route to get post processed final data. It contains following
-    parameters.</b>
-
-    - modelID : Unique indetifier used to indentify a model
-    - return: It returns the result status.
-    """
-    try:
-        configs = getOcrParameters(1, db)
-        containername = configs.ContainerName
-        connection_str = configs.ConnectionString
-        account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
-        blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
-        )
-        container_client = blob_service_client.get_container_client(containername)
-        jso = container_client.get_blob_client("db.json").download_blob().readall()
-        jso = json.loads(jso)
-        data = list(filter(lambda x: x["model_id"] == modelID, jso))
-        print(data)
-        data = data[0]["data"]
-        return {"final_data": data}
-    except BaseException:
-        return {"final_data": {}}
-
-
-# API to read all vedor list
-
-
-@router.get("/vendorlist", status_code=status.HTTP_200_OK)
-async def read_vendor(db: Session = Depends(get_db)):
-    return await crud.readvendor(db)
-
-
+# Checked - used in the frontend
 @router.get("/vendoraccount/{v_id}")
 async def read_vendoraccount(v_id: int, db: Session = Depends(get_db)):
     db_user = crud.readvendoraccount(db, v_id=v_id)
     # if db_user is None:
     #     raise HTTPException(status_code=404, detail="User not found")
     return await db_user
-
-
-@router.get("/serviceaccount/{s_id}")
-async def read_spaccount(s_id: int, db: Session = Depends(get_db)):
-    db_user = crud.readspaccount(db, s_id=s_id)
-    # if db_user is None:
-    #     raise HTTPException(status_code=404, detail="User not found")
-    return await db_user
-
-
-# API for adding new user item mapping
-
-
-@router.post("/addItemMapping")
-async def addItemMapping(mapData: schema.ItemMapping, db: Session = Depends(get_db)):
-    """API route to add a new user item mapping.
-
-    - mapData: It is Body parameter that is of a Pydantic class object, creates member data for new item mapping
-    - db: It provides a session to interact with the backend Database,that is of Session Object Type.
-    """
-    return await crud.addItemMapping(mapData, db)
-
-
-@router.post("/addfrmetadata/{m_id}/RuleId/{r_id}", status_code=status.HTTP_201_CREATED)
-async def new_fr_meta_data(
-    m_id: int, r_id: int, n_fr_mdata: schema.FrMetaData, db: Session = Depends(get_db)
-):
-    resp_fr_mdata = await crud.addfrMetadata(m_id, r_id, n_fr_mdata, db)
-    return {"Result": "Updated", "Records": [resp_fr_mdata]}
 
 
 # Displaying document rules list
@@ -694,6 +506,7 @@ def getOcrParameters(customerID, db):
         )
 
 
+# Checked - used in the frontend
 @router.post("/updateEmailInfo", status_code=status.HTTP_200_OK)
 async def updateEmailInfo(
     emailInfo: schema.EmailListenerInfo, db: Session = Depends(get_db)
@@ -714,6 +527,7 @@ async def updateEmailInfo(
     return await crud.update_email_info(emailInfo, db)
 
 
+# Checked(Doubt) - used in the frontend
 @router.get("/getEmailInfo", status_code=status.HTTP_200_OK)
 async def getEmailInfo(db: Session = Depends(get_db)):
     """This function creates an API route to retrieve email listener info.
@@ -723,16 +537,3 @@ async def getEmailInfo(db: Session = Depends(get_db)):
     :return: It returns the email_listener_info data as a dictionary.
     """
     return await crud.get_email_info(db)
-
-
-# @router.post("/updateEmailInfo/{vu_id}", status_code=status.HTTP_201_CREATED)
-# async def updateEmailInfo2(request: Request, vu_id: int,db: Session = Depends(get_db)):
-#     """
-#     This function creates an api route to create a new Vendor. It contains 3 parameters.
-#     :param vu_id: It is a path parameters that is of integer type, it provides the vendor user Id.
-#     :param NewVendor: It is Body parameter that is of a Pydantic class object, It takes member data for creating a new vendor.
-#     :param db: It provides a session to interact with the backend Database,that is of Session Object Type.
-#     :return: It returns the newly created record.
-#     """
-#     EmailInfo = await request.json()
-#     return await crud.EmailInfo(vu_id, EmailInfo, db)
