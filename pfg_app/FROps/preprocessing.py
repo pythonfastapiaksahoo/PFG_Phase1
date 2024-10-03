@@ -12,12 +12,13 @@ from pypdf import PdfReader, PdfWriter
 
 from pfg_app import settings
 from pfg_app.core.utils import get_credential
+from pfg_app.logger_module import logger
 
 
 def check_file_exist(vendorAccountID, entityID, filename, file_path, bg_task, db):
     """Check if the file exist, return==0 => file missing, return==1 => file
     found :param file_path:str, File path :return:int."""
-    # print(file_path)
+
     resp = requests.get(file_path, timeout=60)
 
     if resp.status_code == 200:
@@ -60,29 +61,25 @@ def check_single_filetype(
 def ck_size_limit(
     vendorAccountID, entityID, filename, file_path, file_size_accepted, bg_task, db
 ):
-    # print(file_path)
+
     fl_status = 1
     try:
 
         # skip if it is symbolic link
         resp = requests.get(file_path, timeout=60)
         if resp.status_code == 200:
-            # print(fp)
-            # print(f,'--------------',os.path.getsize(fp))
             size_bytes = len(resp.content)
 
             if size_bytes == 0:
-                # fl_sts_msg = "0 byte file found, Please upload valid files"
-                # print("0000000")
                 fl_status = fl_status * 0
             elif size_bytes > 0:  # min os ok
                 # size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
                 i = int(math.floor(math.log(size_bytes, 1024)))
-                # print(i)
+
                 if i == 2:
                     p = math.pow(1024, i)
                     s = round(size_bytes / p, 2)
-                    # print(s)
+
                     if s >= file_size_accepted:
                         fl_status = fl_status * 0
                     else:
@@ -121,8 +118,8 @@ def get_binary_data(file_type, spltFileName, container):
     global accepted_inch, accepted_pixel_max, accepted_pixel_min, accepted_filesize_max
     try:
         # resp = requests.get(file_path)
-        print("spltFileName prepro 282: ", spltFileName)
-        print("container: ", container)
+        logger.info(f"spltFileName prepro 282: {spltFileName}")
+        logger.info(f"container: {container}")
         spltFileName = spltFileName.replace("//", "/")
         account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
@@ -183,12 +180,14 @@ def get_binary_data(file_type, spltFileName, container):
         get_binary_status = 1
         get_binary_msg = " Document pg cnt : " + str(len(inputdata_list))
         if len(inputdata_list) > 0:
-            print(type(inputdata_list[0]), " frm preprocessing")
+            logger.info(
+                f"type(inputdata_list[0]) frm preprocessing: {type(inputdata_list[0])}"
+            )
 
     except Exception as e:
         get_binary_status = 0
         get_binary_msg = str(e)
-        print("in binary exception:", str(e))
+        logger.info(f"in binary exception: {str(e)}")
         inputdata_list = []
     return inputdata_list, get_binary_status, get_binary_msg
 
@@ -216,13 +215,12 @@ def fr_preprocessing(
             if check_filetype_status == 1:
                 fl_sts_msg = "skip"
                 fl_status = 1
+                logger.info(f"filename: {filename.lower().split('.')[-1]}")
                 if fl_status == 1:
                     input_data, get_binary_status, get_binary_msg = get_binary_data(
-                        filename.lower().split(".")[-1],
-                        spltFileName,
-                        container,
+                        filename.lower().split(".")[-1], spltFileName, container
                     )
-                    # (file_type, spltFileName, container, connection_string)
+                    logger.info(f"input_data: {len(input_data)}")
 
                     if get_binary_status == 1:
                         if len(input_data) > 0:

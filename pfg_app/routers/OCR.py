@@ -306,17 +306,24 @@ def runStatus(
 
                 # vxdrFound = 0
                 if vdrFound == 1:
+
                     try:
-                        metaVendorAdd = vendorName_df[
-                            vendorName_df["idVendor"] == vendorID
-                        ]["Address"][0]
+                        metaVendorAdd = list(
+                            vendorName_df[vendorName_df["idVendor"] == vendorID][
+                                "Address"
+                            ]
+                        )[0]
+
                     except Exception:
                         metaVendorAdd = ""
                     try:
-                        metaVendorName = vendorName_df[
-                            vendorName_df["idVendor"] == vendorID
-                        ]["VendorName"][0]
-                    except Exception:
+                        metaVendorName = list(
+                            vendorName_df[vendorName_df["idVendor"] == vendorID][
+                                "VendorName"
+                            ]
+                        )[0]
+                    except Exception as err:
+                        logger.error(f"metaVendorName exception:{str(err)}")
                         metaVendorName = ""
                     vendorAccountID = str(vendorID)
                     poNumber = "nonPO"
@@ -966,7 +973,7 @@ def live_model_fn_1(generatorObj):
 
     metaVendorAdd = generatorObj["metaVendorAdd"]
     metaVendorName = generatorObj["metaVendorName"]
-    OpenAI_client = generatorObj["OpenAI_client"]
+    # OpenAI_client = generatorObj["OpenAI_client"]
 
     accepted_file_type = "application/pdf"
     file_size_accepted = 100
@@ -1011,7 +1018,6 @@ def live_model_fn_1(generatorObj):
         cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
             get_fr_data(
                 input_data,
-                file_type,
                 API_version,
                 endpoint,
                 model_type,
@@ -1019,12 +1025,11 @@ def live_model_fn_1(generatorObj):
             )
         )
 
-        model_type = "prebuilt"
+        model_type = "prebuilt-invoice"
         # check from where this function is coming
         # (this is coming from core/azure_fr.py)
         pre_model_status, pre_model_msg, pre_data, pre_status = get_fr_data(
             input_data,
-            file_type,
             API_version,
             endpoint,
             model_type,
@@ -1067,7 +1072,6 @@ def live_model_fn_1(generatorObj):
                 sender,
                 metaVendorName,
                 metaVendorAdd,
-                OpenAI_client,
             )
             if duplicate_status == 0:
                 docStatus = 10

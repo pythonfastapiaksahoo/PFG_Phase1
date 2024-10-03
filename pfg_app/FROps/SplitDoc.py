@@ -174,9 +174,9 @@ def splitDoc(
     pageInvoDate = {}
     try:
         for i in range(len(output_data)):
-            pageInvoDate[i + 1] = output_data[i]["analyzeResult"]["documents"][0][
-                "fields"
-            ]["InvoiceId"]["content"]
+            pageInvoDate[i + 1] = output_data[i]["documents"][0]["fields"]["InvoiceId"][
+                "content"
+            ]
     except Exception as er:
         logger.info(f"Exception splitDoc line 261: {er}")
     grouped_dict = {}
@@ -211,11 +211,11 @@ def splitDoc(
         if docPg == 10:
             print(output_data[docPg])
         try:
-            rwOcrData.append(output_data[docPg]["analyzeResult"]["content"])
+            rwOcrData.append(output_data[docPg]["content"])
         except Exception as er:
             logger.error(f"Exception splitdoc line 291: {er}")
 
-        preDt = output_data[docPg]["analyzeResult"]["documents"][0]["fields"]
+        preDt = output_data[docPg]["documents"][0]["fields"]
         prbtHeaderspg = {}
         for pb in preDt:
             # logger.info(f"line 297: {preDt[pb]}")
