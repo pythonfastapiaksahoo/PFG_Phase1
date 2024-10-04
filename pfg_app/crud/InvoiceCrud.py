@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
-from sqlalchemy import String, and_, case, cast, func, or_
+from sqlalchemy import String, and_, case, cast, exists, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, load_only
 
@@ -440,12 +440,11 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.Vendor.Address.ilike(f"%{uni_api_filter}%"),
                 model.DocumentSubStatus.status.ilike(f"%{uni_api_filter}%"),
                 inv_choice[inv_type][1].Account.ilike(f"%{uni_api_filter}%"),
-                # New condition: Check if any related
-                # DocumentLineItems.Value matches the filter
-                # exists().where(
-                # (model.DocumentLineItems.documentID == model.Document.idDocument) &
-                #   (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
-                # )
+                # Check if any related DocumentLineItems.Value matches the filter
+                exists().where(
+                    (model.DocumentLineItems.documentID == model.Document.idDocument)
+                    & (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
+                ),
             )
             data_query = data_query.filter(filter_condition)
 

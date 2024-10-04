@@ -625,13 +625,19 @@ async def updateReceiptMaster(Receiptdata, db):
             if existing_receipt:
                 # Update existing record
                 for key, value in receipt_data.items():
-                    setattr(existing_receipt, key, value)
+                    if hasattr(existing_receipt, key):  # Ensure the key exists in model
+                        setattr(existing_receipt, key, value)
                 db.commit()
                 db.refresh(existing_receipt)
 
             else:
                 # Insert new record
-                new_receipt = model.PFGReceipt(**receipt_data)
+                valid_data = {
+                    key: value
+                    for key, value in receipt_data.items()
+                    if hasattr(model.PFGReceipt, key)
+                }
+                new_receipt = model.PFGReceipt(**valid_data)
                 db.add(new_receipt)
                 db.commit()
                 db.refresh(new_receipt)
