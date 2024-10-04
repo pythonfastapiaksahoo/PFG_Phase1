@@ -66,4 +66,4 @@ jobs:
         with:
           app-name: 'apinvoice-api'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B202CCBE6289458B8DB8283F4AB6AE27 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_PROJECT_SUBSCRIPTION }}
