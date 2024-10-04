@@ -66,6 +66,7 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
         return AzureUser(
             id=user_id,
             name=decoded_token.get("name", ""),
+            email=decoded_token.get("email", ""),
             preferred_username=decoded_token.get("preferred_username", ""),
             roles=decoded_token.get("roles", []),
         )

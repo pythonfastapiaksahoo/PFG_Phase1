@@ -53,7 +53,7 @@ def get_fr_data(
                 "Ocp-Apim-Subscription-Key": apim_key,
             }
             response = requests.post(
-                form_recognizer_url, headers=headers, data=input_data, timeout=60
+                form_recognizer_url, headers=headers, data=input_data, timeout=0
             )
 
             logger.info(f"response.status_code:ln 23 {response.status_code}")

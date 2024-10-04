@@ -984,7 +984,7 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
         db.close()
 
 
-async def read_column_pos(u_id, tabtype, db):
+async def read_column_pos(userID, tabtype, db):
     """Function to retrieve the column position based on the tab type.
 
     Parameters:
@@ -1015,7 +1015,7 @@ async def read_column_pos(u_id, tabtype, db):
             )
             .filter(
                 model.DocumentColumnPos.columnNameDefID == model.ColumnPosDef.idColumn,
-                model.DocumentColumnPos.userID == u_id,
+                model.DocumentColumnPos.userID == userID,
                 model.DocumentColumnPos.tabtype == tabtype,
             )
             .all()
@@ -1032,7 +1032,7 @@ async def read_column_pos(u_id, tabtype, db):
                     "documentColumnPos": ac.documentColumnPos,
                     "isActive": ac.isActive,
                     "tabtype": ac.tabtype,
-                    "uid": u_id,
+                    "userID": userID,
                 }
                 db.add(model.DocumentColumnPos(**to_insert))
                 db.commit()
@@ -1050,7 +1050,7 @@ async def read_column_pos(u_id, tabtype, db):
                 .filter(
                     model.DocumentColumnPos.columnNameDefID
                     == model.ColumnPosDef.idColumn,
-                    model.DocumentColumnPos.uid == u_id,
+                    model.DocumentColumnPos.userID == userID,
                     model.DocumentColumnPos.tabtype == tabtype,
                 )
                 .all()

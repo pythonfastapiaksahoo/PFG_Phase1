@@ -4,6 +4,8 @@ from fastapi import Depends, HTTPException, status
 
 from pfg_app.azuread.AzureADAuthorization import authorize
 from pfg_app.azuread.schemas import AzureUser
+from pfg_app.model import User
+from pfg_app.session.session import Session, get_db
 
 
 class ForbiddenAccess(HTTPException):
@@ -15,8 +17,25 @@ class ForbiddenAccess(HTTPException):
         )
 
 
-def get_user(user: AzureUser = Depends(authorize)) -> AzureUser:
-    return user
+def get_user(
+    user: AzureUser = Depends(authorize), db: Session = Depends(get_db)
+) -> AzureUser:
+    # check if this user exists in the database agaisnt user tabel
+    user_in_db = db.query(User).filter(User.azure_id == user.id).first()
+
+    # if user does not exist in the database, create a new user
+    if not user_in_db:
+        user_in_db = User(
+            azure_id=user.id,
+            email=user.email,
+            customerID=1,
+            firstName=user.name,
+        )
+        db.add(user_in_db)
+        db.commit()
+        db.refresh(user_in_db)
+
+    return user_in_db
 
 
 def get_admin_user(user: AzureUser = Depends(authorize)) -> AzureUser:

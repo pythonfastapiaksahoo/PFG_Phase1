@@ -616,7 +616,7 @@ async def updateReceiptMaster(Receiptdata, db):
                     model.PFGReceipt.RECV_LN_NBR == data.RECV_LN_DISTRIB.RECV_LN_NBR,
                     model.PFGReceipt.RECV_SHIP_SEQ_NBR
                     == data.RECV_LN_DISTRIB.RECV_SHIP_SEQ_NBR,
-                    model.PFGReceipt.DISTRIB_LN_NUM
+                    model.PFGReceipt.DISTRIB_LINE_NUM
                     == data.RECV_LN_DISTRIB.DISTRIB_LN_NUM,
                 )
                 .first()
