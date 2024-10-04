@@ -1015,7 +1015,7 @@ async def read_column_pos(u_id, tabtype, db):
             )
             .filter(
                 model.DocumentColumnPos.columnNameDefID == model.ColumnPosDef.idColumn,
-                model.DocumentColumnPos.uid == u_id,
+                model.DocumentColumnPos.userID == u_id,
                 model.DocumentColumnPos.tabtype == tabtype,
             )
             .all()
