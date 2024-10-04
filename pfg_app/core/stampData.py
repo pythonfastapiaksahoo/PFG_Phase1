@@ -75,18 +75,38 @@ def stampDataFn(blob_data, prompt):
     return stampData
 
 
-def VndMatchFn(vndMth_prompt):
+def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress):
     vndMth_ck = 0
     vndMth_address_ck = 0
 
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": vndMth_prompt},
-            ],
-        }
-    ]
+    data = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"vendor1 = {metaVendorName}, vendor2 = {doc_VendorName}, "
+                            + f"vendor1Address = {metaVendorAdd}, "
+                            + f"vendor2Address = {doc_VendorAddress}.You are given "
+                            + "vendor data from two sources: vendor1 from master data"
+                            + "and vendor2 from an OCR model. Your task is to"
+                            + "confirm if both vendor names and their addresses are"
+                            + "the same. Compare the vendor names, ignoring case"
+                            + "sensitivity and trimming extra spaces.For addresses, "
+                            + "normalize the text by handling common abbreviations"
+                            + "like 'Road' and 'RD'.Return response in JSON format as"
+                            + "{'vendorMatching': 'yes/no','addressMatching': 'yes/no'}"
+                            + "only with two keys: vendorMatching and addressMatching,"
+                            + "each having a value of either 'yes' or 'no' based on"
+                            + "the comparison without any explanation. "
+                        ),
+                    }
+                ],
+            }
+        ]
+    }
 
     # Make the API call to Azure OpenAI
     access_token = get_open_ai_token()
@@ -96,7 +116,7 @@ def VndMatchFn(vndMth_prompt):
         "Content-Type": "application/json",
     }
     response = requests.post(
-        settings.open_ai_endpoint, headers=headers, json=messages, timeout=60
+        settings.open_ai_endpoint, headers=headers, json=data, timeout=60
     )
 
     # Check and process the response

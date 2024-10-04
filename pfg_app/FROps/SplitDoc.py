@@ -174,9 +174,9 @@ def splitDoc(
     pageInvoDate = {}
     try:
         for i in range(len(output_data)):
-            pageInvoDate[i + 1] = output_data[i]["analyzeResult"]["documents"][0][
-                "fields"
-            ]["InvoiceId"]["content"]
+            pageInvoDate[i + 1] = output_data[i]["documents"][0]["fields"]["InvoiceId"][
+                "content"
+            ]
     except Exception as er:
         logger.info(f"Exception splitDoc line 261: {er}")
     grouped_dict = {}
@@ -208,14 +208,13 @@ def splitDoc(
     # print(len(output_data))
 
     for docPg in range(len(output_data)):
-        if docPg == 10:
-            print(output_data[docPg])
+
         try:
-            rwOcrData.append(output_data[docPg]["analyzeResult"]["content"])
+            rwOcrData.append(output_data[docPg]["content"])
         except Exception as er:
             logger.error(f"Exception splitdoc line 291: {er}")
 
-        preDt = output_data[docPg]["analyzeResult"]["documents"][0]["fields"]
+        preDt = output_data[docPg]["documents"][0]["fields"]
         prbtHeaderspg = {}
         for pb in preDt:
             # logger.info(f"line 297: {preDt[pb]}")
@@ -225,11 +224,7 @@ def splitDoc(
                     round(float(preDt[pb]["confidence"]) * 100, 2),
                 ]
         prbtHeaders[docPg] = prbtHeaderspg
-        # print(
-        #     "/n-----------------------------------------------------------------------------------------------------------------------------------------")
-    # logger.info(f"headerData: {prbtHeaderspg}")
-    # print(
-    #     "-----------------------------------------------------------------------------------------------------------------------------------------\n\n\n")
+
     if sndChk == 1:
         grouped_pages = group_pages(prbtHeaders)
 
@@ -238,10 +233,19 @@ def splitDoc(
             for x in grouped_pages
         ]
 
-        grp_pages = splitpgsDt
+        if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
+            # Unpack the tuple and create a list of tuples (n, n)
+            grp_pages = [(i, i) for i in splitpgsDt[0]]
+        elif all(isinstance(i, tuple) for i in splitpgsDt):
+            # If the input is already a list of tuples, return it as-is
+            grp_pages = splitpgsDt
+        else:
+            grp_pages = splitpgsDt
+
+        # grp_pages = splitpgsDt
         splitfileNames, stampData = split_pdf_and_upload(
             pdf,
-            splitpgsDt,
+            grp_pages,
             destination_container_name,
             subfolder_name,
             prompt,

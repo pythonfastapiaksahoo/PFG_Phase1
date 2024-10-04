@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 import pfg_app.model as model
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
+from pfg_app.crud.InvoiceCrud import update_docHistory
 from pfg_app.logger_module import logger
+from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 
 
 # db = SCHEMA
@@ -347,6 +349,7 @@ def pfg_sync(docID, db: Session):
     invTotalMth_msg = ""
     dateCheck_msg = ""
     overAllstatus = 0
+    overAllstatus_msg = ""
     try:
 
         DocDtHdr = (
@@ -365,15 +368,35 @@ def pfg_sync(docID, db: Session):
         try:
             for document_data, document_tag_def in DocDtHdr:
                 docHdrDt[document_tag_def.TagLabel] = document_data.Value
-            if docHdrDt["SubTotal"] == docHdrDt["InvoiceTotal"]:
-                invTotalMth = 1
-            else:
-                invTotalMth = 0
-                invTotalMth_msg = "Invoice total mismatch, please review."
-        except Exception:
-            logger.error(traceback.format_exc())
+            logger.info(f"docHdrDt: {docHdrDt}")
+
             invTotalMth = 0
             invTotalMth_msg = "Invoice total mismatch, please review."
+            try:
+                if docHdrDt["InvoiceTotal"] == docHdrDt["SubTotal"]:
+                    invTotalMth = 1
+
+                elif (invTotalMth == 0) and (
+                    docHdrDt["InvoiceTotal"] != docHdrDt["SubTotal"]
+                ):
+                    if float(docHdrDt["InvoiceTotal"]) == float(docHdrDt["SubTotal"]):
+                        invTotalMth = 1
+                    if (invTotalMth == 0) and ("TotalTax" in docHdrDt):
+                        if (
+                            float(docHdrDt["SubTotal"]) + float(docHdrDt["TotalTax"])
+                        ) == float(docHdrDt["InvoiceTotal"]):
+                            invTotalMth = 1
+                        if (invTotalMth == 0) and ("PST" in docHdrDt):
+                            if float(docHdrDt["SubTotal"]) + float(docHdrDt["PST"]):
+                                invTotalMth = 1
+            except Exception as e:
+                logger.error(f"Exception in pfg_sync line 387: {str(e)}")
+                invTotalMth = 0
+                invTotalMth_msg = "Invoice total mismatch:" + str(e)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            invTotalMth = 0
+            invTotalMth_msg = "Invoice total mismatch:" + str(e)
 
         try:
             # date_string = docHdrDt["InvoiceDate"]  # TODO: Unused variable
@@ -416,177 +439,342 @@ def pfg_sync(docID, db: Session):
         # stampdata check: check2
         # mandatory stamp fields(until integrated or non integrated)
 
-        InvStmDt = (
-            db.query(model.StampDataValidation)
-            .filter(model.StampDataValidation.documentid == docID)
-            .all()
-        )
-        stmpData = {}
-        for stDt in InvStmDt:
-            stmpData[stDt.stamptagname] = {stDt.stampvalue: stDt.is_error}
-        strCk_msg = []
-        strCk = 0
-        if "StoreType" in stmpData:
+        if (
+            docStatusSync["OCR Validations"]["status"] == 1
+            and docStatusSync["Invoice Total Validation"]["status"] == 1
+        ):
+
+            # -----------------------update document history table
+            documentstatus = 4
+            documentdesc = "OCR Validations Success"
             try:
-                if list(stmpData["StoreType"].keys())[0] in [
-                    "Integrated",
-                    "Non-Integrated",
-                ]:
-                    strCk = 1
-                    strCk_msg.append("Success")
-                else:
+                update_docHistory(docID, 1, documentstatus, documentdesc, db)
+            except Exception as e:
+                logger.error(f"pfg_sync line 314: {str(e)}")
+
+            InvStmDt = (
+                db.query(model.StampDataValidation)
+                .filter(model.StampDataValidation.documentid == docID)
+                .all()
+            )
+            stmpData = {}
+            for stDt in InvStmDt:
+                stmpData[stDt.stamptagname] = {stDt.stampvalue: stDt.is_error}
+            strCk_msg = []
+            strCk = 0
+            if "StoreType" in stmpData:
+                try:
+                    if list(stmpData["StoreType"].keys())[0] in [
+                        "Integrated",
+                        "Non-Integrated",
+                    ]:
+                        strCk = 1
+                        strCk_msg.append("Success")
+                    else:
+                        strCk = 0
+                        strCk_msg.append("Invalid Store Type")
+                except Exception as e:
+                    logger.error(f"Exception in pfg_sync-Store Type: {str(e)}")
                     strCk = 0
                     strCk_msg.append("Invalid Store Type")
-            except Exception:
-                logger.error(traceback.format_exc())
-                strCk = 0
-                strCk_msg.append("Invalid Store Type")
-
-        docStatusSync["StoreType Validation"] = {"status": strCk, "response": strCk_msg}
-        try:
-            if list(stmpData["StoreType"].keys())[0] == "Integrated":
-                strCk = 1
-                strCk_msg.append("Success")
-
-                IntegratedvoucherData(docID, db)
-            if list(stmpData["StoreType"].keys())[0] == "Non-Integrated":
-                nonIntegratedVoucherData(docID, db)
-                strCk = 1
-                strCk_msg.append("Success")
-
-        except Exception as er:
-            logger.info(f"VoucherCreationException:{er} ")
-
-        voucher_query = db.query(model.VoucherData).filter(
-            model.VoucherData.documentID == docID
-        )
-        row_count = voucher_query.count()
-        NullVal = []
-        VthChk = 0
-        VthChk_msg = ""
-        if row_count > 1:
-            VthChk = 0
-            VthChk_msg = "Multiple entries found"
-
-        elif row_count == 1:
-            # Fetch the single row
-            voucher_row = voucher_query.first()
-            has_null_or_empty = False
-            for column in model.VoucherData.__table__.columns:
-                value = getattr(voucher_row, column.name)
-                if value is None or value == "":
-                    has_null_or_empty = True
-                    NullVal.append(column.name)
-
-            if has_null_or_empty:
-                VthChk = 0
-                VthChk_msg = "Missing values:" + str(NullVal)[1:-1]
             else:
-                VthChk = 1
-                VthChk_msg = "Success"
-        else:
-            VthChk = 0
-            VthChk_msg = "No Voucher data Found."
-        docStatusSync["VoucherCreation Data Validation"] = {
-            "status": VthChk,
-            "response": [VthChk_msg],
-        }
-        logger.info(f"docStatusSync:{docStatusSync}")
+                strCk = 0
+                strCk_msg.append(" Store Type Not Found")
 
-        overAllstatus_ck = 1
-        if isinstance(docStatusSync, dict):
-            for stCk in docStatusSync:
-                if "status" in docStatusSync[stCk]:
-                    overAllstatus_ck = overAllstatus_ck * int(
-                        docStatusSync[stCk]["status"]  # type: ignore
-                    )
+            docStatusSync["StoreType Validation"] = {
+                "status": strCk,
+                "response": strCk_msg,
+            }
 
-        if overAllstatus_ck == 1:
-            db.query(model.Document).filter(model.Document.idDocument == docID).update(
-                {model.Document.documentStatusID: 2}
-            )
-            db.commit()
-            overAllstatus = 1
+            if docStatusSync["StoreType Validation"]["status"] == 1:
 
-            # send to ppl soft:
-            try:
-                resp = processInvoiceVoucher(docID, db)
+                documentstatus = 4
+                documentdesc = "StoreType Validation Success"
                 try:
-                    if "data" in resp:
-                        if "Http Response" in resp["data"]:
-                            RespCode = resp["data"]["Http Response"]
-                            if resp["data"]["Http Response"].isdigit():
-                                RespCodeInt = int(RespCode)
-                                if RespCodeInt == 201:
-                                    docStatus = 7
-                                    docSubStatus = 43
+                    update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                except Exception as e:
+                    logger.error(f"pfg_sync line 314: {str(e)}")
 
-                                elif RespCodeInt == 400:
-                                    # Failure:
-                                    # Data Error - IICS could not process the message
-                                    docStatus = 21
-                                    docSubStatus = 108
+                try:
+                    if list(stmpData["StoreType"].keys())[0] == "Integrated":
+                        strCk = 1
+                        strCk_msg.append("Success")
 
-                                elif RespCodeInt == 406:
-                                    # Failure: Data Error - Invoice could not be staged
-                                    docStatus = 21
-                                    docSubStatus = 109
+                        IntegratedvoucherData(docID, db)
+                    if list(stmpData["StoreType"].keys())[0] == "Non-Integrated":
+                        nonIntegratedVoucherData(docID, db)
+                        strCk = 1
+                        strCk_msg.append("Success")
 
-                                elif RespCodeInt == 422:
-                                    # Failure:
-                                    # PeopleSoft could not parse the json message
-                                    docStatus = 21
-                                    docSubStatus = 110
+                except Exception as er:
+                    logger.info(f"VoucherCreationException:{er} ")
 
-                                elif RespCodeInt == 424:
-                                    # Failure:
-                                    # File Attachment could not loaded to File Server
-                                    docStatus = 21
-                                    docSubStatus = 111
+                voucher_query = db.query(model.VoucherData).filter(
+                    model.VoucherData.documentID == docID
+                )
+                row_count = voucher_query.count()
+                NullVal = []
+                VthChk = 0
+                VthChk_msg = ""
+                if row_count > 1:
+                    VthChk = 0
+                    VthChk_msg = "Multiple entries found"
 
-                                elif RespCodeInt == 500:
-                                    # Internal Server Error -
-                                    # Could not connect to IICS or to PeopleSoft
-                                    docStatus = 21
-                                    docSubStatus = 53
+                elif row_count == 1:
+                    # Fetch the single row
+                    voucher_row = voucher_query.first()
+                    has_null_or_empty = False
+                    for column in model.VoucherData.__table__.columns:
+                        value = getattr(voucher_row, column.name)
+                        if value is None or value == "":
+                            has_null_or_empty = True
+                            NullVal.append(column.name)
+
+                    if has_null_or_empty:
+                        VthChk = 0
+                        VthChk_msg = "Missing values:" + str(NullVal)[1:-1]
+                    else:
+                        VthChk = 1
+                        VthChk_msg = "Success"
+                else:
+                    VthChk = 0
+                    VthChk_msg = "No Voucher data Found."
+                docStatusSync["VoucherCreation Data Validation"] = {
+                    "status": VthChk,
+                    "response": [VthChk_msg],
+                }
+                logger.info(f"docStatusSync:{docStatusSync}")
+
+                if docStatusSync["VoucherCreation Data Validation"]["status"] == 1:
+                    documentstatus = 4
+                    documentdesc = "VoucherCreation Data Validation Success"
+                    try:
+                        update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                    except Exception as e:
+                        logger.error(f"pfg_sync line 314: {str(e)}")
+
+                    overAllstatus_ck = 1
+                    for stCk in docStatusSync:
+                        valCkStatus = docStatusSync[stCk]["status"]
+                        if type(valCkStatus) is int:
+                            overAllstatus_ck = overAllstatus_ck * valCkStatus
+
+                        else:
+                            overAllstatus_ck = 0
+
+                    if overAllstatus_ck == 1:
+                        overAllstatus_msg = "Success"
+                        db.query(model.Document).filter(
+                            model.Document.idDocument == docID
+                        ).update({model.Document.documentStatusID: 2})
+                        db.commit()
+                        overAllstatus = 1
+
+                        # send to ppl soft:
+                        try:
+                            resp = processInvoiceVoucher(docID, db)
+                            try:
+                                if "data" in resp:
+                                    if "Http Response" in resp["data"]:
+                                        RespCode = resp["data"]["Http Response"]
+                                        if resp["data"]["Http Response"].isdigit():
+                                            RespCodeInt = int(RespCode)
+                                            if RespCodeInt == 201:
+                                                dmsg = (
+                                                    InvoiceVoucherSchema.SUCCESS_STAGED
+                                                )
+                                                docStatus = 7
+                                                docSubStatus = 43
+
+                                            elif RespCodeInt == 400:
+                                                dmsg = InvoiceVoucherSchema.FAILURE_IICS
+                                                docStatus = 21
+                                                docSubStatus = 108
+
+                                            elif RespCodeInt == 406:
+                                                dmsg = (
+                                                    InvoiceVoucherSchema.FAILURE_INVOICE
+                                                )
+                                                docStatus = 21
+                                                docSubStatus = 109
+
+                                            elif RespCodeInt == 422:
+                                                dmsg = (
+                                                    InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
+                                                )
+                                                docStatus = 21
+                                                docSubStatus = 110
+
+                                            elif RespCodeInt == 424:
+                                                dmsg = (
+                                                    InvoiceVoucherSchema.FAILURE_FILE_ATTACHMENT  # noqa: E501
+                                                )
+                                                docStatus = 21
+                                                docSubStatus = 111
+
+                                            elif RespCodeInt == 500:
+                                                dmsg = (
+                                                    InvoiceVoucherSchema.INTERNAL_SERVER_ERROR  # noqa: E501
+                                                )
+                                                docStatus = 21
+                                                docSubStatus = 53
+                                            else:
+                                                dmsg = (
+                                                    InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                                )
+                                                docStatus = 21
+                                                docSubStatus = 112
+                                        else:
+                                            dmsg = (
+                                                InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                            )
+                                            docStatus = 21
+                                            docSubStatus = 112
+                                    else:
+                                        dmsg = (
+                                            InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                        )
+                                        docStatus = 21
+                                        docSubStatus = 112
                                 else:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED
+                                    )
                                     docStatus = 21
                                     docSubStatus = 112
-                            else:
+                            except Exception as err:
+                                logger.info(f"PopleSoftResponseError: {err}")
+                                dmsg = (
+                                    InvoiceVoucherSchema.FAILURE_COMMON.format_message(
+                                        err
+                                    )
+                                )
                                 docStatus = 21
                                 docSubStatus = 112
-                        else:
+
+                            try:
+                                db.query(model.Document).filter(
+                                    model.Document.idDocument == docID
+                                ).update(
+                                    {
+                                        model.Document.documentStatusID: docStatus,
+                                        model.Document.documentsubstausID: docSubStatus,  # noqa: E501
+                                    }
+                                )
+                                db.commit()
+                            except Exception as err:
+                                logger.info(f"ErrorUpdatingPostingData: {err}")
+                            try:
+
+                                update_docHistory(docID, 1, docStatus, dmsg, db)
+                            except Exception as e:
+                                logger.error(f"pfg_sync 501: {str(e)}")
+                        except Exception as e:
+                            print(
+                                "Error in ProcessInvoiceVoucher fun(): ",
+                                traceback.format_exc(),
+                            )
+                            logger.info(f"PopleSoftResponseError: {e}")
+                            dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(e)
                             docStatus = 21
                             docSubStatus = 112
-                    else:
-                        docStatus = 21
-                        docSubStatus = 112
-                except Exception as err:
-                    logger.info(f"PopleSoftResponseError: {err}")
-                    docStatus = 21
-                    docSubStatus = 112
 
+                            try:
+                                db.query(model.Document).filter(
+                                    model.Document.idDocument == docID
+                                ).update(
+                                    {
+                                        model.Document.documentStatusID: docStatus,
+                                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                    }
+                                )
+                                db.commit()
+                            except Exception as err:
+                                logger.info(f"ErrorUpdatingPostingData: {err}")
+                            try:
+                                documentstatus = 21
+                                update_docHistory(docID, 1, documentstatus, dmsg, db)
+                            except Exception as e:
+                                logger.error(f"pfg_sync 501: {str(e)}")
+                    else:
+                        overAllstatus_msg = "Validation Failed"
+                else:
+                    # VoucherCreation Data Validation Failed
+                    # -------------------------update document history table
+                    documentSubstatus = 36
+                    documentstatus = 4
+                    documentdesc = "Voucher data: validation error"
+                    try:
+                        update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                    except Exception as e:
+                        logger.error(f"pfg_sync 501: {str(e)}")
+                    try:
+                        db.query(model.Document).filter(
+                            model.Document.idDocument == docID
+                        ).update(
+                            {
+                                model.Document.documentStatusID: documentstatus,
+                                model.Document.documentsubstatusID: documentSubstatus,
+                            }
+                        )
+                        db.commit()
+                    except Exception as err:
+                        logger.info(f"ErrorUpdatingPostingData: {err}")
+            else:
+
+                # -----------------------------------------update document history table
+                documentSubstatus = 34
+                documentstatus = 4
+                documentdesc = "Invalid Store Type"
+                try:
+                    update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                except Exception as e:
+                    logger.error(f"pfg_sync line 518: {str(e)}")
                 try:
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
                     ).update(
                         {
-                            model.Document.documentStatusID: docStatus,
-                            model.Document.documentsubstatusID: docSubStatus,
+                            model.Document.documentStatusID: documentstatus,
+                            model.Document.documentsubstatusID: documentSubstatus,
                         }
                     )
                     db.commit()
                 except Exception as err:
                     logger.info(f"ErrorUpdatingPostingData: {err}")
+        else:
+            # -------------------------update document history table
+            documentSubstatus = 33
+            documentstatus = 4
+            documentdesc = "OCR Validations Failed"
+            try:
+                update_docHistory(docID, 1, documentstatus, documentdesc, db)
             except Exception as e:
-                print("Error in ProcessInvoiceVoucher fun(): ", e)
-                print("Error in ProcessInvoiceVoucher fun(): ", traceback.format_exc())
+                logger.error(f"pfg_sync line 534: {str(e)}")
+            try:
+                db.query(model.Document).filter(
+                    model.Document.idDocument == docID
+                ).update(
+                    {
+                        model.Document.documentStatusID: documentstatus,
+                        model.Document.documentsubstatusID: documentSubstatus,
+                    }
+                )
+                db.commit()
+            except Exception as err:
+                logger.info(f"ErrorUpdatingPostingData: {err}")
+
     except Exception as err:
         logger.info(f"SyncException:{err}")
         logger.info(f"{traceback.format_exc()}")
         docStatusSync = {}
         overAllstatus = 0
-    docStatusSync["overAllstatus"] = overAllstatus  # type: ignore
+        overAllstatus_msg = f"SyncException:{err}"
+
+    docStatusSync["Status Overview"] = {
+        "status": overAllstatus,
+        "response": [overAllstatus_msg],
+    }
     try:
         json_data = json.dumps(docStatusSync)
         db.query(model.Document).filter(model.Document.idDocument == docID).update(
@@ -596,5 +784,5 @@ def pfg_sync(docID, db: Session):
         db.commit()
     except Exception as Err:
         logger.info(f"updateDocDecError: {Err}")
-    logger.info(f"overallstatus: {docStatusSync}")
+    logger.info(f"Status Overview: {docStatusSync}")
     return docStatusSync

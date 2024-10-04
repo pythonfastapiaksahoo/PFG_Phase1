@@ -1585,3 +1585,19 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
         return Response(status_code=500, headers={"Error": "Internal Server error"})
 
     return updated_records
+
+
+def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
+    try:
+        docHistory = {}
+        docHistory["documentID"] = documentID
+        docHistory["userID"] = userID
+        docHistory["documentStatusID"] = documentstatus
+        docHistory["documentdescription"] = documentdesc
+        docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        db.add(model.DocumentHistoryLogs(**docHistory))
+        db.commit()
+    except Exception:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while inserting document history"}

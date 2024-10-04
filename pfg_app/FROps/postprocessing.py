@@ -14,7 +14,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy import join
 
 import pfg_app.model as model
-from pfg_app.FROps.stampData import VndMatchFn
+from pfg_app.core.stampData import VndMatchFn
 from pfg_app.logger_module import logger
 from pfg_app.session.session import SCHEMA, SQLALCHEMY_DATABASE_URL
 
@@ -392,7 +392,7 @@ def dataPrep_postprocess_prebuilt(input_data):
 
     for pg_data in input_data:
         # print(pg_data['analyzeResult']['documents'][0]['fields'].keys())
-        pre_pg_data = pg_data["analyzeResult"]["documents"][0]["fields"].copy()
+        pre_pg_data = pg_data["documents"][0]["fields"].copy()
 
         for tgs in pre_pg_data:
             # print(tgs)
@@ -407,7 +407,7 @@ def dataPrep_postprocess_prebuilt(input_data):
                     getData_headerPg[tgs] = pre_pg_data[tgs]
 
     all_pg_data = input_data[0].copy()
-    all_pg_data["analyzeResult"]["documents"][0]["fields"] = getData_headerPg
+    all_pg_data["documents"][0]["fields"] = getData_headerPg
 
     return all_pg_data
 
@@ -434,7 +434,7 @@ def getFrData_MNF(input_data):
     try:
         for pg_data in input_data:
             # print(pg_data['analyzeResult']['documents'][0]['fields'].keys())
-            pre_pg_data = pg_data["analyzeResult"]["documents"][0]["fields"].copy()
+            pre_pg_data = pg_data["documents"][0]["fields"].copy()
 
             for tgs in pre_pg_data:
                 # print(tgs)
@@ -575,14 +575,11 @@ def dataPrep_postprocess_cust(input_data):
     )  # pg_1['analyzeResult']['documents'][0]['fields']['tab_1']['valueArray']
     cnt = 0
     for pg_data in input_data:
-        cust_pg_data = pg_data["analyzeResult"]["documents"][0]["fields"].copy()
-        if "tab_1" in pg_data["analyzeResult"]["documents"][0]["fields"].keys():
+        cust_pg_data = pg_data["documents"][0]["fields"].copy()
+        if "tab_1" in pg_data["documents"][0]["fields"].keys():
             cust_tab_pg_data = (
-                pg_data["analyzeResult"]["documents"][0]["fields"]["tab_1"][
-                    "valueArray"
-                ].copy()
-                if "valueArray"
-                in pg_data["analyzeResult"]["documents"][0]["fields"]["tab_1"]
+                pg_data["documents"][0]["fields"]["tab_1"]["valueArray"].copy()
+                if "valueArray" in pg_data["documents"][0]["fields"]["tab_1"]
                 else []
             )
 
@@ -602,11 +599,11 @@ def dataPrep_postprocess_cust(input_data):
                     getData_headerPg[tgs] = cust_pg_data[tgs]
 
     all_pg_data = input_data[0].copy()
-    all_pg_data["analyzeResult"]["documents"][0]["fields"] = getData_headerPg
+    all_pg_data["documents"][0]["fields"] = getData_headerPg
     # tb_dict = {'tab_1': {'type': 'array', 'valueArray': getData_TabPg}}
-    # all_pg_data['analyzeResult']['documents'][0]['fields']['tab_1'] =}
-    # all_pg_data['analyzeResult']['documents'][0]['fields']
-    all_pg_data["analyzeResult"]["documents"][0]["fields"]["tab_1"] = {
+    # all_pg_data['documents'][0]['fields']['tab_1'] =}
+    # all_pg_data['documents'][0]['fields']
+    all_pg_data["documents"][0]["fields"]["tab_1"] = {
         "type": "array",
         "valueArray": getData_TabPg,
     }
@@ -627,7 +624,6 @@ def postpro(
     sender,
     metaVendorName,
     metaVendorAdd,
-    OpenAI_client,
 ):
     global qty_rw_status, amt_withTax_rw_status  # TODO dont use global variable
     global vatAmt_rw_status, utprice_rw_status  # TODO dont use global variable
@@ -679,18 +675,16 @@ def postpro(
 
         cst_tmp_dict = {}
         cust_header = []
-        for cst_hd in cst_data["analyzeResult"]["documents"][0]["fields"]:
+        for cst_hd in cst_data["documents"][0]["fields"]:
             cust_header.append(cst_hd)
-            if "content" in cst_data["analyzeResult"]["documents"][0]["fields"][cst_hd]:
+            if "content" in cst_data["documents"][0]["fields"][cst_hd]:
                 if (
                     "boundingRegions"
-                    in cst_data["analyzeResult"]["documents"][0]["fields"][
-                        cst_hd
-                    ].keys()
+                    in cst_data["documents"][0]["fields"][cst_hd].keys()
                 ):
                     try:
                         boundingRegions = polygon_to_bbox(
-                            cst_data["analyzeResult"]["documents"][0]["fields"][cst_hd][
+                            cst_data["documents"][0]["fields"][cst_hd][
                                 "boundingRegions"
                             ]
                         )
@@ -698,19 +692,19 @@ def postpro(
                         logger.error(traceback.format_exc())
                         boundingRegions = ""
                     cst_tmp_dict[cst_hd] = {
-                        "content": cst_data["analyzeResult"]["documents"][0]["fields"][
-                            cst_hd
-                        ]["content"],
-                        "confidence": cst_data["analyzeResult"]["documents"][0][
-                            "fields"
-                        ][cst_hd]["confidence"],
+                        "content": cst_data["documents"][0]["fields"][cst_hd][
+                            "content"
+                        ],
+                        "confidence": cst_data["documents"][0]["fields"][cst_hd][
+                            "confidence"
+                        ],
                         "boundingRegions": boundingRegions,
                     }
                 else:
                     cst_tmp_dict[cst_hd] = {
-                        "content": cst_data["analyzeResult"]["documents"][0]["fields"][
-                            cst_hd
-                        ]["content"],
+                        "content": cst_data["documents"][0]["fields"][cst_hd][
+                            "content"
+                        ],
                         "confidence": 0,
                         "boundingRegions": "",
                     }
@@ -720,27 +714,20 @@ def postpro(
         check_pre_hd = []
 
         check_pre_hd = {}
-        for pre_hd in pre_data["analyzeResult"]["documents"][0]["fields"]:
+        for pre_hd in pre_data["documents"][0]["fields"]:
 
-            if "content" in pre_data["analyzeResult"]["documents"][0]["fields"][pre_hd]:
+            if "content" in pre_data["documents"][0]["fields"][pre_hd]:
                 pre_tmp_dict[pre_hd] = {
-                    "content": pre_data["analyzeResult"]["documents"][0]["fields"][
-                        pre_hd
-                    ]["content"],
+                    "content": pre_data["documents"][0]["fields"][pre_hd]["content"],
                     "confidence": (
-                        pre_data["analyzeResult"]["documents"][0]["fields"][pre_hd][
-                            "confidence"
-                        ]
-                        if "confidence"
-                        in pre_data["analyzeResult"]["documents"][0]["fields"][pre_hd]
+                        pre_data["documents"][0]["fields"][pre_hd]["confidence"]
+                        if "confidence" in pre_data["documents"][0]["fields"][pre_hd]
                         else "0"
                     ),
                     "boundingRegions": (
-                        pre_data["analyzeResult"]["documents"][0]["fields"][pre_hd][
-                            "boundingRegions"
-                        ]
+                        pre_data["documents"][0]["fields"][pre_hd]["boundingRegions"]
                         if "boundingRegions"
-                        in pre_data["analyzeResult"]["documents"][0]["fields"][pre_hd]
+                        in pre_data["documents"][0]["fields"][pre_hd]
                         else [0, 0, 0, 0, 0, 0]
                     ),
                 }
@@ -916,11 +903,11 @@ def postpro(
         overall_status = ovrll_conf_ck
 
         # cst_data['analyzeResult']['documents'][0]
-        fields = cst_data["analyzeResult"]["documents"][0]["fields"]
+        fields = cst_data["documents"][0]["fields"]
         # tab data:
         tabs = [
             tb
-            for tb in list(cst_data["analyzeResult"]["documents"][0]["fields"].keys())
+            for tb in list(cst_data["documents"][0]["fields"].keys())
             if tb.startswith("tab_")
         ]
         # print("tabs: ", tabs)
@@ -1631,21 +1618,11 @@ def postpro(
                         totalTax_rw = ""
 
         try:
-            vndMth_prompt = f"vendor1 = {metaVendorName} ,"
-            +f"vendor2 = {doc_VendorName}  ,"
-            +f"vendor1Address = {metaVendorAdd} ,"
-            +f"vendor2Address = {doc_VendorAddress} ."
-            +"You are given vendor data from two sources:"
-            +"vendor1 from master data and vendor2 from an OCR model."
-            +"Your task is to confirm if both vendor names and "
-            +"their addresses are the same. Compare the vendor names, "
-            +"ignoring case sensitivity and trimming extra spaces. "
-            +"For addresses, normalize the text by handling "
-            +"common abbreviations like 'Road' and 'RD'."
-            +"Return a response in JSON format only with two keys: "
-            +"vendorMatching and addressMatching, each having a value of "
-            +"either 'yes' or 'no' based on the comparison."
-            vndMth_ck, vndMth_address_ck = VndMatchFn(vndMth_prompt, OpenAI_client)
+
+            vndMth_ck, vndMth_address_ck = VndMatchFn(
+                metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress
+            )
+            logger.info(f"vndMth_ck: {vndMth_ck}")
         except Exception:
             logger.error(traceback.format_exc())
             vndMth_ck = 0
