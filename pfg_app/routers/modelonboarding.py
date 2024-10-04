@@ -719,28 +719,6 @@ async def get_labels_pdf_image(
         return "Exception"
 
 
-def normalize_coordinates(page_width, page_height, polygon):
-    # TODO :  This function is not used anywhere. Need to check and remove it.
-    return [
-        {
-            "x": int(polygon[0]["x"] * page_width),
-            "y": int(polygon[0]["y"] * page_height),
-        },
-        {
-            "x": int(polygon[1]["x"] * page_width),
-            "y": int(polygon[1]["y"] * page_height),
-        },
-        {
-            "x": int(polygon[2]["x"] * page_width),
-            "y": int(polygon[2]["y"] * page_height),
-        },
-        {
-            "x": int(polygon[3]["x"] * page_width),
-            "y": int(polygon[3]["y"] * page_height),
-        },
-    ]
-
-
 def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
     try:
         configs = getOcrParameters(1, db)
@@ -1008,6 +986,15 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
     except Exception as ex:
         print(f"Error in getlabels: {ex}")
 
+def normalize_coordinates(page_width, page_height, polygon):
+    normalized_polygon = []
+
+    for i in range(0, len(polygon), 2):
+        x_normalized = polygon[i] / page_width
+        y_normalized = polygon[i + 1] / page_height
+        normalized_polygon.extend([x_normalized, y_normalized])
+
+    return normalized_polygon
 
 def savelabelsfile(json_string, filename, db):
     try:
