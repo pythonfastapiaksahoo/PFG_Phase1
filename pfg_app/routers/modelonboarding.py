@@ -986,6 +986,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
     except Exception as ex:
         print(f"Error in getlabels: {ex}")
 
+
 def normalize_coordinates(page_width, page_height, polygon):
     normalized_polygon = []
 
@@ -995,6 +996,7 @@ def normalize_coordinates(page_width, page_height, polygon):
         normalized_polygon.extend([x_normalized, y_normalized])
 
     return normalized_polygon
+
 
 def savelabelsfile(json_string, filename, db):
     try:
@@ -1010,3 +1012,22 @@ def savelabelsfile(json_string, filename, db):
         print(f"saved: {filename+'.labels.json'}")
     except Exception:
         logger.error(traceback.format_exc())
+
+
+# Not sure there exists a function with this name without new
+@router.get("/get_training_result_vendor/{modeltype}/{vendorId}")
+async def get_training_res_new(
+    vendorId: int, modeltype: str, db: Session = Depends(get_db)
+):
+    try:
+        training_res = crud.get_fr_training_result_by_vid(db, modeltype, vendorId)
+        res = crud.get_composed_training_result_by_vid(db, modeltype, vendorId)
+        for r in res:
+            r.modelName = r.composed_name
+            r.modelID = r.composed_name
+            training_res.append(r)
+        return {"message": "success", "result": training_res}
+    except Exception as e:
+        return {"message": f"exception {e}", "result": []}
+    finally:
+        db.close()
