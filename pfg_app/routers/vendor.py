@@ -33,30 +33,74 @@ router = APIRouter(
 
 
 # Checked(Doubt) - used in the frontend
-# API to read all vendor list
-@router.get("/vendorlist/{u_id}")
-async def read_vendor_list(
+
+
+# API to read all vendor names
+@router.get("/vendornamelist/{u_id}")
+async def get_vendor_names_list(u_id, db: Session = Depends(get_db)):
+    """API route to retrieve a list of all active vendor names.
+
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of active vendor names.
+    """
+    return await crud.readvendorname(u_id, db)
+
+
+# API to read paginated vendor list
+@router.get("/paginatedvendorlist/{u_id}")
+async def read_paginated_vendor_details(
     u_id: int,
     ent_id: Optional[int] = None,
     ven_code: Optional[str] = None,
     onb_status: Optional[str] = None,
     offset: int = 1,
     limit: int = 10,
+    ven_status: Optional[str] = None,
     vendor_type: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """###This function creates an api route for Reading Vendor list.
+    """API route to retrieve a paginated list of vendors based on various
+    filters.
 
-    It contains 2 parameters.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: it returns vendor list
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    ent_id : int, optional
+        Entity ID to filter vendors by (default is None).
+    ven_code : str, optional
+        Vendor code to filter by (default is None).
+    onb_status : str, optional
+        Onboarding status to filter vendors (default is None).
+    offset : int
+        The page number for pagination (default is 1).
+    limit : int
+        Number of records per page (default is 10).
+    ven_status : str, optional
+        Vendor status to filter vendors (default is None).
+    vendor_type : str, optional
+        Type of vendor to filter by (default is None).
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of vendor data filtered and paginated according to the input parameters.
     """
-    data = await crud.readvendorbyuid(
+    data = await crud.readpaginatedvendorlist(
         u_id,
         vendor_type,
         db,
         (offset, limit),
         {"ent_id": ent_id, "ven_code": ven_code, "onb_status": onb_status},
+        ven_status,
     )
     return data

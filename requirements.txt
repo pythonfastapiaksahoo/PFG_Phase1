@@ -21,7 +21,8 @@ python-multipart==0.0.9
 openai==1.42.0
 Office365-REST-Python-Client==2.3.13
 opencv-python-headless==4.10.0.84
-python-magic-bin==0.4.14
+#python-magic-bin==0.4.14 This would work only in windows
+python-magic==0.4.27
 scikit-learn==1.5.2
 azure-keyvault-secrets==4.8.0
 azure-ai-formrecognizer==3.3.3
