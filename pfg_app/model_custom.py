@@ -500,6 +500,7 @@ class User(Base):
     show_updates = Column(Integer, nullable=True)
     account_type = Column(String(20), nullable=True)
     dept_ids = Column(JSON, nullable=True)
+    azure_id = Column(String(45), nullable=True)
 
     # customers = relationship("Customer", back_populates="user")
     # user_access = relationship("UserAccess", back_populates="user")

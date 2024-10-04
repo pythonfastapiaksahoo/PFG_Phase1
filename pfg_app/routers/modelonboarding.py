@@ -19,8 +19,10 @@ from pdf2image import convert_from_bytes
 from sqlalchemy.orm import Session
 
 import pfg_app.model as model
+from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
+from pfg_app.core.azure_fr import call_form_recognizer
 from pfg_app.crud import ModelOnBoardCrud as crud
 from pfg_app.FROps import form_recognizer as fr
 from pfg_app.FROps import util as ut
@@ -313,17 +315,11 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
 # Checked - used in the frontend
 @router.post("/test_analyze_result/{modelid}")
 async def get_test_result(
-    request: Request,
     modelid: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
     try:
-        frconfigs = getOcrParameters(1, db)
-        fr_endpoint = frconfigs.Endpoint
-        fr_key = frconfigs.Key1
-        url = f"{fr_endpoint}/formrecognizer/\
-            documentModels/{modelid}:analyze?api-version=2023-07-31"
         metadata, f, valid_file = await ut.get_file(file, 900)
         if not valid_file:
             return {"message": "File is invalid"}
@@ -335,9 +331,11 @@ async def get_test_result(
         if contenttype != "application/pdf":
             b64 = base64.b64encode(f.getvalue()).decode("utf-8")
             fileurl = "data:image/jpeg;base64," + str(b64)
-        headers = {"Content-Type": contenttype, "Ocp-Apim-Subscription-Key": fr_key}
         body = f.getvalue()
-        json_result = fr.analyzeForm(url=url, headers=headers, body=body)
+        # json_result = fr.analyzeForm(url=url, headers=headers, body=body)
+        json_result = call_form_recognizer(
+            body, settings.form_recognizer_endpoint, settings.api_version, modelid
+        )
         if "message" in json_result and json_result["message"] == "failure to fetch":
             return {
                 "message": "failure",

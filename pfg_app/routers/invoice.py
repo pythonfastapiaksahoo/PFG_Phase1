@@ -251,7 +251,7 @@ async def read_column_pos_item(db: Session = Depends(get_db), user=Depends(get_u
     dict
         A dictionary containing the column position data for the specified tab.
     """
-    data = await crud.read_column_pos(user.id, 1, db)
+    data = await crud.read_column_pos(user.idUser, 1, db)
     return data
 
 
