@@ -1,8 +1,11 @@
+import secrets
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
+from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.crud import ERPIntegrationCrud as crud
 from pfg_app.schemas.ERPIntegrationSchema import (
@@ -16,12 +19,32 @@ from pfg_app.schemas.ERPIntegrationSchema import (
 )
 from pfg_app.session.session import get_db
 
-auth_handler = AuthHandler()
+# Basic authentication scheme
+security = HTTPBasic()
 
+username = settings.erp_user
+password = settings.erp_password
+
+
+# Dependency function to verify admin credentials
+def get_admin_user(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, username)
+    correct_password = secrets.compare_digest(credentials.password, password)
+
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
+auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/ERPIntegration",
     tags=["ERPIntegration"],
-    # dependencies=[Depends(auth_handler.auth_wrapper)],
+    dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
 
