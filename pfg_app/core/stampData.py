@@ -96,10 +96,11 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
                             + "the same. Compare the vendor names, ignoring case"
                             + "sensitivity and trimming extra spaces.For addresses, "
                             + "normalize the text by handling common abbreviations"
-                            + "like 'Road' and 'RD'.Return a response in JSON format"
+                            + "like 'Road' and 'RD'.Return response in JSON format as"
+                            + "{'vendorMatching': 'yes/no','addressMatching': 'yes/no'}"
                             + "only with two keys: vendorMatching and addressMatching,"
                             + "each having a value of either 'yes' or 'no' based on"
-                            + "the comparison."
+                            + "the comparison without any explanation. "
                         ),
                     }
                 ],
