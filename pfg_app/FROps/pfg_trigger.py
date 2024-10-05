@@ -339,6 +339,7 @@ def pfg_sync(docID, db: Session):
         .filter(model.Document.idDocument == docID)
         .scalar()
     )
+    userID = 1
     invTotalMth = 0
     dateCheck = 0
     docStatusSync: dict[str, dict[str, Union[int, list[str]]]] = {}
@@ -350,6 +351,9 @@ def pfg_sync(docID, db: Session):
     dateCheck_msg = ""
     overAllstatus = 0
     overAllstatus_msg = ""
+    dsdApprovalCheck = 0
+    dsdApprovalCheck_msg = 500
+
     try:
 
         DocDtHdr = (
@@ -370,32 +374,81 @@ def pfg_sync(docID, db: Session):
                 docHdrDt[document_tag_def.TagLabel] = document_data.Value
             logger.info(f"docHdrDt: {docHdrDt}")
 
+            # Invoice Total Approval Check
+            try:
+                if float(docHdrDt["InvoiceTotal"]) < dsdApprovalCheck_msg:
+                    dsdApprovalCheck = 1
+                    dmsg = "Invoice Amount Approved"
+                elif float(docHdrDt["InvoiceTotal"]) > dsdApprovalCheck_msg:
+                    try:
+                        docStatus = 6
+                        docSubStatus = 113
+                        dmsg = f"Invoice Amount:{float(docHdrDt['InvoiceTotal'])}, \
+                            Approval Needed."
+                        try:
+                            update_docHistory(docID, userID, docStatus, dmsg, db)
+                        except Exception as e:
+                            logger.error(f"pfg_sync line 534: {str(e)}")
+
+                        try:
+                            db.query(model.Document).filter(
+                                model.Document.idDocument == docID
+                            ).update(
+                                {
+                                    model.Document.documentStatusID: docStatus,
+                                    model.Document.documentsubstatusID: docSubStatus,
+                                }
+                            )
+                            db.commit()
+                        except Exception as err:
+                            logger.info(f"ErrorUpdatingPostingData: {err}")
+
+                    except Exception as e:
+                        logger.error(f"pfg_sync amount validations: {str(e)}")
+                        dmsg = "Invoice Amount Invalid" + str(e)
+                else:
+                    dsdApprovalCheck = 0
+                    dmsg = "Invoice Amount Invalid"
+
+            except Exception as e:
+                logger.error(f"pfg_sync amount validations: {str(e)}")
+
+            docStatusSync["Amount Approval Validation"] = {
+                "status": dsdApprovalCheck,
+                "response": [dmsg],
+            }
+            # ----------------------------------
+
             invTotalMth = 0
             invTotalMth_msg = "Invoice total mismatch, please review."
-            try:
-                if docHdrDt["InvoiceTotal"] == docHdrDt["SubTotal"]:
-                    invTotalMth = 1
-
-                elif (invTotalMth == 0) and (
-                    docHdrDt["InvoiceTotal"] != docHdrDt["SubTotal"]
-                ):
-                    if float(docHdrDt["InvoiceTotal"]) == float(docHdrDt["SubTotal"]):
+            if dsdApprovalCheck == 1:
+                try:
+                    if docHdrDt["InvoiceTotal"] == docHdrDt["SubTotal"]:
                         invTotalMth = 1
-                    if (invTotalMth == 0) and ("TotalTax" in docHdrDt):
-                        if (
-                            float(docHdrDt["SubTotal"]) + float(docHdrDt["TotalTax"])
-                        ) == float(docHdrDt["InvoiceTotal"]):
+
+                    elif (invTotalMth == 0) and (
+                        docHdrDt["InvoiceTotal"] != docHdrDt["SubTotal"]
+                    ):
+                        if float(docHdrDt["InvoiceTotal"]) == float(
+                            docHdrDt["SubTotal"]
+                        ):
                             invTotalMth = 1
-                        if (invTotalMth == 0) and ("PST" in docHdrDt):
-                            if float(docHdrDt["SubTotal"]) + float(docHdrDt["PST"]):
+                        if (invTotalMth == 0) and ("TotalTax" in docHdrDt):
+                            if (
+                                float(docHdrDt["SubTotal"])
+                                + float(docHdrDt["TotalTax"])
+                            ) == float(docHdrDt["InvoiceTotal"]):
                                 invTotalMth = 1
-                        if (invTotalMth == 0) and ("GST" in docHdrDt):
-                            if float(docHdrDt["SubTotal"]) + float(docHdrDt["GST"]):
-                                invTotalMth = 1
-            except Exception as e:
-                logger.error(f"Exception in pfg_sync line 387: {str(e)}")
-                invTotalMth = 0
-                invTotalMth_msg = "Invoice total mismatch:" + str(e)
+                            if (invTotalMth == 0) and ("PST" in docHdrDt):
+                                if float(docHdrDt["SubTotal"]) + float(docHdrDt["PST"]):
+                                    invTotalMth = 1
+                            if (invTotalMth == 0) and ("GST" in docHdrDt):
+                                if float(docHdrDt["SubTotal"]) + float(docHdrDt["GST"]):
+                                    invTotalMth = 1
+                except Exception as e:
+                    logger.error(f"Exception in pfg_sync line 387: {str(e)}")
+                    invTotalMth = 0
+                    invTotalMth_msg = "Invoice total mismatch:" + str(e)
         except Exception as e:
             logger.error(traceback.format_exc())
             invTotalMth = 0
@@ -451,7 +504,7 @@ def pfg_sync(docID, db: Session):
             documentstatus = 4
             documentdesc = "OCR Validations Success"
             try:
-                update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                update_docHistory(docID, userID, documentstatus, documentdesc, db)
             except Exception as e:
                 logger.error(f"pfg_sync line 314: {str(e)}")
 
@@ -494,7 +547,7 @@ def pfg_sync(docID, db: Session):
                 documentstatus = 4
                 documentdesc = "StoreType Validation Success"
                 try:
-                    update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                    update_docHistory(docID, userID, documentstatus, documentdesc, db)
                 except Exception as e:
                     logger.error(f"pfg_sync line 314: {str(e)}")
 
@@ -552,7 +605,9 @@ def pfg_sync(docID, db: Session):
                     documentstatus = 4
                     documentdesc = "VoucherCreation Data Validation Success"
                     try:
-                        update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                        update_docHistory(
+                            docID, userID, documentstatus, documentdesc, db
+                        )
                     except Exception as e:
                         logger.error(f"pfg_sync line 314: {str(e)}")
 
@@ -669,7 +724,7 @@ def pfg_sync(docID, db: Session):
                                 logger.info(f"ErrorUpdatingPostingData: {err}")
                             try:
 
-                                update_docHistory(docID, 1, docStatus, dmsg, db)
+                                update_docHistory(docID, userID, docStatus, dmsg, db)
                             except Exception as e:
                                 logger.error(f"pfg_sync 501: {str(e)}")
                         except Exception as e:
@@ -696,7 +751,9 @@ def pfg_sync(docID, db: Session):
                                 logger.info(f"ErrorUpdatingPostingData: {err}")
                             try:
                                 documentstatus = 21
-                                update_docHistory(docID, 1, documentstatus, dmsg, db)
+                                update_docHistory(
+                                    docID, userID, documentstatus, dmsg, db
+                                )
                             except Exception as e:
                                 logger.error(f"pfg_sync 501: {str(e)}")
                     else:
@@ -708,7 +765,9 @@ def pfg_sync(docID, db: Session):
                     documentstatus = 4
                     documentdesc = "Voucher data: validation error"
                     try:
-                        update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                        update_docHistory(
+                            docID, userID, documentstatus, documentdesc, db
+                        )
                     except Exception as e:
                         logger.error(f"pfg_sync 501: {str(e)}")
                     try:
@@ -730,7 +789,7 @@ def pfg_sync(docID, db: Session):
                 documentstatus = 4
                 documentdesc = "Invalid Store Type"
                 try:
-                    update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                    update_docHistory(docID, userID, documentstatus, documentdesc, db)
                 except Exception as e:
                     logger.error(f"pfg_sync line 518: {str(e)}")
                 try:
@@ -751,7 +810,7 @@ def pfg_sync(docID, db: Session):
             documentstatus = 4
             documentdesc = "OCR Validations Failed"
             try:
-                update_docHistory(docID, 1, documentstatus, documentdesc, db)
+                update_docHistory(docID, userID, documentstatus, documentdesc, db)
             except Exception as e:
                 logger.error(f"pfg_sync line 534: {str(e)}")
             try:
