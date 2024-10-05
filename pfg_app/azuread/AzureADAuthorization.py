@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 from typing import Any, Dict, Mapping, Optional
 
@@ -65,6 +66,7 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
         return AzureUser(
             id=user_id,
             name=decoded_token.get("name", ""),
+            email=decoded_token.get("email", ""),
             preferred_username=decoded_token.get("preferred_username", ""),
             roles=decoded_token.get("roles", []),
         )
@@ -87,16 +89,28 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
         }
 
     def _validate_token_scopes(self, token: str):
-        """Validate that the requested scopes are in the tokens claims."""
+        """Validate that the requested scopes are in the token's claims."""
         try:
-            claims = jwt.get_unverified_claims(token) or {}
-        except Exception as e:
+            # Split the JWT into parts (header, payload, signature)
+            parts = token.split(".")
+            if len(parts) != 3:
+                raise InvalidAuthorization("Malformed token received")
+
+            # Decode the payload (the second part of the JWT)
+            payload_segment = parts[1]
+            padded_payload = payload_segment + "=" * (
+                4 - len(payload_segment) % 4
+            )  # Add padding
+            decoded_bytes = base64.urlsafe_b64decode(padded_payload.encode("utf-8"))
+            claims = json.loads(decoded_bytes.decode("utf-8"))
+
+        except (ValueError, json.JSONDecodeError) as e:
             log.debug(f"Malformed token: {token}, {e}")
             raise InvalidAuthorization("Malformed token received")
 
         try:
             token_scopes = claims.get("scp", "").split(" ")
-        except BaseException:
+        except Exception:
             log.debug("Malformed scopes")
             raise InvalidAuthorization("Malformed scopes")
 
@@ -106,8 +120,17 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
 
     @staticmethod
     def _get_key_id(token: str) -> Optional[str]:
-        headers = jwt.get_unverified_header(token)
-        return headers["kid"] if headers and "kid" in headers else None
+        """Decode the JWT header without verifying the signature."""
+        try:
+            # Split the token into its components
+            header_segment = token.split(".")[0]
+            # Add padding if necessary and decode the base64-encoded header
+            padded_header = header_segment + "=" * (4 - len(header_segment) % 4)
+            decoded_bytes = base64.urlsafe_b64decode(padded_header.encode("utf-8"))
+            headers = json.loads(decoded_bytes.decode("utf-8"))
+            return headers["kid"] if headers and "kid" in headers else None
+        except Exception as e:
+            raise InvalidAuthorization(f"Malformed token: {token}, {e}")
 
     @staticmethod
     def _ensure_b64padding(key: str) -> str:
@@ -165,14 +188,15 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
 
         key = self._get_token_key(key_id)
         try:
-            options = self._get_validation_options()
-            return jwt.decode(
-                token=token,
-                key=key,
-                algorithms=["RS256"],
-                audience=settings.api_audience,
-                options=options,
-            )
+            # No "token" keyword arg; pass token and key directly
+            decoded_token = jwt.decode(
+                token, key, claims_cls=None
+            )  # 'claims_cls' is optional
+            # Validate audience (if necessary,
+            # as authlib does not have explicit 'audience' handling)
+            if decoded_token.get("aud") != settings.api_audience:
+                raise InvalidAuthorization("Invalid audience")
+            return decoded_token
 
         except JoseError as e:
             logging.debug(f"Token decoding error: {e}")

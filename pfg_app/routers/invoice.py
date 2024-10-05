@@ -63,7 +63,7 @@ async def read_paginate_doc_inv_list_item(
     List of invoice documents filtered and paginated according to the input parameters.
     """
     return await crud.read_paginate_doc_inv_list(
-        user.id, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
+        user.idUser, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
     )
 
 
@@ -114,7 +114,7 @@ async def read_paginate_doc_inv_list_with_ln_item(
     List of invoice documents filtered and paginated according to the input parameters.
     """
     return await crud.read_paginate_doc_inv_list_with_ln_items(
-        user.id, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
+        user.idUser, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
     )
 
 
@@ -141,7 +141,7 @@ async def read_invoice_data_item(
         - Line details
         - upload time
     """
-    return await crud.read_invoice_data(user.id, inv_id, db)
+    return await crud.read_invoice_data(user.idUser, inv_id, db)
 
 
 # Checked - used in the frontend
@@ -164,7 +164,7 @@ async def read_invoice_file_item(
         - Base64-encoded PDF string
         - content_type
     """
-    return await crud.read_invoice_file(user.id, inv_id, db)
+    return await crud.read_invoice_file(user.idUser, inv_id, db)
 
 
 # Checked - used in the frontend
@@ -198,7 +198,7 @@ async def update_invoice_data_item(
         A dictionary containing the result of the update
         operation, indicating success or failure.
     """
-    return await crud.update_invoice_data(user.id, inv_id, inv_data, db)
+    return await crud.update_invoice_data(user.idUser, inv_id, inv_data, db)
 
 
 # Checked - used in the frontend
@@ -230,7 +230,7 @@ async def update_column_pos_item(
         A dictionary containing the result of the update operation,
         indicating success or failure.
     """
-    return await crud.update_column_pos(user.id, 1, col_data, bg_task, db)
+    return await crud.update_column_pos(user.idUser, 1, col_data, bg_task, db)
 
 
 # Checked - used in the frontend
@@ -251,7 +251,7 @@ async def read_column_pos_item(db: Session = Depends(get_db), user=Depends(get_u
     dict
         A dictionary containing the column position data for the specified tab.
     """
-    data = await crud.read_column_pos(user.id, 1, db)
+    data = await crud.read_column_pos(user.idUser, 1, db)
     return data
 
 
@@ -277,7 +277,7 @@ async def new_get_stamp_data_fields(
     dict
         Returns the invoice stamp data fields.
     """
-    return await crud.new_get_stamp_data_by_document_id(user.id, inv_id, db)
+    return await crud.new_get_stamp_data_by_document_id(user.idUser, inv_id, db)
 
 
 # Checked - used in the frontend
@@ -309,7 +309,7 @@ async def new_update_stamp_data(
         the result of the operation.
     """
     updated_stamp_data = await crud.new_update_stamp_data_fields(
-        user.id, inv_id, update_data, db
+        user.idUser, inv_id, update_data, db
     )
 
     return {"response": updated_stamp_data}

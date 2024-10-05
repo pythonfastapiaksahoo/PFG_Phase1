@@ -19,8 +19,10 @@ from pdf2image import convert_from_bytes
 from sqlalchemy.orm import Session
 
 import pfg_app.model as model
+from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
+from pfg_app.core.azure_fr import call_form_recognizer
 from pfg_app.crud import ModelOnBoardCrud as crud
 from pfg_app.FROps import form_recognizer as fr
 from pfg_app.FROps import util as ut
@@ -313,17 +315,11 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
 # Checked - used in the frontend
 @router.post("/test_analyze_result/{modelid}")
 async def get_test_result(
-    request: Request,
     modelid: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
     try:
-        frconfigs = getOcrParameters(1, db)
-        fr_endpoint = frconfigs.Endpoint
-        fr_key = frconfigs.Key1
-        url = f"{fr_endpoint}/formrecognizer/\
-            documentModels/{modelid}:analyze?api-version=2023-07-31"
         metadata, f, valid_file = await ut.get_file(file, 900)
         if not valid_file:
             return {"message": "File is invalid"}
@@ -335,9 +331,11 @@ async def get_test_result(
         if contenttype != "application/pdf":
             b64 = base64.b64encode(f.getvalue()).decode("utf-8")
             fileurl = "data:image/jpeg;base64," + str(b64)
-        headers = {"Content-Type": contenttype, "Ocp-Apim-Subscription-Key": fr_key}
         body = f.getvalue()
-        json_result = fr.analyzeForm(url=url, headers=headers, body=body)
+        # json_result = fr.analyzeForm(url=url, headers=headers, body=body)
+        json_result = call_form_recognizer(
+            body, settings.form_recognizer_endpoint, settings.api_version, modelid
+        )
         if "message" in json_result and json_result["message"] == "failure to fetch":
             return {
                 "message": "failure",
@@ -719,28 +717,6 @@ async def get_labels_pdf_image(
         return "Exception"
 
 
-def normalize_coordinates(page_width, page_height, polygon):
-    # TODO :  This function is not used anywhere. Need to check and remove it.
-    return [
-        {
-            "x": int(polygon[0]["x"] * page_width),
-            "y": int(polygon[0]["y"] * page_height),
-        },
-        {
-            "x": int(polygon[1]["x"] * page_width),
-            "y": int(polygon[1]["y"] * page_height),
-        },
-        {
-            "x": int(polygon[2]["x"] * page_width),
-            "y": int(polygon[2]["y"] * page_height),
-        },
-        {
-            "x": int(polygon[3]["x"] * page_width),
-            "y": int(polygon[3]["y"] * page_height),
-        },
-    ]
-
-
 def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
     try:
         configs = getOcrParameters(1, db)
@@ -1009,6 +985,17 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
         print(f"Error in getlabels: {ex}")
 
 
+def normalize_coordinates(page_width, page_height, polygon):
+    normalized_polygon = []
+
+    for i in range(0, len(polygon), 2):
+        x_normalized = polygon[i] / page_width
+        y_normalized = polygon[i + 1] / page_height
+        normalized_polygon.extend([x_normalized, y_normalized])
+
+    return normalized_polygon
+
+
 def savelabelsfile(json_string, filename, db):
     try:
         configs = getOcrParameters(1, db)
@@ -1023,3 +1010,22 @@ def savelabelsfile(json_string, filename, db):
         print(f"saved: {filename+'.labels.json'}")
     except Exception:
         logger.error(traceback.format_exc())
+
+
+# Not sure there exists a function with this name without new
+@router.get("/get_training_result_vendor/{modeltype}/{vendorId}")
+async def get_training_res_new(
+    vendorId: int, modeltype: str, db: Session = Depends(get_db)
+):
+    try:
+        training_res = crud.get_fr_training_result_by_vid(db, modeltype, vendorId)
+        res = crud.get_composed_training_result_by_vid(db, modeltype, vendorId)
+        for r in res:
+            r.modelName = r.composed_name
+            r.modelID = r.composed_name
+            training_res.append(r)
+        return {"message": "success", "result": training_res}
+    except Exception as e:
+        return {"message": f"exception {e}", "result": []}
+    finally:
+        db.close()

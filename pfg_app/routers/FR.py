@@ -537,3 +537,9 @@ async def getEmailInfo(db: Session = Depends(get_db)):
     :return: It returns the email_listener_info data as a dictionary.
     """
     return await crud.get_email_info(db)
+
+
+# Missed api's
+@router.get("/getalltags")
+async def get_fr_tags(tagtype: Optional[str] = None, db: Session = Depends(get_db)):
+    return await crud.getall_tags(tagtype, db)

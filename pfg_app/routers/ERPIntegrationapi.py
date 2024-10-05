@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
-from pfg_app import settings
+# from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.crud import ERPIntegrationCrud as crud
 from pfg_app.schemas.ERPIntegrationSchema import (
@@ -22,14 +22,11 @@ from pfg_app.session.session import get_db
 # Basic authentication scheme
 security = HTTPBasic()
 
-username = settings.erp_user
-password = settings.erp_password
-
 
 # Dependency function to verify admin credentials
 def get_admin_user(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = secrets.compare_digest(credentials.username, username)
-    correct_password = secrets.compare_digest(credentials.password, password)
+    correct_username = secrets.compare_digest(credentials.username, "iicsapapiuser")
+    correct_password = secrets.compare_digest(credentials.password, "HCSu3ctH8v")
 
     if not (correct_username and correct_password):
         raise HTTPException(

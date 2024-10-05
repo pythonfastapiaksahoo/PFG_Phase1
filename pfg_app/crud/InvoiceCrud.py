@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
-from sqlalchemy import String, and_, case, cast, func, or_
+from sqlalchemy import String, and_, case, cast, exists, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, load_only
 
@@ -440,12 +440,11 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.Vendor.Address.ilike(f"%{uni_api_filter}%"),
                 model.DocumentSubStatus.status.ilike(f"%{uni_api_filter}%"),
                 inv_choice[inv_type][1].Account.ilike(f"%{uni_api_filter}%"),
-                # New condition: Check if any related
-                # DocumentLineItems.Value matches the filter
-                # exists().where(
-                # (model.DocumentLineItems.documentID == model.Document.idDocument) &
-                #   (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
-                # )
+                # Check if any related DocumentLineItems.Value matches the filter
+                exists().where(
+                    (model.DocumentLineItems.documentID == model.Document.idDocument)
+                    & (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
+                ),
             )
             data_query = data_query.filter(filter_condition)
 
@@ -984,7 +983,7 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
         db.close()
 
 
-async def read_column_pos(u_id, tabtype, db):
+async def read_column_pos(userID, tabtype, db):
     """Function to retrieve the column position based on the tab type.
 
     Parameters:
@@ -1015,7 +1014,7 @@ async def read_column_pos(u_id, tabtype, db):
             )
             .filter(
                 model.DocumentColumnPos.columnNameDefID == model.ColumnPosDef.idColumn,
-                model.DocumentColumnPos.uid == u_id,
+                model.DocumentColumnPos.userID == userID,
                 model.DocumentColumnPos.tabtype == tabtype,
             )
             .all()
@@ -1032,7 +1031,7 @@ async def read_column_pos(u_id, tabtype, db):
                     "documentColumnPos": ac.documentColumnPos,
                     "isActive": ac.isActive,
                     "tabtype": ac.tabtype,
-                    "uid": u_id,
+                    "userID": userID,
                 }
                 db.add(model.DocumentColumnPos(**to_insert))
                 db.commit()
@@ -1050,7 +1049,7 @@ async def read_column_pos(u_id, tabtype, db):
                 .filter(
                     model.DocumentColumnPos.columnNameDefID
                     == model.ColumnPosDef.idColumn,
-                    model.DocumentColumnPos.uid == u_id,
+                    model.DocumentColumnPos.userID == userID,
                     model.DocumentColumnPos.tabtype == tabtype,
                 )
                 .all()
