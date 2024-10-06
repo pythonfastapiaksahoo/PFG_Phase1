@@ -1,11 +1,6 @@
-# convert into bytes:
-# check type
-# application/pdf, image/jpeg, image/png, or image/tiff
 import json
-import math
 from io import BytesIO
 
-import requests
 from azure.storage.blob import BlobServiceClient
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
@@ -13,100 +8,6 @@ from pypdf import PdfReader, PdfWriter
 from pfg_app import settings
 from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
-
-
-def check_file_exist(vendorAccountID, entityID, filename, file_path, bg_task, db):
-    """Check if the file exist, return==0 => file missing, return==1 => file
-    found :param file_path:str, File path :return:int."""
-
-    resp = requests.get(file_path, timeout=60)
-
-    if resp.status_code == 200:
-        file_exists_status = 1
-        file_exists_msg = "File Found"
-    else:
-        file_exists_status = 0
-        file_exists_msg = "File Not Found"
-
-    return file_exists_status, file_exists_msg
-
-
-def check_single_filetype(
-    vendorAccountID, entityID, filename, accepted_file_type, bg_task, db
-):
-    try:
-
-        extn = [(filename.lower().split(".")[-1])]
-        present_file_type = list(set(extn))
-        not_accepted = set(present_file_type) - set(accepted_file_type)
-        if len(not_accepted) == 0:
-            check_filetype_status = 1
-            check_filetype_msg = "Good to go"
-        else:
-            check_filetype_status = 0
-            check_filetype_msg = (
-                "Please check the uploaded file type, Accepted types: "
-                + str(accepted_file_type)
-            )
-
-    except Exception as e:
-        check_filetype_status = 0
-        check_filetype_msg = str(e)
-    return check_filetype_status, check_filetype_msg
-
-
-# 3. check file size:
-
-
-def ck_size_limit(
-    vendorAccountID, entityID, filename, file_path, file_size_accepted, bg_task, db
-):
-
-    fl_status = 1
-    try:
-
-        # skip if it is symbolic link
-        resp = requests.get(file_path, timeout=60)
-        if resp.status_code == 200:
-            size_bytes = len(resp.content)
-
-            if size_bytes == 0:
-                fl_status = fl_status * 0
-            elif size_bytes > 0:  # min os ok
-                # size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
-                i = int(math.floor(math.log(size_bytes, 1024)))
-
-                if i == 2:
-                    p = math.pow(1024, i)
-                    s = round(size_bytes / p, 2)
-
-                    if s >= file_size_accepted:
-                        fl_status = fl_status * 0
-                    else:
-                        fl_status = fl_status * 2
-                elif i < 2:
-                    fl_status = fl_status * 2
-            else:
-                fl_status = fl_status * 0
-        else:
-            fl_status == 0
-            fl_sts_msg = "File not found!: ck_size_limit"
-        if fl_status == 0:
-            fl_sts_msg = "Please check the file size. "
-            +"Uploaded flies should be grater than 0 Bytes and be less than 50 MB"
-
-        elif fl_status > 1:
-            fl_sts_msg = "Good to upload"
-            fl_status = 1
-        else:
-            fl_sts_msg = "Please check the file size"
-
-            fl_status = 0
-    except Exception as e:
-        fl_sts_msg = str(e)
-        fl_status = 0
-    return fl_status, fl_sts_msg
-
 
 accepted_inch = 10 * 72
 accepted_pixel_max = 8000

@@ -9,7 +9,6 @@ from typing import Any
 
 import pandas as pd
 import pytz as tz
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 from sqlalchemy import and_, case, or_
@@ -17,10 +16,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, Session, load_only
 
 import pfg_app.model as model
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
 from pfg_app.session.session import DB, SQLALCHEMY_DATABASE_URL, engine
 
-credential = DefaultAzureCredential()
 po_tag_map = {
     "PurchQty": "Quantity",
     "Name": "Description",
@@ -106,7 +106,7 @@ async def switch_data(u_id: int, inv_id: int, dataswitch: bool, db: Session):
 
                 result = custom_data_df.reset_index(drop=True).to_json(orient="records")
                 result = json.loads(result)
-                doc_custom_data = json.loads(result[0]["DocCustData"])
+                doc_custom_data = json.loads(result[0]["DocCustData"])  # type: ignore
 
                 custom_data = doc_custom_data["custom"]
                 result_dict_custom: dict[str, Any] = {}
@@ -316,7 +316,10 @@ async def update_entity(
                         + "';"
                     )
                     new_val_df = pd.read_sql(new_val, SQLALCHEMY_DATABASE_URL)
-                    new_val_df.columns = ["idDocumentTagDef_new", "TagLabel"]
+                    new_val_df.columns = [
+                        "idDocumentTagDef_new",
+                        "TagLabel",
+                    ]  # type: ignore
                     print("new_val_df : ", new_val_df)
 
                     old_val = (
@@ -327,7 +330,10 @@ async def update_entity(
                         + "';"
                     )
                     old_val_df = pd.read_sql(old_val, SQLALCHEMY_DATABASE_URL)
-                    old_val_df.columns = ["idDocumentTagDef_old", "TagLabel"]
+                    old_val_df.columns = [
+                        "idDocumentTagDef_old",
+                        "TagLabel",
+                    ]  # type: ignore
                     print("old_val_df : ", old_val_df)
                     # hii
 
@@ -365,7 +371,10 @@ async def update_entity(
                             + "';"
                         )
                         new_val_df = pd.read_sql(new_val, SQLALCHEMY_DATABASE_URL)
-                        new_val_df.columns = ["idDocumentTagDef_new", "TagLabel"]
+                        new_val_df.columns = [
+                            "idDocumentTagDef_new",
+                            "TagLabel",
+                        ]  # type: ignore
                         print("new_val_df : ", new_val_df)
 
                     # Merge both DataFrame and drop the null values
@@ -424,7 +433,10 @@ async def update_entity(
                         + "';"
                     )
                     newline_val_df = pd.read_sql(newline_val, SQLALCHEMY_DATABASE_URL)
-                    newline_val_df.columns = ["idDocumentLineItemTags_new", "TagName"]
+                    newline_val_df.columns = [
+                        "idDocumentLineItemTags_new",
+                        "TagName",
+                    ]  # type: ignore
                     print("newline_val_df : ", newline_val_df)
 
                     oldline_val = (
@@ -435,7 +447,10 @@ async def update_entity(
                         + "';"
                     )
                     oldline_val_df = pd.read_sql(oldline_val, SQLALCHEMY_DATABASE_URL)
-                    oldline_val_df.columns = ["idDocumentLineItemTags_old", "TagName"]
+                    oldline_val_df.columns = [
+                        "idDocumentLineItemTags_old",
+                        "TagName",
+                    ]  # type: ignore
                     print("oldline_val_df : ", oldline_val_df)
 
                     Difference1 = set(oldline_val_df["TagName"]) - set(
@@ -477,7 +492,7 @@ async def update_entity(
                         newline_val_df.columns = [
                             "idDocumentLineItemTags_new",
                             "TagName",
-                        ]
+                        ]  # type: ignore
                         print("newline_val_df : ", newline_val_df)
 
                     # Merge both DataFrame and drop the null values
@@ -1449,12 +1464,11 @@ async def readinvoicefilepath(u_id: int, inv_id: int, db: Session):
                     .one()
                 )
 
-                account_name = fr_data.ConnectionString.split("AccountName=")[1].split(
-                    ";AccountKey"
-                )[0]
-                account_url = f"https://{account_name}.blob.core.windows.net"
+                account_url = (
+                    f"https://{settings.storage_account_name}.blob.core.windows.net"
+                )
                 blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=credential
+                    account_url=account_url, credential=get_credential()
                 )
 
                 if invdat.supplierAccountID:

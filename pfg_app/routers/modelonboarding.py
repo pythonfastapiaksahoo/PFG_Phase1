@@ -2,18 +2,10 @@ import base64
 import json
 import os
 import traceback
-from datetime import datetime, timedelta
 from io import BytesIO
 from typing import Optional
 
-import requests
-from azure.identity import DefaultAzureCredential
-from azure.storage.blob import (
-    BlobServiceClient,
-    ContainerSasPermissions,
-    generate_blob_sas,
-    generate_container_sas,
-)
+from azure.storage.blob import BlobServiceClient
 from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
 from pdf2image import convert_from_bytes
 from sqlalchemy.orm import Session
@@ -22,16 +14,13 @@ import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
-from pfg_app.core.azure_fr import call_form_recognizer
+from pfg_app.core import azure_fr as core_fr
+from pfg_app.core.utils import get_credential
 from pfg_app.crud import ModelOnBoardCrud as crud
-from pfg_app.FROps import form_recognizer as fr
 from pfg_app.FROps import util as ut
 from pfg_app.logger_module import logger
 from pfg_app.schemas import InvoiceSchema as schema
 from pfg_app.session.session import get_db
-
-credential = DefaultAzureCredential()
-
 
 auth_handler = AuthHandler()
 
@@ -79,14 +68,11 @@ async def get_tagging_details(
         folder_path = request.headers.get("path")
         configs = getOcrParameters(1, db)
         container = configs.ContainerName
-        connection_string = configs.ConnectionString
         savelabels = "{}"
-        account_name = connection_string.split("AccountName=")[1].split(";AccountKey")[
-            0
-        ]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         container_client = blob_service_client.get_container_client(container)
         list_of_blobs = container_client.list_blobs(name_starts_with=folder_path)
@@ -157,13 +143,10 @@ async def get_tagging_details_labels_info(
         folder_path = request.headers.get("folderpath")
         configs = getOcrParameters(1, db)
         containername = configs.ContainerName
-        connection_string = configs.ConnectionString
-        account_name = connection_string.split("AccountName=")[1].split(";AccountKey")[
-            0
-        ]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         container_client = blob_service_client.get_container_client(containername)
         list_of_blobs = container_client.list_blobs(name_starts_with=folder_path)
@@ -193,16 +176,14 @@ async def save_fields_file(request: Request, db: Session = Depends(get_db)):
         body = await request.json()
         fields = body["fields"]
         documentId = body["documentId"]
-        connstr = body["connstr"]
         folderpath = body["folderpath"]
         container = body["container"]
         crud.updateFields(documentId, json.dumps(fields), db)
         blob_name = folderpath + "/" + "fields.json"
         json_string = json.dumps(fields)
-        account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         blobclient = blob_service_client.get_blob_client(container, blob=blob_name)
         blobclient.upload_blob(json_string, overwrite=True)
@@ -218,12 +199,12 @@ async def save_fields_file(request: Request, db: Session = Depends(get_db)):
 async def get_result(request: Request, container: str, db: Session = Depends(get_db)):
     try:
         filename = request.headers.get("filename")
-        connstr = request.headers.get("connstr")
-        frconfigs = getOcrParameters(1, db)
-        fr_endpoint = frconfigs.Endpoint
-        fr_key = frconfigs.Key1
-        storage = request.headers.get("account")
-        account_key = connstr.split("AccountKey=")[1].split(";EndpointSuffix")[0]
+        # connstr = request.headers.get("connstr")
+        # frconfigs = getOcrParameters(1, db)
+        # fr_endpoint = frconfigs.Endpoint
+        # fr_key = frconfigs.Key1
+        # storage = request.headers.get("account")
+        # account_key = connstr.split("AccountKey=")[1].split(";EndpointSuffix")[0]
         ext = os.path.splitext(filename)[1]
         content_type = ""
         if ext == ".jpg":
@@ -235,36 +216,36 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
         else:
             content_type = "application/pdf"
 
-        token = generate_blob_sas(
-            account_name=storage,
-            container_name=container,
-            blob_name=filename,
-            account_key=account_key,
-            permission=ContainerSasPermissions(
-                read=True, write=True, list=True, delete=True
-            ),
-            start=datetime.utcnow() - timedelta(hours=3),
-            expiry=datetime.utcnow() + timedelta(hours=3),
-            content_type=content_type,
-        )
+        # token = generate_blob_sas(
+        #     account_name=storage,
+        #     container_name=container,
+        #     blob_name=filename,
+        #     account_key=account_key,
+        #     permission=ContainerSasPermissions(
+        #         read=True, write=True, list=True, delete=True
+        #     ),
+        #     start=datetime.utcnow() - timedelta(hours=3),
+        #     expiry=datetime.utcnow() + timedelta(hours=3),
+        #     content_type=content_type,
+        # )
         file_url = (
             "https://"
-            + storage
+            + settings.storage_account_name
             + ".blob.core.windows.net/"
             + container
             + "/"
             + filename
-            + "?"
-            + token
+            # + "?"
+            # + token
         )
-        print(fr_endpoint)
-        url = f"{fr_endpoint}/formrecognizer/documentModels/\
-            prebuilt-layout:analyze?api-version=2023-07-31\
-                &stringIndexType=utf16CodeUnit&features=ocrHighResolution"
-        account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        # print(fr_endpoint)
+        # url = f"{fr_endpoint}/formrecognizer/documentModels/\
+        #     prebuilt-layout:analyze?api-version=2023-07-31\
+        #         &stringIndexType=utf16CodeUnit&features=ocrHighResolution"
+        # account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         blob_client = blob_service_client.get_blob_client(
             container, blob=filename + ".ocr.json"
@@ -274,14 +255,20 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
             json_result = json.loads(bdata)
             print("hi")
         else:
-            headers = {
-                "Content-Type": content_type,
-                "Ocp-Apim-Subscription-Key": fr_key,
-            }
+            # headers = {
+            #     "Content-Type": content_type,
+            #     "Ocp-Apim-Subscription-Key": fr_key,
+            # }
             blob_client1 = blob_service_client.get_blob_client(container, blob=filename)
             bdata = blob_client1.download_blob().readall()
             body = BytesIO(bdata)
-            json_result = fr.analyzeForm(url=url, headers=headers, body=body)
+            # json_result = fr.analyzeForm(url=url, headers=headers, body=body)
+            json_result = core_fr.analyze_form(
+                input_file=body,
+                endpoint=settings.form_recognizer_endpoint,
+                api_version=settings.api_version,
+                invoice_model_id="prebuilt-invoice",
+            )
             if (
                 "message" in json_result
                 and json_result["message"] == "failure to fetch"
@@ -333,7 +320,7 @@ async def get_test_result(
             fileurl = "data:image/jpeg;base64," + str(b64)
         body = f.getvalue()
         # json_result = fr.analyzeForm(url=url, headers=headers, body=body)
-        json_result = call_form_recognizer(
+        json_result = core_fr.analyze_form(
             body, settings.form_recognizer_endpoint, settings.api_version, modelid
         )
         if "message" in json_result and json_result["message"] == "failure to fetch":
@@ -455,27 +442,14 @@ async def create_result_compose_result(request: Request, db: Session = Depends(g
 async def compose_model(request: Request, db: Session = Depends(get_db)):
     try:
         req_body = await request.json()
-        modelIds = req_body["modelIds"]
-        modelName = req_body["modelName"]
-        frconfigs = getOcrParameters(1, db)
-        fr_endpoint = frconfigs.Endpoint
-        fr_key = frconfigs.Key1
-        compose_url = f"{fr_endpoint}/\
-            formrecognizer/documentModels:compose?api-version=2023-07-31"
-        body = {
-            "modelId": modelName,
-            "description": "",
-            "componentModels": [{"modelId": modelID} for modelID in modelIds],
-        }
-        headers = {
-            "Content-Type": "application/json",
-            "Ocp-Apim-Subscription-Key": fr_key,
-        }
-        requests.post(compose_url, data=json.dumps(body), headers=headers, timeout=60)
-        json_resp = fr.getmodel(fr_endpoint, modelName, headers)
-        if json_resp["result"] is None:
-            json_resp = fr.getmodel(fr_endpoint, modelName, headers)
-        return {"message": "success", "result": json_resp}
+        model_ids = req_body["modelIds"]
+        model_id = req_body["modelName"]
+
+        core_fr.compose_model(settings.form_recognizer_endpoint, model_id, model_ids)
+
+        json_response = core_fr.get_model(settings.form_recognizer_endpoint, model_id)
+
+        return {"message": "success", "result": json_response}
     except Exception as e:
         return {"message": f"exception {e}", "result": {}}
     finally:
@@ -487,19 +461,12 @@ async def compose_model(request: Request, db: Session = Depends(get_db)):
 async def train_model(request: Request, db: Session = Depends(get_db)):
     try:
         req_body = await request.json()
-        frconfigs = getOcrParameters(1, db)
-        fr_endpoint = frconfigs.Endpoint
-        fr_key = frconfigs.Key1
-        connstr = req_body["connstr"]
-        account_key = connstr.split("AccountKey=")[1].split(";EndpointSuffix")[0]
-        account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         folder_path = req_body["folderpath"]
         container = req_body["container"]
-        storage = req_body["account"]
         container_client = blob_service_client.get_container_client(container)
         list_of_blobs = container_client.list_blobs(name_starts_with=folder_path)
         blob_list = []
@@ -524,47 +491,22 @@ async def train_model(request: Request, db: Session = Depends(get_db)):
             return {"errorlist": error_list}
         if file_counter < 5:
             return {"error": "Training files should be more than 5"}
-        modelName = req_body["modelName"]
-        token = generate_container_sas(
-            storage,
-            container,
-            account_key=account_key,
-            permission=ContainerSasPermissions(
-                read=True, write=True, delete=True, list=True
-            ),
-            expiry=datetime.utcnow() + timedelta(hours=1),
-            start=datetime.utcnow() - timedelta(hours=1),
+        model_id = req_body["modelName"]
+        container_url = (
+            f"https://{settings.storage_account_name}.blob.core.windows.net/{container}"
         )
-        connection_url = f"https://{storage}.blob.core.windows.net/{container}?" + token
-        headers = {
-            "Content-Type": "application/json",
-            "Ocp-Apim-Subscription-Key": fr_key,
-        }
-        training_url = (
-            f"{fr_endpoint}/formrecognizer/documentModels:build?api-version=2023-07-31"
+
+        json_resp = core_fr.get_model(
+            settings.form_recognizer_endpoint, model_id=model_id
         )
-        body = {
-            "modelId": modelName,
-            "description": "",
-            "buildMode": "template",
-            "azureBlobSource": {"containerUrl": connection_url, "prefix": folder_path},
-        }
-        json_resp = fr.getmodel(fr_endpoint, modelName, headers)
-        print(json_resp)
         if json_resp["result"] is None:
-            post_resp = requests.post(
-                training_url, data=json.dumps(body), headers=headers, timeout=60
+
+            json_resp = core_fr.train_model(
+                settings.form_recognizer_endpoint,
+                model_id,
+                container_url,
+                prefix=folder_path,
             )
-            print(post_resp.status_code, post_resp.text)
-            if post_resp.status_code == 202:
-                get_url = post_resp.headers["operation-location"]
-                json_resp = fr.getModelResponseV3(get_url, headers)
-            else:
-                return {
-                    "message": "exception",
-                    "result": {},
-                    "post_resp": "Model Training Failed",
-                }
         return {"message": json_resp["message"], "result": json_resp["result"]}
     except Exception as e:
         print(traceback.format_exc())
@@ -605,42 +547,30 @@ async def delete_blob_container(blob: str, db: Session = Depends(get_db)):
 async def get_result_run_layout(folder: str, db: Session = Depends(get_db)):
     try:
         frconfigs = getOcrParameters(1, db)
-        fr_endpoint = frconfigs.Endpoint
-        connstr = frconfigs.ConnectionString
+        # fr_endpoint = frconfigs.Endpoint
+        # connstr = frconfigs.ConnectionString
         containername = frconfigs.ContainerName
-        fr_key = frconfigs.Key1
-        blob_service_client = BlobServiceClient.from_connection_string(connstr)
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=get_credential()
+        )
         container_client = blob_service_client.get_container_client(containername)
         folder_with_slash = f"{folder}/" if folder else ""
         for blob in container_client.list_blobs(name_starts_with=folder_with_slash):
             if blob.name.endswith((".pdf", ".png", ".jpg", ".jpeg")):
-                ext = os.path.splitext(blob.name)[1]
-                content_type = ""
-                if ext == ".jpg":
-                    content_type = "image/jpg"
-                elif ext == ".jpeg":
-                    content_type = "image/jpeg"
-                elif ext == ".png":
-                    content_type = "image/png"
-                else:
-                    content_type = "application/pdf"
-                url = f"{fr_endpoint}/\
-                    formrecognizer/documentModels/prebuilt-layout:analyze\
-                        ?api-version=2023-07-31\
-                            &stringIndexType=utf16CodeUnit&features=ocrHighResolution"
+
                 blob_client = blob_service_client.get_blob_client(
-                    containername, blob=blob.name + ".ocr.json"
-                )
-                headers = {
-                    "Content-Type": content_type,
-                    "Ocp-Apim-Subscription-Key": fr_key,
-                }
-                blob_client1 = blob_service_client.get_blob_client(
                     containername, blob=blob.name
                 )
-                bdata = blob_client1.download_blob().readall()
+                bdata = blob_client.download_blob().readall()
                 body = BytesIO(bdata)
-                json_result = fr.analyzeForm(url=url, headers=headers, body=body)
+                json_result = core_fr.analyze_form(
+                    body,
+                    settings.form_recognizer_endpoint,
+                    settings.api_version,
+                    "prebuilt-layout",
+                )
+
                 if (
                     "message" in json_result
                     and json_result["message"] == "failure to fetch"
@@ -648,7 +578,10 @@ async def get_result_run_layout(folder: str, db: Session = Depends(get_db)):
                     return {"message": "failure"}
                 # json_result = util.correctAngle(json_result)
                 json_string = json.dumps(json_result)
-                blob_client.upload_blob(json_string, overwrite=True)
+                blob_client_ocr = blob_service_client.get_blob_client(
+                    containername, blob=blob.name + ".ocr.json"
+                )
+                blob_client_ocr.upload_blob(json_string, overwrite=True)
         return {"message": "success"}
     except Exception as e:
         print(traceback.format_exc())
@@ -665,9 +598,11 @@ async def get_labels_pdf_image(
     try:
         ocr_engine = "Azure Form Recognizer 3.1"
         configs = getOcrParameters(1, db)
-        connstr = configs.ConnectionString
         containername = configs.ContainerName
-        blob_service_client = BlobServiceClient.from_connection_string(connstr)
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=get_credential()
+        )
         container_client = blob_service_client.get_container_client(containername)
         blob_client = container_client.get_blob_client(f"{folder}/fields.json")
         fields = json.loads(blob_client.download_blob().content_as_text())
@@ -686,11 +621,11 @@ async def get_labels_pdf_image(
             blob_client = container_client.get_blob_client(file)
             blob_data = blob_client.download_blob().readall()
 
-            if file.endswith((".png", ".jpg", ".jpeg")):
-                getlabel_image(blob_data, file, db, keys, ocr_engine)
+            # if file.endswith((".png", ".jpg", ".jpeg")):
+            #     getlabel_image(blob_data, file, db, keys, ocr_engine)
 
-            elif file.endswith(".pdf"):
-                getlabels(blob_data, file, db, keys, ocr_engine)
+            # elif file.endswith(".pdf"):
+            getlabels(blob_data, file, db, keys, ocr_engine)
 
             return "Success"
 
@@ -705,11 +640,11 @@ async def get_labels_pdf_image(
                 blob_client = container_client.get_blob_client(file)
                 blob_data = blob_client.download_blob().readall()
 
-                if file.endswith((".png", ".jpg", ".jpeg")):
-                    getlabel_image(blob_data, file, db, keys, ocr_engine)
+                # if file.endswith((".png", ".jpg", ".jpeg")):
+                #     getlabel_image(blob_data, file, db, keys, ocr_engine)
 
-                elif file.endswith(".pdf"):
-                    getlabels(blob_data, file, db, keys, ocr_engine)
+                # elif file.endswith(".pdf"):
+                getlabels(blob_data, file, db, keys, ocr_engine)
             return "Success"
 
     except Exception as ex:
@@ -717,11 +652,9 @@ async def get_labels_pdf_image(
         return "Exception"
 
 
-def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
+def getlabels(filedata, document_name, db, keyfields, ocr_engine):
     try:
-        configs = getOcrParameters(1, db)
-        fr_endpoint = configs.Endpoint
-        fr_key = configs.Key1
+        # configs = getOcrParameters(1, db)
         get_resp = {}
         folderpath = "/".join(document_name.split("/")[:2])
         language = (
@@ -729,46 +662,57 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
             .filter_by(FolderPath=folderpath)
             .first()
         )
-        try:
-            post_resp = requests.post(
-                f"{fr_endpoint}/\
-                    formrecognizer/documentModels/prebuilt-invoice:analyze\
-                        ?api-version=2023-07-31&locale={language[0]}&\
-                            stringIndexType=textElements&features=ocrHighResolution",
-                data=filedata,
-                headers={
-                    "Content-Type": "image/jpg",
-                    "Ocp-Apim-Subscription-Key": fr_key,
-                },
-                timeout=60,
-            )
-            if post_resp.status_code == 202:
-                get_url = post_resp.headers["operation-location"]
-                status = "notcomplete"
-                while status != "succeeded":
-                    get_resp = requests.get(
-                        get_url,
-                        headers={
-                            "Content-Type": "image/jpeg",
-                            "Ocp-Apim-Subscription-Key": fr_key,
-                        },
-                        timeout=60,
-                    )
-                    status = get_resp.json()["status"]
-        except Exception as ex:
-            print(ex)
+        # try:
+        #     post_resp = requests.post(
+        #         f"{fr_endpoint}/\
+        #             formrecognizer/documentModels/prebuilt-invoice:analyze\
+        #                 ?api-version=2023-07-31&locale={language[0]}&\
+        #                     stringIndexType=textElements&features=ocrHighResolution",
+        #         data=filedata,
+        #         headers={
+        #             "Content-Type": "image/jpg",
+        #             "Ocp-Apim-Subscription-Key": fr_key,
+        #         },
+        #         timeout=60,
+        #     )
+        #     if post_resp.status_code == 202:
+        #         get_url = post_resp.headers["operation-location"]
+        #         status = "notcomplete"
+        #         while status != "succeeded":
+        #             get_resp = requests.get(
+        #                 get_url,
+        #                 headers={
+        #                     "Content-Type": "image/jpeg",
+        #                     "Ocp-Apim-Subscription-Key": fr_key,
+        #                 },
+        #                 timeout=60,
+        #             )
+        #             status = get_resp.json()["status"]
+        # except Exception as ex:
+        #     print(ex)
 
-        fields = get_resp.json()["analyzeResult"]["documents"][0]["fields"]
-        pages = get_resp.json()["analyzeResult"]["pages"]
+        get_resp = core_fr.analyze_form(
+            filedata,
+            settings.form_recognizer_endpoint,
+            settings.api_version,
+            "prebuilt-invoice",
+            locale=language[0],
+        )
+
+        fields = get_resp["documents"][0]["fields"]
+        pages = get_resp["pages"]
         page_width = pages[0]["width"]
         page_height = pages[0]["height"]
         header = keyfields["header"]
         line = keyfields["line"]
         tags = {"VendorTaxId": "TRN", "CustomerTaxId": "CustomerTRN"}
         table_tags = {"TotalTax": "Tax"}
+
         labels_json = {
-            "$schema": "https://schema.cognitiveservices.azure.com/\
-                formrecognizer/2021-03-01/labels.json",
+            "$schema": (
+                "https://schema.cognitiveservices.azure.com/"
+                "formrecognizer/2021-03-01/labels.json"
+            ),
             "document": document_name.split("/")[-1],
             "labels": [],
             "labelingState": 2,
@@ -778,10 +722,10 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
         table_name = "tab_1"
         i = 0
         for f in fields:
-            if fields[f]["type"] == "array":
-                valueArray = fields[f]["valueArray"]
-                for v in valueArray:
-                    obj = v["valueObject"]
+            if fields[f]["value_type"] == "list":
+                value_list = fields[f]["value"]
+                for v in value_list:
+                    obj = v["value"]
                     for k, v in obj.items():
                         if k in table_tags.keys():
                             k = table_tags[k]
@@ -791,13 +735,13 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
                                 "key": None,
                                 "value": [
                                     {
-                                        "page": v["boundingRegions"][0]["pageNumber"],
+                                        "page": v["bounding_regions"][0]["page_number"],
                                         "text": v["content"],
-                                        "boundingBoxes": [
+                                        "boundingBoxes": [  # TODO - check this
                                             normalize_coordinates(
                                                 page_width,
                                                 page_height,
-                                                v["boundingRegions"][0]["polygon"],
+                                                v["bounding_regions"][0]["polygon"],
                                             )
                                         ],
                                     }
@@ -826,13 +770,13 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
                         "key": None,
                         "value": [
                             {
-                                "page": fields[f]["boundingRegions"][0]["pageNumber"],
+                                "page": fields[f]["bounding_regions"][0]["page_number"],
                                 "text": fields[f]["content"],
-                                "boundingBoxes": [
+                                "boundingBoxes": [  # TODO - check this
                                     normalize_coordinates(
                                         page_width,
                                         page_height,
-                                        fields[f]["boundingRegions"][0]["polygon"],
+                                        fields[f]["bounding_regions"][0]["polygon"],
                                     )
                                 ],
                             }
@@ -852,137 +796,146 @@ def getlabel_image(filedata, document_name, db, keyfields, ocr_engine):
         logger.error(traceback.format_exc())
 
 
-def getlabels(filedata, document_name, db, keyfields, ocr_engine):
-    try:
-        configs = getOcrParameters(1, db)
-        fr_endpoint = configs.Endpoint
-        fr_key = configs.Key1
-        get_resp = {}
-        folderpath = "/".join(document_name.split("/")[:2])
-        language = (
-            db.query(model.FRMetaData.temp_language)
-            .filter_by(FolderPath=folderpath)
-            .first()
-        )
-        try:
-            post_resp = requests.post(
-                f"{fr_endpoint}/formrecognizer/documentModels/prebuilt-invoice:analyze\
-                    ?api-version=2023-07-31&locale={language[0]}&\
-                        stringIndexType=textElements&features=ocrHighResolution",
-                data=filedata,
-                headers={
-                    "Content-Type": "application/pdf",
-                    "Ocp-Apim-Subscription-Key": fr_key,
-                },
-                timeout=60,
-            )
-            if post_resp.status_code == 202:
-                get_url = post_resp.headers["operation-location"]
-                status = "notcomplete"
-                while status != "succeeded":
-                    get_resp = requests.get(
-                        get_url,
-                        headers={
-                            "Content-Type": "application/json",
-                            "Ocp-Apim-Subscription-Key": fr_key,
-                        },
-                        timeout=60,
-                    )
-                    status = get_resp.json()["status"]
-        except Exception as ex:
-            print(f"Error in post request: {ex}")
+# def getlabels(filedata, document_name, db, keyfields, ocr_engine):
+#     try:
+#         configs = getOcrParameters(1, db)
+#         # fr_endpoint = configs.Endpoint
+#         # fr_key = configs.Key1
+#         get_resp = {}
+#         folderpath = "/".join(document_name.split("/")[:2])
+#         language = (
+#             db.query(model.FRMetaData.temp_language)
+#             .filter_by(FolderPath=folderpath)
+#             .first()
+#         )
+#         # try:
+#         #     post_resp = requests.post(
+#         #         f"{fr_endpoint}/formrecognizer/documentModels
+# /prebuilt-invoice:analyze\
+#         #             ?api-version=2023-07-31&locale={language[0]}&\
+#         #                 stringIndexType=textElements&features=ocrHighResolution",
+#         #         data=filedata,
+#         #         headers={
+#         #             "Content-Type": "application/pdf",
+#         #             "Ocp-Apim-Subscription-Key": fr_key,
+#         #         },
+#         #         timeout=60,
+#         #     )
+#         #     if post_resp.status_code == 202:
+#         #         get_url = post_resp.headers["operation-location"]
+#         #         status = "notcomplete"
+#         #         while status != "succeeded":
+#         #             get_resp = requests.get(
+#         #                 get_url,
+#         #                 headers={
+#         #                     "Content-Type": "application/json",
+#         #                     "Ocp-Apim-Subscription-Key": fr_key,
+#         #                 },
+#         #                 timeout=60,
+#         #             )
+#         #             status = get_resp.json()["status"]
+#         # except Exception as ex:
+#         #     print(f"Error in post request: {ex}")
 
-        fields = get_resp.json()["analyzeResult"]["documents"][0]["fields"]
-        pages = get_resp.json()["analyzeResult"]["pages"]
-        page_width = pages[0]["width"]
-        page_height = pages[0]["height"]
-        header = keyfields["header"]
-        line = keyfields["line"]
-        labels_json = {
-            "$schema": "https://schema.cognitiveservices.azure.com/\
-                formrecognizer/2021-03-01/labels.json",
-            "document": document_name.split("/")[-1],
-            "labels": [],
-            "labelingState": 2,
-        }
-        if ocr_engine in ["Azure Form Recognizer 3.0", "Azure Form Recognizer 3.1"]:
-            del labels_json["labelingState"]
-        table_name = "tab_1"
-        i = 0
-        tags = {"VendorTaxId": "TRN", "CustomerTaxId": "CustomerTRN"}
-        table_tags = {"TotalTax": "Tax"}
-        for f in fields:
-            if fields[f]["type"] == "array":
-                valueArray = fields[f]["valueArray"]
-                for v in valueArray:
-                    obj = v["valueObject"]
-                    for k, v in obj.items():
-                        if k in table_tags.keys():
-                            k = table_tags[k]
-                        if k in line:
-                            obj = {
-                                "label": table_name + "/" + str(i) + "/" + k,
-                                "key": None,
-                                "value": [
-                                    {
-                                        "page": v["boundingRegions"][0]["pageNumber"],
-                                        "text": v["content"],
-                                        "boundingBoxes": [
-                                            normalize_coordinates(
-                                                page_width,
-                                                page_height,
-                                                v["boundingRegions"][0]["polygon"],
-                                            )
-                                        ],
-                                    }
-                                ],
-                            }
-                            if ocr_engine in [
-                                "Azure Form Recognizer 3.0",
-                                "Azure Form Recognizer 3.1",
-                            ]:
-                                del obj["key"]
-                                obj["labelType"] = "Words"
-                            labels_json["labels"].append(obj)
-                    i = i + 1
-            if (
-                fields[f]["type"] == "string"
-                or fields[f]["type"] == "currency"
-                or fields[f]["type"] == "date"
-                or fields[f]["type"] == "address"
-            ):
-                label = f
-                if label in header:
-                    if f in tags.keys():
-                        label = tags[f]
-                    obj = {
-                        "label": label,
-                        "key": None,
-                        "value": [
-                            {
-                                "page": fields[f]["boundingRegions"][0]["pageNumber"],
-                                "text": fields[f]["content"],
-                                "boundingBoxes": [
-                                    normalize_coordinates(
-                                        page_width,
-                                        page_height,
-                                        fields[f]["boundingRegions"][0]["polygon"],
-                                    )
-                                ],
-                            }
-                        ],
-                    }
-                    if ocr_engine in [
-                        "Azure Form Recognizer 3.0",
-                        "Azure Form Recognizer 3.1",
-                    ]:
-                        del obj["key"]
-                        obj["labelType"] = "Words"
-                    labels_json["labels"].append(obj)
-        savelabelsfile(labels_json, document_name, db)
+#         get_resp = core_fr.analyze_form(
+#             filedata,
+#             settings.form_recognizer_endpoint,
+#             settings.api_version,
+#             "prebuilt-invoice",
+#             locale=language[0],
+#         )
 
-    except Exception as ex:
-        print(f"Error in getlabels: {ex}")
+#         fields = get_resp.json()["analyzeResult"]["documents"][0]["fields"]
+#         pages = get_resp.json()["analyzeResult"]["pages"]
+#         page_width = pages[0]["width"]
+#         page_height = pages[0]["height"]
+#         header = keyfields["header"]
+#         line = keyfields["line"]
+#         labels_json = {
+#             "$schema": "https://schema.cognitiveservices.azure.com/\
+#                 formrecognizer/2021-03-01/labels.json",
+#             "document": document_name.split("/")[-1],
+#             "labels": [],
+#             "labelingState": 2,
+#         }
+#         if ocr_engine in ["Azure Form Recognizer 3.0", "Azure Form Recognizer 3.1"]:
+#             del labels_json["labelingState"]
+#         table_name = "tab_1"
+#         i = 0
+#         tags = {"VendorTaxId": "TRN", "CustomerTaxId": "CustomerTRN"}
+#         table_tags = {"TotalTax": "Tax"}
+#         for f in fields:
+#             if fields[f]["type"] == "array":
+#                 valueArray = fields[f]["valueArray"]
+#                 for v in valueArray:
+#                     obj = v["valueObject"]
+#                     for k, v in obj.items():
+#                         if k in table_tags.keys():
+#                             k = table_tags[k]
+#                         if k in line:
+#                             obj = {
+#                                 "label": table_name + "/" + str(i) + "/" + k,
+#                                 "key": None,
+#                                 "value": [
+#                                     {
+#                                         "page": v["boundingRegions"][0]["pageNumber"],
+#                                         "text": v["content"],
+#                                         "boundingBoxes": [
+#                                             normalize_coordinates(
+#                                                 page_width,
+#                                                 page_height,
+#                                                 v["boundingRegions"][0]["polygon"],
+#                                             )
+#                                         ],
+#                                     }
+#                                 ],
+#                             }
+#                             if ocr_engine in [
+#                                 "Azure Form Recognizer 3.0",
+#                                 "Azure Form Recognizer 3.1",
+#                             ]:
+#                                 del obj["key"]
+#                                 obj["labelType"] = "Words"
+#                             labels_json["labels"].append(obj)
+#                     i = i + 1
+#             if (
+#                 fields[f]["type"] == "string"
+#                 or fields[f]["type"] == "currency"
+#                 or fields[f]["type"] == "date"
+#                 or fields[f]["type"] == "address"
+#             ):
+#                 label = f
+#                 if label in header:
+#                     if f in tags.keys():
+#                         label = tags[f]
+#                     obj = {
+#                         "label": label,
+#                         "key": None,
+#                         "value": [
+#                             {
+#                                 "page": fields[f]["boundingRegions"][0]["pageNumber"],
+#                                 "text": fields[f]["content"],
+#                                 "boundingBoxes": [
+#                                     normalize_coordinates(
+#                                         page_width,
+#                                         page_height,
+#                                         fields[f]["boundingRegions"][0]["polygon"],
+#                                     )
+#                                 ],
+#                             }
+#                         ],
+#                     }
+#                     if ocr_engine in [
+#                         "Azure Form Recognizer 3.0",
+#                         "Azure Form Recognizer 3.1",
+#                     ]:
+#                         del obj["key"]
+#                         obj["labelType"] = "Words"
+#                     labels_json["labels"].append(obj)
+#         savelabelsfile(labels_json, document_name, db)
+
+#     except Exception as ex:
+#         print(f"Error in getlabels: {ex}")
 
 
 def normalize_coordinates(page_width, page_height, polygon):
@@ -999,10 +952,12 @@ def normalize_coordinates(page_width, page_height, polygon):
 def savelabelsfile(json_string, filename, db):
     try:
         configs = getOcrParameters(1, db)
-        connstr = configs.ConnectionString
         containername = configs.ContainerName
-        blob_client_service = BlobServiceClient.from_connection_string(connstr)
-        blob_client = blob_client_service.get_blob_client(
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=get_credential()
+        )
+        blob_client = blob_service_client.get_blob_client(
             containername, blob=filename + ".labels.json"
         )
         json_string = json.dumps(json_string)
