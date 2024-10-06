@@ -5,7 +5,6 @@ import re
 import traceback
 from datetime import datetime, timedelta
 
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 from sqlalchemy import String, and_, case, cast, exists, func, or_
@@ -13,9 +12,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, load_only
 
 import pfg_app.model as model
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
 
-credential = DefaultAzureCredential()
 status = [
     "System Check In - Progress",
     "Processing Document",
@@ -768,12 +768,11 @@ async def read_invoice_file(u_id, inv_id, db):
                     .filter_by(idCustomer=1)
                     .one()
                 )
-                account_name = fr_data.ConnectionString.split("AccountName=")[1].split(
-                    ";AccountKey"
-                )[0]
-                account_url = f"https://{account_name}.blob.core.windows.net"
+                account_url = (
+                    f"https://{settings.storage_account_name}.blob.core.windows.net"
+                )
                 blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=credential
+                    account_url=account_url, credential=get_credential()
                 )
                 if invdat.supplierAccountID:
                     blob_client = blob_service_client.get_blob_client(

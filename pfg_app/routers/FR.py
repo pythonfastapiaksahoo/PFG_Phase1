@@ -5,15 +5,16 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 import pandas as pd
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 import pfg_app.model as model
+from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
+from pfg_app.core.utils import get_credential
 from pfg_app.crud import FRCrud as crud
 from pfg_app.FROps.model_validate import model_validate_final
 from pfg_app.FROps.reupload import reupload_file_azure
@@ -32,7 +33,6 @@ router = APIRouter(
 )
 
 temp_dir_obj = None
-credential = DefaultAzureCredential()
 
 
 # Checked - used in the frontend
@@ -146,11 +146,11 @@ async def update_metadata(
             del frmetadata["ServiceProviderName"]
         configs = getOcrParameters(1, db)
         containername = configs.ContainerName
-        connection_str = configs.ConnectionString
-        account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        # connection_str = configs.ConnectionString
+        # account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         container_client = blob_service_client.get_container_client(containername)
         list_of_blobs = container_client.list_blobs(name_starts_with=blb_fldr)
@@ -363,12 +363,9 @@ def model_validate(validateParas: schema.FrValidate, db: Session = Depends(get_d
     # jsonDb = TinyDB('db.json')
     # jsonDb.insert({"model_id": model_id, "data": data})
 
-    account_name = validateParas.cnx_str.split("AccountName=")[1].split(";AccountKey")[
-        0
-    ]
-    account_url = f"https://{account_name}.blob.core.windows.net"
+    account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
     blob_service_client = BlobServiceClient(
-        account_url=account_url, credential=credential
+        account_url=account_url, credential=get_credential()
     )
     container_client = blob_service_client.get_container_client(validateParas.cont_name)
     jso = container_client.get_blob_client("db.json").download_blob().readall()

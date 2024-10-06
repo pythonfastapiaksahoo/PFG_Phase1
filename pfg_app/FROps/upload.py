@@ -2,10 +2,11 @@ import math
 import os
 import traceback
 
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient, BlobServiceClient, PartialBatchErrorException
 
-credential = DefaultAzureCredential()
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
+
 fnl_upload_status = 0
 fnl_upload_msg = ""
 
@@ -15,10 +16,9 @@ fnl_upload_msg = ""
 def no_of_files(min_no, max_no, connection_str, containername, dir_path):
     local_upld_cnt = 0
     try:
-        account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         container_client = blob_service_client.get_container_client(containername)
         blob_list = container_client.list_blobs(name_starts_with=dir_path + "/")
@@ -61,10 +61,9 @@ def get_extn(st):
 
 def check_filetype(dir_path, connection_str, containername, accepted_file_type):
     try:
-        account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         container_client = blob_service_client.get_container_client(containername)
         blob_list = container_client.list_blobs(name_starts_with=dir_path + "/")
@@ -97,10 +96,9 @@ def ck_size_limit(fld_path, connection_str, containername, file_size_accepted):
     fl_sts_msg = ""
     fl_status = 1
     try:
-        account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         container_client = blob_service_client.get_container_client(containername)
         blob_list = container_client.list_blobs(name_starts_with=fld_path + "/")
@@ -145,10 +143,9 @@ def upload_blobs(cnt_str, cnt_nm, local_path, old_fld_name):
     upload_blobs_status = 0
     upload_blobs_msg = "Issue at upload_blobs"
     blob_fld_name = old_fld_name
-    account_name = cnt_str.split("AccountName=")[1].split(";AccountKey")[0]
-    account_url = f"https://{account_name}.blob.core.windows.net"
+    account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
     blob_service_client = BlobServiceClient(
-        account_url=account_url, credential=credential
+        account_url=account_url, credential=get_credential()
     )
     container_client = blob_service_client.get_container_client(cnt_nm)
     blob_list = container_client.list_blobs(name_starts_with=local_path + "/")
@@ -192,10 +189,9 @@ def upload_confirm(cnt_str, cnt_nm, blb_fldr):
 def del_blobs(cnt_str, cnt_nm, blob_prefix):
     del_cnt = 0
     try:
-        account_name = cnt_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         container_client = blob_service_client.get_container_client(cnt_nm)
 
