@@ -337,7 +337,7 @@ def runStatus(
                         try:
                             preBltFrdata, preBltFrdata_status = getFrData_MNF(rwOcrData)
 
-                            invoice_ID = push_frdata(
+                            invoId = push_frdata(
                                 preBltFrdata,
                                 999999,
                                 spltFileName,
@@ -360,7 +360,7 @@ def runStatus(
                             )
 
                             logger.info(
-                                f" Onboard vendor Pending: invoice_ID: {invoice_ID}"
+                                f" Onboard vendor Pending: invoice_ID: {invoId}"
                             )
                             status = "success"
 
@@ -771,7 +771,7 @@ def runStatus(
                     try:
                         preBltFrdata, preBltFrdata_status = getFrData_MNF(rwOcrData)
                         # 999999
-                        invoice_ID = push_frdata(
+                        invoId = push_frdata(
                             preBltFrdata,
                             999999,
                             spltFileName,
@@ -793,7 +793,7 @@ def runStatus(
                             db,
                         )
 
-                        logger.info(f" VendorUnidentified: invoice_ID: {invoice_ID}")
+                        logger.info(f" VendorUnidentified: invoice_ID: {invoId}")
                         status = "success"
 
                     except Exception as e:
@@ -1344,11 +1344,11 @@ def parse_labels(label_data, db, poNumber, modelID):
                 error_labels_tag_ids.append(label["tag"])
                 db_data["isError"] = 1
             db_data["ErrorDesc"] = label["status_message"]
-            if label["boundingRegions"]:
-                db_data["Xcord"] = label["boundingRegions"]["x"]
-                db_data["Ycord"] = label["boundingRegions"]["y"]
-                db_data["Width"] = label["boundingRegions"]["w"]
-                db_data["Height"] = label["boundingRegions"]["h"]
+            if label["bounding_regions"]:
+                db_data["Xcord"] = label["bounding_regions"]["x"]
+                db_data["Ycord"] = label["bounding_regions"]["y"]
+                db_data["Width"] = label["bounding_regions"]["w"]
+                db_data["Height"] = label["bounding_regions"]["h"]
             if label["tag"] in docLabelMap.keys():
                 doc_header[docLabelMap[label["tag"]]] = label["data"]["value"]
             data_to_add.append(db_data)
@@ -1373,11 +1373,11 @@ def parse_tabel(tabel_data, db, modelID):
                     error_labels_tag_ids.append(col["tag"])
                     db_data["isError"] = 1
                 db_data["ErrorDesc"] = col["status_message"]
-            if col["boundingRegions"]:
-                db_data["Xcord"] = col["boundingRegions"]["x"]
-                db_data["Ycord"] = col["boundingRegions"]["y"]
-                db_data["Width"] = col["boundingRegions"]["w"]
-                db_data["Height"] = col["boundingRegions"]["h"]
+            if col["bounding_regions"]:
+                db_data["Xcord"] = col["bounding_regions"]["x"]
+                db_data["Ycord"] = col["bounding_regions"]["y"]
+                db_data["Width"] = col["bounding_regions"]["w"]
+                db_data["Height"] = col["bounding_regions"]["h"]
             db_data["itemCode"] = col["row_count"]
             db_data["invoice_itemcode"] = col["row_count"]
             data_to_add.append(db_data)
