@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import traceback
@@ -381,17 +380,14 @@ def cln_amt(amt):
 
 
 def dataPrep_postprocess_prebuilt(input_data):
-    # save input_data to json file
-    # with open('input_data.json', 'w') as f1:
-    #     f1.write(json.dumps(input_data))
+    # Function to preprocess the prebuilt data
     all_pg_data = {}
-    # def dataPrep_postprocess(input_data):
     getData_headerPg = (
         {}
     )  # replace with pg_1['analyzeResult']['documents'][0]['fields']
 
     for pg_data in input_data:
-        # print(pg_data['analyzeResult']['documents'][0]['fields'].keys())
+
         pre_pg_data = pg_data["documents"][0]["fields"].copy()
 
         for tgs in pre_pg_data:
@@ -413,9 +409,7 @@ def dataPrep_postprocess_prebuilt(input_data):
 
 
 def getFrData_MNF(input_data):
-    # save input_data to json file
-    with open("input_data_MNF.json", "w") as f1:
-        f1.write(json.dumps(input_data))
+
     req_lt_prBlt = [
         "CustomerName",
         "InvoiceDate",
@@ -464,7 +458,7 @@ def getFrData_MNF(input_data):
 
                         sbTmpPrblt["prebuilt_confidence"] = cfd
                         sbTmpPrblt["custom_confidence"] = ""
-                        tmpPrBlt["boundingRegions"] = {}
+                        tmpPrBlt["bounding_regions"] = {}
 
                         if cfd > 90:
                             tmpPrBlt["status"] = 1
@@ -496,30 +490,28 @@ def getFrData_MNF(input_data):
         preBltFrdata["header"] = preBlt_headerDt
         PreTabDt = []
         if "Items" in pre_pg_data:
-            if "valueArray" in pre_pg_data["Items"]:
-                for prBtLn in range(len(pre_pg_data["Items"]["valueArray"])):
+            if "value" in pre_pg_data["Items"]:
+                for prBtLn in range(len(pre_pg_data["Items"]["value"])):
                     tmpRwLt = []
-                    if "valueObject" in pre_pg_data["Items"]["valueArray"][prBtLn]:
+                    if "value" in pre_pg_data["Items"]["value"][prBtLn]:
                         # row values:
 
-                        for vlObt in pre_pg_data["Items"]["valueArray"][prBtLn][
-                            "valueObject"
-                        ]:
+                        for vlObt in pre_pg_data["Items"]["value"][prBtLn]["value"]:
                             if vlObt in req_lt_prBlt_ln:
                                 if (
                                     "content"
-                                    in pre_pg_data["Items"]["valueArray"][prBtLn][
-                                        "valueObject"
-                                    ][vlObt]
+                                    in pre_pg_data["Items"]["value"][prBtLn]["value"][
+                                        vlObt
+                                    ]
                                 ):
                                     rwVls = {
                                         "tag": vlObt,
                                         "data": str(
-                                            pre_pg_data["Items"]["valueArray"][prBtLn][
-                                                "valueObject"
+                                            pre_pg_data["Items"]["value"][prBtLn][
+                                                "value"
                                             ][vlObt]["content"]
                                         ),
-                                        "boundingRegions": {},
+                                        "bounding_regions": {},
                                         "row_count": prBtLn + 1,
                                     }
                                     tmpRwLt.append(rwVls)
@@ -533,10 +525,6 @@ def getFrData_MNF(input_data):
     except Exception as e:
         logger.info(f"preBltFrdat Exception line 432: {str(e)}")
         preBltFrdata_status = 0
-
-    # save preBltFrdata to json file
-    with open("preBltFrdata.json", "w") as f1:
-        f1.write(json.dumps(preBltFrdata))
 
     return preBltFrdata, preBltFrdata_status
 
@@ -572,14 +560,14 @@ def dataPrep_postprocess_cust(input_data):
     )  # replace with pg_1['analyzeResult']['documents'][0]['fields']
     getData_TabPg = (
         []
-    )  # pg_1['analyzeResult']['documents'][0]['fields']['tab_1']['valueArray']
+    )  # pg_1['analyzeResult']['documents'][0]['fields']['tab_1']['value']
     cnt = 0
     for pg_data in input_data:
         cust_pg_data = pg_data["documents"][0]["fields"].copy()
         if "tab_1" in pg_data["documents"][0]["fields"].keys():
             cust_tab_pg_data = (
-                pg_data["documents"][0]["fields"]["tab_1"]["valueArray"].copy()
-                if "valueArray" in pg_data["documents"][0]["fields"]["tab_1"]
+                pg_data["documents"][0]["fields"]["tab_1"]["value"].copy()
+                if "value" in pg_data["documents"][0]["fields"]["tab_1"]
                 else []
             )
 
@@ -588,7 +576,7 @@ def dataPrep_postprocess_cust(input_data):
             getData_TabPg.append(pg_rw)
 
         for tgs in cust_pg_data:
-            if tgs not in ("tab_1", "tab_2", "tab_3", "tab_3"):
+            if tgs not in ("tab_1", "tab_2", "tab_3", "tab_3", "Items"):
                 if tgs in getData_headerPg.keys():
                     if "content" in cust_pg_data[tgs]:
                         if (getData_headerPg[tgs]["confidence"]) < (
@@ -600,14 +588,14 @@ def dataPrep_postprocess_cust(input_data):
 
     all_pg_data = input_data[0].copy()
     all_pg_data["documents"][0]["fields"] = getData_headerPg
-    # tb_dict = {'tab_1': {'type': 'array', 'valueArray': getData_TabPg}}
+    # tb_dict = {'tab_1': {'type': 'array', 'value': getData_TabPg}}
     # all_pg_data['documents'][0]['fields']['tab_1'] =}
     # all_pg_data['documents'][0]['fields']
     all_pg_data["documents"][0]["fields"]["tab_1"] = {
         "type": "array",
-        "valueArray": getData_TabPg,
+        "value": getData_TabPg,
     }
-    # ['tab_1']['valueArray']
+    # ['tab_1']['value']
     return all_pg_data
 
 
@@ -645,12 +633,6 @@ def postpro(
 
         cst_data = dataPrep_postprocess_cust(cst_data_)
         pre_data = dataPrep_postprocess_prebuilt(pre_data_)
-        # save pre_data to json file
-        with open("pre_data.json", "w") as f1:
-            f1.write(json.dumps(pre_data))
-
-        # with open('prebuilt_data.json', 'w') as f2:
-        #     f2.write(json.dumps(pre_data))
 
         mandatorylinetags = (
             db.query(model.FRMetaData.mandatorylinetags)
@@ -679,18 +661,29 @@ def postpro(
             cust_header.append(cst_hd)
             if "content" in cst_data["documents"][0]["fields"][cst_hd]:
                 if (
-                    "boundingRegions"
+                    "bounding_regions"
                     in cst_data["documents"][0]["fields"][cst_hd].keys()
                 ):
                     try:
-                        boundingRegions = polygon_to_bbox(
+                        bounding_regions = polygon_to_bbox(
                             cst_data["documents"][0]["fields"][cst_hd][
-                                "boundingRegions"
+                                "bounding_regions"
                             ]
                         )
                     except Exception:
                         logger.error(traceback.format_exc())
-                        boundingRegions = ""
+                        bx = {}
+                        bo_bx = [0, 0, 0, 0, 0, 0]
+                        x = str(bo_bx[0])
+                        y = str(bo_bx[1])
+                        w = str(bo_bx[2] - bo_bx[0])
+                        h = str(bo_bx[5] - bo_bx[1])
+                        bx["x"] = x
+                        bx["y"] = y
+                        bx["w"] = w
+                        bx["h"] = h
+
+                        bounding_regions = bx
                     cst_tmp_dict[cst_hd] = {
                         "content": cst_data["documents"][0]["fields"][cst_hd][
                             "content"
@@ -698,7 +691,7 @@ def postpro(
                         "confidence": cst_data["documents"][0]["fields"][cst_hd][
                             "confidence"
                         ],
-                        "boundingRegions": boundingRegions,
+                        "bounding_regions": bounding_regions,
                     }
                 else:
                     cst_tmp_dict[cst_hd] = {
@@ -706,7 +699,7 @@ def postpro(
                             "content"
                         ],
                         "confidence": 0,
-                        "boundingRegions": "",
+                        "bounding_regions": "",
                     }
 
         pre_tmp_dict = {}
@@ -724,9 +717,9 @@ def postpro(
                         if "confidence" in pre_data["documents"][0]["fields"][pre_hd]
                         else "0"
                     ),
-                    "boundingRegions": (
-                        pre_data["documents"][0]["fields"][pre_hd]["boundingRegions"]
-                        if "boundingRegions"
+                    "bounding_regions": (
+                        pre_data["documents"][0]["fields"][pre_hd]["bounding_regions"]
+                        if "bounding_regions"
                         in pre_data["documents"][0]["fields"][pre_hd]
                         else [0, 0, 0, 0, 0, 0]
                     ),
@@ -744,7 +737,7 @@ def postpro(
                     "prebuilt_confidence": "0",
                     "custom_confidence": "0",
                 },
-                "boundingRegions": {"x": "0", "y": "0", "w": "0", "h": "0"},
+                "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
                 "status": "0",
                 "status_message": "Prebuilt failed to extract",
             }
@@ -787,36 +780,36 @@ def postpro(
             if cust_oly == 1:
                 if "content" in cst_dict[hd_tags]:
                     tag_val = cst_dict[hd_tags]["content"]
-                if "boundingRegions" in cst_dict[hd_tags]:
-                    bounding_bx = cst_dict[hd_tags]["boundingRegions"]
+                if "bounding_regions" in cst_dict[hd_tags]:
+                    bounding_bx = cst_dict[hd_tags]["bounding_regions"]
             else:
 
                 if cst_conf < pre_conf:
                     if hd_tags == "VendorName":
                         if "content" in cst_dict[hd_tags]:
                             tag_val = cst_dict[hd_tags]["content"]
-                        if "boundingRegions" in cst_dict[hd_tags]:
-                            bounding_bx = cst_dict[hd_tags]["boundingRegions"]
+                        if "bounding_regions" in cst_dict[hd_tags]:
+                            bounding_bx = cst_dict[hd_tags]["bounding_regions"]
                     if (cst_conf + 0.2) > pre_conf:
                         if "content" in cst_dict[hd_tags]:
                             tag_val = cst_dict[hd_tags]["content"]
-                        if "boundingRegions" in cst_dict[hd_tags]:
-                            bounding_bx = cst_dict[hd_tags]["boundingRegions"]
+                        if "bounding_regions" in cst_dict[hd_tags]:
+                            bounding_bx = cst_dict[hd_tags]["bounding_regions"]
                     else:
                         if "content" in pre_dict[hd_tags]:
                             tag_val = pre_dict[hd_tags]["content"]
-                        if "boundingRegions" in pre_dict[hd_tags]:
-                            bounding_bx = pre_dict[hd_tags]["boundingRegions"]
+                        if "bounding_regions" in pre_dict[hd_tags]:
+                            bounding_bx = pre_dict[hd_tags]["bounding_regions"]
                 elif pre_conf < cst_conf:
                     if "content" in cst_dict[hd_tags]:
                         tag_val = cst_dict[hd_tags]["content"]
-                    if "boundingRegions" in cst_dict[hd_tags]:
-                        boundingRegions = cst_dict[hd_tags]["boundingRegions"]
+                    if "bounding_regions" in cst_dict[hd_tags]:
+                        bounding_regions = cst_dict[hd_tags]["bounding_regions"]
                 elif pre_conf == cst_conf:
                     if "content" in cst_dict[hd_tags]:
                         tag_val = cst_dict[hd_tags]["content"]
-                    if "boundingRegions" in cst_dict[hd_tags]:
-                        bounding_bx = cst_dict[hd_tags]["boundingRegions"]
+                    if "bounding_regions" in cst_dict[hd_tags]:
+                        bounding_bx = cst_dict[hd_tags]["bounding_regions"]
                 if (pre_conf < cst_conf) and (abs(pre_conf - cst_conf) > 0.3):
                     if (
                         pre_conf == "" and cst_conf < field_threshold
@@ -845,61 +838,62 @@ def postpro(
             bx["y"] = y
             bx["w"] = w
             bx["h"] = h
-            tmp_fr_headers["boundingRegions"] = bx
+            tmp_fr_headers["bounding_regions"] = bx
 
             tmp_fr_headers["status"] = tag_status
             tmp_fr_headers["status_message"] = status_message
             fr_headers.append(tmp_fr_headers)
         for ct_tag in cst_tag:
             tmp_fr_headers = {}
-            if "content" in cst_dict[ct_tag]:
-                if "confidence" in cst_dict[ct_tag]:
-                    # print("cst_dict[ct_tag]: ",cst_dict[ct_tag])
-                    cst_conf = float(cst_dict[ct_tag]["confidence"])
-                tag_val = cst_dict[ct_tag]["content"]
-                if "boundingRegions" in cst_dict[ct_tag]:
-                    bounding_bx = cst_dict[ct_tag]["boundingRegions"]
-                if cst_conf >= field_threshold:
-                    tag_status = 1
-                    status_message = "No OCR Issues Detected"
-                else:
-                    tag_status = 0
-                    status_message = (
-                        "Low Confidence Detected:" + str(cst_conf * 100) + "%."
-                    )
-                    ovrll_conf_ck = ovrll_conf_ck * 0
-                if ct_tag in ["InvoiceTotal", "SubTotal", "TotalTax"]:
-                    if isinstance(tb_cln_amt(cst_dict[ct_tag]["content"]), float):
+            if ct_tag != "Items":
+                if "content" in cst_dict[ct_tag]:
+                    if "confidence" in cst_dict[ct_tag]:
+                        # print("cst_dict[ct_tag]: ",cst_dict[ct_tag])
+                        cst_conf = float(cst_dict[ct_tag]["confidence"])
+                    tag_val = cst_dict[ct_tag]["content"]
+                    if "bounding_regions" in cst_dict[ct_tag]:
+                        bounding_bx = cst_dict[ct_tag]["bounding_regions"]
+                    if cst_conf >= field_threshold:
                         tag_status = 1
+                        status_message = "No OCR Issues Detected"
                     else:
                         tag_status = 0
-                        status_message = f"Invalid {ct_tag} Value"
-                tmp_fr_headers["tag"] = ct_tag
-                tmp_fr_headers["data"] = {
-                    "value": tag_val,
-                    "prebuilt_confidence": "",
-                    "custom_confidence": str(cst_conf),
-                }
-                bx = {}
-                if bounding_bx != "":
-                    bo_bx = bounding_bx
-                    x = str(bo_bx[0])
-                    y = str(bo_bx[1])
-                    w = str(bo_bx[2] - bo_bx[0])
-                    h = str(bo_bx[5] - bo_bx[1])
-                    bx["x"] = x
-                    bx["y"] = y
-                    bx["w"] = w
-                    bx["h"] = h
-                    tmp_fr_headers["boundingRegions"] = bx
-                    tmp_fr_headers["status"] = tag_status
-                    tmp_fr_headers["status_message"] = status_message
-                else:
-                    # tag_status = 0
-                    tmp_fr_headers["boundingRegions"] = bx
-                    tmp_fr_headers["status"] = tag_status
-                    tmp_fr_headers["status_message"] = status_message
-            fr_headers.append(tmp_fr_headers)
+                        status_message = (
+                            "Low Confidence Detected:" + str(cst_conf * 100) + "%."
+                        )
+                        ovrll_conf_ck = ovrll_conf_ck * 0
+                    if ct_tag in ["InvoiceTotal", "SubTotal", "TotalTax"]:
+                        if isinstance(tb_cln_amt(cst_dict[ct_tag]["content"]), float):
+                            tag_status = 1
+                        else:
+                            tag_status = 0
+                            status_message = f"Invalid {ct_tag} Value"
+                    tmp_fr_headers["tag"] = ct_tag
+                    tmp_fr_headers["data"] = {
+                        "value": tag_val,
+                        "prebuilt_confidence": "",
+                        "custom_confidence": str(cst_conf),
+                    }
+                    bx = {}
+                    if bounding_bx != "":
+                        bo_bx = bounding_bx
+                        x = str(bo_bx[0])
+                        y = str(bo_bx[1])
+                        w = str(bo_bx[2] - bo_bx[0])
+                        h = str(bo_bx[5] - bo_bx[1])
+                        bx["x"] = x
+                        bx["y"] = y
+                        bx["w"] = w
+                        bx["h"] = h
+                        tmp_fr_headers["bounding_regions"] = bx
+                        tmp_fr_headers["status"] = tag_status
+                        tmp_fr_headers["status_message"] = status_message
+                    else:
+                        # tag_status = 0
+                        tmp_fr_headers["bounding_regions"] = bx
+                        tmp_fr_headers["status"] = tag_status
+                        tmp_fr_headers["status_message"] = status_message
+                fr_headers.append(tmp_fr_headers)
         overall_status = ovrll_conf_ck
 
         # cst_data['analyzeResult']['documents'][0]
@@ -915,36 +909,28 @@ def postpro(
         # fields = cst_data['analyzeResult']['documents'][0]['fields']
         ignore_tags = ["SerialNo", "Item"]
         for tbs in tabs:
-            if "valueArray" in fields[tbs]:
-                for itm_no in range(len(fields[tbs]["valueArray"])):
+            if "value" in fields[tbs]:
+                for itm_no in range(len(fields[tbs]["value"])):
                     tmp_dict = {}
                     tmp_list = []
 
                     present_tab_header = []
-                    for ky in fields[tbs]["valueArray"][itm_no]["valueObject"]:
+                    for ky in fields[tbs]["value"][itm_no]["value"]:
 
                         if ky not in ignore_tags:
 
-                            if (
-                                fields[tbs]["valueArray"][itm_no]["valueObject"][ky]
-                                is None
-                            ):
+                            if fields[tbs]["value"][itm_no]["value"][ky] is None:
                                 tmp_dict["tag"] = ky
-                                if (
-                                    fields[tbs]["valueArray"][itm_no]["valueObject"][ky]
-                                    != ""
-                                ):
+                                if fields[tbs]["value"][itm_no]["value"][ky] != "":
                                     tmp_dict["data"] = ""
                                     bx = {}
                                     if (
-                                        "boundingRegions"
-                                        in fields[tbs]["valueArray"][itm_no][
-                                            "valueObject"
-                                        ][ky]
+                                        "bounding_regions"
+                                        in fields[tbs]["value"][itm_no]["value"][ky]
                                     ):
-                                        bo_bx = fields[tbs]["valueArray"][itm_no][
-                                            "valueObject"
-                                        ][ky]["boundingRegions"]
+                                        bo_bx = fields[tbs]["value"][itm_no]["value"][
+                                            ky
+                                        ]["bounding_regions"]
                                     else:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                     x = str(bo_bx[0])
@@ -955,34 +941,29 @@ def postpro(
                                     bx["y"] = y
                                     bx["w"] = w
                                     bx["h"] = h
-                                    tmp_dict["boundingRegions"] = bx
+                                    tmp_dict["bounding_regions"] = bx
                                     tmp_list.append(tmp_dict)
                                     tmp_dict = {}
                                 else:
                                     tmp_dict["data"] = ""
-                                    tmp_dict["boundingRegions"] = None
+                                    tmp_dict["bounding_regions"] = None
 
                             else:
                                 tmp_dict["tag"] = ky
-                                if (
-                                    fields[tbs]["valueArray"][itm_no]["valueObject"][ky]
-                                    != ""
-                                ):
+                                if fields[tbs]["value"][itm_no]["value"][ky] != "":
                                     tmp_dict["data"] = (
-                                        fields[tbs]["valueArray"][itm_no][
-                                            "valueObject"
-                                        ][ky]["content"]
+                                        fields[tbs]["value"][itm_no]["value"][ky][
+                                            "content"
+                                        ]
                                         if "content"
-                                        in fields[tbs]["valueArray"][itm_no][
-                                            "valueObject"
-                                        ][ky]
+                                        in fields[tbs]["value"][itm_no]["value"][ky]
                                         else ""
                                     )
                                     bx = {}
                                     try:
-                                        bo_bx = fields[tbs]["valueArray"][itm_no][
-                                            "valueObject"
-                                        ][ky]["boundingRegions"]
+                                        bo_bx = fields[tbs]["value"][itm_no]["value"][
+                                            ky
+                                        ]["bounding_regions"]
                                     except KeyError:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                     try:
@@ -1001,7 +982,7 @@ def postpro(
                                         bx["w"] = w
                                         bx["h"] = h
 
-                                    tmp_dict["boundingRegions"] = bx
+                                    tmp_dict["bounding_regions"] = bx
 
                                     if tmp_dict["tag"] in [
                                         "AmountExcTax",
@@ -1026,7 +1007,7 @@ def postpro(
                                             bx["y"] = "0"
                                             bx["w"] = "0"
                                             bx["h"] = "0"
-                                            tmp_dict["boundingRegions"] = bx
+                                            tmp_dict["bounding_regions"] = bx
                                             # tmp_list.append(tmp_dict)
                                             # tmp_dict = {}
                                     present_tab_header.append(tmp_dict["tag"])
@@ -1035,7 +1016,7 @@ def postpro(
 
                                 else:
                                     tmp_dict["data"] = ""
-                                    tmp_dict["boundingRegions"] = None
+                                    tmp_dict["bounding_regions"] = None
 
                     if tab_cal_unitprice_AmtExcTax == 1:
                         if "AmountExcTax" not in present_tab_header:
@@ -1046,7 +1027,7 @@ def postpro(
                             bx["y"] = "0"
                             bx["w"] = "0"
                             bx["h"] = "0"
-                            tmp_dict["boundingRegions"] = bx
+                            tmp_dict["bounding_regions"] = bx
                             tmp_dict["status"] = 0
                             tmp_dict["status_message"] = "Mandatory Value Missing"
 
@@ -1065,7 +1046,7 @@ def postpro(
                             bx["y"] = "0"
                             bx["w"] = "0"
                             bx["h"] = "0"
-                            tmp_dict["boundingRegions"] = bx
+                            tmp_dict["bounding_regions"] = bx
                             tmp_list.append(tmp_dict)
                             present_tab_header.append("Quantity")
                             tmp_dict = {}
@@ -1078,7 +1059,7 @@ def postpro(
                             bx["y"] = "0"
                             bx["w"] = "0"
                             bx["h"] = "0"
-                            tmp_dict["boundingRegions"] = bx
+                            tmp_dict["bounding_regions"] = bx
                             tmp_list.append(tmp_dict)
                             tmp_dict = {}
                             present_tab_header.append("UnitPrice")
@@ -1364,7 +1345,7 @@ def postpro(
                         itm_list[rw_ck_1][ech_tg][
                             "status_message"
                         ] = "Mandatory value not detected"
-                        itm_list[rw_ck_1][ech_tg]["boundingRegions"] = {
+                        itm_list[rw_ck_1][ech_tg]["bounding_regions"] = {
                             "x": "",
                             "y": "",
                             "w": "",
@@ -1781,7 +1762,7 @@ def postpro(
                             "prebuilt_confidence": "0.0",
                             "custom_confidence": "0.0",
                         },
-                        "boundingRegions": {"x": "", "y": "", "w": "", "h": ""},
+                        "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
                         "status": 1,
                         "status_message": "Calculated Value",
                     }
@@ -1801,7 +1782,7 @@ def postpro(
                     "prebuilt_confidence": "0.0",
                     "custom_confidence": "0.0",
                 },
-                "boundingRegions": {"x": "", "y": "", "w": "", "h": ""},
+                "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
                 "status": 0,
                 "status_message": "Mandatory Headers Missing",
             }
@@ -1864,6 +1845,7 @@ def postpro(
                             logger.info("confidence score:" + f"{_sPercent}")
                     except Exception as tr:
                         logger.error(f"postpro line 1425: {str(tr)} ")
+                        logger.error(f"API exception ocr.py: {traceback.format_exc()}")
                         sts_hdr_ck = 0
         else:
             sts_hdr_ck = 0
