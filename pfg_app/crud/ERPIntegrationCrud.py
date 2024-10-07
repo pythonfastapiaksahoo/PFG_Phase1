@@ -841,14 +841,25 @@ def processInvoiceVoucher(doc_id, db):
         if not voucherdata:
             raise HTTPException(status_code=404, detail="Voucherdata not found")
 
-        # # Call the function to get the base64 file
-        base64file = read_invoice_file(doc_id, db)
+        # Call the function to get the base64 file and content type
+        try:
+            file_data = read_invoice_file(doc_id, db)
+            if file_data and "result" in file_data:
+                base64file = file_data["result"]["filepath"]
 
-        # Decode to string
-        base64_string = base64file.decode("utf-8")
+                # If filepath is a bytes object, decode it
+                if isinstance(base64file, bytes):
+                    base64file = base64file.decode("utf-8")
+            else:
+                base64file = "Error retrieving file: No result found in file data."
+        except Exception as e:
+            # Catch any error from the read_invoice_file
+            # function and use the error message
+            base64file = f"Error retrieving file: {str(e)}"
+
         # Continue processing the file
-        print(f"Filepath (Base64 Encoded): {base64_string}")
-        # print(f"Content Type: {content_type}")
+        # print(f"Filepath (Base64 Encoded or Error): {base64file}")
+
         vdbu = voucherdata.Business_unit
         request_payload = {
             "RequestBody": [
@@ -942,7 +953,7 @@ def processInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": voucherdata.Vendor_ID,
                                     "IMAGE_NBR": 1,
                                     "FILE_NAME": voucherdata.File_Name,
-                                    "base64file": base64_string,
+                                    "base64file": base64file,
                                 }
                             ],
                         }
@@ -1102,12 +1113,12 @@ def updateInvoiceStatus(doc_id, db):
 def read_invoice_file(inv_id, db):
     try:
         content_type = "application/pdf"
-        max_size = 5 * 1024 * 1024  # 5 MB in bytes
+        # max_size = 5 * 1024 * 1024  # 5 MB in bytes
 
         # getting invoice data for later operation
         invdat = (
             db.query(model.Document)
-            .options(load_only("docPath", "supplierAccountID", "vendorAccountID"))
+            .options(load_only("docPath", "vendorAccountID"))
             .filter_by(idDocument=inv_id)
             .one()
         )
@@ -1133,26 +1144,21 @@ def read_invoice_file(inv_id, db):
                     account_url=account_url, credential=get_credential()
                 )
 
-                # Create the BlobClient
-                if invdat.supplierAccountID:
-                    blob_client = blob_service_client.get_blob_client(
-                        container=fr_data.ContainerName, blob=invdat.docPath
-                    )
                 if invdat.vendorAccountID:
                     blob_client = blob_service_client.get_blob_client(
                         container=fr_data.ContainerName, blob=invdat.docPath
                     )
 
                 # Get file properties to check the size
-                properties = blob_client.get_blob_properties()
-                file_size = properties.size
+                # properties = blob_client.get_blob_properties()
+                # file_size = properties.size
 
-                # Check if the file size is larger than 5 MB
-                if file_size > max_size:
-                    return {
-                        "result": "File size is more than 5MB",
-                        "file_size": f"{file_size / (1024 * 1024):.2f} MB",
-                    }
+                # # Check if the file size is larger than 5 MB
+                # if file_size > max_size:
+                #     return {
+                #         "result": "File size is more than 5MB",
+                #         "file_size": f"{file_size / (1024 * 1024):.2f} MB",
+                #     }
 
                 # If the file size is within the limit, proceed to read and encode
                 filetype = os.path.splitext(invdat.docPath)[1].lower()
@@ -1170,7 +1176,7 @@ def read_invoice_file(inv_id, db):
             except Exception:
                 invdat.docPath = ""
 
-        return invdat.docPath
+        return {"result": {"filepath": invdat.docPath, "content_type": content_type}}
 
     except Exception:
         logger.error(f"Error reading invoice file: {traceback.format_exc()}")
