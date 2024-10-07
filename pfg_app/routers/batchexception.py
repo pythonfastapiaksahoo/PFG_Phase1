@@ -19,17 +19,19 @@ router = APIRouter(
 
 @router.get("/batchprocesssummary")
 async def read_batchprocesssummary(
-    db: Session = Depends(get_db), user=Depends(get_user)
+    db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
 ):
-    return await crud.readbatchprocessdetails(user.id, db)
+    read_batchprocesssummary = await crud.readbatchprocessdetails(user.idUser, db)
+    return read_batchprocesssummary
 
 
 # main api to read line data
 @router.get("/testlinedata/invoiceid/{inv_id}")
 async def testlinedata(
-    inv_id: int, db: Session = Depends(get_db), user=Depends(get_user)
+    inv_id: int, db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
 ):
-    return await crud.readlinedatatest(user.id, inv_id, db)
+    lineData = await crud.readlinedatatest(int(user.idUser), inv_id, db)
+    return lineData
 
 
 @router.get("/pfg/pfgsync/{inv_id}")
