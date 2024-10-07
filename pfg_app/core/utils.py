@@ -103,9 +103,10 @@ def get_blob_securely(container_name, blob_path):
         # Get the credential
         credential = get_credential()
 
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         # Create a BlobServiceClient
         blob_service_client = BlobServiceClient(
-            account_url=settings.blob_account_url, credential=credential
+            account_url=account_url, credential=credential
         )
 
         # Create a BlobClient
