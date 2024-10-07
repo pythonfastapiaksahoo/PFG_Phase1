@@ -169,6 +169,31 @@ async def get_tagging_details_labels_info(
         db.close()
 
 
+@router.post("/save_labels_file")
+async def save_labels_file(request: Request):
+    try:
+        body = await request.json()
+        container = body["container"]
+        filename = body["filename"]
+        # connstr = body['connstr']
+        labeljson = body["labelJson"]
+        # savejson = body["saveJson"]
+        # idDocumentModel = body["documentId"]
+        # crud.updateLabels(idDocumentModel,savejson,db)
+        blob_name = filename + ".labels.json"
+        json_string = json.dumps(labeljson)
+        # account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=get_credential()
+        )
+        bloblient = blob_service_client.get_blob_client(container, blob=blob_name)
+        bloblient.upload_blob(json_string, overwrite=True)
+        return {"message": "success"}
+    except Exception as e:
+        return {"message": f"exception {e}"}
+
+
 # Checked - used in the frontend
 @router.post("/save_fields_file")
 async def save_fields_file(request: Request, db: Session = Depends(get_db)):
