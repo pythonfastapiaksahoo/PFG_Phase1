@@ -1,3 +1,7 @@
+from datetime import datetime
+
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Request
 
 # from dependency.dependencies import get_query_token, get_token_header
@@ -9,6 +13,7 @@ from opencensus.trace.propagation.trace_context_http_header_format import (
 )
 
 from pfg_app import settings
+from pfg_app.crud.ERPIntegrationCrud import newbulkupdateInvoiceStatus
 from pfg_app.logger_module import logger
 from pfg_app.routers import (  # maillistener,
     FR,
@@ -152,3 +157,23 @@ async def root():
 
     logger.info("Root endpoint was accessed -new change")
     return {"message": "Hello! This is IDP"}
+
+
+# Function to be scheduled
+def scheduled_task():
+    print(f"Task running at {datetime.now()}")
+    newbulkupdateInvoiceStatus()
+
+
+# Function to start the scheduler
+def start_scheduler():
+    scheduler = BackgroundScheduler()
+    # Schedule the task to run every day at 8:00 PM
+    scheduler.add_job(scheduled_task, CronTrigger(hour=20, minute=0))
+    scheduler.start()
+
+
+# Start the scheduler when the FastAPI app starts
+@app.on_event("startup")
+def startup_event():
+    start_scheduler()

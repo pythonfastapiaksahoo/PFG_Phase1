@@ -14,6 +14,7 @@ import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
+from pfg_app.session.session import get_db
 
 
 async def getDepartmentMaster(db):
@@ -843,23 +844,11 @@ def processInvoiceVoucher(doc_id, db):
         # # Call the function to get the base64 file
         base64file = read_invoice_file(doc_id, db)
 
-        # Check if the returned value contains an error
-        if "error" in base64file:
-            return Response(
-                status_code=500,
-                headers={
-                    "codeError": base64file["error"],
-                    "message": base64file["message"],
-                },
-            )
-
-        # If no error, process the file
-        filepath = base64file["filepath"]
-        content_type = base64file["content_type"]
-
+        # Decode to string
+        base64_string = base64file.decode("utf-8")
         # Continue processing the file
-        print(f"Filepath (Base64 Encoded): {filepath}")
-        print(f"Content Type: {content_type}")
+        print(f"Filepath (Base64 Encoded): {base64_string}")
+        # print(f"Content Type: {content_type}")
         vdbu = voucherdata.Business_unit
         request_payload = {
             "RequestBody": [
@@ -953,7 +942,7 @@ def processInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": voucherdata.Vendor_ID,
                                     "IMAGE_NBR": 1,
                                     "FILE_NAME": voucherdata.File_Name,
-                                    "base64file": "+MDYxCiUlRU9GCg==",
+                                    "base64file": base64_string,
                                 }
                             ],
                         }
@@ -1110,7 +1099,7 @@ def updateInvoiceStatus(doc_id, db):
     return invoice_status
 
 
-async def read_invoice_file(u_id, inv_id, db):
+def read_invoice_file(inv_id, db):
     try:
         content_type = "application/pdf"
         max_size = 5 * 1024 * 1024  # 5 MB in bytes
@@ -1181,7 +1170,7 @@ async def read_invoice_file(u_id, inv_id, db):
             except Exception:
                 invdat.docPath = ""
 
-        return {"result": {"filepath": invdat.docPath, "content_type": content_type}}
+        return invdat.docPath
 
     except Exception:
         logger.error(f"Error reading invoice file: {traceback.format_exc()}")
@@ -1297,8 +1286,9 @@ def bulkupdateInvoiceStatus(db):
     return invoice_status
 
 
-def newbulkupdateInvoiceStatus(db):
+def newbulkupdateInvoiceStatus():
     try:
+        db = next(get_db())
         # Batch size for processing
         batch_size = 100  # Define a reasonable batch size
 
@@ -1366,12 +1356,14 @@ def newbulkupdateInvoiceStatus(db):
                             # Skip updating if entry_status is "STG"
                             # because the status is already 7
                             continue
-                        elif entry_status == "NF":
-                            documentstatusid = 11
                         elif entry_status == "QCK":
-                            documentstatusid = 10
+                            documentstatusid = 27
+                        elif entry_status == "R":
+                            documentstatusid = 28
                         elif entry_status == "P":
-                            documentstatusid = 8
+                            documentstatusid = 29
+                        elif entry_status == "NF":
+                            documentstatusid = 30
 
                         # If there's a valid document status update,
                         # add it to the bulk update list
