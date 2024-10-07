@@ -364,6 +364,12 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.Vendor.idVendor == model.VendorAccount.vendorID,
                 isouter=True,
             )
+            .join(
+                model.DocumentStatus,
+                model.DocumentStatus.idDocumentstatus
+                == model.Document.documentStatusID,
+                isouter=True,
+            )
             .filter(
                 model.Document.idDocumentType == 3,
                 model.Document.vendorAccountID.isnot(None),
