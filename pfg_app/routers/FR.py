@@ -1,12 +1,15 @@
 import json
 import os
+import re
+import time
 import traceback
 from datetime import datetime
-from typing import Any, Dict, Optional
+from io import BytesIO
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from azure.storage.blob import BlobServiceClient
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -383,6 +386,33 @@ def model_validate(validateParas: schema.FrValidate, db: Session = Depends(get_d
         "model_updates": {"result": "Updated", "records": {"modelID": model_id}},
         "final_data": data,
     }
+
+
+@router.post("/uploadfolder")
+async def create_upload_files(
+    files: List[UploadFile] = File(...), db: Session = Depends(get_db)
+):
+    try:
+        ts = str(time.time())
+        dir_path = ts.replace(".", "_")
+        configs = getOcrParameters(1, db)
+        containername = configs.ContainerName
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=get_credential()
+        )
+        container_client = blob_service_client.get_container_client(containername)
+        for file in files:
+            content = await file.read()
+            file_location = f"{dir_path}/{re.sub('[^A-Za-z0-9.]+','',file.filename)}"
+            container_client.upload_blob(
+                name=file_location, data=BytesIO(content), overwrite=True
+            )
+        return {"filepath": dir_path}
+    except Exception as e:
+        print(e)
+        return {"filepath": ""}
 
 
 # Checked - used in the frontend
