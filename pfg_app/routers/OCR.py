@@ -125,15 +125,21 @@ def runStatus(
         )
         if fr_model_status == 1:
             # logger.info(f"StampDataList: {StampDataList}")
-            conn_params = {
-                "dbname": settings.db_name,
-                "user": settings.db_user,
-                "password": settings.db_password,
-                "host": settings.db_host,
-                "port": settings.db_port,
-            }
+            # conn_params: Dict[str, str] = {
+            #     "dbname": settings.db_name,
+            #     "user": settings.db_user,
+            #     "password": settings.db_password,
+            #     "host": settings.db_host,
+            #     "port": str(settings.db_port),
+            # }
 
-            conn = psycopg2.connect(**conn_params)
+            conn = psycopg2.connect(
+                dbname=settings.db_name,
+                user=settings.db_user,
+                password=settings.db_password,
+                host=settings.db_host,
+                port=str(settings.db_port),  # Ensure port is a string
+            )
             cursor = conn.cursor()
             cursor.execute(
                 'SELECT "idVendor","VendorName","Synonyms","Address" \
@@ -141,7 +147,10 @@ def runStatus(
             )
             rows = cursor.fetchall()
 
-            colnames = [desc[0] for desc in cursor.description]
+            if cursor.description is not None:
+                colnames = [desc[0] for desc in cursor.description]
+            else:
+                colnames = []  # Handle the case where cursor.description is None
             vendorName_df = pd.DataFrame(rows, columns=colnames)
             time.sleep(0.5)
             cursor = conn.cursor()

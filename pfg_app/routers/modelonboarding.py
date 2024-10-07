@@ -253,15 +253,19 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
         #     expiry=datetime.utcnow() + timedelta(hours=3),
         #     content_type=content_type,
         # )
-        file_url = (
-            "https://"
-            + settings.storage_account_name
-            + ".blob.core.windows.net/"
-            + container
-            + "/"
-            + filename
-            # + "?"
-            # + token
+        # file_url = (
+        #     "https://"
+        #     + settings.storage_account_name
+        #     + ".blob.core.windows.net/"
+        #     + container
+        #     + "/"
+        #     + filename
+        #     # + "?"
+        #     # + token
+        # )
+        # Generate the URL for the 'get_file' route from another router
+        file_url = request.url_for(
+            "get_blob_file", container_name=container, blob_path=filename
         )
         # print(fr_endpoint)
         # url = f"{fr_endpoint}/formrecognizer/documentModels/\

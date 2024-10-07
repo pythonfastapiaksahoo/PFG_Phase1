@@ -8,6 +8,7 @@ from azure.identity import (
     DefaultAzureCredential,
 )
 from azure.keyvault.secrets import SecretClient
+from azure.storage.blob import BlobServiceClient
 
 from pfg_app import settings
 from pfg_app.logger_module import logger
@@ -76,6 +77,53 @@ def get_credential(secret_name: Optional[str] = None):
 
     except AzureError as e:
         logger.error(f"Azure error occurred: {str(e)}")
+        raise
+
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {str(e)}")
+        raise
+
+
+def get_blob_securely(container_name, blob_path):
+    """Function to securely retrieve a blob from Azure Blob Storage.
+
+    Parameters:
+    ----------
+    container_name : str
+        Name of the container in Azure Blob Storage.
+    blob_path : str
+        Path to the blob in Azure Blob Storage.
+
+    Returns:
+    -------
+    Tuple containing the blob data and the content type.
+    """
+
+    try:
+        # Get the credential
+        credential = get_credential()
+
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=settings.blob_account_url, credential=credential
+        )
+
+        # Create a BlobClient
+        blob_client = blob_service_client.get_blob_client(
+            container=container_name, blob=blob_path
+        )
+        blob_properties = blob_client.get_blob_properties()
+        content_type = (
+            blob_properties.content_settings.content_type
+        )  # Get the Content-Type dynamically
+
+        # Download the blob data
+        blob_data = blob_client.download_blob().readall()
+
+        return blob_data, content_type
+
+    except AzureError as e:
+        logger.error(f"Error accessing Azure Blob Storage: {str(e)}")
         raise
 
     except Exception as e:
