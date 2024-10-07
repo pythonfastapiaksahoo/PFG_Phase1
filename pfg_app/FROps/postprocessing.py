@@ -229,6 +229,7 @@ def date_cnv(doc_date, date_format):
                 date_status = 0
                 req_date = doc_date
     except Exception as dt_ck_:
+        logger.error(f" {traceback.format_exc()}")
         logger.error(f"line 185 postprocessing: {str(dt_ck_)}")
         # print(str(dt_ck_))
         date_status = 0
@@ -284,6 +285,7 @@ def po_cvn(po_extracted, entityID):
     except Exception as po:
         # print("Purchase Order EXCEPTION: ",str(po))
         logger.error(f"Purchase Order EXCEPTION: {str(po)}")
+        logger.error(f" {traceback.format_exc()}")
 
     return formatted_po, po_status
 
@@ -291,6 +293,7 @@ def po_cvn(po_extracted, entityID):
 def tb_cln_amt(amt):
     # cln_amt_sts = 0  # TODO: Unused variable
     amt_cpy = amt
+    logger.info(f"cln_amt - amt: {amt}")
     # amt = amt.replace(',','.')
     try:
         if "," in amt:
@@ -298,6 +301,7 @@ def tb_cln_amt(amt):
                 amt = amt[:-3] + "." + amt[-2:]
     except Exception as at:
         logger.info(f"post pro line 247: {str(at)}")
+        logger.error(f" {traceback.format_exc()}")
         amt = amt_cpy
     try:
         inl = 1
@@ -318,6 +322,7 @@ def tb_cln_amt(amt):
         # cln_amt_sts = 1
 
     except Exception as e:
+        logger.error(f" {traceback.format_exc()}")
         sb_amt = amt
 
         logger.info(f"postpro line 269: {str(e)}")
@@ -326,24 +331,28 @@ def tb_cln_amt(amt):
     return sb_amt
 
 
-def polygon_to_bbox(polygon):
-    # Extract x and y coordinates from the polygon
-    x_coords = polygon[::2]  # x coordinates are at even indices
-    y_coords = polygon[1::2]  # y coordinates are at odd indices
+def getBBox(data):
+    try:
+        if isinstance(data, list):
+            data = data[0]
+            # # Extract x, y, width, height
+        polygon = data["polygon"]
+        x_values = [point["x"] for point in polygon]
+        y_values = [point["y"] for point in polygon]
+        x = round(min(x_values), 2)
+        y = round(min(y_values), 2)
+        w = str(round(max(x_values) - x, 2))
+        h = str(round(max(y_values) - y, 2))
+        x = str(x)
+        y = str(y)
 
-    # Calculate the bounding box
-    x_min = min(x_coords)
-    y_min = min(y_coords)
-    x_max = max(x_coords)
-    y_max = max(y_coords)
-
-    # Calculate width and height
-    width = x_max - x_min
-    height = y_max - y_min
-
-    # Return the bounding box dictionary
-    bbox = {"x": x_min, "y": y_min, "w": width, "h": height}
-    return bbox
+        logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
+    except Exception:
+        x = ""
+        y = ""
+        w = ""
+        h = ""
+    return {"x": x, "y": y, "w": w, "h": h}
 
 
 def cln_amt(amt):
@@ -524,6 +533,7 @@ def getFrData_MNF(input_data):
         preBltFrdata_status = 1
     except Exception as e:
         logger.info(f"preBltFrdat Exception line 432: {str(e)}")
+        logger.error(f" {traceback.format_exc()}")
         preBltFrdata_status = 0
 
     return preBltFrdata, preBltFrdata_status
@@ -665,23 +675,20 @@ def postpro(
                     in cst_data["documents"][0]["fields"][cst_hd].keys()
                 ):
                     try:
-                        bounding_regions = polygon_to_bbox(
+                        bounding_regions = getBBox(
                             cst_data["documents"][0]["fields"][cst_hd][
                                 "bounding_regions"
                             ]
                         )
+
                     except Exception:
                         logger.error(traceback.format_exc())
                         bx = {}
-                        bo_bx = [0, 0, 0, 0, 0, 0]
-                        x = str(bo_bx[0])
-                        y = str(bo_bx[1])
-                        w = str(bo_bx[2] - bo_bx[0])
-                        h = str(bo_bx[5] - bo_bx[1])
-                        bx["x"] = x
-                        bx["y"] = y
-                        bx["w"] = w
-                        bx["h"] = h
+
+                        bx["x"] = ""
+                        bx["y"] = ""
+                        bx["w"] = ""
+                        bx["h"] = ""
 
                         bounding_regions = bx
                     cst_tmp_dict[cst_hd] = {
@@ -828,16 +835,11 @@ def postpro(
                 "prebuilt_confidence": str(pre_conf),
                 "custom_confidence": str(cst_conf),
             }
-            bx = {}
-            bo_bx = bounding_bx
-            x = str(bo_bx[0])
-            y = str(bo_bx[1])
-            w = str(bo_bx[2] - bo_bx[0])
-            h = str(bo_bx[5] - bo_bx[1])
-            bx["x"] = x
-            bx["y"] = y
-            bx["w"] = w
-            bx["h"] = h
+            try:
+                bx = getBBox(bounding_bx)
+            except Exception:
+                logger.error(traceback.format_exc())
+                bx = {"x": "", "y": "", "w": "", "h": ""}
             tmp_fr_headers["bounding_regions"] = bx
 
             tmp_fr_headers["status"] = tag_status
@@ -874,22 +876,15 @@ def postpro(
                         "prebuilt_confidence": "",
                         "custom_confidence": str(cst_conf),
                     }
-                    bx = {}
+
                     if bounding_bx != "":
-                        bo_bx = bounding_bx
-                        x = str(bo_bx[0])
-                        y = str(bo_bx[1])
-                        w = str(bo_bx[2] - bo_bx[0])
-                        h = str(bo_bx[5] - bo_bx[1])
-                        bx["x"] = x
-                        bx["y"] = y
-                        bx["w"] = w
-                        bx["h"] = h
+                        bx = getBBox(bounding_bx)
                         tmp_fr_headers["bounding_regions"] = bx
                         tmp_fr_headers["status"] = tag_status
                         tmp_fr_headers["status_message"] = status_message
                     else:
                         # tag_status = 0
+                        bx = {"x": "", "y": "", "w": "", "h": ""}
                         tmp_fr_headers["bounding_regions"] = bx
                         tmp_fr_headers["status"] = tag_status
                         tmp_fr_headers["status_message"] = status_message
@@ -933,20 +928,19 @@ def postpro(
                                         ]["bounding_regions"]
                                     else:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
-                                    x = str(bo_bx[0])
-                                    y = str(bo_bx[1])
-                                    w = str(bo_bx[2] - bo_bx[0])
-                                    h = str(bo_bx[5] - bo_bx[1])
-                                    bx["x"] = x
-                                    bx["y"] = y
-                                    bx["w"] = w
-                                    bx["h"] = h
+                                    bx = getBBox(bo_bx)
+
                                     tmp_dict["bounding_regions"] = bx
                                     tmp_list.append(tmp_dict)
                                     tmp_dict = {}
                                 else:
                                     tmp_dict["data"] = ""
-                                    tmp_dict["bounding_regions"] = None
+                                    tmp_dict["bounding_regions"] = {
+                                        "x": "",
+                                        "y": "",
+                                        "w": "",
+                                        "h": "",
+                                    }
 
                             else:
                                 tmp_dict["tag"] = ky
@@ -968,19 +962,12 @@ def postpro(
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                     try:
                                         if isinstance(bo_bx[0], dict):
-                                            bx = polygon_to_bbox(bo_bx[0]["polygon"])
-                                            # bo_bx[0]['polygon']
+                                            bx = getBBox(bo_bx)
+
                                     except Exception:
                                         logger.error(traceback.format_exc())
                                         bo_bx = [0, 0, 0, 0, 0, 0]
-                                        x = str(bo_bx[0])
-                                        y = str(bo_bx[1])
-                                        w = str(bo_bx[2] - bo_bx[0])
-                                        h = str(bo_bx[5] - bo_bx[1])
-                                        bx["x"] = x
-                                        bx["y"] = y
-                                        bx["w"] = w
-                                        bx["h"] = h
+                                        bx = {"x": "", "y": "", "w": "", "h": ""}
 
                                     tmp_dict["bounding_regions"] = bx
 
@@ -1662,6 +1649,7 @@ def postpro(
 
                     except Exception as qw:
                         logger.error(f"vendor name exception: {str(qw)}")
+                        logger.error(f" {traceback.format_exc()}")
                         dt["header"][tg][
                             "status_message"
                         ] = "Vendor Name Mismatch with Master Data"
@@ -1770,6 +1758,7 @@ def postpro(
                     fr_data["header"].append(tmp)
         except Exception as e:
             logger.error(f"postpro line 1347: {str(e)}")
+            logger.error(f" {traceback.format_exc()}")
             # (str(e))
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
@@ -1821,7 +1810,8 @@ def postpro(
         fr_data = {}
         postprocess_status = 0
         postprocess_msg = str(e)
-        logger.error(f"postpro line 1451: {postprocess_msg}")
+        logger.error(f" {traceback.format_exc()}")
+        logger.error(f"postpro line 1833: {postprocess_msg}")
 
     try:
         sts_hdr_ck = 1
@@ -1844,13 +1834,14 @@ def postpro(
                             _sPercent = float(_s) * 100
                             logger.info("confidence score:" + f"{_sPercent}")
                     except Exception as tr:
-                        logger.error(f"postpro line 1425: {str(tr)} ")
-                        logger.error(f"API exception ocr.py: {traceback.format_exc()}")
+                        logger.error(f"postpro line 1856: {str(tr)} ")
+                        logger.error(f"postpro line 1856: {traceback.format_exc()}")
                         sts_hdr_ck = 0
         else:
             sts_hdr_ck = 0
 
     except Exception as qw:
         logger.error(f"postpro line 1431 exception: {qw} , {sts_hdr_ck}")
+        logger.error(f" {traceback.format_exc()}")
         sts_hdr_ck = 0
     return fr_data, postprocess_msg, postprocess_status, duplicate_status, sts_hdr_ck
