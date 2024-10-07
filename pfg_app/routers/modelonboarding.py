@@ -264,8 +264,10 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
         #     # + token
         # )
         # Generate the URL for the 'get_file' route from another router
-        file_url = request.url_for(
-            "get_blob_file", container_name=container, blob_path=filename
+        file_url = str(
+            request.url_for("get_blob_file").include_query_params(
+                container_name=container, blob_path=filename
+            )
         )
         # print(fr_endpoint)
         # url = f"{fr_endpoint}/formrecognizer/documentModels/\
