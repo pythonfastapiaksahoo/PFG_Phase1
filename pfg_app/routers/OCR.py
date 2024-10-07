@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import psycopg2
 import pytz as tz
-from fastapi import APIRouter, File, Form, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 from psycopg2 import extras
 from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -18,6 +18,8 @@ from sqlalchemy.orm import Load
 import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.auth import AuthHandler
+from pfg_app.azuread.auth import get_user
+from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.azure_fr import get_fr_data
 from pfg_app.FROps.pfg_trigger import (
     IntegratedvoucherData,
@@ -66,8 +68,13 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
+    user: AzureUser = Depends(get_user),
 ):
+
     try:
+        customerID = 1
+        userID = user.idUser
+        logger.info(f"userID: {userID}")
         """'file_path': blob_url, 'filename': blob_name, 'file_type':
         file_type, 'source': 'Azure Blob Storage', 'invoice_type':
         invoice_type."""
@@ -77,6 +84,7 @@ def runStatus(
             source: {source}, invoice_type: {invoice_type}"
         )
         db = next(get_db())
+
         containername = "invoicesplit-test"  # TODO move to settings
         subfolder_name = "DSD/splitInvo"  # TODO move to settings
         destination_container_name = "apinvoice-container"  # TODO move to settings
@@ -328,7 +336,7 @@ def runStatus(
                     vendorAccountID = str(vendorID)
                     poNumber = "nonPO"
                     VendoruserID = 1
-                    configs = getOcrParameters(1, db)
+                    configs = getOcrParameters(customerID, db)
                     metadata = getMetaData(vendorAccountID, db)
                     entityID = 1
                     modelData, modelDetails = getModelData(vendorAccountID, db)
@@ -346,7 +354,7 @@ def runStatus(
                                 vendorAccountID,
                                 "nonPO",
                                 spltFileName,
-                                1,
+                                userID,
                                 0,
                                 num_pages,
                                 source,
@@ -775,7 +783,7 @@ def runStatus(
                             preBltFrdata,
                             999999,
                             spltFileName,
-                            1,
+                            userID,
                             1,
                             0,
                             "nonPO",
@@ -857,7 +865,7 @@ def runStatus(
         status = "error: " + str(err)
 
     try:
-        pfg_sync(invoId, db)
+        pfg_sync(invoId, userID, db)
         logger.info("pfg_sync Done!")
     except Exception as Er:
         logger.info(f"Ocr.py SyncError: {Er}")
@@ -937,6 +945,7 @@ def getOcrParameters(customerID, db):
         return configs
     except Exception:
         logger.error(traceback.format_exc())
+        db.rollback()
         return Response(
             status_code=500, headers={"DB Error": "Failed to get OCR parameters"}
         )
@@ -1025,7 +1034,7 @@ def live_model_fn_1(generatorObj):
             )
         )
 
-        model_type = "prebuilt-invoice"
+        model_type = "prebuilt"
         # check from where this function is coming
         # (this is coming from core/azure_fr.py)
         pre_model_status, pre_model_msg, pre_data, pre_status = get_fr_data(
