@@ -115,31 +115,15 @@ async def read_paginate_doc_inv_list(
             ),
         }
         # Initial query setup
-        data_query = db.query(
-            model.Document,
-            doc_status,
-            model.DocumentSubStatus,
-            inv_choice[inv_type][0],
-            inv_choice[inv_type][1],
-        ).filter(model.Document.idDocumentType == 3)
-
-        # filters for query parameters
-        if ven_id:
-            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
-                vendorID=ven_id
-            )
-            data_query = data_query.filter(
-                model.Document.vendorAccountID.in_(sub_query)
-            )
-        # filter by status
-        if stat:
-            data_query = data_query.filter(
-                model.Document.documentStatusID == all_status[stat]
-            )
-
-        # Apply necessary joins and options
         data_query = (
-            data_query.options(
+            db.query(
+                model.Document,
+                doc_status,
+                model.DocumentSubStatus,
+                inv_choice[inv_type][0],
+                inv_choice[inv_type][1],
+            )
+            .options(
                 Load(model.Document).load_only(
                     "docheaderID",
                     "totalAmount",
@@ -164,11 +148,6 @@ async def read_paginate_doc_inv_list(
                 isouter=True,
             )
             .join(
-                model.DocumentHistoryLogs,
-                model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-                isouter=True,
-            )
-            .join(
                 model.VendorAccount,
                 model.VendorAccount.idVendorAccount == model.Document.vendorAccountID,
                 isouter=True,
@@ -178,14 +157,25 @@ async def read_paginate_doc_inv_list(
                 model.Vendor.idVendor == model.VendorAccount.vendorID,
                 isouter=True,
             )
-            .join(
-                model.DocumentStatus,
-                model.DocumentStatus.idDocumentstatus
-                == model.Document.documentStatusID,
-                isouter=True,
+            .filter(
+                model.Document.idDocumentType == 3,
+                model.Document.vendorAccountID.isnot(None),
             )
-            .filter(model.Document.vendorAccountID.isnot(None))
         )
+
+        # filters for query parameters
+        if ven_id:
+            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
+                vendorID=ven_id
+            )
+            data_query = data_query.filter(
+                model.Document.vendorAccountID.in_(sub_query)
+            )
+        # filter by status
+        if stat:
+            data_query = data_query.filter(
+                model.Document.documentStatusID == all_status[stat]
+            )
 
         if ven_status:
             if ven_status == "A":
@@ -331,33 +321,16 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
-        # Initial query setup for documents
-        data_query = db.query(
-            model.Document,
-            doc_status,
-            model.DocumentSubStatus,
-            inv_choice[inv_type][0],
-            inv_choice[inv_type][1],
-        ).filter(model.Document.idDocumentType == 3)
-
-        # Apply vendor ID filter if provided
-        if ven_id:
-            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
-                vendorID=ven_id
-            )
-            data_query = data_query.filter(
-                model.Document.vendorAccountID.in_(sub_query)
-            )
-
-        # Filter by status if provided
-        if stat:
-            data_query = data_query.filter(
-                model.Document.documentStatusID == all_status[stat]
-            )
-
-        # Apply necessary joins and options for fetching document data
+        # Initial query setup
         data_query = (
-            data_query.options(
+            db.query(
+                model.Document,
+                doc_status,
+                model.DocumentSubStatus,
+                inv_choice[inv_type][0],
+                inv_choice[inv_type][1],
+            )
+            .options(
                 Load(model.Document).load_only(
                     "docheaderID",
                     "totalAmount",
@@ -382,11 +355,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 isouter=True,
             )
             .join(
-                model.DocumentHistoryLogs,
-                model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-                isouter=True,
-            )
-            .join(
                 model.VendorAccount,
                 model.VendorAccount.idVendorAccount == model.Document.vendorAccountID,
                 isouter=True,
@@ -402,8 +370,26 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 == model.Document.documentStatusID,
                 isouter=True,
             )
-            .filter(model.Document.vendorAccountID.isnot(None))
+            .filter(
+                model.Document.idDocumentType == 3,
+                model.Document.vendorAccountID.isnot(None),
+            )
         )
+
+        # Apply vendor ID filter if provided
+        if ven_id:
+            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
+                vendorID=ven_id
+            )
+            data_query = data_query.filter(
+                model.Document.vendorAccountID.in_(sub_query)
+            )
+
+        # Filter by status if provided
+        if stat:
+            data_query = data_query.filter(
+                model.Document.documentStatusID == all_status[stat]
+            )
 
         # Apply vendor status filter if provided
         if ven_status:
