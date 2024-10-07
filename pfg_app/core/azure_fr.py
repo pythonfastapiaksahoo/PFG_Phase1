@@ -1,4 +1,5 @@
 import time
+import traceback
 
 from azure.ai.formrecognizer import (
     DocumentAnalysisClient,
@@ -131,7 +132,7 @@ def copy_model(
 
 
 def call_form_recognizer(
-    input_file, endpoint, api_version, invoice_model_id="prebuilt-invoice"
+    input_file, endpoint, api_version, invoice_model_id="prebuilt-invoice", locale="en"
 ):
 
     # Create a custom retry policy
@@ -150,14 +151,81 @@ def call_form_recognizer(
         retry_policy=custom_retry_policy,
     )
 
-    # # if model_type is custom, then we use the inv_model_id to get the data
-    # # else we use the prebuilt-invoice model
-    # inv_model_id = "prebuilt-invoice" if model_type == "prebuilt" else inv_model_id
-
     poller = document_analysis_client.begin_analyze_document(
-        model_id=invoice_model_id, document=input_file
+        model_id=invoice_model_id, document=input_file, locale=locale
     )
 
     result = poller.result().to_dict()
 
     return result
+
+
+def analyze_form(
+    input_file, endpoint, api_version, invoice_model_id="prebuilt-invoice", locale="en"
+):
+    try:
+        # call the call_form_recognizer function
+        result = call_form_recognizer(
+            input_file, endpoint, api_version, invoice_model_id, locale
+        )
+        return result
+    except Exception:
+        logger.error(f"Error in Form Recognizer: analyzeForm {traceback.format_exc()}")
+        return {"message": "failure to fetch"}
+
+
+def train_model(endpoint, model_id, blob_container_url, prefix):
+    try:
+        # Initialize the Form Recognizer client
+        document_model_admin_client = DocumentModelAdministrationClient(
+            endpoint, get_credential()
+        )
+
+        poller = document_model_admin_client.begin_build_document_model(
+            build_mode="template",
+            model_id=model_id,
+            blob_container_url=blob_container_url,
+            description=f"Model for {model_id}",
+            prefix=prefix,
+        )
+
+        model = poller.result().to_dict()
+
+        return {"message": "success", "result": model}
+
+    except Exception:
+        logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
+        return {"message": "error", "result": None}
+
+
+def compose_model(endpoint, model_id, model_ids):
+
+    # Initialize the Form Recognizer client
+    document_model_admin_client = DocumentModelAdministrationClient(
+        endpoint, get_credential()
+    )
+
+    poller = document_model_admin_client.begin_compose_document_model(
+        component_model_ids=model_ids,
+        model_id=model_id,
+        description=f"Composed model for {model_id}",
+    )
+
+    model = poller.result().to_dict()
+
+    return model
+
+
+def get_model(endpoint, model_id):
+    try:
+        # Initialize the Form Recognizer client
+        document_model_admin_client = DocumentModelAdministrationClient(
+            endpoint, get_credential()
+        )
+
+        model = document_model_admin_client.get_document_model(model_id=model_id)
+
+        return {"message": "success", "result": model.result().to_dict()}
+    except Exception:
+        logger.error(f"Error in Form Recognizer: get_model {traceback.format_exc()}")
+        return {"message": "error", "result": None}

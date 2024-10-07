@@ -1,5 +1,7 @@
 import concurrent.futures
+import json
 import time
+from datetime import date, datetime
 from io import BytesIO
 
 from azure.storage.blob import BlobServiceClient
@@ -161,8 +163,9 @@ def splitDoc(
             try:
                 result = future.result()
                 output_data.append(result)
+
             except Exception as e:
-                print(f"Error processing a page: {e}")
+                logger.error(f"Error processing a page: {e}")
 
     # # Get the list of Invoice IDs from the Form Recognizer results
     # # TODO continue this refactor later
@@ -172,6 +175,21 @@ def splitDoc(
     pageInvoDate = {}
 
     pageInvoDate = {}
+
+    def serialize_dates(item):
+        if isinstance(item, dict):
+            return {k: serialize_dates(v) for k, v in item.items()}
+        elif isinstance(item, list):
+            return [serialize_dates(i) for i in item]
+        elif isinstance(item, (datetime, date)):
+            return item.isoformat()
+        else:
+            return item
+
+    data_serialized = serialize_dates(output_data)
+    with open("data.json", "w") as f:
+        json.dump(data_serialized, f, indent=4)
+
     try:
         for i in range(len(output_data)):
             pageInvoDate[i + 1] = output_data[i]["documents"][0]["fields"]["InvoiceId"][
@@ -218,7 +236,11 @@ def splitDoc(
         prbtHeaderspg = {}
         for pb in preDt:
             # logger.info(f"line 297: {preDt[pb]}")
-            if "type" in preDt[pb] and preDt[pb]["type"] != "array":
+            if (
+                "value_type" in preDt[pb]
+                and preDt[pb]["value_type"] != "array"
+                and pb != "Items"
+            ):
                 prbtHeaderspg[pb] = [
                     preDt[pb]["content"],
                     round(float(preDt[pb]["confidence"]) * 100, 2),

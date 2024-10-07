@@ -5,7 +5,6 @@ import re
 import traceback
 from datetime import datetime, timedelta
 
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 from sqlalchemy import String, and_, case, cast, exists, func, or_
@@ -13,9 +12,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, load_only
 
 import pfg_app.model as model
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
 
-credential = DefaultAzureCredential()
 status = [
     "System Check In - Progress",
     "Processing Document",
@@ -115,31 +115,15 @@ async def read_paginate_doc_inv_list(
             ),
         }
         # Initial query setup
-        data_query = db.query(
-            model.Document,
-            doc_status,
-            model.DocumentSubStatus,
-            inv_choice[inv_type][0],
-            inv_choice[inv_type][1],
-        ).filter(model.Document.idDocumentType == 3)
-
-        # filters for query parameters
-        if ven_id:
-            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
-                vendorID=ven_id
-            )
-            data_query = data_query.filter(
-                model.Document.vendorAccountID.in_(sub_query)
-            )
-        # filter by status
-        if stat:
-            data_query = data_query.filter(
-                model.Document.documentStatusID == all_status[stat]
-            )
-
-        # Apply necessary joins and options
         data_query = (
-            data_query.options(
+            db.query(
+                model.Document,
+                doc_status,
+                model.DocumentSubStatus,
+                inv_choice[inv_type][0],
+                inv_choice[inv_type][1],
+            )
+            .options(
                 Load(model.Document).load_only(
                     "docheaderID",
                     "totalAmount",
@@ -164,11 +148,6 @@ async def read_paginate_doc_inv_list(
                 isouter=True,
             )
             .join(
-                model.DocumentHistoryLogs,
-                model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-                isouter=True,
-            )
-            .join(
                 model.VendorAccount,
                 model.VendorAccount.idVendorAccount == model.Document.vendorAccountID,
                 isouter=True,
@@ -178,14 +157,25 @@ async def read_paginate_doc_inv_list(
                 model.Vendor.idVendor == model.VendorAccount.vendorID,
                 isouter=True,
             )
-            .join(
-                model.DocumentStatus,
-                model.DocumentStatus.idDocumentstatus
-                == model.Document.documentStatusID,
-                isouter=True,
+            .filter(
+                model.Document.idDocumentType == 3,
+                model.Document.vendorAccountID.isnot(None),
             )
-            .filter(model.Document.vendorAccountID.isnot(None))
         )
+
+        # filters for query parameters
+        if ven_id:
+            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
+                vendorID=ven_id
+            )
+            data_query = data_query.filter(
+                model.Document.vendorAccountID.in_(sub_query)
+            )
+        # filter by status
+        if stat:
+            data_query = data_query.filter(
+                model.Document.documentStatusID == all_status[stat]
+            )
 
         if ven_status:
             if ven_status == "A":
@@ -331,33 +321,16 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
-        # Initial query setup for documents
-        data_query = db.query(
-            model.Document,
-            doc_status,
-            model.DocumentSubStatus,
-            inv_choice[inv_type][0],
-            inv_choice[inv_type][1],
-        ).filter(model.Document.idDocumentType == 3)
-
-        # Apply vendor ID filter if provided
-        if ven_id:
-            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
-                vendorID=ven_id
-            )
-            data_query = data_query.filter(
-                model.Document.vendorAccountID.in_(sub_query)
-            )
-
-        # Filter by status if provided
-        if stat:
-            data_query = data_query.filter(
-                model.Document.documentStatusID == all_status[stat]
-            )
-
-        # Apply necessary joins and options for fetching document data
+        # Initial query setup
         data_query = (
-            data_query.options(
+            db.query(
+                model.Document,
+                doc_status,
+                model.DocumentSubStatus,
+                inv_choice[inv_type][0],
+                inv_choice[inv_type][1],
+            )
+            .options(
                 Load(model.Document).load_only(
                     "docheaderID",
                     "totalAmount",
@@ -382,11 +355,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 isouter=True,
             )
             .join(
-                model.DocumentHistoryLogs,
-                model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-                isouter=True,
-            )
-            .join(
                 model.VendorAccount,
                 model.VendorAccount.idVendorAccount == model.Document.vendorAccountID,
                 isouter=True,
@@ -396,14 +364,26 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.Vendor.idVendor == model.VendorAccount.vendorID,
                 isouter=True,
             )
-            .join(
-                model.DocumentStatus,
-                model.DocumentStatus.idDocumentstatus
-                == model.Document.documentStatusID,
-                isouter=True,
+            .filter(
+                model.Document.idDocumentType == 3,
+                model.Document.vendorAccountID.isnot(None),
             )
-            .filter(model.Document.vendorAccountID.isnot(None))
         )
+
+        # Apply vendor ID filter if provided
+        if ven_id:
+            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
+                vendorID=ven_id
+            )
+            data_query = data_query.filter(
+                model.Document.vendorAccountID.in_(sub_query)
+            )
+
+        # Filter by status if provided
+        if stat:
+            data_query = data_query.filter(
+                model.Document.documentStatusID == all_status[stat]
+            )
 
         # Apply vendor status filter if provided
         if ven_status:
@@ -768,12 +748,11 @@ async def read_invoice_file(u_id, inv_id, db):
                     .filter_by(idCustomer=1)
                     .one()
                 )
-                account_name = fr_data.ConnectionString.split("AccountName=")[1].split(
-                    ";AccountKey"
-                )[0]
-                account_url = f"https://{account_name}.blob.core.windows.net"
+                account_url = (
+                    f"https://{settings.storage_account_name}.blob.core.windows.net"
+                )
                 blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=credential
+                    account_url=account_url, credential=get_credential()
                 )
                 if invdat.supplierAccountID:
                     blob_client = blob_service_client.get_blob_client(

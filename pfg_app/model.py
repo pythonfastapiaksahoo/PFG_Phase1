@@ -640,7 +640,6 @@ class VoucherData(Base):
 
 
 class NonintegratedStores(Base):
-
     __table__ = Table(
         "nonintegrated_stores", Base.metadata, autoload=True, autoload_with=engine
     )

@@ -4,7 +4,6 @@ import os
 import traceback
 
 import requests
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi import HTTPException, Response
 from sqlalchemy import func
@@ -13,9 +12,8 @@ from sqlalchemy.orm import load_only
 
 import pfg_app.model as model
 from pfg_app import settings
+from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
-
-credential = DefaultAzureCredential()
 
 
 async def getDepartmentMaster(db):
@@ -1139,12 +1137,11 @@ async def read_invoice_file(u_id, inv_id, db):
                     .filter_by(idCustomer=1)
                     .one()
                 )
-                account_name = fr_data.ConnectionString.split("AccountName=")[1].split(
-                    ";AccountKey"
-                )[0]
-                account_url = f"https://{account_name}.blob.core.windows.net"
+                account_url = (
+                    f"https://{settings.storage_account_name}.blob.core.windows.net"
+                )
                 blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=credential
+                    account_url=account_url, credential=get_credential()
                 )
 
                 # Create the BlobClient

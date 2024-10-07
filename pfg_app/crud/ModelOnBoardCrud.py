@@ -5,14 +5,13 @@ import traceback
 from datetime import datetime
 
 import pytz as tz
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 
 import pfg_app.model as model
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
-
-credential = DefaultAzureCredential()
 
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
@@ -72,12 +71,10 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
             .all()
         )
         configs = getOcrParameters(1, db)
-        connstr = configs.ConnectionString
         containerName = configs.ContainerName
-        account_name = connstr.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         bdata = (
             blob_service_client.get_blob_client(
@@ -488,20 +485,15 @@ def parseTabelValue(labelValue):
 async def delete_blob_container(db, blob):
     try:
         all_blobs = [blob, blob + ".labels.json", blob + ".ocr.json"]
-        con_str = (
-            db.query(model.FRConfiguration.ConnectionString)
-            .filter_by(idFrConfigurations=1)
-            .scalar()
-        )
+
         ContainerName = (
             db.query(model.FRConfiguration.ContainerName)
             .filter_by(idFrConfigurations=1)
             .scalar()
         )
-        account_name = con_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         for bl in all_blobs:
             blob_client = blob_service_client.get_blob_client(
