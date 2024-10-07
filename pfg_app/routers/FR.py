@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import re
@@ -10,7 +11,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from azure.storage.blob import BlobServiceClient
 from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 import pfg_app.model as model
@@ -70,19 +71,39 @@ async def getAccuracy(type: str, name: str, db: Session = Depends(get_db)):
     return await crud.getActualAccuracy(type, name, db)
 
 
-# Checked - used in the frontend
 @router.get("/getAccuracyByEntity/{type}")
 async def getAccuracyByEntity(type: str, db: Session = Depends(get_db)):
-    for f in os.listdir():
-        if os.path.isfile(f) and f.endswith("AccuracyReport.xlsx"):
-            os.unlink(f)
+    # Fetch the data from the database using the CRUD function
     data = await crud.getActualAccuracyByEntity(type, db)
-    pd.DataFrame(data).to_excel("EntityLevelAccuracyReport.xlsx")
-    return FileResponse(
-        path="EntityLevelAccuracyReport.xlsx",
-        filename="EntityLevelAccuracyReport.xlsx",
-        media_type="application/vnd.ms-excel",
-    )
+
+    # Check if the data is a Response object (indicating an error)
+    if isinstance(data, Response):
+        return data  # If it's a Response object, return it directly
+
+    # If data is a valid dictionary, proceed with processing
+    records = []
+    for entity, metrics in data.items():
+        for key, value in metrics.items():
+            records.append((key, value))  # Append a tuple with the key and its value
+
+    # Create an Excel file in memory using a BytesIO buffer
+    output = io.BytesIO()
+    df = pd.DataFrame(records, columns=["Metric", "Details"])  # Set the column names
+    df.to_excel(output, index=False, engine="openpyxl")  # Write DataFrame to Excel
+
+    # Rewind the buffer to the beginning so it can be read
+    output.seek(0)
+
+    # Return the file as a streaming response with correct headers
+    headers = {
+        "Content-Disposition": (
+            'attachment; filename="EntityLevelAccuracyReport.xlsx"'
+        ),
+        "Content-Type": (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    }
+    return StreamingResponse(output, headers=headers)
 
 
 # Checked - used in the frontend
