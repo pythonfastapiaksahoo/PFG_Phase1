@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
 
 from pfg_app.azuread.auth import get_user
+from pfg_app.azuread.schemas import AzureUser
 from pfg_app.crud import InvoiceCrud as crud
 from pfg_app.schemas import InvoiceSchema as schema
 from pfg_app.session.session import get_db
@@ -11,7 +12,6 @@ from pfg_app.session.session import get_db
 router = APIRouter(
     prefix="/apiv1.1/Invoice",
     tags=["invoice"],
-    dependencies=[Depends(get_user)],
     responses={404: {"description": "Not found"}},
 )
 
@@ -34,7 +34,7 @@ async def read_paginate_doc_inv_list_item(
     uni_search: Optional[str] = None,
     ven_status: Optional[str] = None,
     db: Session = Depends(get_db),
-    user=Depends(get_user),
+    user: AzureUser = Depends(get_user),
 ):
     """API route to retrieve a paginated list of invoice documents with various
     filters.
@@ -85,7 +85,7 @@ async def read_paginate_doc_inv_list_with_ln_item(
     uni_search: Optional[str] = None,
     ven_status: Optional[str] = None,
     db: Session = Depends(get_db),
-    user=Depends(get_user),
+    user: AzureUser = Depends(get_user),
 ):
     """API route to retrieve a paginated list of invoice documents with line
     item details as optional when filters is applied  .
@@ -113,16 +113,18 @@ async def read_paginate_doc_inv_list_with_ln_item(
     -------
     List of invoice documents filtered and paginated according to the input parameters.
     """
-    return await crud.read_paginate_doc_inv_list_with_ln_items(
+
+    docs = await crud.read_paginate_doc_inv_list_with_ln_items(
         user.idUser, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
     )
+    return docs
 
 
 @router.get("/readInvoiceData/idInvoice/{inv_id}")
 async def read_invoice_data_item(
     inv_id: int,
     db: Session = Depends(get_db),
-    user=Depends(get_user),
+    user: AzureUser = Depends(get_user),
 ):
     """API route to retrieve invoice document data based on the invoice ID.
 
@@ -147,7 +149,7 @@ async def read_invoice_data_item(
 # Checked - used in the frontend
 @router.get("/readInvoiceFile/idInvoice/{inv_id}")
 async def read_invoice_file_item(
-    inv_id: int, db: Session = Depends(get_db), user=Depends(get_user)
+    inv_id: int, db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
 ):
     """API route to retrieve invoice file data based on the invoice ID.
 
@@ -173,7 +175,7 @@ async def update_invoice_data_item(
     inv_id: int,
     inv_data: List[schema.UpdateServiceAccountInvoiceData],
     db: Session = Depends(get_db),
-    user=Depends(get_user),
+    user: AzureUser = Depends(get_user),
 ):
     """API route to update invoice document data.
 
@@ -207,7 +209,7 @@ async def update_column_pos_item(
     bg_task: BackgroundTasks,
     col_data: List[schema.columnpos],
     db: Session = Depends(get_db),
-    user=Depends(get_user),
+    user: AzureUser = Depends(get_user),
 ):
     """API route to update the column position for a user.
 
@@ -235,7 +237,9 @@ async def update_column_pos_item(
 
 # Checked - used in the frontend
 @router.get("/readColumnPos")
-async def read_column_pos_item(db: Session = Depends(get_db), user=Depends(get_user)):
+async def read_column_pos_item(
+    db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
+):
     """API route to read the column position for a user.
 
     Parameters:
@@ -258,7 +262,7 @@ async def read_column_pos_item(db: Session = Depends(get_db), user=Depends(get_u
 # Checked - used in the frontend
 @router.get("/get_stamp_data_new/{inv_id}")
 async def new_get_stamp_data_fields(
-    inv_id: int, db: Session = Depends(get_db), user=Depends(get_user)
+    inv_id: int, db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
 ):
     """API route to retrieve stamp data fields based on the document ID.
 
@@ -286,7 +290,7 @@ async def new_update_stamp_data(
     inv_id: int,
     update_data: List[schema.UpdateStampData],
     db: Session = Depends(get_db),
-    user=Depends(get_user),
+    user: AzureUser = Depends(get_user),
 ):
     """API route to update stamp data fields for a given document.
 
