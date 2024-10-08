@@ -40,5 +40,5 @@ async def pfgsyncflw(
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
 ):
-    overall_status = pfg_sync(inv_id, user, db)
+    overall_status = pfg_sync(inv_id, user.idUser, db)
     return overall_status

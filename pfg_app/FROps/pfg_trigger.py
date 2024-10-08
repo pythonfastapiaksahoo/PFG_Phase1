@@ -6,7 +6,6 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import pfg_app.model as model
-from pfg_app.azuread.schemas import AzureUser
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
 from pfg_app.crud.InvoiceCrud import update_docHistory
 from pfg_app.logger_module import logger
@@ -333,9 +332,9 @@ def nonIntegratedVoucherData(inv_id, db: Session):
     db.commit()
 
 
-def pfg_sync(docID, user: AzureUser, db: Session):
+def pfg_sync(docID, userID, db: Session):
     logger.info("start on the pfg_sync func()")
-    userID = user.idUser
+
     docModel = (
         db.query(model.Document.documentModelID)
         .filter(model.Document.idDocument == docID)
