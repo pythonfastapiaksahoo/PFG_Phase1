@@ -5,6 +5,7 @@ from azure.ai.formrecognizer import (
     DocumentAnalysisClient,
     DocumentModelAdministrationClient,
 )
+from azure.core.exceptions import ResourceNotFoundError
 from azure.core.pipeline.policies import RetryPolicy
 
 from pfg_app.core.utils import get_credential
@@ -180,7 +181,7 @@ def train_model(endpoint, model_id, blob_container_url, prefix):
         document_model_admin_client = DocumentModelAdministrationClient(
             endpoint, get_credential()
         )
-
+        #
         poller = document_model_admin_client.begin_build_document_model(
             build_mode="template",
             model_id=model_id,
@@ -195,7 +196,7 @@ def train_model(endpoint, model_id, blob_container_url, prefix):
 
     except Exception:
         logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
-        return {"message": "error", "result": None}
+        return {"message": f"error {traceback.format_exc()}", "result": None}
 
 
 def compose_model(endpoint, model_id, model_ids):
@@ -225,7 +226,16 @@ def get_model(endpoint, model_id):
 
         model = document_model_admin_client.get_document_model(model_id=model_id)
 
-        return {"message": "success", "result": model.result().to_dict()}
+        return {"message": "success", "result": model}
+    # Capture specific ResourceNotFoundError
+    except ResourceNotFoundError as e:
+        logger.error(f"Model not found: {model_id}. Error details: {str(e)}")
+        return {"message": "error", "result": None, "details": "Model not found"}
+
     except Exception:
         logger.error(f"Error in Form Recognizer: get_model {traceback.format_exc()}")
-        return {"message": "error", "result": None}
+        return {
+            "message": "error",
+            "result": None,
+            "details": f"Error in Form Recognizer {traceback.format_exc()}",
+        }

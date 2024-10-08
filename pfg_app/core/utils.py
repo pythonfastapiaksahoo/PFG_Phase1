@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from azure.core.credentials import AzureKeyCredential
@@ -9,7 +9,11 @@ from azure.identity import (
     DefaultAzureCredential,
 )
 from azure.keyvault.secrets import SecretClient
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import (
+    AccountSasPermissions,
+    BlobServiceClient,
+    generate_container_sas,
+)
 
 from pfg_app import settings
 from pfg_app.logger_module import logger
@@ -146,3 +150,33 @@ def convert_dates(obj):
         # If obj is a date, convert to ISO string
         return obj.isoformat()
     return obj
+
+
+def get_container_sas(container_name: str):
+    """Function to generate a shared access signature (SAS) token for a
+    container in Azure Blob Storage."""
+
+    account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+
+    # Create a BlobServiceClient
+    blob_service_client = BlobServiceClient(
+        account_url=account_url, credential=get_credential()
+    )
+    # Get the user delegation key using the managed identity
+    user_delegation_key = blob_service_client.get_user_delegation_key(
+        key_start_time=datetime.utcnow(),
+        key_expiry_time=datetime.utcnow()
+        + timedelta(hours=1),  # Set appropriate expiry time
+    )
+
+    # Generate SAS for the container using the user delegation key
+    sas_token = generate_container_sas(
+        account_name=blob_service_client.account_name,
+        container_name=container_name,
+        user_delegation_key=user_delegation_key,
+        permission=AccountSasPermissions(
+            read=True, write=True, list=True
+        ),  # Set appropriate permissions
+        expiry=datetime.utcnow() + timedelta(hours=1),  # Set appropriate expiry time
+    )
+    return sas_token

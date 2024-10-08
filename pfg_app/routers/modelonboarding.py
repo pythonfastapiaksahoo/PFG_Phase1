@@ -2,9 +2,11 @@ import base64
 import json
 import os
 import traceback
+from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
+import pytz
 from azure.storage.blob import BlobServiceClient
 from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
 from pdf2image import convert_from_bytes
@@ -15,11 +17,12 @@ from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
 from pfg_app.core import azure_fr as core_fr
-from pfg_app.core.utils import convert_dates, get_credential
+from pfg_app.core.utils import convert_dates, get_container_sas, get_credential
 from pfg_app.crud import ModelOnBoardCrud as crud
 from pfg_app.FROps import util as ut
 from pfg_app.logger_module import logger
 from pfg_app.schemas import InvoiceSchema as schema
+from pfg_app.schemas.modelOnboarding import ModelTrainSchema
 from pfg_app.session.session import get_db
 
 auth_handler = AuthHandler()
@@ -221,7 +224,9 @@ async def save_fields_file(request: Request, db: Session = Depends(get_db)):
 
 # Checked - used in the frontend
 @router.get("/get_analyze_result/{container}")
-async def get_result(request: Request, container: str, db: Session = Depends(get_db)):
+async def get_result(
+    request: Request, container: str, db: Session = Depends(get_db)
+):  #
     try:
         filename = request.headers.get("filename")
         # connstr = request.headers.get("connstr")
@@ -284,7 +289,31 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
         if blob_client.exists():
             bdata = blob_client.download_blob().readall()
             json_result = json.loads(bdata)
-            print("hi")
+
+            # Check if the JSON result is of old Format , if not convert it
+            #  to old format
+            if "status" not in json_result:
+                # This is the new format, convert it to the old format
+                # Get the current time in UTC
+                utc_timezone = pytz.utc
+                current_time_utc = datetime.now(utc_timezone)
+
+                # Format the time in ISO 8601 format, similar to your example
+                timestamp = current_time_utc.isoformat()
+
+                # Example old_structure using dynamic time zone-aware timestamps
+                old_structure = {
+                    "status": "succeeded",
+                    "createdDateTime": timestamp,  # Current timestamp in UTC
+                    "lastUpdatedDateTime": timestamp,  # Current timestamp in UTC
+                    "analyzeResult": json_result,  # Your transformed data
+                }
+
+                json_string = json.dumps(old_structure)
+                blob_client.upload_blob(json_string, overwrite=True)
+            else:
+                json_string = json.dumps(json_result)
+
         else:
             # headers = {
             #     "Content-Type": content_type,
@@ -311,15 +340,33 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
                     "content_type": "",
                 }
             # json_result = util.correctAngle(json_result)
-            # save the result in the file
-            # with open("data.json", "w") as f:
-            #     json.dump(json_result, f)
 
-            json_string = json.dumps(convert_dates(json_result))
+            date_corrected_json = convert_dates(json_result)
+
+            # Save the JSON result to the Azure Blob Storage after wrapping it in the
+            # required old top-level fields like status, createdDateTime,
+            # lastUpdatedDateTime, and analyzeResult
+
+            # Get the current time in UTC
+            utc_timezone = pytz.utc
+            current_time_utc = datetime.now(utc_timezone)
+
+            # Format the time in ISO 8601 format, similar to your example
+            timestamp = current_time_utc.isoformat()
+
+            # Example old_structure using dynamic time zone-aware timestamps
+            old_structure = {
+                "status": "succeeded",
+                "createdDateTime": timestamp,  # Current timestamp in UTC
+                "lastUpdatedDateTime": timestamp,  # Current timestamp in UTC
+                "analyzeResult": date_corrected_json,  # Your transformed data
+            }
+
+            json_string = json.dumps(old_structure)
             blob_client.upload_blob(json_string, overwrite=True)
         return {
             "message": "success",
-            "json_result": json_result,
+            "json_result": json_string,
             "file_url": file_url,
             "content_type": content_type,
         }
@@ -493,9 +540,10 @@ async def compose_model(request: Request, db: Session = Depends(get_db)):
 
 # Checked - used in the frontend
 @router.post("/train-model")
-async def train_model(request: Request, db: Session = Depends(get_db)):
+async def train_model(data: ModelTrainSchema, db: Session = Depends(get_db)):
     try:
-        req_body = await request.json()
+        req_body = data.dict()
+        # req_body = await request.json()
         account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
             account_url=account_url, credential=get_credential()
@@ -530,6 +578,9 @@ async def train_model(request: Request, db: Session = Depends(get_db)):
         container_url = (
             f"https://{settings.storage_account_name}.blob.core.windows.net/{container}"
         )
+        # Get the SAS token for the container
+        sas_token = get_container_sas(container)
+        container_url += "?" + sas_token
 
         json_resp = core_fr.get_model(
             settings.form_recognizer_endpoint, model_id=model_id
@@ -540,8 +591,10 @@ async def train_model(request: Request, db: Session = Depends(get_db)):
                 settings.form_recognizer_endpoint,
                 model_id,
                 container_url,
-                prefix=folder_path,
+                prefix=folder_path + "/",
             )
+            if json_resp["message"] != "success":
+                return {"message": json_resp["message"], "result": {}}
         return {"message": json_resp["message"], "result": json_resp["result"]}
     except Exception as e:
         print(traceback.format_exc())
