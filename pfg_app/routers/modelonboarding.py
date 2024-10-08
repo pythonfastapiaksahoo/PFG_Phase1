@@ -153,7 +153,7 @@ async def get_tagging_details_labels_info(
         )
         container_client = blob_service_client.get_container_client(containername)
         list_of_blobs = container_client.list_blobs(name_starts_with=folder_path)
-        labels = {}
+        labels = {"blob": {}, "labelexist": False}
         for b in list_of_blobs:
             if b.name == folder_path + "/" + filename + ".labels.json":
                 try:
@@ -163,10 +163,15 @@ async def get_tagging_details_labels_info(
                         .readall()
                     )
                     # Apply the function to add the missing page info
-                    labels_with_pages = core_fr.add_page_to_labels(blob)
+                    labels_with_pages = core_fr.add_page_to_labels(
+                        json.loads(blob.decode("utf-8"))
+                    )
                     labels = {"blob": labels_with_pages, "labelexist": True}
+                    return {"message": "success", "labels": labels}
                 except BaseException:
+                    logger.error(traceback.format_exc())
                     labels = {"blob": {}, "labelexist": False}
+                    return {"message": "error", "labels": labels}
         return {"message": "success", "labels": labels}
     except Exception as e:
         return {"message": f"exception {e}", "labels": {}}
