@@ -291,6 +291,8 @@ def po_cvn(po_extracted, entityID):
 
 
 def tb_cln_amt(amt):
+    if amt is None:
+        amt = "0"
     # cln_amt_sts = 0  # TODO: Unused variable
     amt_cpy = amt
     logger.info(f"cln_amt - amt: {amt}")
@@ -357,6 +359,8 @@ def getBBox(data):
 
 def cln_amt(amt):
     amt_cpy = amt
+    if amt is None:
+        amt = "0"
     # amt = str(amt).replace(',','.')
     try:
         if "," in amt:
