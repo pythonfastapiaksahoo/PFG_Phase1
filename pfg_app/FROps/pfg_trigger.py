@@ -421,7 +421,7 @@ def pfg_sync(docID, user: AzureUser, db: Session):
                 try:
                     if float(docHdrDt["InvoiceTotal"]) < dsdApprovalCheck_msg:
                         dsdApprovalCheck = 1
-                        dmsg = "Invoice Amount Approved"
+                        dmsg = "Success"
                     elif float(docHdrDt["InvoiceTotal"]) > dsdApprovalCheck_msg:
                         try:
                             docStatus = 6
