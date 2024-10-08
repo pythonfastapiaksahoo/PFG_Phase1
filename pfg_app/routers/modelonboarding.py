@@ -309,10 +309,12 @@ async def get_result(
                     "analyzeResult": json_result,  # Your transformed data
                 }
 
-                json_string = json.dumps(old_structure)
+                # json_string = json.dumps(old_structure)
+                json_string = old_structure
                 blob_client.upload_blob(json_string, overwrite=True)
             else:
-                json_string = json.dumps(json_result)
+                # json_string = json.dumps(json_result)
+                json_string = json_result
 
         else:
             # headers = {
@@ -362,7 +364,8 @@ async def get_result(
                 "analyzeResult": date_corrected_json,  # Your transformed data
             }
 
-            json_string = json.dumps(old_structure)
+            # json_string = json.dumps(old_structure)
+            json_string = old_structure
             blob_client.upload_blob(json_string, overwrite=True)
         return {
             "message": "success",
