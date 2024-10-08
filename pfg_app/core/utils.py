@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 
 from azure.core.credentials import AzureKeyCredential
@@ -130,3 +131,18 @@ def get_blob_securely(container_name, blob_path):
     except Exception as e:
         logger.error(f"An unexpected error occurred: {str(e)}")
         raise
+
+
+# Recursive function to convert date objects to ISO format strings
+def convert_dates(obj):
+    if isinstance(obj, dict):
+        # If obj is a dictionary, check each key-value pair
+        for key, value in obj.items():
+            obj[key] = convert_dates(value)
+    elif isinstance(obj, list):
+        # If obj is a list, check each element
+        return [convert_dates(item) for item in obj]
+    elif isinstance(obj, date):
+        # If obj is a date, convert to ISO string
+        return obj.isoformat()
+    return obj
