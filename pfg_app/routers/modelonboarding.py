@@ -15,7 +15,7 @@ from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
 from pfg_app.core import azure_fr as core_fr
-from pfg_app.core.utils import get_credential
+from pfg_app.core.utils import convert_dates, get_credential
 from pfg_app.crud import ModelOnBoardCrud as crud
 from pfg_app.FROps import util as ut
 from pfg_app.logger_module import logger
@@ -311,7 +311,11 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
                     "content_type": "",
                 }
             # json_result = util.correctAngle(json_result)
-            json_string = json.dumps(json_result)
+            # save the result in the file
+            # with open("data.json", "w") as f:
+            #     json.dump(json_result, f)
+
+            json_string = json.dumps(convert_dates(json_result))
             blob_client.upload_blob(json_string, overwrite=True)
         return {
             "message": "success",
