@@ -239,3 +239,65 @@ def get_model(endpoint, model_id):
             "result": None,
             "details": f"Error in Form Recognizer {traceback.format_exc()}",
         }
+
+
+# Helper function to convert snake_case to camelCase
+def snake_to_camel(snake_str):
+    components = snake_str.split("_")
+    return components[0] + "".join(x.title() for x in components[1:])
+
+
+# Helper function to recursively convert all dictionary keys
+# from snake_case to camelCase
+def convert_snake_to_camel(data):
+    if isinstance(data, dict):
+        new_data = {}
+        for key, value in data.items():
+            new_key = snake_to_camel(key)
+            new_data[new_key] = convert_snake_to_camel(
+                value
+            )  # Recursively apply to nested structures
+        return new_data
+    elif isinstance(data, list):
+        return [
+            convert_snake_to_camel(item) for item in data
+        ]  # Recursively apply to lists
+    else:
+        return data
+
+
+# Helper function to flatten polygons with x and y dictionaries into plain lists
+def flatten_polygon(polygon):
+    if isinstance(polygon, list):
+        flattened = []
+        for point in polygon:
+            if isinstance(point, dict) and "x" in point and "y" in point:
+                flattened.extend([point["x"], point["y"]])
+            else:
+                flattened.append(point)
+        return flattened
+    return polygon
+
+
+# Function to process polygons in the data and flatten them
+def process_polygons(data):
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == "polygon" and isinstance(value, list):
+                data[key] = flatten_polygon(value)
+            else:
+                data[key] = process_polygons(value)  # Recursively apply to nested dicts
+    elif isinstance(data, list):
+        return [process_polygons(item) for item in data]
+    return data
+
+
+# Function to add page info if missing in label values
+def add_page_to_labels(labels_data):
+    if "labels" in labels_data:
+        for label in labels_data["labels"]:
+            for value in label.get("value", []):
+                # If 'page' is not present, add "page": 1
+                if "page" not in value:
+                    value["page"] = 1
+    return labels_data

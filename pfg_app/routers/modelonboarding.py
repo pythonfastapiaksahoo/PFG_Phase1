@@ -162,7 +162,9 @@ async def get_tagging_details_labels_info(
                         .download_blob()
                         .readall()
                     )
-                    labels = {"blob": blob, "labelexist": True}
+                    # Apply the function to add the missing page info
+                    labels_with_pages = core_fr.add_page_to_labels(blob)
+                    labels = {"blob": labels_with_pages, "labelexist": True}
                 except BaseException:
                     labels = {"blob": {}, "labelexist": False}
         return {"message": "success", "labels": labels}
@@ -180,6 +182,8 @@ async def save_labels_file(request: Request):
         filename = body["filename"]
         # connstr = body['connstr']
         labeljson = body["labelJson"]
+        # Apply the function to add the missing page info
+        labeljson = core_fr.add_page_to_labels(labeljson)
         # savejson = body["saveJson"]
         # idDocumentModel = body["documentId"]
         # crud.updateLabels(idDocumentModel,savejson,db)
@@ -290,6 +294,10 @@ async def get_result(
             bdata = blob_client.download_blob().readall()
             json_result = json.loads(bdata)
 
+            # Convert snake_case to camelCase and flatten polygons
+            camel_case_json = core_fr.convert_snake_to_camel(json_result)
+            json_result = core_fr.process_polygons(camel_case_json)
+
             # Check if the JSON result is of old Format , if not convert it
             #  to old format
             if "status" not in json_result:
@@ -344,6 +352,10 @@ async def get_result(
             # json_result = util.correctAngle(json_result)
 
             date_corrected_json = convert_dates(json_result)
+
+            # Convert snake_case to camelCase and flatten polygons
+            camel_case_json = core_fr.convert_snake_to_camel(date_corrected_json)
+            date_corrected_json = core_fr.process_polygons(camel_case_json)
 
             # Save the JSON result to the Azure Blob Storage after wrapping it in the
             # required old top-level fields like status, createdDateTime,
