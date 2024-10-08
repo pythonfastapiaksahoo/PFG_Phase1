@@ -366,7 +366,7 @@ def cln_amt(amt):
         logger.error(f"Exception in cln_amt: {er}")
         amt = amt_cpy
 
-    if len(amt) > 0:
+    if len(amt) > 0 and (amt is not None):
         if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
             cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
             cl_amt = float(cl_amt.replace(",", ""))
