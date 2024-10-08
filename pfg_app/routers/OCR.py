@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import psycopg2
 import pytz as tz
-from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
+from fastapi import APIRouter, File, Form, Response, UploadFile
 from psycopg2 import extras
 from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -18,8 +18,9 @@ from sqlalchemy.orm import Load
 import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.auth import AuthHandler
-from pfg_app.azuread.auth import get_user
-from pfg_app.azuread.schemas import AzureUser
+
+# from pfg_app.azuread.auth import get_user
+# from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.azure_fr import get_fr_data
 from pfg_app.FROps.pfg_trigger import (
     IntegratedvoucherData,
@@ -68,12 +69,12 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
 ):
 
     try:
         customerID = 1
-        userID = user.idUser
+        userID = 1
         logger.info(f"userID: {userID}")
         """'file_path': blob_url, 'filename': blob_name, 'file_type':
         file_type, 'source': 'Azure Blob Storage', 'invoice_type':
