@@ -311,7 +311,7 @@ async def get_result(
 
                 # json_string = json.dumps(old_structure)
                 json_string = old_structure
-                blob_client.upload_blob(json_string, overwrite=True)
+                blob_client.upload_blob(json.dumps(json_string), overwrite=True)
             else:
                 # json_string = json.dumps(json_result)
                 json_string = json_result
@@ -366,7 +366,7 @@ async def get_result(
 
             # json_string = json.dumps(old_structure)
             json_string = old_structure
-            blob_client.upload_blob(json_string, overwrite=True)
+            blob_client.upload_blob(json.dumps(json_string), overwrite=True)
         return {
             "message": "success",
             "json_result": json_string,
