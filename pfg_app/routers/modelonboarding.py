@@ -342,7 +342,7 @@ async def get_result(
                 input_file=body,
                 endpoint=settings.form_recognizer_endpoint,
                 api_version=settings.api_version,
-                invoice_model_id="prebuilt-invoice",
+                invoice_model_id="prebuilt-layout",
             )
             if (
                 "message" in json_result

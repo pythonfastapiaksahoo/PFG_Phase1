@@ -184,7 +184,6 @@ async def update_metadata(
                 "fieldKey": "tab_1_object",
                 "fieldType": "object",
                 "fieldFormat": "not-specified",
-                "itemType": None,
                 "fields": [],
             }
         }
@@ -196,8 +195,6 @@ async def update_metadata(
                         "fieldKey": m,
                         "fieldType": "string",
                         "fieldFormat": "not-specified",
-                        "itemType": None,
-                        "fields": None,
                     }
                 )
                 lineitemupdates.append(m)
@@ -208,8 +205,6 @@ async def update_metadata(
                         "fieldKey": m,
                         "fieldType": "string",
                         "fieldFormat": "not-specified",
-                        "itemType": None,
-                        "fields": None,
                     }
                 )
                 lineitemupdates.append(m)
@@ -270,7 +265,6 @@ async def update_metadata(
                     "fieldType": "array",
                     "fieldFormat": "not-specified",
                     "itemType": "tab_1_object",
-                    "fields": None,
                 }
             )
             jso = {
