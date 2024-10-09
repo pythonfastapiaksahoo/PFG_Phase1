@@ -2,9 +2,11 @@ import base64
 import json
 import os
 import traceback
+from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
+import pytz
 from azure.storage.blob import BlobServiceClient
 from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
 from pdf2image import convert_from_bytes
@@ -15,11 +17,12 @@ from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
 from pfg_app.core import azure_fr as core_fr
-from pfg_app.core.utils import get_credential
+from pfg_app.core.utils import convert_dates, get_container_sas, get_credential
 from pfg_app.crud import ModelOnBoardCrud as crud
 from pfg_app.FROps import util as ut
 from pfg_app.logger_module import logger
 from pfg_app.schemas import InvoiceSchema as schema
+from pfg_app.schemas.modelOnboarding import ModelTrainSchema
 from pfg_app.session.session import get_db
 
 auth_handler = AuthHandler()
@@ -150,7 +153,7 @@ async def get_tagging_details_labels_info(
         )
         container_client = blob_service_client.get_container_client(containername)
         list_of_blobs = container_client.list_blobs(name_starts_with=folder_path)
-        labels = {}
+        labels = {"blob": {}, "labelexist": False}
         for b in list_of_blobs:
             if b.name == folder_path + "/" + filename + ".labels.json":
                 try:
@@ -159,9 +162,16 @@ async def get_tagging_details_labels_info(
                         .download_blob()
                         .readall()
                     )
-                    labels = {"blob": blob, "labelexist": True}
+                    # Apply the function to add the missing page info
+                    labels_with_pages = core_fr.add_page_to_labels(
+                        json.loads(blob.decode("utf-8"))
+                    )
+                    labels = {"blob": labels_with_pages, "labelexist": True}
+                    return {"message": "success", "labels": labels}
                 except BaseException:
+                    logger.error(traceback.format_exc())
                     labels = {"blob": {}, "labelexist": False}
+                    return {"message": "error", "labels": labels}
         return {"message": "success", "labels": labels}
     except Exception as e:
         return {"message": f"exception {e}", "labels": {}}
@@ -177,6 +187,8 @@ async def save_labels_file(request: Request):
         filename = body["filename"]
         # connstr = body['connstr']
         labeljson = body["labelJson"]
+        # Apply the function to add the missing page info
+        labeljson = core_fr.add_page_to_labels(labeljson)
         # savejson = body["saveJson"]
         # idDocumentModel = body["documentId"]
         # crud.updateLabels(idDocumentModel,savejson,db)
@@ -221,7 +233,9 @@ async def save_fields_file(request: Request, db: Session = Depends(get_db)):
 
 # Checked - used in the frontend
 @router.get("/get_analyze_result/{container}")
-async def get_result(request: Request, container: str, db: Session = Depends(get_db)):
+async def get_result(
+    request: Request, container: str, db: Session = Depends(get_db)
+):  #
     try:
         filename = request.headers.get("filename")
         # connstr = request.headers.get("connstr")
@@ -253,15 +267,21 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
         #     expiry=datetime.utcnow() + timedelta(hours=3),
         #     content_type=content_type,
         # )
-        file_url = (
-            "https://"
-            + settings.storage_account_name
-            + ".blob.core.windows.net/"
-            + container
-            + "/"
-            + filename
-            # + "?"
-            # + token
+        # file_url = (
+        #     "https://"
+        #     + settings.storage_account_name
+        #     + ".blob.core.windows.net/"
+        #     + container
+        #     + "/"
+        #     + filename
+        #     # + "?"
+        #     # + token
+        # )
+        # Generate the URL for the 'get_file' route from another router
+        file_url = str(
+            request.url_for("get_blob_file").include_query_params(
+                container_name=container, blob_path=filename
+            )
         )
         # print(fr_endpoint)
         # url = f"{fr_endpoint}/formrecognizer/documentModels/\
@@ -278,7 +298,37 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
         if blob_client.exists():
             bdata = blob_client.download_blob().readall()
             json_result = json.loads(bdata)
-            print("hi")
+
+            # Convert snake_case to camelCase and flatten polygons
+            camel_case_json = core_fr.convert_snake_to_camel(json_result)
+            json_result = core_fr.process_polygons(camel_case_json)
+
+            # Check if the JSON result is of old Format , if not convert it
+            #  to old format
+            if "status" not in json_result:
+                # This is the new format, convert it to the old format
+                # Get the current time in UTC
+                utc_timezone = pytz.utc
+                current_time_utc = datetime.now(utc_timezone)
+
+                # Format the time in ISO 8601 format, similar to your example
+                timestamp = current_time_utc.isoformat()
+
+                # Example old_structure using dynamic time zone-aware timestamps
+                old_structure = {
+                    "status": "succeeded",
+                    "createdDateTime": timestamp,  # Current timestamp in UTC
+                    "lastUpdatedDateTime": timestamp,  # Current timestamp in UTC
+                    "analyzeResult": json_result,  # Your transformed data
+                }
+
+                # json_string = json.dumps(old_structure)
+                json_string = old_structure
+                blob_client.upload_blob(json.dumps(json_string), overwrite=True)
+            else:
+                # json_string = json.dumps(json_result)
+                json_string = json_result
+
         else:
             # headers = {
             #     "Content-Type": content_type,
@@ -292,7 +342,7 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
                 input_file=body,
                 endpoint=settings.form_recognizer_endpoint,
                 api_version=settings.api_version,
-                invoice_model_id="prebuilt-invoice",
+                invoice_model_id="prebuilt-layout",
             )
             if (
                 "message" in json_result
@@ -305,11 +355,38 @@ async def get_result(request: Request, container: str, db: Session = Depends(get
                     "content_type": "",
                 }
             # json_result = util.correctAngle(json_result)
-            json_string = json.dumps(json_result)
-            blob_client.upload_blob(json_string, overwrite=True)
+
+            date_corrected_json = convert_dates(json_result)
+
+            # Convert snake_case to camelCase and flatten polygons
+            camel_case_json = core_fr.convert_snake_to_camel(date_corrected_json)
+            date_corrected_json = core_fr.process_polygons(camel_case_json)
+
+            # Save the JSON result to the Azure Blob Storage after wrapping it in the
+            # required old top-level fields like status, createdDateTime,
+            # lastUpdatedDateTime, and analyzeResult
+
+            # Get the current time in UTC
+            utc_timezone = pytz.utc
+            current_time_utc = datetime.now(utc_timezone)
+
+            # Format the time in ISO 8601 format, similar to your example
+            timestamp = current_time_utc.isoformat()
+
+            # Example old_structure using dynamic time zone-aware timestamps
+            old_structure = {
+                "status": "succeeded",
+                "createdDateTime": timestamp,  # Current timestamp in UTC
+                "lastUpdatedDateTime": timestamp,  # Current timestamp in UTC
+                "analyzeResult": date_corrected_json,  # Your transformed data
+            }
+
+            # json_string = json.dumps(old_structure)
+            json_string = old_structure
+            blob_client.upload_blob(json.dumps(json_string), overwrite=True)
         return {
             "message": "success",
-            "json_result": json_result,
+            "json_result": json_string,
             "file_url": file_url,
             "content_type": content_type,
         }
@@ -483,9 +560,10 @@ async def compose_model(request: Request, db: Session = Depends(get_db)):
 
 # Checked - used in the frontend
 @router.post("/train-model")
-async def train_model(request: Request, db: Session = Depends(get_db)):
+async def train_model(data: ModelTrainSchema, db: Session = Depends(get_db)):
     try:
-        req_body = await request.json()
+        req_body = data.dict()
+        # req_body = await request.json()
         account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
             account_url=account_url, credential=get_credential()
@@ -520,6 +598,9 @@ async def train_model(request: Request, db: Session = Depends(get_db)):
         container_url = (
             f"https://{settings.storage_account_name}.blob.core.windows.net/{container}"
         )
+        # Get the SAS token for the container
+        sas_token = get_container_sas(container)
+        container_url += "?" + sas_token
 
         json_resp = core_fr.get_model(
             settings.form_recognizer_endpoint, model_id=model_id
@@ -530,8 +611,10 @@ async def train_model(request: Request, db: Session = Depends(get_db)):
                 settings.form_recognizer_endpoint,
                 model_id,
                 container_url,
-                prefix=folder_path,
+                prefix=folder_path + "/",
             )
+            if json_resp["message"] != "success":
+                return {"message": json_resp["message"], "result": {}}
         return {"message": json_resp["message"], "result": json_resp["result"]}
     except Exception as e:
         print(traceback.format_exc())

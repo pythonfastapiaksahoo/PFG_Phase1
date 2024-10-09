@@ -5,6 +5,7 @@ from azure.ai.formrecognizer import (
     DocumentAnalysisClient,
     DocumentModelAdministrationClient,
 )
+from azure.core.exceptions import ResourceNotFoundError
 from azure.core.pipeline.policies import RetryPolicy
 
 from pfg_app.core.utils import get_credential
@@ -180,7 +181,7 @@ def train_model(endpoint, model_id, blob_container_url, prefix):
         document_model_admin_client = DocumentModelAdministrationClient(
             endpoint, get_credential()
         )
-
+        #
         poller = document_model_admin_client.begin_build_document_model(
             build_mode="template",
             model_id=model_id,
@@ -195,7 +196,7 @@ def train_model(endpoint, model_id, blob_container_url, prefix):
 
     except Exception:
         logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
-        return {"message": "error", "result": None}
+        return {"message": f"error {traceback.format_exc()}", "result": None}
 
 
 def compose_model(endpoint, model_id, model_ids):
@@ -225,7 +226,78 @@ def get_model(endpoint, model_id):
 
         model = document_model_admin_client.get_document_model(model_id=model_id)
 
-        return {"message": "success", "result": model.result().to_dict()}
+        return {"message": "success", "result": model}
+    # Capture specific ResourceNotFoundError
+    except ResourceNotFoundError as e:
+        logger.error(f"Model not found: {model_id}. Error details: {str(e)}")
+        return {"message": "error", "result": None, "details": "Model not found"}
+
     except Exception:
         logger.error(f"Error in Form Recognizer: get_model {traceback.format_exc()}")
-        return {"message": "error", "result": None}
+        return {
+            "message": "error",
+            "result": None,
+            "details": f"Error in Form Recognizer {traceback.format_exc()}",
+        }
+
+
+# Helper function to convert snake_case to camelCase
+def snake_to_camel(snake_str):
+    components = snake_str.split("_")
+    return components[0] + "".join(x.title() for x in components[1:])
+
+
+# Helper function to recursively convert all dictionary keys
+# from snake_case to camelCase
+def convert_snake_to_camel(data):
+    if isinstance(data, dict):
+        new_data = {}
+        for key, value in data.items():
+            new_key = snake_to_camel(key)
+            new_data[new_key] = convert_snake_to_camel(
+                value
+            )  # Recursively apply to nested structures
+        return new_data
+    elif isinstance(data, list):
+        return [
+            convert_snake_to_camel(item) for item in data
+        ]  # Recursively apply to lists
+    else:
+        return data
+
+
+# Helper function to flatten polygons with x and y dictionaries into plain lists
+def flatten_polygon(polygon):
+    if isinstance(polygon, list):
+        flattened = []
+        for point in polygon:
+            if isinstance(point, dict) and "x" in point and "y" in point:
+                flattened.extend([point["x"], point["y"]])
+            else:
+                flattened.append(point)
+        return flattened
+    return polygon
+
+
+# Function to process polygons in the data and flatten them
+def process_polygons(data):
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == "polygon" and isinstance(value, list):
+                data[key] = flatten_polygon(value)
+            else:
+                data[key] = process_polygons(value)  # Recursively apply to nested dicts
+    elif isinstance(data, list):
+        return [process_polygons(item) for item in data]
+    return data
+
+
+# Function to add page info if missing in label values
+def add_page_to_labels(labels_data):
+    if "labels" in labels_data:
+        for label in labels_data["labels"]:
+            for value in label.get("value", []):
+                # If 'page' is not present, add "page": 1
+                if "page" not in value:
+                    value["page"] = 1
+    return labels_data

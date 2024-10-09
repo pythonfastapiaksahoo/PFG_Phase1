@@ -1,4 +1,5 @@
 import os
+import re
 import traceback
 
 import pytz as tz
@@ -128,15 +129,26 @@ async def readpaginatedvendorlist(
                 ),
             )
         )
+
+        # Function to normalize strings by removing non-alphanumeric
+        # characters and converting to lowercase
+        def normalize_string(input_str):
+            return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
         # Apply additional filters
         for key, val in api_filter.items():
             if key == "ent_id" and val:
                 data = data.filter(model.Entity.idEntity == val)
             if key == "ven_code" and val:
+                # Normalize the user input filter
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", val.lower())
+
+                # Create a pattern for the search with wildcards
+                pattern = f"%{normalized_filter}%"
                 data = data.filter(
                     or_(
-                        model.Vendor.VendorName.ilike(f"%{val}%"),
-                        model.Vendor.VendorCode.ilike(f"%{val}%"),
+                        normalize_string(model.Vendor.VendorName).ilike(pattern),
+                        normalize_string(model.Vendor.VendorCode).ilike(pattern),
                     )
                 )
             if key == "onb_status" and val:

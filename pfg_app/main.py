@@ -20,6 +20,7 @@ from pfg_app.routers import (  # maillistener,
     OCR,
     ERPIntegrationapi,
     batchexception,
+    common,
     invoice,
     modelonboarding,
     vendor,
@@ -81,6 +82,7 @@ app.include_router(OCR.router)
 app.include_router(modelonboarding.router)
 app.include_router(ERPIntegrationapi.router)
 app.include_router(batchexception.router)
+app.include_router(common.router)
 
 
 @app.on_event("startup")
