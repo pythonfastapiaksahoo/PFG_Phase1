@@ -282,7 +282,7 @@ class DocumentLineItemTags(Base):
 
     idDocumentLineItemTags = Column(Integer, primary_key=True, autoincrement=True)
     idDocumentModel = Column(
-        Integer, ForeignKey("documentModel.idDocumentModel"), nullable=True
+        Integer, ForeignKey("documentmodel.idDocumentModel"), nullable=True
     )
     TagName = Column(String(45), nullable=True)
     TagDesc = Column(String(45), nullable=True)
