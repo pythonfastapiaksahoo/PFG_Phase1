@@ -179,7 +179,7 @@ def db_push_data(
             data["ServiceAccount"] = ServiceAccount
         data["ModelID"] = model_id
         for nn in data["labels"]:
-            if nn["key"] is None:
+            if "key" not in nn or nn["key"] is None:
                 nn["key"] = ""
 
         for i in data["labels"]:
