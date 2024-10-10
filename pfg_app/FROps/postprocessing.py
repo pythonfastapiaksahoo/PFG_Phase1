@@ -642,6 +642,8 @@ def postpro(
     totalTax_rw = ""
     invoiceTotal_rw = ""
     skp_tab_mand_ck = 0
+    doc_VendorName = ""
+    doc_VendorAddress = ""
 
     try:
 
@@ -1543,8 +1545,7 @@ def postpro(
                 if po_doc is None:
                     dt["header"][tg]["status_message"] = "PO not found in Serina!"
                     dt["header"][tg]["status"] = 0
-            doc_VendorName = ""
-            doc_VendorAddress = ""
+
             try:
                 # metaVendorName, metaVendorAdd
                 if dt["header"][tg]["tag"] == "VendorName":
