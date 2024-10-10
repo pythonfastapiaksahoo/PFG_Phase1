@@ -459,7 +459,7 @@ def pfg_sync(docID, userID, db: Session):
                     "status": dsdApprovalCheck,
                     "response": [dmsg],
                 }
-                # ----------------------------------
+                # Invoice Total check
 
                 invTotalMth = 0
                 invTotalMth_msg = "Invoice total mismatch, please review."

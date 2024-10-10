@@ -965,8 +965,13 @@ def postpro(
                                     except KeyError:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                     try:
-                                        if isinstance(bo_bx[0], dict):
+
+                                        if len(bo_bx) > 0 and isinstance(
+                                            bo_bx[0], dict
+                                        ):
                                             bx = getBBox(bo_bx)
+                                        else:
+                                            bx = {"x": "", "y": "", "w": "", "h": ""}
 
                                     except Exception:
                                         logger.error(traceback.format_exc())
