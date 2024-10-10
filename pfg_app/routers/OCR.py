@@ -116,7 +116,11 @@ def runStatus(
         destination_container_name = "apinvoice-container"  # TODO move to settings
         fr_API_version = "2023-07-31"  # TODO move to settings
 
-        prompt = """This is an invoice document.Extract Invoice Number and currency.
+        prompt = """This is an invoice document.Extract Invoice Number and
+        Extract the Currency from the invoice document by identifying the currency
+        symbol before the total amount. The currency can be CAD or USD.
+        If the invoice address is in Canada, set the currency to CAD,
+        otherwise set it to as per invoice address.
         It may contain a receiver's stamp and
         might have inventory or supplies marked or circled with a pen, circled is
         selected. It contains store number as "STR #"
@@ -136,7 +140,7 @@ def runStatus(
         (which ever is circled more/marked only),
         'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
         'Receiver': 'Extracted data', 'Department': 'Dept code',
-        'Store Number':,'VendorName':,'InvoiceID':,'InvoiceCurrency':}.Output should be
+        'Store Number':,'VendorName':,'InvoiceID':,'Currency':}.Output should be
         just json"""
         # TODO move to settings
 
