@@ -1,15 +1,16 @@
+import os
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-import os
+
 from pfg_app.azuread.auth import get_user
 from pfg_app.azuread.schemas import AzureUser
 from pfg_app.crud import InvoiceCrud as crud
+from pfg_app.FROps import pdfcreator
 from pfg_app.schemas import InvoiceSchema as schema
 from pfg_app.session.session import get_db
-from pfg_app.FROps import pdfcreator
 
 router = APIRouter(
     prefix="/apiv1.1/Invoice",
@@ -320,23 +321,34 @@ async def new_update_stamp_data(
 
     return {"response": updated_stamp_data}
 
+
 @router.get("/journeydoc/docid/{inv_id}")
-async def download_journeydoc(inv_id: int,download: bool = False, db: Session = Depends(get_db)):
-    """
-    ### API route to download journey document. It contains following parameters.
-    :param inv_id: It is an path parameter for selecting document id to return its data, it is of int type.
-    :param db: It provides a session to interact with the backend Database,that is of Session Object Type.
+async def download_journeydoc(
+    inv_id: int, download: bool = False, db: Session = Depends(get_db)
+):
+    """### API route to download journey document.
+
+    It contains following parameters.
+    :param inv_id: It is an path parameter for selecting document id to
+        return its data, it is of int type.
+    :param db: It provides a session to interact with the backend
+        Database,that is of Session Object Type.
     :return: journey doc as pdf.
     """
     try:
         for f in os.listdir():
             if os.path.isfile(f) and f.endswith(".pdf"):
                 os.unlink(f)
-        all_status = await crud.read_doc_history(inv_id,download,db)
+        all_status = await crud.read_doc_history(inv_id, download, db)
         if download:
-            filename = pdfcreator.createdoc(all_status,inv_id)
-            return FileResponse(path=filename, filename=filename, media_type='application/pdf')
+            filename = pdfcreator.createdoc(all_status, inv_id)
+            return FileResponse(
+                path=filename, filename=filename, media_type="application/pdf"
+            )
         else:
             return all_status
     except Exception as e:
-        return {"status":"error","message":f"Error in downloading journey document: {e}"}
+        return {
+            "status": "error",
+            "message": f"Error in downloading journey document: {e}",
+        }

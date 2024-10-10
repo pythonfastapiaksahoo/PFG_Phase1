@@ -586,19 +586,28 @@ async def getEmailInfo(db: Session = Depends(get_db)):
 async def get_fr_tags(tagtype: Optional[str] = None, db: Session = Depends(get_db)):
     return await crud.getall_tags(tagtype, db)
 
-#check duplicate synonyms
+
+# check duplicate synonyms
 @router.get("/checkduplicatesynonyms/{synonym:path}")
 async def check_duplicate_synonyms(synonym: str, db: Session = Depends(get_db)):
     try:
-        Synonyms = db.query(model.Vendor).filter(model.Vendor.Synonyms.isnot(None)).all()
+        Synonyms = (
+            db.query(model.Vendor).filter(model.Vendor.Synonyms.isnot(None)).all()
+        )
         vendor_name = None
         for s in Synonyms:
-            synonyms_list = json.loads(s.Synonyms,strict=False)
+            synonyms_list = json.loads(s.Synonyms, strict=False)
             if synonym.lower() in [s.lower() for s in synonyms_list]:
                 # synonym is already present in the list
                 vendor_name = s.VendorName
-                return {"status":"exists","message":f"Synonym already exists for {vendor_name}"}
+                return {
+                    "status": "exists",
+                    "message": f"Synonym already exists for {vendor_name}",
+                }
         # synonym is not present in the list
-        return {"status":"not exists","message":f"Synonym does not exist"}
+        return {"status": "not exists", "message": f"Synonym does not exist"}
     except Exception as e:
-        return {"status":"error","message":f"Error in checking duplicate synonyms: {e}"}
+        return {
+            "status": "error",
+            "message": f"Error in checking duplicate synonyms: {e}",
+        }

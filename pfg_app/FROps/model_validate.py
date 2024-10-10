@@ -164,7 +164,10 @@ def db_push_data(
 
         data = json.loads(lbl_byts)
         if blb_file_ext == "pdf":
-            img = convert_from_bytes(pdf_byts, poppler_path=r"/usr/bin")
+            # img = convert_from_bytes(pdf_byts, poppler_path=r"/usr/bin")
+            img = convert_from_bytes(
+                pdf_byts, poppler_path=r"C:\\poppler-24.07.0\\Library\\bin"
+            )
             for ig in img:
                 image = np.array(ig)
             image.shape

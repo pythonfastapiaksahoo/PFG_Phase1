@@ -1241,7 +1241,8 @@ async def read_invoice_status_history(u_id, inv_id, db):
     finally:
         db.close()
 
-async def read_doc_history(inv_id,download, db):
+
+async def read_doc_history(inv_id, download, db):
     """This function is used to read invoice history logs, contains following
     parameters.
 
@@ -1262,15 +1263,21 @@ async def read_doc_history(inv_id,download, db):
                     model.Document.documentDate,
                     model.Document.JournalNumber,
                     model.Document.UploadDocType,
-                    model.Vendor.VendorName
+                    model.Vendor.VendorName,
                 )
-                .options(load_only("documentdescription","documentStatusID", "CreatedOn"))
-                .filter(model.DocumentHistoryLogs.documentID == model.Document.idDocument)
+                .options(
+                    load_only("documentdescription", "documentStatusID", "CreatedOn")
+                )
+                .filter(
+                    model.DocumentHistoryLogs.documentID == model.Document.idDocument
+                )
                 .join(
                     model.VendorAccount,
-                    model.Document.vendorAccountID == model.VendorAccount.idVendorAccount,
+                    model.Document.vendorAccountID
+                    == model.VendorAccount.idVendorAccount,
                     isouter=True,
-                ).join(
+                )
+                .join(
                     model.Vendor,
                     model.VendorAccount.vendorID == model.Vendor.idVendor,
                     isouter=True,
@@ -1281,9 +1288,10 @@ async def read_doc_history(inv_id,download, db):
             )
         else:
             return (
-                db.query(
-                    model.DocumentHistoryLogs
-                ).options(load_only("documentdescription","documentStatusID", "CreatedOn"))
+                db.query(model.DocumentHistoryLogs)
+                .options(
+                    load_only("documentdescription", "documentStatusID", "CreatedOn")
+                )
                 .filter(model.Document.idDocument == inv_id)
                 .order_by(model.DocumentHistoryLogs.CreatedOn)
                 .all()
