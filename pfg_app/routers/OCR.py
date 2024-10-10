@@ -217,6 +217,7 @@ def runStatus(
                 # Update the fields
                 split_doc.pages_processed = grp_pages
                 split_doc.status = "File Received"
+                split_doc.totalpagecount = num_pages
                 split_doc.num_pages = num_pages
                 split_doc.updated_on = datetime.now()  # Update the timestamp
 
