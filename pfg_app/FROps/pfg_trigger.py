@@ -431,6 +431,7 @@ def pfg_sync(docID, userID, db: Session):
                                 update_docHistory(docID, userID, docStatus, dmsg, db)
                             except Exception as e:
                                 logger.error(f"pfg_sync line 534: {str(e)}")
+                                dmsg = str(e)
 
                             try:
                                 db.query(model.Document).filter(
@@ -444,6 +445,7 @@ def pfg_sync(docID, userID, db: Session):
                                 db.commit()
                             except Exception as err:
                                 logger.info(f"ErrorUpdatingPostingData: {err}")
+                                dmsg = str(err)
 
                         except Exception as e:
                             logger.error(f"pfg_sync amount validations: {str(e)}")
@@ -454,6 +456,7 @@ def pfg_sync(docID, userID, db: Session):
 
                 except Exception as e:
                     logger.error(f"pfg_sync amount validations: {str(e)}")
+                    dmsg = str(e)
 
                 docStatusSync["Amount Approval Validation"] = {
                     "status": dsdApprovalCheck,

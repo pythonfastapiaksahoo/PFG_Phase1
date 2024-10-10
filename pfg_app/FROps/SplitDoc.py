@@ -137,6 +137,17 @@ def extract_pdf_pages(pdf_document):
     return pdf_pages
 
 
+def serialize_dates(item):
+    if isinstance(item, dict):
+        return {k: serialize_dates(v) for k, v in item.items()}
+    elif isinstance(item, list):
+        return [serialize_dates(i) for i in item]
+    elif isinstance(item, (datetime, date)):
+        return item.isoformat()
+    else:
+        return item
+
+
 def splitDoc(
     pdf,
     subfolder_name,
@@ -151,48 +162,35 @@ def splitDoc(
     pdf_pages = extract_pdf_pages(pdf)
 
     # Use ThreadPoolExecutor to process the pages concurrently
+    output_data_dt = {}
     output_data = []
+    pg_cnt = 1
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(call_form_recognizer, page, fr_endpoint, fr_api_version)
             for page in pdf_pages
         ]
 
-        # Collect the results as they complete
-        for future in concurrent.futures.as_completed(futures):
+        # Collect the results in the order they were scheduled
+        for future in futures:
             try:
                 result = future.result()
+                output_data_dt[pg_cnt] = result
                 output_data.append(result)
+                pg_cnt = pg_cnt + 1
 
             except Exception as e:
                 logger.error(f"Error processing a page: {e}")
 
-    # # Get the list of Invoice IDs from the Form Recognizer results
-    # # TODO continue this refactor later
-    # invoice_ids = [result["analyzeResult"]["documents"][
-    #             0]["fields"]["InvoiceId"]["content"] for result in output_data]
-
     pageInvoDate = {}
-
-    pageInvoDate = {}
-
-    def serialize_dates(item):
-        if isinstance(item, dict):
-            return {k: serialize_dates(v) for k, v in item.items()}
-        elif isinstance(item, list):
-            return [serialize_dates(i) for i in item]
-        elif isinstance(item, (datetime, date)):
-            return item.isoformat()
-        else:
-            return item
-
     data_serialized = serialize_dates(output_data)
     with open("data.json", "w") as f:
         json.dump(data_serialized, f, indent=4)
 
     try:
-        for i in range(len(output_data)):
-            pageInvoDate[i + 1] = output_data[i]["documents"][0]["fields"]["InvoiceId"][
+
+        for i in output_data_dt.keys():
+            pageInvoDate[i] = output_data_dt[i]["documents"][0]["fields"]["InvoiceId"][
                 "content"
             ]
     except Exception as er:
