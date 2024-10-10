@@ -116,32 +116,73 @@ def runStatus(
         destination_container_name = "apinvoice-container"  # TODO move to settings
         fr_API_version = "2023-07-31"  # TODO move to settings
 
-        prompt = """This is an invoice document.Extract Invoice Number and
+        # prompt = """This is an invoice document.Extract Invoice Number and
+        # Extract the Currency from the invoice document by identifying the currency
+        # symbol before the total amount. The currency can be CAD or USD.
+        # If the invoice address is in Canada, set the currency to CAD,
+        # otherwise set it to as per invoice address.
+        # It may contain a receiver's stamp and
+        # might have inventory or supplies marked or circled with a pen, circled is
+        # selected. It contains store number as "STR #"
+        # InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No.
+        # If a stamp is present, identify any markings on the document related to
+        # Inventory or Supplies, specifically if they are marked or circled with a pen.
+        # If a stamp is present, extract the following handwritten details
+        # from the stamp: ConfirmationNumber (the confirmation number labeled as
+        # 'Confirmation' on the stamp),
+        # ReceivingDate (the date when the goods were received),
+        # Receiver (the name of the person or department who received the goods), and
+        # Department (the handwritten department name or code,
+        # or another specified departmentname), MarkedDept (which may be either
+        # 'Inventory' or 'Supplies', based on pen marking).
+        # Provide all information in the following JSON format:
+        # {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'
+        # (which ever is circled more/marked only),
+        # 'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
+        # 'Receiver': 'Extracted data', 'Department': 'Dept code',
+        # 'Store Number':,'VendorName':,'InvoiceID':,'Currency':}.Output should be
+        # just json"""
+
+        prompt = """This is an invoice document. It may contain a receiver's stamp and
+        might have inventory or supplies marked or circled with a pen, circled
+        is selected. It contains store number as "STR #".
+
+        InvoiceDocument: Yes/No
+        InvoiceID: [InvoiceID].
+        StampPresent: Yes/No.
+
+        If a stamp is present, identify any markings on the document related to
+        Inventory or Supplies, specifically if they are marked or circled with a pen.
+        If a stamp is present, extract the following handwritten details from the
+        stamp: ConfirmationNumber (the confirmation number labeled
+        as 'Confirmation' on the stamp), ReceivingDate
+        (the date when the goods were received), Receiver
+        (the name of the person or department who received the goods),
+        and Department (the handwritten department name or code,
+        or another specified department name),
+        MarkedDept (which may be either 'Inventory' or 'Supplies',
+        based on pen marking).
+        Extract the Invoice Number.
         Extract the Currency from the invoice document by identifying the currency
         symbol before the total amount. The currency can be CAD or USD.
         If the invoice address is in Canada, set the currency to CAD,
-        otherwise set it to as per invoice address.
-        It may contain a receiver's stamp and
-        might have inventory or supplies marked or circled with a pen, circled is
-        selected. It contains store number as "STR #"
-        InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No.
-        If a stamp is present, identify any markings on the document related to
-        Inventory or Supplies, specifically if they are marked or circled with a pen.
-        If a stamp is present, extract the following handwritten details
-        from the stamp: ConfirmationNumber (the confirmation number labeled as
-        'Confirmation' on the stamp),
-        ReceivingDate (the date when the goods were received),
-        Receiver (the name of the person or department who received the goods), and
-        Department (the handwritten department name or code,
-        or another specified departmentname), MarkedDept (which may be either
-        'Inventory' or 'Supplies', based on pen marking).
+        otherwise set it to USD.
+
         Provide all information in the following JSON format:
-        {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'
-        (which ever is circled more/marked only),
-        'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
-        'Receiver': 'Extracted data', 'Department': 'Dept code',
-        'Store Number':,'VendorName':,'InvoiceID':,'Currency':}.Output should be
-        just json"""
+        {
+            'StampFound': 'Yes/No',
+            'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
+            'Confirmation': 'Extracted data',
+            'ReceivingDate': 'Extracted data',
+            'Receiver': 'Extracted data',
+            'Department': 'Dept code',
+            'Store Number': 'Extracted data',
+            'VendorName': 'Extracted data',
+            'InvoiceID' : 'Extracted data'
+            'Currency': 'Extracted data'
+        }.
+
+        Output should always be in JSON format only."""
         # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
