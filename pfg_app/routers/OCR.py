@@ -198,6 +198,8 @@ def runStatus(
                     frtrigger_insert_data = {
                         "blobpath": spltFileName,
                         "status": "File received",
+                        "sender": sender,
+                        "page_number": spltInv,
                     }
                     fr_db_data = model.frtrigger_tab(**frtrigger_insert_data)
                     db.add(fr_db_data)
@@ -433,10 +435,50 @@ def runStatus(
                             "metaVendorAdd": metaVendorAdd,
                             "metaVendorName": metaVendorName,
                         }
-                        invoId = live_model_fn_1(generatorObj)
-                        logger.info(f"DocumentID:{invoId}")
-                        # try:
-                        # logger.info(f"StamoData: {StampDataList}")
+                        try:
+                            invoId = live_model_fn_1(generatorObj)
+                            logger.info(f"DocumentID:{invoId}")
+                        except Exception as e:
+                            invoId = ""
+                            logger.error(f"Exception in live_model_fn_1: {str(e)}")
+
+                        try:
+                            if len(str(invoId)) == 0:
+                                preBltFrdata, preBltFrdata_status = getFrData_MNF(
+                                    rwOcrData
+                                )
+
+                            invoId = push_frdata(
+                                preBltFrdata,
+                                inv_model_id,
+                                spltFileName,
+                                entityID,
+                                entityBodyID,
+                                vendorAccountID,
+                                "nonPO",
+                                spltFileName,
+                                userID,
+                                0,
+                                num_pages,
+                                source,
+                                sender,
+                                filename,
+                                file_type,
+                                invoice_type,
+                                4,
+                                7,
+                                db,
+                            )
+
+                            logger.info(
+                                f" Onboard vendor Pending: invoice_ID: {invoId}"
+                            )
+                            status = "success"
+                        except Exception as e:
+                            logger.info(
+                                f"Postprocessing Exception line 446 orc.py: {str(e)}"
+                            )
+                            status = "fail"
 
                         if "StampFound" in StampDataList[splt_map[fl]]:
                             stm_dt_lt = []
@@ -774,7 +816,8 @@ def runStatus(
                         try:
                             cur = conn.cursor()
                             sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
-                                SET "status" = %s, "sender" = %s, "vendorID" = %s \
+                                      SET "status" = %s, "sender" = %s, \
+                                        "vendorID" = %s \
                                     WHERE "blobpath" = %s; """
                             FRvalues = ("Processed", sender, vendorID, spltFileName)
                             cur.execute(sql_updateFR, FRvalues)
@@ -873,6 +916,37 @@ def runStatus(
         logger.error(f"API exception ocr.py: {traceback.format_exc()}")
         logger.error(f"API exception ocr.py: {str(err)}")
         status = "error: " + str(err)
+    try:
+        if len(str(invoId)) == 0:
+            invoId = push_frdata(
+                preBltFrdata,
+                999999,
+                spltFileName,
+                entityID,
+                1,
+                vendorAccountID,
+                "nonPO",
+                spltFileName,
+                userID,
+                0,
+                num_pages,
+                source,
+                sender,
+                filename,
+                file_type,
+                invoice_type,
+                4,
+                7,
+                db,
+            )
+
+            logger.info(
+                f" PostProcessing Error, systemcheckinvoice: invoice_ID: {invoId}"
+            )
+            status = "Error"
+    except Exception as err:
+        logger.error(f"line 947 ocr.py: {err}")
+        logger.error(f" ocr.py: {traceback.format_exc()}")
 
     try:
         pfg_sync(invoId, userID, db)
