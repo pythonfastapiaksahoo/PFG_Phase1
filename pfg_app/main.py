@@ -1,7 +1,6 @@
 from datetime import datetime
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 
 # from dependency.dependencies import get_query_token, get_token_header
@@ -161,21 +160,23 @@ async def root():
     return {"message": "Hello! This is IDP"}
 
 
-# Function to be scheduled
-def scheduled_task():
-    print(f"Task running at {datetime.now()}")
+scheduler = AsyncIOScheduler()
+
+
+def bulk_update_status():
+    # Your function implementation
+    print(f"Updating status at {datetime.now()}...")
     newbulkupdateInvoiceStatus()
 
 
-# Function to start the scheduler
-def start_scheduler():
-    scheduler = BackgroundScheduler()
-    # Schedule the task to run every day at 8:00 PM
-    scheduler.add_job(scheduled_task, CronTrigger(hour=20, minute=0))
-    scheduler.start()
+# Schedule the job
+scheduler.add_job(
+    bulk_update_status, "cron", hour=17, minute=38
+)  # Runs every day at 3 AM
+scheduler.start()
 
 
-# Start the scheduler when the FastAPI app starts
 @app.on_event("startup")
-def startup_event():
-    start_scheduler()
+async def startup_event():
+    # Start the scheduler when the FastAPI app starts
+    scheduler.start()
