@@ -1241,8 +1241,7 @@ async def read_invoice_status_history(u_id, inv_id, db):
     finally:
         db.close()
 
-
-async def read_doc_history(inv_id, db):
+async def read_doc_history(inv_id,download, db):
     """This function is used to read invoice history logs, contains following
     parameters.
 
@@ -1255,98 +1254,40 @@ async def read_doc_history(inv_id, db):
     :return: It return a result of list type.
     """
     try:
-        doc_status_hist = case(
-            [
-                (
-                    and_(
-                        model.DocumentHistoryLogs.documentStatusID == 4,
-                        model.DocumentHistoryLogs.documentSubStatusID == 29,
-                    ),
-                    model.DocumentHistoryLogs.documentdescription,
-                ),
-                (model.DocumentHistoryLogs.documentStatusID == 0, "Invoice Uploaded"),
-                (
-                    model.DocumentHistoryLogs.documentStatusID == 2,
-                    "Document Processed Successfully",
-                ),
-                (model.DocumentHistoryLogs.documentStatusID == 3, "Approval Completed"),
-                (model.DocumentHistoryLogs.documentSubStatusID == 8, "PO Item Check"),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 16,
-                    "Unitprice MisMatched",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 21,
-                    "PO Quantity Check",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 32,
-                    "Invoice ERP Error",
-                ),
-                (model.DocumentHistoryLogs.documentSubStatusID == 34, "PO Line Issue"),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 35,
-                    "Waiting for GRN creation",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 39,
-                    "GRN Created in Serina",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 37,
-                    "GRN Created in ERP",
-                ),
-                (model.DocumentHistoryLogs.documentSubStatusID == 40, "GRN ERP Error"),
-                (
-                    and_(
-                        model.DocumentHistoryLogs.documentSubStatusID == 3,
-                        model.DocumentHistoryLogs.documentStatusID is None,
-                    ),
-                    "OCR Error Corrected",
-                ),
-                (
-                    and_(
-                        model.DocumentHistoryLogs.documentSubStatusID == 3,
-                        model.DocumentHistoryLogs.documentStatusID == 1,
-                    ),
-                    "Invoice Submitted for Batch",
-                ),
-                (model.DocumentHistoryLogs.documentStatusID == 10, "Invoice Rejected"),
-                (model.DocumentHistoryLogs.documentStatusID == 14, "Posted In ERP"),
-            ]
-        ).label("dochistorystatus")
-        doc_fin_status = case(
-            [
-                (
-                    model.DocumentHistoryLogs.documentfinstatus == 0,
-                    "Partially Approved",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentfinstatus == 1,
-                    "Completely Approved",
-                ),
-            ],
-            else_="UNKNOWN",
-        ).label("documentFinancialStatus")
-        return (
-            db.query(
-                model.DocumentHistoryLogs,
-                model.User.firstName,
-                model.User.lastName,
-                model.Document.docheaderID,
-                doc_status_hist,
-                doc_fin_status,
+        if download:
+            return (
+                db.query(
+                    model.DocumentHistoryLogs,
+                    model.Document.docheaderID,
+                    model.Document.documentDate,
+                    model.Document.JournalNumber,
+                    model.Document.UploadDocType,
+                    model.Vendor.VendorName
+                )
+                .options(load_only("documentdescription","documentStatusID", "CreatedOn"))
+                .filter(model.DocumentHistoryLogs.documentID == model.Document.idDocument)
+                .join(
+                    model.VendorAccount,
+                    model.Document.vendorAccountID == model.VendorAccount.idVendorAccount,
+                    isouter=True,
+                ).join(
+                    model.Vendor,
+                    model.VendorAccount.vendorID == model.Vendor.idVendor,
+                    isouter=True,
+                )
+                .filter(model.Document.idDocument == inv_id)
+                .order_by(model.DocumentHistoryLogs.CreatedOn)
+                .all()
             )
-            .options(load_only("documentdescription", "userAmount", "CreatedOn"))
-            .filter(model.DocumentHistoryLogs.documentID == model.Document.idDocument)
-            .join(
-                model.User,
-                model.DocumentHistoryLogs.userID == model.User.idUser,
-                isouter=True,
+        else:
+            return (
+                db.query(
+                    model.DocumentHistoryLogs
+                ).options(load_only("documentdescription","documentStatusID", "CreatedOn"))
+                .filter(model.Document.idDocument == inv_id)
+                .order_by(model.DocumentHistoryLogs.CreatedOn)
+                .all()
             )
-            .filter(model.Document.idDocument == inv_id)
-            .all()
-        )
     except Exception:
         logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server Error"})
