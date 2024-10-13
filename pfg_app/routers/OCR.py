@@ -127,6 +127,7 @@ def runStatus(
             rwOcrData,
             fr_model_status,
             fr_model_msg,
+            fileSize,
         ) = splitDoc(
             pdf_stream,
             subfolder_name,
@@ -197,12 +198,17 @@ def runStatus(
                 vdrFound = 0
                 spltFileName = splitfileNames[splt_map[fl]]
                 try:
+                    InvofileSize = fileSize[spltFileName]
+                except Exception:
+                    InvofileSize = ""
+                try:
 
                     frtrigger_insert_data = {
                         "blobpath": spltFileName,
                         "status": "File received",
                         "sender": sender,
                         "page_number": spltInv,
+                        "filesize": str(InvofileSize),
                     }
                     fr_db_data = model.frtrigger_tab(**frtrigger_insert_data)
                     db.add(fr_db_data)
@@ -482,7 +488,7 @@ def runStatus(
                                     cur = conn.cursor()
                                     sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
                                                 SET "status" = %s, "sender" = %s, \
-                                                "vendorID" = %s \
+                                                "vendorID" = %s  documentid = %s,\
                                             WHERE "blobpath" = %s; """
                                     FRvalues = (
                                         "PostProcessing Error",
@@ -925,8 +931,8 @@ def runStatus(
                 fl = fl + 1
                 # time.sleep(0.5)
 
-            # cursor.close()
-            # conn.close()
+            cursor.close()
+            conn.close()
         else:
 
             logger.error(f"DI responed error: {fr_model_status, fr_model_msg}")
@@ -962,6 +968,14 @@ def runStatus(
                 status = "Error"
 
                 try:
+                    conn = psycopg2.connect(
+                        dbname=settings.db_name,
+                        user=settings.db_user,
+                        password=settings.db_password,
+                        host=settings.db_host,
+                        port=str(settings.db_port),  # Ensure port is a string
+                    )
+
                     cur = conn.cursor()
                     sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
                                 SET "status" = %s, "sender" = %s, \
@@ -970,7 +984,8 @@ def runStatus(
                     FRvalues = ("PostProcessing Error", sender, vendorID, spltFileName)
                     cur.execute(sql_updateFR, FRvalues)
                     conn.commit()
-
+                    cursor.close()
+                    conn.close()
                 except Exception as qw:
                     logger.info(f"ocr.py line 475: {str(qw)}")
         except Exception as err:
@@ -989,8 +1004,7 @@ def runStatus(
         logger.info("pfg_sync Done!")
     except Exception as Er:
         logger.info(f"Ocr.py SyncError: {Er}")
-    cursor.close()
-    conn.close()
+
     return status
 
 

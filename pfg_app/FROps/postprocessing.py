@@ -1547,7 +1547,7 @@ def postpro(
                     dt["header"][tg]["status"] = 0
 
             try:
-                # metaVendorName, metaVendorAdd
+                # metaVendorName, metaVendorAdd match check
                 if dt["header"][tg]["tag"] == "VendorName":
                     doc_VendorName = dt["header"][tg]["data"]["value"]
 
@@ -1594,7 +1594,6 @@ def postpro(
                         ] = "Invalid Value, Please review"
                         dt["header"][tg]["status"] = 0
                         totalTax_rw = ""
-
         try:
 
             vndMth_ck, vndMth_address_ck = VndMatchFn(
