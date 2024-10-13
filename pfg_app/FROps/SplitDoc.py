@@ -51,6 +51,7 @@ def split_pdf_and_upload(
     destination_container_name,
     subfolder_name,
     prompt,
+    fileSize={},
     # deployment_name,
     # OpenAI_api_base,
     # OpenAI_api_key,
@@ -73,11 +74,23 @@ def split_pdf_and_upload(
         output_pdf_stream = BytesIO()
         writer.write(output_pdf_stream)
         output_pdf_stream.seek(0)
+
         # Get the current time in seconds since the epoch
         current_timestamp = str(time.time()).replace(".", "_")
 
         # Define the blob name (including the subfolder path)
         output_blob_name = f"{subfolder_name}/{current_timestamp}_split_part{i + 1}.pdf"
+        # get PDF size
+        try:
+            # Get the size of the PDF in bytes
+            pdf_size_bytes = output_pdf_stream.getbuffer().nbytes
+            pdf_size_kb = round(pdf_size_bytes / 1024, 2)
+            pdf_size_mb = round(pdf_size_kb / 1024, 2)  # Convert to MB
+            fileSize[output_blob_name] = pdf_size_mb
+
+        except Exception as e:
+            logger.error(f"Exception in fileSize: {str(e)}")
+
         account_name = settings.storage_account_name
         account_url = f"https://{account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
@@ -109,7 +122,7 @@ def split_pdf_and_upload(
 
         stampdata.append(pgstampdata)
 
-    return splitfileNames, stampdata
+    return splitfileNames, stampdata, fileSize
 
 
 def extract_pdf_pages(pdf_document):
@@ -263,7 +276,7 @@ def splitDoc(
             grp_pages = splitpgsDt
 
         # grp_pages = splitpgsDt
-        splitfileNames, stampData = split_pdf_and_upload(
+        splitfileNames, stampData, fileSize = split_pdf_and_upload(
             pdf,
             grp_pages,
             destination_container_name,
@@ -278,7 +291,7 @@ def splitDoc(
     else:
 
         grp_pages = output_list
-        splitfileNames, stampData = split_pdf_and_upload(
+        splitfileNames, stampData, fileSize = split_pdf_and_upload(
             pdf,
             output_list,
             destination_container_name,
@@ -297,6 +310,7 @@ def splitDoc(
         len(pdf.pages),
         stampData,
         output_data,
-        1,  # Means success (fr_model_status)
-        "success",  # fr_model_msg
+        1,
+        "success",
+        fileSize,
     )
