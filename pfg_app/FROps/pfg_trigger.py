@@ -1,5 +1,6 @@
 import json
 import traceback
+from datetime import datetime
 from typing import Union
 
 from sqlalchemy import or_
@@ -332,6 +333,20 @@ def nonIntegratedVoucherData(inv_id, db: Session):
     db.commit()
 
 
+def format_and_validate_date(date_str):
+    dateValCk = 0
+    try:
+        date_str = date_str.replace("-", " ").replace("/", " ").replace(".", " ")
+
+        date_obj = datetime.strptime(date_str, "%Y %m %d")
+        formatted_date = date_obj.strftime("%Y-%m-%d")
+        dateValCk = 1
+    except ValueError:
+        formatted_date = date_str
+        dateValCk = 0
+    return formatted_date, dateValCk
+
+
 def pfg_sync(docID, userID, db: Session):
     logger.info(f"start on the pfg_sync,DocID{docID}")
 
@@ -413,9 +428,14 @@ def pfg_sync(docID, userID, db: Session):
             )
 
             docHdrDt = {}
+            tagNames = {}
+
             try:
                 for document_data, document_tag_def in DocDtHdr:
                     docHdrDt[document_tag_def.TagLabel] = document_data.Value
+                    tagNames[document_tag_def.TagLabel] = (
+                        document_tag_def.idDocumentTagDef
+                    )
                 logger.info(f"docHdrDt: {docHdrDt}")
 
                 # Invoice Total Approval Check
@@ -469,6 +489,7 @@ def pfg_sync(docID, userID, db: Session):
                 invTotalMth = 0
                 invTotalMth_msg = "Invoice total mismatch, please review."
                 if dsdApprovalCheck == 1:
+
                     try:
                         if docHdrDt["InvoiceTotal"] == docHdrDt["SubTotal"]:
                             invTotalMth = 1
@@ -506,19 +527,38 @@ def pfg_sync(docID, userID, db: Session):
                 invTotalMth_msg = "Invoice total mismatch:" + str(e)
 
             try:
-                # date_string = docHdrDt["InvoiceDate"]  # TODO: Unused variable
+                date_string = docHdrDt["InvoiceDate"]  # TODO: Unused variable
                 try:
-                    dateCheck = 1
-                except Exception:
+                    formatted_date, dateValCk = format_and_validate_date(date_string)
+                    if dateValCk == 1:
+                        dateCheck = 1
+                    else:
+                        dateCheck = 0
+                        dateCheck_msg = "Invoice date is invalid,Please review."
+
+                except Exception as er:
                     logger.error(traceback.format_exc())
                     dateCheck = 0
-                    dateCheck_msg = "Invoice date is invalid,Please review."
+                    dateCheck_msg = str(er)
+
             except Exception:
                 logger.error(traceback.format_exc())
                 dateCheck = 0
                 dateCheck_msg = "Failed to validate the invoice date,Please review."
 
             if dateCheck == 1:
+                # try:
+                #     dateTag = tagNames["InvoiceDate"]
+
+                #     docDtUpdate = {}
+                #     docDtUpdate["Value"] = documentID
+                #     docDtUpdate["isError"] = 0
+
+                #     db.add(model.DocumentHistoryLogs(**docHistory))
+                #     db.commit()
+
+                # except Exception:
+                #     logger.error(traceback.format_exc())
                 ocrCheck = 1
                 ocrCheck_msg.append("Success")
             else:
@@ -670,6 +710,16 @@ def pfg_sync(docID, userID, db: Session):
                                     "status": 1,
                                     "response": ["File Size Check Passed"],
                                 }
+                            else:
+                                docStatusSync["File Size Check"] = {
+                                    "status": 1,
+                                    "response": ["FileSize:" + str(fileSize) + "MB."],
+                                }
+                        else:
+                            docStatusSync["File Size Check"] = {
+                                "status": 0,
+                                "response": ["File Size not found."],
+                            }
                     except Exception as e:
                         logger.error(f"pfg_sync- file size check: {str(e)}")
 
@@ -685,12 +735,13 @@ def pfg_sync(docID, userID, db: Session):
 
                         overAllstatus_ck = 1
                         for stCk in docStatusSync:
-                            valCkStatus = docStatusSync[stCk]["status"]
-                            if type(valCkStatus) is int:
-                                overAllstatus_ck = overAllstatus_ck * valCkStatus
+                            if stCk != "File Size Check":
+                                valCkStatus = docStatusSync[stCk]["status"]
+                                if type(valCkStatus) is int:
+                                    overAllstatus_ck = overAllstatus_ck * valCkStatus
 
-                            else:
-                                overAllstatus_ck = 0
+                                else:
+                                    overAllstatus_ck = 0
 
                         if overAllstatus_ck == 1:
                             overAllstatus_msg = "Success"

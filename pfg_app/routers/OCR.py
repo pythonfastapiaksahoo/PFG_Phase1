@@ -13,6 +13,7 @@ from psycopg2 import extras
 from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sqlalchemy import func
 from sqlalchemy.orm import Load
 
 import pfg_app.model as model
@@ -154,17 +155,32 @@ def runStatus(
                 port=str(settings.db_port),  # Ensure port is a string
             )
             cursor = conn.cursor()
-            cursor.execute(
-                'SELECT "idVendor","VendorName","Synonyms","Address" \
-                    FROM pfg_schema.vendor;'
+            # cursor.execute(
+            #     'SELECT "idVendor","VendorName","Synonyms","Address" \
+            #         FROM pfg_schema.vendor;'
+            # )
+            # rows = cursor.fetchall()
+            query = db.query(
+                model.Vendor.idVendor,
+                model.Vendor.VendorName,
+                model.Vendor.Synonyms,
+                model.Vendor.Address,
+            ).filter(
+                func.jsonb_extract_path_text(
+                    model.Vendor.miscellaneous, "VENDOR_STATUS"
+                )
+                == "A"
             )
-            rows = cursor.fetchall()
+            rows = query.all()
+            columns = ["idVendor", "VendorName", "Synonyms", "Address"]
 
-            if cursor.description is not None:
-                colnames = [desc[0] for desc in cursor.description]
-            else:
-                colnames = []  # Handle the case where cursor.description is None
-            vendorName_df = pd.DataFrame(rows, columns=colnames)
+            vendorName_df = pd.DataFrame(rows, columns=columns)
+
+            # if cursor.description is not None:
+            #     colnames = [desc[0] for desc in cursor.description]
+            # else:
+            #     colnames = []  # Handle the case where cursor.description is None
+            # vendorName_df = pd.DataFrame(rows, columns=colnames)
             time.sleep(0.5)
             cursor = conn.cursor()
             insert_splitTab_query = """
