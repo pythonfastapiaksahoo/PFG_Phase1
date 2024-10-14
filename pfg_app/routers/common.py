@@ -1,6 +1,7 @@
+import requests
 from fastapi import APIRouter, Depends, Response
 
-# from pfg_app import settings
+from pfg_app import settings
 from pfg_app.azuread.auth import get_admin_user
 
 # from pfg_app.core import azure_fr as core_fr
@@ -56,3 +57,27 @@ def get_blob_file(container_name: str, blob_path: str):
 #         api_version=settings.api_version,
 #     )
 #     return response
+
+
+@router.get("/iics-status")
+def iics_status():
+
+    response = requests.post(
+        settings.erp_url + settings.erp_invoice_status_endpoint,
+        json={
+            "RequestBody": {
+                "INV_STAT_RQST": {
+                    "BUSINESS_UNIT": "MERCH",
+                    "INVOICE_ID": "9999999",
+                    "INVOICE_DT": "2023-06-10",
+                    "VENDOR_SETID": "GLOBL",
+                    "VENDOR_ID": "97879",
+                }
+            }
+        },
+        headers={"Content-Type": "application/json"},
+        auth=(settings.erp_user, settings.erp_password),
+        timeout=60,  # Set a timeout of 60 seconds
+    )
+
+    return response.json()
