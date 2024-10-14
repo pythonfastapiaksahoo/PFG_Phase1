@@ -156,6 +156,7 @@ class DocumentData(Base):
     Ycord = Column(String(45), nullable=True)
     Width = Column(String(45), nullable=True)
     Height = Column(String(45), nullable=True)
+    Fuzzy_scr = Column(Float, nullable=True)
     CreatedOn = Column(DateTime(timezone=True), nullable=True)
 
     # document = relationship("Document", back_populates="documentdata")

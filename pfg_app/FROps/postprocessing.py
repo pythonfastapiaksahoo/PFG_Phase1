@@ -1444,7 +1444,7 @@ def postpro(
                 else:
                     dt["header"][tg]["data"]["value"] = req_date
                     dt["header"][tg]["status"] = 0
-                    dt["header"][tg]["status_message"] = "Invalid Date formate"
+                    dt["header"][tg]["status_message"] = "Invalid Date format"
 
             # if dt["header"][tg]["tag"] == "TRN":
             #     doc_trn = dt["header"][tg]["data"]["value"]

@@ -246,16 +246,22 @@ def splitDoc(
         preDt = output_data[docPg]["documents"][0]["fields"]
         prbtHeaderspg = {}
         for pb in preDt:
-            # logger.info(f"line 297: {preDt[pb]}")
-            if (
-                "value_type" in preDt[pb]
-                and preDt[pb]["value_type"] != "array"
-                and pb != "Items"
-            ):
-                prbtHeaderspg[pb] = [
-                    preDt[pb]["content"],
-                    round(float(preDt[pb]["confidence"]) * 100, 2),
-                ]
+            if "content" in preDt[pb]:
+                try:
+                    # logger.info(f"line 297: {preDt[pb]}")
+                    if (
+                        "value_type" in preDt[pb]
+                        and preDt[pb]["value_type"] != "array"
+                        and pb != "Items"
+                        and pb != "list"
+                    ):
+                        if "confidence" in preDt[pb]:
+                            prbtHeaderspg[pb] = [
+                                preDt[pb]["content"],
+                                round(float(preDt[pb]["confidence"]) * 100, 2),
+                            ]
+                except Exception:
+                    logger.info(f"line 300: {preDt[pb]}")
         prbtHeaders[docPg] = prbtHeaderspg
 
     if sndChk == 1:

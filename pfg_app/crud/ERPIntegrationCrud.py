@@ -841,7 +841,7 @@ def processInvoiceVoucher(doc_id, db):
             raise HTTPException(status_code=404, detail="Voucherdata not found")
 
         # # Call the function to get the base64 file
-        base64file = read_invoice_file(doc_id, db)
+        base64file = read_invoice_file_voucher(doc_id, db)
 
         # Check if the returned value contains an error
         if "error" in base64file:
@@ -860,7 +860,7 @@ def processInvoiceVoucher(doc_id, db):
         # Continue processing the file
         print(f"Filepath (Base64 Encoded): {filepath}")
         print(f"Content Type: {content_type}")
-        vdbu = voucherdata.Business_unit
+        # vdbu = voucherdata.Business_unit
         request_payload = {
             "RequestBody": [
                 {
@@ -1108,7 +1108,7 @@ def updateInvoiceStatus(doc_id, db):
     return invoice_status
 
 
-async def read_invoice_file(u_id, inv_id, db):
+async def read_invoice_file_voucher(inv_id, db):
     try:
         content_type = "application/pdf"
         max_size = 5 * 1024 * 1024  # 5 MB in bytes
