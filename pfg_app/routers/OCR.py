@@ -1482,6 +1482,10 @@ def parse_labels(label_data, db, poNumber, modelID):
                 db_data["Value"] = poNumber
             else:
                 db_data["Value"] = label["data"]["value"]
+            if label["data"]["confidence"]:
+                db_data["Fuzzy_scr"] = label["data"]["confidence"]
+            else:
+                db_data["Fuzzy_scr"] = "0"
             db_data["IsUpdated"] = 0
             if label["status"] == 1:
                 db_data["isError"] = 0
@@ -1510,6 +1514,10 @@ def parse_tabel(tabel_data, db, modelID):
         for col in row:
             db_data = {}
             db_data["Value"] = col["data"]
+            if col["data"]["confidence"]:
+                db_data["Fuzzy_scr"] = col["data"]["confidence"]
+            else:
+                db_data["Fuzzy_scr"] = "0"
             db_data["lineItemtagID"] = get_lineitemTagId(db, col["tag"], modelID)
             if "status" in col:
                 if col["status"] == 1:
