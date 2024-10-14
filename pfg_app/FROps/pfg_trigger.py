@@ -959,18 +959,18 @@ def pfg_sync(docID, userID, db: Session):
                     update_docHistory(docID, userID, documentstatus, documentdesc, db)
                 except Exception as e:
                     logger.error(f"pfg_sync line 534: {str(e)}")
-                try:
-                    db.query(model.Document).filter(
-                        model.Document.idDocument == docID
-                    ).update(
-                        {
-                            model.Document.documentStatusID: documentstatus,
-                            model.Document.documentsubstatusID: documentSubstatus,
-                        }
-                    )
-                    db.commit()
-                except Exception as err:
-                    logger.info(f"ErrorUpdatingPostingData: {err}")
+                # try:
+                #     db.query(model.Document).filter(
+                #         model.Document.idDocument == docID
+                #     ).update(
+                #         {
+                #             model.Document.documentStatusID: documentstatus,
+                #             model.Document.documentsubstatusID: documentSubstatus,
+                #         }
+                #     )
+                #     db.commit()
+                # except Exception as err:
+                #     logger.info(f"ErrorUpdatingPostingData: {err}")
 
         except Exception as err:
             logger.info(f"SyncException:{err}")
