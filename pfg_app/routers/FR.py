@@ -1,19 +1,24 @@
+import io
 import json
 import os
+import re
+import time
 import traceback
 from datetime import datetime
-from typing import Any, Dict, Optional
+from io import BytesIO
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-from fastapi import APIRouter, Depends, Request, Response, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 import pfg_app.model as model
+from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
+from pfg_app.core.utils import get_credential
 from pfg_app.crud import FRCrud as crud
 from pfg_app.FROps.model_validate import model_validate_final
 from pfg_app.FROps.reupload import reupload_file_azure
@@ -32,7 +37,6 @@ router = APIRouter(
 )
 
 temp_dir_obj = None
-credential = DefaultAzureCredential()
 
 
 # Checked - used in the frontend
@@ -67,19 +71,39 @@ async def getAccuracy(type: str, name: str, db: Session = Depends(get_db)):
     return await crud.getActualAccuracy(type, name, db)
 
 
-# Checked - used in the frontend
 @router.get("/getAccuracyByEntity/{type}")
 async def getAccuracyByEntity(type: str, db: Session = Depends(get_db)):
-    for f in os.listdir():
-        if os.path.isfile(f) and f.endswith("AccuracyReport.xlsx"):
-            os.unlink(f)
+    # Fetch the data from the database using the CRUD function
     data = await crud.getActualAccuracyByEntity(type, db)
-    pd.DataFrame(data).to_excel("EntityLevelAccuracyReport.xlsx")
-    return FileResponse(
-        path="EntityLevelAccuracyReport.xlsx",
-        filename="EntityLevelAccuracyReport.xlsx",
-        media_type="application/vnd.ms-excel",
-    )
+
+    # Check if the data is a Response object (indicating an error)
+    if isinstance(data, Response):
+        return data  # If it's a Response object, return it directly
+
+    # If data is a valid dictionary, proceed with processing
+    records = []
+    for entity, metrics in data.items():
+        for key, value in metrics.items():
+            records.append((key, value))  # Append a tuple with the key and its value
+
+    # Create an Excel file in memory using a BytesIO buffer
+    output = io.BytesIO()
+    df = pd.DataFrame(records, columns=["Metric", "Details"])  # Set the column names
+    df.to_excel(output, index=False, engine="openpyxl")  # Write DataFrame to Excel
+
+    # Rewind the buffer to the beginning so it can be read
+    output.seek(0)
+
+    # Return the file as a streaming response with correct headers
+    headers = {
+        "Content-Disposition": (
+            'attachment; filename="EntityLevelAccuracyReport.xlsx"'
+        ),
+        "Content-Type": (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    }
+    return StreamingResponse(output, headers=headers)
 
 
 # Checked - used in the frontend
@@ -146,11 +170,11 @@ async def update_metadata(
             del frmetadata["ServiceProviderName"]
         configs = getOcrParameters(1, db)
         containername = configs.ContainerName
-        connection_str = configs.ConnectionString
-        account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        # connection_str = configs.ConnectionString
+        # account_name = connection_str.split("AccountName=")[1].split(";AccountKey")[0]
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         container_client = blob_service_client.get_container_client(containername)
         list_of_blobs = container_client.list_blobs(name_starts_with=blb_fldr)
@@ -160,7 +184,6 @@ async def update_metadata(
                 "fieldKey": "tab_1_object",
                 "fieldType": "object",
                 "fieldFormat": "not-specified",
-                "itemType": None,
                 "fields": [],
             }
         }
@@ -172,8 +195,6 @@ async def update_metadata(
                         "fieldKey": m,
                         "fieldType": "string",
                         "fieldFormat": "not-specified",
-                        "itemType": None,
-                        "fields": None,
                     }
                 )
                 lineitemupdates.append(m)
@@ -184,8 +205,6 @@ async def update_metadata(
                         "fieldKey": m,
                         "fieldType": "string",
                         "fieldFormat": "not-specified",
-                        "itemType": None,
-                        "fields": None,
                     }
                 )
                 lineitemupdates.append(m)
@@ -246,7 +265,6 @@ async def update_metadata(
                     "fieldType": "array",
                     "fieldFormat": "not-specified",
                     "itemType": "tab_1_object",
-                    "fields": None,
                 }
             )
             jso = {
@@ -363,12 +381,9 @@ def model_validate(validateParas: schema.FrValidate, db: Session = Depends(get_d
     # jsonDb = TinyDB('db.json')
     # jsonDb.insert({"model_id": model_id, "data": data})
 
-    account_name = validateParas.cnx_str.split("AccountName=")[1].split(";AccountKey")[
-        0
-    ]
-    account_url = f"https://{account_name}.blob.core.windows.net"
+    account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
     blob_service_client = BlobServiceClient(
-        account_url=account_url, credential=credential
+        account_url=account_url, credential=get_credential()
     )
     container_client = blob_service_client.get_container_client(validateParas.cont_name)
     jso = container_client.get_blob_client("db.json").download_blob().readall()
@@ -386,6 +401,33 @@ def model_validate(validateParas: schema.FrValidate, db: Session = Depends(get_d
         "model_updates": {"result": "Updated", "records": {"modelID": model_id}},
         "final_data": data,
     }
+
+
+@router.post("/uploadfolder")
+async def create_upload_files(
+    files: List[UploadFile] = File(...), db: Session = Depends(get_db)
+):
+    try:
+        ts = str(time.time())
+        dir_path = ts.replace(".", "_")
+        configs = getOcrParameters(1, db)
+        containername = configs.ContainerName
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=get_credential()
+        )
+        container_client = blob_service_client.get_container_client(containername)
+        for file in files:
+            content = await file.read()
+            file_location = f"{dir_path}/{re.sub('[^A-Za-z0-9.]+','',file.filename)}"
+            container_client.upload_blob(
+                name=file_location, data=BytesIO(content), overwrite=True
+            )
+        return {"filepath": dir_path}
+    except Exception as e:
+        print(e)
+        return {"filepath": ""}
 
 
 # Checked - used in the frontend
@@ -537,3 +579,35 @@ async def getEmailInfo(db: Session = Depends(get_db)):
     :return: It returns the email_listener_info data as a dictionary.
     """
     return await crud.get_email_info(db)
+
+
+# Missed api's
+@router.get("/getalltags")
+async def get_fr_tags(tagtype: Optional[str] = None, db: Session = Depends(get_db)):
+    return await crud.getall_tags(tagtype, db)
+
+
+# check duplicate synonyms
+@router.get("/checkduplicatesynonyms/{synonym:path}")
+async def check_duplicate_synonyms(synonym: str, db: Session = Depends(get_db)):
+    try:
+        Synonyms = (
+            db.query(model.Vendor).filter(model.Vendor.Synonyms.isnot(None)).all()
+        )
+        vendor_name = None
+        for s in Synonyms:
+            synonyms_list = json.loads(s.Synonyms, strict=False)
+            if synonym.lower() in [s.lower() for s in synonyms_list]:
+                # synonym is already present in the list
+                vendor_name = s.VendorName
+                return {
+                    "status": "exists",
+                    "message": f"Synonym already exists for {vendor_name}",
+                }
+        # synonym is not present in the list
+        return {"status": "not exists", "message": "Synonym does not exist"}
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error in checking duplicate synonyms: {e}",
+        }

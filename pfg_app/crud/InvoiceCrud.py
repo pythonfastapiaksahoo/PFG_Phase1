@@ -5,17 +5,17 @@ import re
 import traceback
 from datetime import datetime, timedelta
 
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
-from sqlalchemy import String, and_, case, cast, func, or_
+from sqlalchemy import String, and_, case, cast, exists, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, load_only
 
 import pfg_app.model as model
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
 
-credential = DefaultAzureCredential()
 status = [
     "System Check In - Progress",
     "Processing Document",
@@ -40,221 +40,6 @@ substatus = [
     (39, "GRN Created in Serina"),
     (78, "GRN Approval Pending"),
 ]
-
-
-async def read_paginate_doc_inv_list(
-    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status
-):
-    """Function to read the paginated document invoice list.
-
-    Parameters:
-    ----------
-    ven_id : int
-        The ID of the vendor to filter the invoice documents.
-    inv_type : str
-        The type of invoice to filter the results.
-    stat : Optional[str]
-        The status of the invoice for filtering purposes.
-    off_limit : tuple
-        A tuple containing offset and limit for pagination.
-    db : Session
-        Database session object used to interact with the backend database.
-    uni_api_filter : Optional[str]
-        A universal filter for API queries.
-    ven_status : Optional[str]
-        Status of the vendor to filter the results.
-
-    Returns:
-    -------
-    list
-        A list containing the filtered document invoice data.
-    """
-    try:
-        all_status = {
-            "posted": 14,
-            "rejected": 10,
-            "exception": 4,
-            "VendorNotOnboarded": 25,
-            "VendorUnidentified": 26,
-        }
-
-        doc_status = case(
-            [
-                (model.Document.documentsubstatusID == value[0], value[1])
-                for value in substatus
-            ]
-            + [
-                (model.Document.documentStatusID == value[0] + 1, value[1])
-                for value in enumerate(status)
-            ]
-            + [
-                (
-                    model.Document.documentStatusID == all_status["VendorUnidentified"],
-                    "VendorUnidentified",
-                ),
-                (
-                    model.Document.documentStatusID == all_status["VendorNotOnboarded"],
-                    "VendorNotOnboarded",
-                ),
-            ],
-            else_="",
-        ).label("docstatus")
-
-        inv_choice = {
-            "ser": (
-                model.ServiceProvider,
-                model.ServiceAccount,
-                Load(model.ServiceProvider).load_only("ServiceProviderName"),
-                Load(model.ServiceAccount).load_only("Account"),
-            ),
-            "ven": (
-                model.Vendor,
-                model.VendorAccount,
-                Load(model.Vendor).load_only("VendorName", "Address"),
-                Load(model.VendorAccount).load_only("Account"),
-            ),
-        }
-        # Initial query setup
-        data_query = db.query(
-            model.Document,
-            doc_status,
-            model.DocumentSubStatus,
-            inv_choice[inv_type][0],
-            inv_choice[inv_type][1],
-        ).filter(model.Document.idDocumentType == 3)
-
-        # filters for query parameters
-        if ven_id:
-            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
-                vendorID=ven_id
-            )
-            data_query = data_query.filter(
-                model.Document.vendorAccountID.in_(sub_query)
-            )
-        # filter by status
-        if stat:
-            data_query = data_query.filter(
-                model.Document.documentStatusID == all_status[stat]
-            )
-
-        # Apply necessary joins and options
-        data_query = (
-            data_query.options(
-                Load(model.Document).load_only(
-                    "docheaderID",
-                    "totalAmount",
-                    "documentStatusID",
-                    "CreatedOn",
-                    "documentsubstatusID",
-                    "sender",
-                    "JournalNumber",
-                    "UploadDocType",
-                    "store",
-                    "dept",
-                    "documentDate",
-                ),
-                Load(model.DocumentSubStatus).load_only("status"),
-                inv_choice[inv_type][2],
-                inv_choice[inv_type][3],
-            )
-            .join(
-                model.DocumentSubStatus,
-                model.DocumentSubStatus.idDocumentSubstatus
-                == model.Document.documentsubstatusID,
-                isouter=True,
-            )
-            .join(
-                model.DocumentHistoryLogs,
-                model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-                isouter=True,
-            )
-            .join(
-                model.VendorAccount,
-                model.VendorAccount.idVendorAccount == model.Document.vendorAccountID,
-                isouter=True,
-            )
-            .join(
-                model.Vendor,
-                model.Vendor.idVendor == model.VendorAccount.vendorID,
-                isouter=True,
-            )
-            .join(
-                model.DocumentStatus,
-                model.DocumentStatus.idDocumentstatus
-                == model.Document.documentStatusID,
-                isouter=True,
-            )
-            .filter(model.Document.vendorAccountID.isnot(None))
-        )
-
-        if ven_status:
-            if ven_status == "A":
-                data_query = data_query.filter(
-                    func.jsonb_extract_path_text(
-                        model.Vendor.miscellaneous, "VENDOR_STATUS"
-                    )
-                    == "A"
-                )
-
-            elif ven_status == "I":
-                data_query = data_query.filter(
-                    func.jsonb_extract_path_text(
-                        model.Vendor.miscellaneous, "VENDOR_STATUS"
-                    )
-                    == "I"
-                )
-
-        # Pagination
-        offset, limit = off_limit
-        off_val = (offset - 1) * limit
-        if off_val < 0:
-            return Response(
-                status_code=403,
-                headers={"ClientError": "Please provide a valid offset value."},
-            )
-
-        if uni_api_filter:
-            data_query = data_query.filter(
-                (model.Document.docheaderID.ilike(f"%{uni_api_filter}%"))
-                | (model.Document.documentDate.ilike(f"%{uni_api_filter}%"))
-                | (model.Document.sender.ilike(f"%{uni_api_filter}%"))
-                | (
-                    cast(model.Document.totalAmount, String).ilike(
-                        f"%{uni_api_filter}%"
-                    )
-                )  # Use a numeric comparison for `totalAmount` instead of `LIKE`
-                | (
-                    func.to_char(
-                        model.Document.CreatedOn, "YYYY-MM-DD HH24:MI:SS"
-                    ).ilike(f"%{uni_api_filter}%")
-                )
-                | (model.Document.JournalNumber.ilike(f"%{uni_api_filter}%"))
-                | (model.Document.UploadDocType.ilike(f"%{uni_api_filter}%"))
-                | (model.Document.store.ilike(f"%{uni_api_filter}%"))
-                | (model.Document.dept.ilike(f"%{uni_api_filter}%"))
-                | (model.Vendor.VendorName.ilike(f"%{uni_api_filter}%"))
-                | (model.Vendor.Address.ilike(f"%{uni_api_filter}%"))
-                | (model.DocumentSubStatus.status.ilike(f"%{uni_api_filter}%"))
-                | (inv_choice[inv_type][1].Account.ilike(f"%{uni_api_filter}%"))
-            )
-
-        # Get the total count of records before applying limit and offset
-        total_count = data_query.distinct(model.Document.idDocument).count()
-        # Apply limit and offset for pagination
-        Documentdata = (
-            data_query.order_by(model.Document.CreatedOn.desc())
-            .limit(limit)
-            .offset(off_val)
-            .all()
-        )
-
-        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
-
-    except Exception:
-        logger.error(traceback.format_exc())
-        return Response(status_code=500)
-    finally:
-        db.close()
 
 
 async def read_paginate_doc_inv_list_with_ln_items(
@@ -331,33 +116,16 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
-        # Initial query setup for documents
-        data_query = db.query(
-            model.Document,
-            doc_status,
-            model.DocumentSubStatus,
-            inv_choice[inv_type][0],
-            inv_choice[inv_type][1],
-        ).filter(model.Document.idDocumentType == 3)
-
-        # Apply vendor ID filter if provided
-        if ven_id:
-            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
-                vendorID=ven_id
-            )
-            data_query = data_query.filter(
-                model.Document.vendorAccountID.in_(sub_query)
-            )
-
-        # Filter by status if provided
-        if stat:
-            data_query = data_query.filter(
-                model.Document.documentStatusID == all_status[stat]
-            )
-
-        # Apply necessary joins and options for fetching document data
+        # Initial query setup
         data_query = (
-            data_query.options(
+            db.query(
+                model.Document,
+                doc_status,
+                model.DocumentSubStatus,
+                inv_choice[inv_type][0],
+                inv_choice[inv_type][1],
+            )
+            .options(
                 Load(model.Document).load_only(
                     "docheaderID",
                     "totalAmount",
@@ -370,6 +138,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     "store",
                     "dept",
                     "documentDate",
+                    "documentDescription",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
                 inv_choice[inv_type][2],
@@ -379,11 +148,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.DocumentSubStatus,
                 model.DocumentSubStatus.idDocumentSubstatus
                 == model.Document.documentsubstatusID,
-                isouter=True,
-            )
-            .join(
-                model.DocumentHistoryLogs,
-                model.DocumentHistoryLogs.documentID == model.Document.idDocument,
                 isouter=True,
             )
             .join(
@@ -402,8 +166,26 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 == model.Document.documentStatusID,
                 isouter=True,
             )
-            .filter(model.Document.vendorAccountID.isnot(None))
+            .filter(
+                model.Document.idDocumentType == 3,
+                model.Document.vendorAccountID.isnot(None),
+            )
         )
+
+        # Apply vendor ID filter if provided
+        if ven_id:
+            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
+                vendorID=ven_id
+            )
+            data_query = data_query.filter(
+                model.Document.vendorAccountID.in_(sub_query)
+            )
+
+        # Filter by status if provided
+        if stat:
+            data_query = data_query.filter(
+                model.Document.documentStatusID == all_status[stat]
+            )
 
         # Apply vendor status filter if provided
         if ven_status:
@@ -422,32 +204,49 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     == "I"
                 )
 
+        # Function to normalize strings by removing non-alphanumeric
+        # characters and converting to lowercase
+        def normalize_string(input_str):
+            return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
         # Apply universal API filter if provided, including line items
         if uni_api_filter:
-            filter_condition = or_(
-                model.Document.docheaderID.ilike(f"%{uni_api_filter}%"),
-                model.Document.documentDate.ilike(f"%{uni_api_filter}%"),
-                model.Document.sender.ilike(f"%{uni_api_filter}%"),
-                cast(model.Document.totalAmount, String).ilike(f"%{uni_api_filter}%"),
-                func.to_char(model.Document.CreatedOn, "YYYY-MM-DD HH24:MI:SS").ilike(
-                    f"%{uni_api_filter}%"
-                ),
-                model.Document.JournalNumber.ilike(f"%{uni_api_filter}%"),
-                model.Document.UploadDocType.ilike(f"%{uni_api_filter}%"),
-                model.Document.store.ilike(f"%{uni_api_filter}%"),
-                model.Document.dept.ilike(f"%{uni_api_filter}%"),
-                model.Vendor.VendorName.ilike(f"%{uni_api_filter}%"),
-                model.Vendor.Address.ilike(f"%{uni_api_filter}%"),
-                model.DocumentSubStatus.status.ilike(f"%{uni_api_filter}%"),
-                inv_choice[inv_type][1].Account.ilike(f"%{uni_api_filter}%"),
-                # New condition: Check if any related
-                # DocumentLineItems.Value matches the filter
-                # exists().where(
-                # (model.DocumentLineItems.documentID == model.Document.idDocument) &
-                #   (model.DocumentLineItems.Value.ilike(f"%{uni_api_filter}%"))
-                # )
-            )
-            data_query = data_query.filter(filter_condition)
+            uni_search_param_list = uni_api_filter.split(":")
+            for param in uni_search_param_list:
+                # Normalize the user input filter
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
+
+                # Create a pattern for the search with wildcards
+                pattern = f"%{normalized_filter}%"
+
+                filter_condition = or_(
+                    normalize_string(model.Document.docheaderID).ilike(pattern),
+                    normalize_string(model.Document.documentDate).ilike(pattern),
+                    normalize_string(model.Document.sender).ilike(pattern),
+                    cast(model.Document.totalAmount, String).ilike(
+                        f"%{uni_api_filter}%"
+                    ),
+                    func.to_char(model.Document.CreatedOn, "YYYY-MM-DD").ilike(
+                        f"%{uni_api_filter}%"
+                    ),  # noqa: E501
+                    normalize_string(model.Document.JournalNumber).ilike(pattern),
+                    normalize_string(model.Document.UploadDocType).ilike(pattern),
+                    normalize_string(model.Document.store).ilike(pattern),
+                    normalize_string(model.Document.dept).ilike(pattern),
+                    normalize_string(model.Vendor.VendorName).ilike(pattern),
+                    normalize_string(model.Vendor.Address).ilike(pattern),
+                    normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
+                    # Check if any related DocumentLineItems.Value matches the filter
+                    exists().where(
+                        (
+                            model.DocumentLineItems.documentID
+                            == model.Document.idDocument
+                        )
+                        & normalize_string(model.DocumentLineItems.Value).ilike(pattern)
+                    ),
+                )
+                data_query = data_query.filter(filter_condition)
 
         # Get the total count of records before applying limit and offset
         total_count = data_query.distinct(model.Document.idDocument).count()
@@ -469,98 +268,8 @@ async def read_paginate_doc_inv_list_with_ln_items(
             .all()
         )
 
-        # If uni_api_filter exists, fetch line items
-        result = []
-        if uni_api_filter:
-            for doc_row in Documentdata:
-                document = doc_row.Document  # Access the Document model instance
-                inv_id = document.idDocument  # Extract document ID
-
-                # Fetch all related line item tag descriptions
-                doclinetags = (
-                    db.query(model.DocumentLineItemTags)
-                    .options(Load(model.DocumentLineItemTags).load_only("TagName"))
-                    .filter(
-                        model.DocumentLineItemTags.idDocumentLineItemTags.in_(
-                            db.query(model.DocumentLineItems.lineItemtagID)
-                            .filter_by(documentID=inv_id)
-                            .distinct()
-                        )
-                    )
-                    .all()
-                )
-
-                # For each line tag, fetch its associated line items and updates
-                for row in doclinetags:
-                    query = (
-                        db.query(model.DocumentLineItems, model.DocumentUpdates)
-                        .options(
-                            Load(model.DocumentLineItems).load_only(
-                                "Value",
-                                "IsUpdated",
-                                "isError",
-                                "ErrorDesc",
-                                "Xcord",
-                                "Ycord",
-                                "Width",
-                                "Height",
-                                "itemCode",
-                            ),
-                            Load(model.DocumentUpdates).load_only(
-                                "OldValue", "UpdatedOn"
-                            ),
-                        )
-                        .filter(
-                            model.DocumentLineItems.lineItemtagID
-                            == row.idDocumentLineItemTags,
-                            model.DocumentLineItems.documentID == inv_id,
-                        )
-                        .join(
-                            model.DocumentUpdates,
-                            model.DocumentUpdates.documentLineItemID
-                            == model.DocumentLineItems.idDocumentLineItems,
-                            isouter=True,
-                        )
-                        .filter(
-                            or_(
-                                model.DocumentLineItems.IsUpdated == 0,
-                                model.DocumentUpdates.IsActive == 1,
-                            )
-                        )
-                    )
-
-                    # Apply universal search filter for line items if necessary
-                    if uni_api_filter:
-                        query = query.filter(
-                            or_(
-                                model.DocumentLineItems.Value.ilike(
-                                    f"%{uni_api_filter}%"
-                                ),
-                                model.DocumentLineItems.ErrorDesc.ilike(
-                                    f"%{uni_api_filter}%"
-                                ),
-                            )
-                        )
-
-                    # Retrieve the line item data
-                    linedata = query.all()
-
-                    # Attach the line item data to the document
-                    row.linedata = linedata
-
-                # Attach the document with its line items and line tags to the result
-                result.append(
-                    {
-                        "document": doc_row,
-                        "lineitems": doclinetags,
-                        # Attach all line tags and their items for this document
-                    }
-                )
-        else:
-            # If no uni_api_filter, just return document data without line items
-            result = [{"document": doc_row} for doc_row in Documentdata]
         # Return paginated document data with line items
-        return {"ok": {"Documentdata": result, "TotalCount": total_count}}
+        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
 
     except Exception:
         logger.error(traceback.format_exc())
@@ -769,18 +478,17 @@ async def read_invoice_file(u_id, inv_id, db):
                     .filter_by(idCustomer=1)
                     .one()
                 )
-                account_name = fr_data.ConnectionString.split("AccountName=")[1].split(
-                    ";AccountKey"
-                )[0]
-                account_url = f"https://{account_name}.blob.core.windows.net"
-                blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=credential
+                account_url = (
+                    f"https://{settings.storage_account_name}.blob.core.windows.net"
                 )
-                if invdat.supplierAccountID:
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=get_credential()
+                )
+                if invdat.supplierAccountID is not None:
                     blob_client = blob_service_client.get_blob_client(
                         container=fr_data.ContainerName, blob=invdat.docPath
                     )
-                if invdat.vendorAccountID:
+                if invdat.vendorAccountID is not None:
                     blob_client = blob_service_client.get_blob_client(
                         container=fr_data.ContainerName, blob=invdat.docPath
                     )
@@ -794,10 +502,11 @@ async def read_invoice_file(u_id, inv_id, db):
                         content_type = "image/jpg"
                     else:
                         content_type = "application/pdf"
-                except Exception as e:
-                    print(f"Error in file type : {e}")
+                except Exception:
+                    print(f"Error in file type : {traceback.format_exc()}")
                 invdat.docPath = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
+                logger.error(traceback.format_exc())
                 invdat.docPath = ""
 
         return {"result": {"filepath": invdat.docPath, "content_type": content_type}}
@@ -984,7 +693,7 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
         db.close()
 
 
-async def read_column_pos(u_id, tabtype, db):
+async def read_column_pos(userID, tabtype, db):
     """Function to retrieve the column position based on the tab type.
 
     Parameters:
@@ -1015,7 +724,7 @@ async def read_column_pos(u_id, tabtype, db):
             )
             .filter(
                 model.DocumentColumnPos.columnNameDefID == model.ColumnPosDef.idColumn,
-                model.DocumentColumnPos.uid == u_id,
+                model.DocumentColumnPos.userID == userID,
                 model.DocumentColumnPos.tabtype == tabtype,
             )
             .all()
@@ -1032,7 +741,7 @@ async def read_column_pos(u_id, tabtype, db):
                     "documentColumnPos": ac.documentColumnPos,
                     "isActive": ac.isActive,
                     "tabtype": ac.tabtype,
-                    "uid": u_id,
+                    "userID": userID,
                 }
                 db.add(model.DocumentColumnPos(**to_insert))
                 db.commit()
@@ -1050,7 +759,7 @@ async def read_column_pos(u_id, tabtype, db):
                 .filter(
                     model.DocumentColumnPos.columnNameDefID
                     == model.ColumnPosDef.idColumn,
-                    model.DocumentColumnPos.uid == u_id,
+                    model.DocumentColumnPos.userID == userID,
                     model.DocumentColumnPos.tabtype == tabtype,
                 )
                 .all()
@@ -1235,7 +944,7 @@ async def read_invoice_status_history(u_id, inv_id, db):
         db.close()
 
 
-async def read_doc_history(inv_id, db):
+async def read_doc_history(inv_id, download, db):
     """This function is used to read invoice history logs, contains following
     parameters.
 
@@ -1248,98 +957,50 @@ async def read_doc_history(inv_id, db):
     :return: It return a result of list type.
     """
     try:
-        doc_status_hist = case(
-            [
-                (
-                    and_(
-                        model.DocumentHistoryLogs.documentStatusID == 4,
-                        model.DocumentHistoryLogs.documentSubStatusID == 29,
-                    ),
-                    model.DocumentHistoryLogs.documentdescription,
-                ),
-                (model.DocumentHistoryLogs.documentStatusID == 0, "Invoice Uploaded"),
-                (
-                    model.DocumentHistoryLogs.documentStatusID == 2,
-                    "Document Processed Successfully",
-                ),
-                (model.DocumentHistoryLogs.documentStatusID == 3, "Approval Completed"),
-                (model.DocumentHistoryLogs.documentSubStatusID == 8, "PO Item Check"),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 16,
-                    "Unitprice MisMatched",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 21,
-                    "PO Quantity Check",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 32,
-                    "Invoice ERP Error",
-                ),
-                (model.DocumentHistoryLogs.documentSubStatusID == 34, "PO Line Issue"),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 35,
-                    "Waiting for GRN creation",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 39,
-                    "GRN Created in Serina",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentSubStatusID == 37,
-                    "GRN Created in ERP",
-                ),
-                (model.DocumentHistoryLogs.documentSubStatusID == 40, "GRN ERP Error"),
-                (
-                    and_(
-                        model.DocumentHistoryLogs.documentSubStatusID == 3,
-                        model.DocumentHistoryLogs.documentStatusID is None,
-                    ),
-                    "OCR Error Corrected",
-                ),
-                (
-                    and_(
-                        model.DocumentHistoryLogs.documentSubStatusID == 3,
-                        model.DocumentHistoryLogs.documentStatusID == 1,
-                    ),
-                    "Invoice Submitted for Batch",
-                ),
-                (model.DocumentHistoryLogs.documentStatusID == 10, "Invoice Rejected"),
-                (model.DocumentHistoryLogs.documentStatusID == 14, "Posted In ERP"),
-            ]
-        ).label("dochistorystatus")
-        doc_fin_status = case(
-            [
-                (
-                    model.DocumentHistoryLogs.documentfinstatus == 0,
-                    "Partially Approved",
-                ),
-                (
-                    model.DocumentHistoryLogs.documentfinstatus == 1,
-                    "Completely Approved",
-                ),
-            ],
-            else_="UNKNOWN",
-        ).label("documentFinancialStatus")
-        return (
-            db.query(
-                model.DocumentHistoryLogs,
-                model.User.firstName,
-                model.User.lastName,
-                model.Document.docheaderID,
-                doc_status_hist,
-                doc_fin_status,
+        if download:
+            return (
+                db.query(
+                    model.DocumentHistoryLogs,
+                    model.Document.docheaderID,
+                    model.Document.documentDate,
+                    model.Document.JournalNumber,
+                    model.Document.UploadDocType,
+                    model.Vendor.VendorName,
+                )
+                .options(
+                    load_only("documentdescription", "documentStatusID", "CreatedOn")
+                )
+                .filter(
+                    model.DocumentHistoryLogs.documentID == model.Document.idDocument
+                )
+                .join(
+                    model.VendorAccount,
+                    model.Document.vendorAccountID
+                    == model.VendorAccount.idVendorAccount,
+                    isouter=True,
+                )
+                .join(
+                    model.Vendor,
+                    model.VendorAccount.vendorID == model.Vendor.idVendor,
+                    isouter=True,
+                )
+                .filter(model.Document.idDocument == inv_id)
+                .order_by(model.DocumentHistoryLogs.CreatedOn)
+                .all()
             )
-            .options(load_only("documentdescription", "userAmount", "CreatedOn"))
-            .filter(model.DocumentHistoryLogs.documentID == model.Document.idDocument)
-            .join(
-                model.User,
-                model.DocumentHistoryLogs.userID == model.User.idUser,
-                isouter=True,
+        else:
+            return (
+                db.query(model.DocumentHistoryLogs)
+                .options(
+                    load_only("documentdescription", "documentStatusID", "CreatedOn")
+                )
+                .filter(
+                    model.DocumentHistoryLogs.documentID == model.Document.idDocument
+                )
+                .filter(model.Document.idDocument == inv_id)
+                .order_by(model.DocumentHistoryLogs.CreatedOn)
+                .all()
             )
-            .filter(model.Document.idDocument == inv_id)
-            .all()
-        )
     except Exception:
         logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server Error"})
@@ -1601,3 +1262,240 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         logger.error(traceback.format_exc())
         db.rollback()
         return {"DB error": "Error while inserting document history"}
+
+
+async def reject_invoice(userID, invoiceID, reason, db):
+    try:
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == userID).scalar()
+        )
+
+        db.query(model.Document).filter(model.Document.idDocument == invoiceID).update(
+            {
+                "documentStatusID": 10,
+                "documentsubstatusID": 13,
+                "documentDescription": reason + " by " + first_name,
+            }
+        )
+        db.commit()
+        return "success: document status changed to rejected!"
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while updating document status"}
+    try:
+        update_docHistory(invoiceID, userID, 10, reason, db)
+    except Exception:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while updating document status"}
+
+
+async def read_all_doc_inv_list(
+    u_id, ven_id, inv_type, stat, db, uni_api_filter, ven_status
+):
+    """Function to read the full document invoice list without pagination.
+
+    Parameters:
+    ----------
+    ven_id : int
+        The ID of the vendor to filter the invoice documents.
+    inv_type : str
+        The type of invoice to filter the results.
+    stat : Optional[str]
+        The status of the invoice for filtering purposes.
+    db : Session
+        Database session object used to interact with the backend database.
+    uni_api_filter : Optional[str]
+        A universal filter for API queries.
+    ven_status : Optional[str]
+        Status of the vendor to filter the results.
+
+    Returns:
+    -------
+    list
+        A list containing the filtered document invoice data.
+    """
+    try:
+        all_status = {
+            "posted": 14,
+            "rejected": 10,
+            "exception": 4,
+            "VendorNotOnboarded": 25,
+            "VendorUnidentified": 26,
+        }
+
+        doc_status = case(
+            [
+                (model.Document.documentsubstatusID == value[0], value[1])
+                for value in substatus
+            ]
+            + [
+                (model.Document.documentStatusID == value[0] + 1, value[1])
+                for value in enumerate(status)
+            ]
+            + [
+                (
+                    model.Document.documentStatusID == all_status["VendorUnidentified"],
+                    "VendorUnidentified",
+                ),
+                (
+                    model.Document.documentStatusID == all_status["VendorNotOnboarded"],
+                    "VendorNotOnboarded",
+                ),
+            ],
+            else_="",
+        ).label("docstatus")
+
+        inv_choice = {
+            "ser": (
+                model.ServiceProvider,
+                model.ServiceAccount,
+                Load(model.ServiceProvider).load_only("ServiceProviderName"),
+                Load(model.ServiceAccount).load_only("Account"),
+            ),
+            "ven": (
+                model.Vendor,
+                model.VendorAccount,
+                Load(model.Vendor).load_only("VendorName", "Address"),
+                Load(model.VendorAccount).load_only("Account"),
+            ),
+        }
+        # Initial query setup
+        data_query = (
+            db.query(
+                model.Document,
+                doc_status,
+                model.DocumentSubStatus,
+                inv_choice[inv_type][0],
+                inv_choice[inv_type][1],
+            )
+            .options(
+                Load(model.Document).load_only(
+                    "docheaderID",
+                    "totalAmount",
+                    "documentStatusID",
+                    "CreatedOn",
+                    "documentsubstatusID",
+                    "sender",
+                    "JournalNumber",
+                    "UploadDocType",
+                    "store",
+                    "dept",
+                    "documentDate",
+                    "documentDescription",
+                ),
+                Load(model.DocumentSubStatus).load_only("status"),
+                inv_choice[inv_type][2],
+                inv_choice[inv_type][3],
+            )
+            .join(
+                model.DocumentSubStatus,
+                model.DocumentSubStatus.idDocumentSubstatus
+                == model.Document.documentsubstatusID,
+                isouter=True,
+            )
+            .join(
+                model.VendorAccount,
+                model.VendorAccount.idVendorAccount == model.Document.vendorAccountID,
+                isouter=True,
+            )
+            .join(
+                model.Vendor,
+                model.Vendor.idVendor == model.VendorAccount.vendorID,
+                isouter=True,
+            )
+            .filter(
+                model.Document.idDocumentType == 3,
+                model.Document.vendorAccountID.isnot(None),
+            )
+        )
+
+        # filters for query parameters
+        if ven_id:
+            sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
+                vendorID=ven_id
+            )
+            data_query = data_query.filter(
+                model.Document.vendorAccountID.in_(sub_query)
+            )
+        # filter by status
+        if stat:
+            data_query = data_query.filter(
+                model.Document.documentStatusID == all_status[stat]
+            )
+
+        if ven_status:
+            if ven_status == "A":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "A"
+                )
+
+            elif ven_status == "I":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "I"
+                )
+
+        # Function to normalize strings by removing non-alphanumeric
+        # characters and converting to lowercase
+        def normalize_string(input_str):
+            return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
+        # Apply universal API filter if provided, including line items
+        if uni_api_filter:
+            uni_search_param_list = uni_api_filter.split(":")
+            for param in uni_search_param_list:
+                # Normalize the user input filter
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
+
+                # Create a pattern for the search with wildcards
+                pattern = f"%{normalized_filter}%"
+
+                filter_condition = or_(
+                    normalize_string(model.Document.docheaderID).ilike(pattern),
+                    normalize_string(model.Document.documentDate).ilike(pattern),
+                    normalize_string(model.Document.sender).ilike(pattern),
+                    cast(model.Document.totalAmount, String).ilike(
+                        f"%{uni_api_filter}%"
+                    ),
+                    func.to_char(model.Document.CreatedOn, "YYYY-MM-DD").ilike(
+                        f"%{uni_api_filter}%"
+                    ),  # noqa: E501
+                    normalize_string(model.Document.JournalNumber).ilike(pattern),
+                    normalize_string(model.Document.UploadDocType).ilike(pattern),
+                    normalize_string(model.Document.store).ilike(pattern),
+                    normalize_string(model.Document.dept).ilike(pattern),
+                    normalize_string(model.Vendor.VendorName).ilike(pattern),
+                    normalize_string(model.Vendor.Address).ilike(pattern),
+                    normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
+                    # Check if any related DocumentLineItems.Value matches the filter
+                    exists().where(
+                        (
+                            model.DocumentLineItems.documentID
+                            == model.Document.idDocument
+                        )
+                        & normalize_string(model.DocumentLineItems.Value).ilike(pattern)
+                    ),
+                )
+                data_query = data_query.filter(filter_condition)
+
+        # Get the total count of records
+        total_count = data_query.distinct(model.Document.idDocument).count()
+        # Get all records without pagination
+        Documentdata = data_query.order_by(model.Document.CreatedOn.desc()).all()
+
+        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500)
+    finally:
+        db.close()

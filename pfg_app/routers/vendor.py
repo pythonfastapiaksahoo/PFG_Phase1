@@ -1,6 +1,9 @@
+import io
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from pfg_app.auth import AuthHandler
@@ -104,3 +107,68 @@ async def read_paginated_vendor_details(
         ven_status,
     )
     return data
+
+
+@router.get("/download-vendor-list/{u_id}")
+async def download_vendor_list(
+    u_id=int,
+    # user: AzureUser = Depends(get_admin_user),
+    ent_id: Optional[int] = None,
+    ven_code: Optional[str] = None,
+    onb_status: Optional[str] = None,
+    ven_status: Optional[str] = None,
+    vendor_type: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+
+    # Call the readvendorlist function
+    try:
+        result = await crud.readvendorlist(
+            u_id,
+            vendor_type,
+            db,
+            {"ent_id": ent_id, "ven_code": ven_code, "onb_status": onb_status},
+            ven_status,
+        )
+
+        # Check if the result is valid
+        if "data" not in result or not result["data"]:
+            raise HTTPException(status_code=404, detail="No vendor data found")
+
+        # Convert the result data into a pandas DataFrame
+        vendor_data = result["data"]
+
+        # Normalize the vendor_data structure for DataFrame
+        data_for_df = []
+        for vendor in vendor_data:
+            vendor_info = {
+                "Vendor ID": vendor["Vendor"]["idVendor"],
+                "Vendor Name": vendor["Vendor"]["VendorName"],
+                "Vendor Code": vendor["Vendor"]["VendorCode"],
+                "Vendor Type": vendor["Vendor"]["vendorType"],
+                "Address": vendor["Vendor"]["Address"],
+                "City": vendor["Vendor"]["City"],
+                "Onboarded Status": vendor["OnboardedStatus"],
+            }
+            data_for_df.append(vendor_info)
+
+        df = pd.DataFrame(data_for_df)
+
+        # Export to Excel using BytesIO as an in-memory file
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Vendors")
+
+        # Seek to the beginning of the stream
+        output.seek(0)
+
+        # Return the excel file as a streaming response
+        headers = {"Content-Disposition": "attachment; filename=vendors.xlsx"}
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # noqa: E501
+            headers=headers,
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

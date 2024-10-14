@@ -156,6 +156,7 @@ class DocumentData(Base):
     Ycord = Column(String(45), nullable=True)
     Width = Column(String(45), nullable=True)
     Height = Column(String(45), nullable=True)
+    Fuzzy_scr = Column(Float, nullable=True)
     CreatedOn = Column(DateTime(timezone=True), nullable=True)
 
     # document = relationship("Document", back_populates="documentdata")
@@ -282,7 +283,7 @@ class DocumentLineItemTags(Base):
 
     idDocumentLineItemTags = Column(Integer, primary_key=True, autoincrement=True)
     idDocumentModel = Column(
-        Integer, ForeignKey("documentModel.idDocumentModel"), nullable=True
+        Integer, ForeignKey("documentmodel.idDocumentModel"), nullable=True
     )
     TagName = Column(String(45), nullable=True)
     TagDesc = Column(String(45), nullable=True)
@@ -500,6 +501,7 @@ class User(Base):
     show_updates = Column(Integer, nullable=True)
     account_type = Column(String(20), nullable=True)
     dept_ids = Column(JSON, nullable=True)
+    azure_id = Column(String, nullable=True)
 
     # customers = relationship("Customer", back_populates="user")
     # user_access = relationship("UserAccess", back_populates="user")
@@ -1404,6 +1406,8 @@ class frtrigger_tab(Base):
     created_on = Column(DateTime, nullable=True)
     sender = Column(String, nullable=True)
     page_number = Column(String, nullable=True)
+    filesize = Column(String, nullable=True)
+    documentid = Column(Integer, nullable=True)
 
 
 class VoucherData(Base):

@@ -229,6 +229,7 @@ def date_cnv(doc_date, date_format):
                 date_status = 0
                 req_date = doc_date
     except Exception as dt_ck_:
+        logger.error(f" {traceback.format_exc()}")
         logger.error(f"line 185 postprocessing: {str(dt_ck_)}")
         # print(str(dt_ck_))
         date_status = 0
@@ -284,13 +285,17 @@ def po_cvn(po_extracted, entityID):
     except Exception as po:
         # print("Purchase Order EXCEPTION: ",str(po))
         logger.error(f"Purchase Order EXCEPTION: {str(po)}")
+        logger.error(f" {traceback.format_exc()}")
 
     return formatted_po, po_status
 
 
 def tb_cln_amt(amt):
+    if amt is None:
+        amt = "0"
     # cln_amt_sts = 0  # TODO: Unused variable
     amt_cpy = amt
+    logger.info(f"cln_amt - amt: {amt}")
     # amt = amt.replace(',','.')
     try:
         if "," in amt:
@@ -298,6 +303,7 @@ def tb_cln_amt(amt):
                 amt = amt[:-3] + "." + amt[-2:]
     except Exception as at:
         logger.info(f"post pro line 247: {str(at)}")
+        logger.error(f" {traceback.format_exc()}")
         amt = amt_cpy
     try:
         inl = 1
@@ -318,6 +324,7 @@ def tb_cln_amt(amt):
         # cln_amt_sts = 1
 
     except Exception as e:
+        logger.error(f" {traceback.format_exc()}")
         sb_amt = amt
 
         logger.info(f"postpro line 269: {str(e)}")
@@ -326,28 +333,34 @@ def tb_cln_amt(amt):
     return sb_amt
 
 
-def polygon_to_bbox(polygon):
-    # Extract x and y coordinates from the polygon
-    x_coords = polygon[::2]  # x coordinates are at even indices
-    y_coords = polygon[1::2]  # y coordinates are at odd indices
+def getBBox(data):
+    try:
+        if isinstance(data, list):
+            data = data[0]
+            # # Extract x, y, width, height
+        polygon = data["polygon"]
+        x_values = [point["x"] for point in polygon]
+        y_values = [point["y"] for point in polygon]
+        x = round(min(x_values), 2)
+        y = round(min(y_values), 2)
+        w = str(round(max(x_values) - x, 2))
+        h = str(round(max(y_values) - y, 2))
+        x = str(x)
+        y = str(y)
 
-    # Calculate the bounding box
-    x_min = min(x_coords)
-    y_min = min(y_coords)
-    x_max = max(x_coords)
-    y_max = max(y_coords)
-
-    # Calculate width and height
-    width = x_max - x_min
-    height = y_max - y_min
-
-    # Return the bounding box dictionary
-    bbox = {"x": x_min, "y": y_min, "w": width, "h": height}
-    return bbox
+        logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
+    except Exception:
+        x = ""
+        y = ""
+        w = ""
+        h = ""
+    return {"x": x, "y": y, "w": w, "h": h}
 
 
 def cln_amt(amt):
     amt_cpy = amt
+    if amt is None:
+        amt = "0"
     # amt = str(amt).replace(',','.')
     try:
         if "," in amt:
@@ -357,7 +370,7 @@ def cln_amt(amt):
         logger.error(f"Exception in cln_amt: {er}")
         amt = amt_cpy
 
-    if len(amt) > 0:
+    if len(amt) > 0 and (amt is not None):
         if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
             cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
             cl_amt = float(cl_amt.replace(",", ""))
@@ -471,7 +484,14 @@ def getFrData_MNF(input_data):
                                 "Prebuilt Low confidence: " + str(cfd)
                             )
 
-                        if prTg in ["InvoiceTotal", "SubTotal", "TotalTax"]:
+                        if prTg in [
+                            "InvoiceTotal",
+                            "SubTotal",
+                            "TotalTax",
+                            "GST",
+                            "PST",
+                            "HST",
+                        ]:
 
                             if isinstance(
                                 tb_cln_amt(getData_headerPg[prTg]["content"]), float
@@ -524,6 +544,7 @@ def getFrData_MNF(input_data):
         preBltFrdata_status = 1
     except Exception as e:
         logger.info(f"preBltFrdat Exception line 432: {str(e)}")
+        logger.error(f" {traceback.format_exc()}")
         preBltFrdata_status = 0
 
     return preBltFrdata, preBltFrdata_status
@@ -628,6 +649,8 @@ def postpro(
     totalTax_rw = ""
     invoiceTotal_rw = ""
     skp_tab_mand_ck = 0
+    doc_VendorName = ""
+    doc_VendorAddress = ""
 
     try:
 
@@ -665,23 +688,20 @@ def postpro(
                     in cst_data["documents"][0]["fields"][cst_hd].keys()
                 ):
                     try:
-                        bounding_regions = polygon_to_bbox(
+                        bounding_regions = getBBox(
                             cst_data["documents"][0]["fields"][cst_hd][
                                 "bounding_regions"
                             ]
                         )
+
                     except Exception:
                         logger.error(traceback.format_exc())
                         bx = {}
-                        bo_bx = [0, 0, 0, 0, 0, 0]
-                        x = str(bo_bx[0])
-                        y = str(bo_bx[1])
-                        w = str(bo_bx[2] - bo_bx[0])
-                        h = str(bo_bx[5] - bo_bx[1])
-                        bx["x"] = x
-                        bx["y"] = y
-                        bx["w"] = w
-                        bx["h"] = h
+
+                        bx["x"] = ""
+                        bx["y"] = ""
+                        bx["w"] = ""
+                        bx["h"] = ""
 
                         bounding_regions = bx
                     cst_tmp_dict[cst_hd] = {
@@ -828,16 +848,11 @@ def postpro(
                 "prebuilt_confidence": str(pre_conf),
                 "custom_confidence": str(cst_conf),
             }
-            bx = {}
-            bo_bx = bounding_bx
-            x = str(bo_bx[0])
-            y = str(bo_bx[1])
-            w = str(bo_bx[2] - bo_bx[0])
-            h = str(bo_bx[5] - bo_bx[1])
-            bx["x"] = x
-            bx["y"] = y
-            bx["w"] = w
-            bx["h"] = h
+            try:
+                bx = getBBox(bounding_bx)
+            except Exception:
+                logger.error(traceback.format_exc())
+                bx = {"x": "", "y": "", "w": "", "h": ""}
             tmp_fr_headers["bounding_regions"] = bx
 
             tmp_fr_headers["status"] = tag_status
@@ -874,22 +889,15 @@ def postpro(
                         "prebuilt_confidence": "",
                         "custom_confidence": str(cst_conf),
                     }
-                    bx = {}
+
                     if bounding_bx != "":
-                        bo_bx = bounding_bx
-                        x = str(bo_bx[0])
-                        y = str(bo_bx[1])
-                        w = str(bo_bx[2] - bo_bx[0])
-                        h = str(bo_bx[5] - bo_bx[1])
-                        bx["x"] = x
-                        bx["y"] = y
-                        bx["w"] = w
-                        bx["h"] = h
+                        bx = getBBox(bounding_bx)
                         tmp_fr_headers["bounding_regions"] = bx
                         tmp_fr_headers["status"] = tag_status
                         tmp_fr_headers["status_message"] = status_message
                     else:
                         # tag_status = 0
+                        bx = {"x": "", "y": "", "w": "", "h": ""}
                         tmp_fr_headers["bounding_regions"] = bx
                         tmp_fr_headers["status"] = tag_status
                         tmp_fr_headers["status_message"] = status_message
@@ -933,20 +941,19 @@ def postpro(
                                         ]["bounding_regions"]
                                     else:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
-                                    x = str(bo_bx[0])
-                                    y = str(bo_bx[1])
-                                    w = str(bo_bx[2] - bo_bx[0])
-                                    h = str(bo_bx[5] - bo_bx[1])
-                                    bx["x"] = x
-                                    bx["y"] = y
-                                    bx["w"] = w
-                                    bx["h"] = h
+                                    bx = getBBox(bo_bx)
+
                                     tmp_dict["bounding_regions"] = bx
                                     tmp_list.append(tmp_dict)
                                     tmp_dict = {}
                                 else:
                                     tmp_dict["data"] = ""
-                                    tmp_dict["bounding_regions"] = None
+                                    tmp_dict["bounding_regions"] = {
+                                        "x": "",
+                                        "y": "",
+                                        "w": "",
+                                        "h": "",
+                                    }
 
                             else:
                                 tmp_dict["tag"] = ky
@@ -967,20 +974,18 @@ def postpro(
                                     except KeyError:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                     try:
-                                        if isinstance(bo_bx[0], dict):
-                                            bx = polygon_to_bbox(bo_bx[0]["polygon"])
-                                            # bo_bx[0]['polygon']
+
+                                        if len(bo_bx) > 0 and isinstance(
+                                            bo_bx[0], dict
+                                        ):
+                                            bx = getBBox(bo_bx)
+                                        else:
+                                            bx = {"x": "", "y": "", "w": "", "h": ""}
+
                                     except Exception:
                                         logger.error(traceback.format_exc())
                                         bo_bx = [0, 0, 0, 0, 0, 0]
-                                        x = str(bo_bx[0])
-                                        y = str(bo_bx[1])
-                                        w = str(bo_bx[2] - bo_bx[0])
-                                        h = str(bo_bx[5] - bo_bx[1])
-                                        bx["x"] = x
-                                        bx["y"] = y
-                                        bx["w"] = w
-                                        bx["h"] = h
+                                        bx = {"x": "", "y": "", "w": "", "h": ""}
 
                                     tmp_dict["bounding_regions"] = bx
 
@@ -1379,19 +1384,15 @@ def postpro(
             + "));"
         )
         vdr_nm_trn_df = pd.read_sql(get_nm_trn_qry, SQLALCHEMY_DATABASE_URL)
-        vdr_trn_df = pd.DataFrame(vdr_nm_trn_df["TRNNumber"])
+        # vdr_trn_df = pd.DataFrame(vdr_nm_trn_df["TRNNumber"])
         vdr_name_df = pd.DataFrame(vdr_nm_trn_df["VendorName"])
-        trn_val = (
-            list(vdr_trn_df["TRNNumber"])[0]
-            if "TRNNumber" in vdr_trn_df and len(list(vdr_trn_df["TRNNumber"])) > 0
-            else ""
-        )
+
         name_val = (
             list(vdr_name_df["VendorName"])[0]
             if "VendorName" in vdr_name_df and len(list(vdr_name_df["VendorName"])) > 0
             else ""
         )
-        trn_match_metadata = 0
+
         for tg in range(len(dt["header"])):
             if dt["header"][tg]["tag"] == "InvoiceId":
                 doc_invID = dt["header"][tg]["data"]["value"]
@@ -1443,114 +1444,110 @@ def postpro(
                 else:
                     dt["header"][tg]["data"]["value"] = req_date
                     dt["header"][tg]["status"] = 0
-                    dt["header"][tg]["status_message"] = "Invalid Date formate"
+                    dt["header"][tg]["status_message"] = "Invalid Date format"
 
-            if dt["header"][tg]["tag"] == "TRN":
-                doc_trn = dt["header"][tg]["data"]["value"]
-                try:
-                    doc_trn_nw = ""
-                    for trn_sp in doc_trn.split(" "):
-                        # print(trn_sp)
-                        sb_tn = ""
-                        for i_ in trn_sp:
-                            if i_.isdigit():
-                                sb_tn = sb_tn + i_
-                        if len(sb_tn) > 0:
-                            doc_trn_nw = doc_trn_nw + " " + sb_tn
+            # if dt["header"][tg]["tag"] == "TRN":
+            #     doc_trn = dt["header"][tg]["data"]["value"]
+            #     try:
+            #         doc_trn_nw = ""
+            #         for trn_sp in doc_trn.split(" "):
+            #             # print(trn_sp)
+            #             sb_tn = ""
+            #             for i_ in trn_sp:
+            #                 if i_.isdigit():
+            #                     sb_tn = sb_tn + i_
+            #             if len(sb_tn) > 0:
+            #                 doc_trn_nw = doc_trn_nw + " " + sb_tn
 
-                    ocr_trn = max(
-                        (re.findall(r"\b\d+\b", doc_trn_nw)), default=0, key=len
-                    )
-                    dt["header"][tg]["data"]["value"] = ocr_trn
-                    # TRN Match:
-                    get_trn_qry = (
-                        'SELECT "TRNNumber" FROM '
-                        + SCHEMA
-                        + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
-                        + SCHEMA
-                        + '.vendoraccount where "idVendorAccount" in '
-                        + '(SELECT "idVendorAccount" FROM '
-                        + SCHEMA
-                        + '.documentmodel WHERE "idDocumentModel"='
-                        + str(invo_model_id)
-                        + "));"
-                    )
-                    vdr_trn_df = pd.read_sql(get_trn_qry, SQLALCHEMY_DATABASE_URL)
-                    trn_val = (
-                        list(vdr_trn_df["TRNNumber"])[0]
-                        if "TRNNumber" in vdr_trn_df
-                        and len(list(vdr_trn_df["TRNNumber"])) > 0
-                        else ""
-                    )
-                    if trn_val == "":
-                        dt["header"][tg][
-                            "status_message"
-                        ] = "TRN is missing from Vendor metadata."
-                        dt["header"][tg]["status"] = 0
-                        trn_match_metadata = 0
+            #         ocr_trn = max(
+            #             (re.findall(r"\b\d+\b", doc_trn_nw)), default=0, key=len
+            #         )
+            #         dt["header"][tg]["data"]["value"] = ocr_trn
+            #         # TRN Match:
+            #         get_trn_qry = (
+            #             'SELECT "TRNNumber" FROM '
+            #             + SCHEMA
+            #             + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
+            #             + SCHEMA
+            #             + '.vendoraccount where "idVendorAccount" in '
+            #             + '(SELECT "idVendorAccount" FROM '
+            #             + SCHEMA
+            #             + '.documentmodel WHERE "idDocumentModel"='
+            #             + str(invo_model_id)
+            #             + "));"
+            #         )
+            #         vdr_trn_df = pd.read_sql(get_trn_qry, SQLALCHEMY_DATABASE_URL)
+            #         trn_val = (
+            #             list(vdr_trn_df["TRNNumber"])[0]
+            #             if "TRNNumber" in vdr_trn_df
+            #             and len(list(vdr_trn_df["TRNNumber"])) > 0
+            #             else ""
+            #         )
+            #         if trn_val == "":
+            #             dt["header"][tg][
+            #                 "status_message"
+            #             ] = "TRN is missing from Vendor metadata."
+            #             dt["header"][tg]["status"] = 0
+            #             trn_match_metadata = 0
 
-                    vdr_trn = re.findall(r"\d+", trn_val)[0]
-                    if len(vdr_trn) > 12:
-                        trn_val = vdr_trn
-                    else:
-                        trn_val = ""
-                        dt["header"][tg][
-                            "status_message"
-                        ] = "TRN is missing from Vendor metadata."
-                        dt["header"][tg]["status"] = 0
-                    # else:
-                    #     trn_match_metadata = 1
-                    if trn_val != "" and trn_val != ocr_trn:
-                        dt["header"][tg]["status_message"] = (
-                            "TRN not matching with vendor metadata("
-                            + str(trn_val)
-                            + ")."
-                        )
-                        dt["header"][tg]["status"] = 0
-                        trn_match_metadata = 0
-                    elif trn_val == ocr_trn:
-                        trn_match_metadata = 1
+            #         vdr_trn = re.findall(r"\d+", trn_val)[0]
+            #         if len(vdr_trn) > 12:
+            #             trn_val = vdr_trn
+            #         else:
+            #             trn_val = ""
+            #             dt["header"][tg][
+            #                 "status_message"
+            #             ] = "TRN is missing from Vendor metadata."
+            #             dt["header"][tg]["status"] = 0
+            #         # else:
+            #         #     trn_match_metadata = 1
+            #         if trn_val != "" and trn_val != ocr_trn:
+            #             dt["header"][tg]["status_message"] = (
+            #                 "TRN not matching with vendor metadata("
+            #                 + str(trn_val)
+            #                 + ")."
+            #             )
+            #             dt["header"][tg]["status"] = 0
+            #             trn_match_metadata = 0
 
-                    else:
-                        trn_match_metadata = 0
-                        dt["header"][tg]["status"] = 0
-                        dt["header"][tg][
-                            "status_message"
-                        ] = "Low Confidence, Please Review."
+            #         else:
 
-                except Exception as trn_exp:
-                    logger.error(f"trn exception:{trn_exp} ")
-                    # print(trn_exp)
-                    dt["header"][tg]["status_message"] = (
-                        "Low Confidence, Meta data trn:" + str(trn_val) + ")."
-                    )
-                    dt["header"][tg]["status"] = 0
-                    trn_match_metadata = 0
+            #             dt["header"][tg]["status"] = 0
+            #             dt["header"][tg][
+            #                 "status_message"
+            #             ] = "Low Confidence, Please Review."
 
-            if dt["header"][tg]["tag"] == "PurchaseOrder":
-                doc_po = dt["header"][tg]["data"]["value"]
+            #     except Exception as trn_exp:
+            #         logger.error(f"trn exception:{trn_exp} ")
+            #         # print(trn_exp)
+            #         dt["header"][tg]["status_message"] = (
+            #             "Low Confidence, Meta data trn:" + str(trn_val) + ")."
+            #         )
+            #         dt["header"][tg]["status"] = 0
 
-                formatted_po, po_status = po_cvn(doc_po, entityID)
-                dt["header"][tg]["data"]["value"] = formatted_po
+            # if dt["header"][tg]["tag"] == "PurchaseOrder":
+            #     doc_po = dt["header"][tg]["data"]["value"]
 
-                po_doc = (
-                    db.query(model.Document)
-                    .filter(
-                        model.Document.PODocumentID == formatted_po,
-                        model.Document.idDocumentType == 1,
-                    )
-                    .first()
-                )
-                if po_status == 1:
-                    dt["header"][tg]["status_message"] = "Please Review PO number."
-                    dt["header"][tg]["status"] = 0
-                if po_doc is None:
-                    dt["header"][tg]["status_message"] = "PO not found in Serina!"
-                    dt["header"][tg]["status"] = 0
-            doc_VendorName = ""
-            doc_VendorAddress = ""
+            #     formatted_po, po_status = po_cvn(doc_po, entityID)
+            #     dt["header"][tg]["data"]["value"] = formatted_po
+
+            #     po_doc = (
+            #         db.query(model.Document)
+            #         .filter(
+            #             model.Document.PODocumentID == formatted_po,
+            #             model.Document.idDocumentType == 1,
+            #         )
+            #         .first()
+            #     )
+            #     if po_status == 1:
+            #         dt["header"][tg]["status_message"] = "Please Review PO number."
+            #         dt["header"][tg]["status"] = 0
+            #     if po_doc is None:
+            #         dt["header"][tg]["status_message"] = "PO not found in Serina!"
+            #         dt["header"][tg]["status"] = 0
+
             try:
-                # metaVendorName, metaVendorAdd
+                # metaVendorName, metaVendorAdd match check
                 if dt["header"][tg]["tag"] == "VendorName":
                     doc_VendorName = dt["header"][tg]["data"]["value"]
 
@@ -1597,7 +1594,6 @@ def postpro(
                         ] = "Invalid Value, Please review"
                         dt["header"][tg]["status"] = 0
                         totalTax_rw = ""
-
         try:
 
             vndMth_ck, vndMth_address_ck = VndMatchFn(
@@ -1662,6 +1658,7 @@ def postpro(
 
                     except Exception as qw:
                         logger.error(f"vendor name exception: {str(qw)}")
+                        logger.error(f" {traceback.format_exc()}")
                         dt["header"][tg][
                             "status_message"
                         ] = "Vendor Name Mismatch with Master Data"
@@ -1724,26 +1721,6 @@ def postpro(
                 # TotalTax = dt["header"][tg]["data"]["value"]  # TODO: Unused variable
                 fr_data = dt
 
-            if dt["header"][tg]["tag"] == "VendorName":
-                ocr_vdr_nm = dt["header"][tg]["data"]["value"]
-
-                if trn_match_metadata == 1:
-                    dt["header"][tg]["data"]["value"] = name_val
-                    dt["header"][tg]["status"] = 1
-                elif trn_match_metadata == 0:
-                    vendor_nm_list = name_val.lower().split(" ")
-                    nm_scr = len(vendor_nm_list)
-                    vdr_nm_mth = ""
-                    for inm in vendor_nm_list:
-                        if ocr_vdr_nm.find(inm) == -1:
-                            nm_scr = nm_scr - 1
-                        else:
-                            vdr_nm_mth = vdr_nm_mth + inm + " "
-                    if nm_scr >= (len(vendor_nm_list) - 1):
-                        dt["header"][tg]["data"]["value"] = vdr_nm_mth
-                    else:
-                        dt["header"][tg]["status"] = 0
-
         present_header = []
         missing_header = []
 
@@ -1770,6 +1747,7 @@ def postpro(
                     fr_data["header"].append(tmp)
         except Exception as e:
             logger.error(f"postpro line 1347: {str(e)}")
+            logger.error(f" {traceback.format_exc()}")
             # (str(e))
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
@@ -1821,7 +1799,8 @@ def postpro(
         fr_data = {}
         postprocess_status = 0
         postprocess_msg = str(e)
-        logger.error(f"postpro line 1451: {postprocess_msg}")
+        logger.error(f" {traceback.format_exc()}")
+        logger.error(f"postpro line 1833: {postprocess_msg}")
 
     try:
         sts_hdr_ck = 1
@@ -1844,13 +1823,14 @@ def postpro(
                             _sPercent = float(_s) * 100
                             logger.info("confidence score:" + f"{_sPercent}")
                     except Exception as tr:
-                        logger.error(f"postpro line 1425: {str(tr)} ")
-                        logger.error(f"API exception ocr.py: {traceback.format_exc()}")
+                        logger.error(f"postpro line 1856: {str(tr)} ")
+                        logger.error(f"postpro line 1856: {traceback.format_exc()}")
                         sts_hdr_ck = 0
         else:
             sts_hdr_ck = 0
 
     except Exception as qw:
         logger.error(f"postpro line 1431 exception: {qw} , {sts_hdr_ck}")
+        logger.error(f" {traceback.format_exc()}")
         sts_hdr_ck = 0
     return fr_data, postprocess_msg, postprocess_status, duplicate_status, sts_hdr_ck

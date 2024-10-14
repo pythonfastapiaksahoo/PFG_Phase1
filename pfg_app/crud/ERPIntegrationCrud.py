@@ -4,7 +4,6 @@ import os
 import traceback
 
 import requests
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from fastapi import HTTPException, Response
 from sqlalchemy import func
@@ -13,9 +12,8 @@ from sqlalchemy.orm import load_only
 
 import pfg_app.model as model
 from pfg_app import settings
+from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
-
-credential = DefaultAzureCredential()
 
 
 async def getDepartmentMaster(db):
@@ -616,7 +614,7 @@ async def updateReceiptMaster(Receiptdata, db):
                     model.PFGReceipt.RECV_LN_NBR == data.RECV_LN_DISTRIB.RECV_LN_NBR,
                     model.PFGReceipt.RECV_SHIP_SEQ_NBR
                     == data.RECV_LN_DISTRIB.RECV_SHIP_SEQ_NBR,
-                    model.PFGReceipt.DISTRIB_LN_NUM
+                    model.PFGReceipt.DISTRIB_LINE_NUM
                     == data.RECV_LN_DISTRIB.DISTRIB_LN_NUM,
                 )
                 .first()
@@ -625,13 +623,19 @@ async def updateReceiptMaster(Receiptdata, db):
             if existing_receipt:
                 # Update existing record
                 for key, value in receipt_data.items():
-                    setattr(existing_receipt, key, value)
+                    if hasattr(existing_receipt, key):  # Ensure the key exists in model
+                        setattr(existing_receipt, key, value)
                 db.commit()
                 db.refresh(existing_receipt)
 
             else:
                 # Insert new record
-                new_receipt = model.PFGReceipt(**receipt_data)
+                valid_data = {
+                    key: value
+                    for key, value in receipt_data.items()
+                    if hasattr(model.PFGReceipt, key)
+                }
+                new_receipt = model.PFGReceipt(**valid_data)
                 db.add(new_receipt)
                 db.commit()
                 db.refresh(new_receipt)
@@ -837,7 +841,7 @@ def processInvoiceVoucher(doc_id, db):
             raise HTTPException(status_code=404, detail="Voucherdata not found")
 
         # # Call the function to get the base64 file
-        base64file = read_invoice_file(doc_id, db)
+        base64file = read_invoice_file_voucher(doc_id, db)
 
         # Check if the returned value contains an error
         if "error" in base64file:
@@ -856,7 +860,7 @@ def processInvoiceVoucher(doc_id, db):
         # Continue processing the file
         print(f"Filepath (Base64 Encoded): {filepath}")
         print(f"Content Type: {content_type}")
-        vdbu = voucherdata.Business_unit
+        # vdbu = voucherdata.Business_unit
         request_payload = {
             "RequestBody": [
                 {
@@ -864,7 +868,7 @@ def processInvoiceVoucher(doc_id, db):
                         {
                             "VCHR_HDR_STG": [
                                 {
-                                    "BUSINESS_UNIT": voucherdata.Business_unit or "",
+                                    "BUSINESS_UNIT": "MERCH",
                                     "VOUCHER_STYLE": "REG",
                                     "INVOICE_ID": voucherdata.Invoice_Id or "",
                                     "INVOICE_DT": voucherdata.Invoice_Dt or "",
@@ -886,8 +890,7 @@ def processInvoiceVoucher(doc_id, db):
                                     "VAT_ENTRD_AMT": 0,
                                     "VCHR_LINE_STG": [
                                         {
-                                            "BUSINESS_UNIT": voucherdata.Business_unit
-                                            or "",
+                                            "BUSINESS_UNIT": "MERCH",
                                             "VOUCHER_LINE_NUM": (
                                                 voucherdata.Voucher_Line_num
                                                 if voucherdata.Voucher_Line_num
@@ -909,8 +912,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "SHIPTO_ID": "",
                                             "VCHR_DIST_STG": [
                                                 {
-                                                    "BUSINESS_UNIT": vdbu  # look above
-                                                    or "",
+                                                    "BUSINESS_UNIT": "MERCH",
                                                     "VOUCHER_LINE_NUM": (
                                                         voucherdata.Voucher_Line_num
                                                         if voucherdata.Voucher_Line_num
@@ -1106,7 +1108,7 @@ def updateInvoiceStatus(doc_id, db):
     return invoice_status
 
 
-async def read_invoice_file(u_id, inv_id, db):
+async def read_invoice_file_voucher(inv_id, db):
     try:
         content_type = "application/pdf"
         max_size = 5 * 1024 * 1024  # 5 MB in bytes
@@ -1133,12 +1135,11 @@ async def read_invoice_file(u_id, inv_id, db):
                     .filter_by(idCustomer=1)
                     .one()
                 )
-                account_name = fr_data.ConnectionString.split("AccountName=")[1].split(
-                    ";AccountKey"
-                )[0]
-                account_url = f"https://{account_name}.blob.core.windows.net"
+                account_url = (
+                    f"https://{settings.storage_account_name}.blob.core.windows.net"
+                )
                 blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=credential
+                    account_url=account_url, credential=get_credential()
                 )
 
                 # Create the BlobClient

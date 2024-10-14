@@ -51,6 +51,7 @@ def split_pdf_and_upload(
     destination_container_name,
     subfolder_name,
     prompt,
+    fileSize={},
     # deployment_name,
     # OpenAI_api_base,
     # OpenAI_api_key,
@@ -73,11 +74,23 @@ def split_pdf_and_upload(
         output_pdf_stream = BytesIO()
         writer.write(output_pdf_stream)
         output_pdf_stream.seek(0)
+
         # Get the current time in seconds since the epoch
         current_timestamp = str(time.time()).replace(".", "_")
 
         # Define the blob name (including the subfolder path)
         output_blob_name = f"{subfolder_name}/{current_timestamp}_split_part{i + 1}.pdf"
+        # get PDF size
+        try:
+            # Get the size of the PDF in bytes
+            pdf_size_bytes = output_pdf_stream.getbuffer().nbytes
+            pdf_size_kb = round(pdf_size_bytes / 1024, 2)
+            pdf_size_mb = round(pdf_size_kb / 1024, 2)  # Convert to MB
+            fileSize[output_blob_name] = pdf_size_mb
+
+        except Exception as e:
+            logger.error(f"Exception in fileSize: {str(e)}")
+
         account_name = settings.storage_account_name
         account_url = f"https://{account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
@@ -109,7 +122,7 @@ def split_pdf_and_upload(
 
         stampdata.append(pgstampdata)
 
-    return splitfileNames, stampdata
+    return splitfileNames, stampdata, fileSize
 
 
 def extract_pdf_pages(pdf_document):
@@ -137,6 +150,17 @@ def extract_pdf_pages(pdf_document):
     return pdf_pages
 
 
+def serialize_dates(item):
+    if isinstance(item, dict):
+        return {k: serialize_dates(v) for k, v in item.items()}
+    elif isinstance(item, list):
+        return [serialize_dates(i) for i in item]
+    elif isinstance(item, (datetime, date)):
+        return item.isoformat()
+    else:
+        return item
+
+
 def splitDoc(
     pdf,
     subfolder_name,
@@ -151,48 +175,35 @@ def splitDoc(
     pdf_pages = extract_pdf_pages(pdf)
 
     # Use ThreadPoolExecutor to process the pages concurrently
+    output_data_dt = {}
     output_data = []
+    pg_cnt = 1
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(call_form_recognizer, page, fr_endpoint, fr_api_version)
             for page in pdf_pages
         ]
 
-        # Collect the results as they complete
-        for future in concurrent.futures.as_completed(futures):
+        # Collect the results in the order they were scheduled
+        for future in futures:
             try:
                 result = future.result()
+                output_data_dt[pg_cnt] = result
                 output_data.append(result)
+                pg_cnt = pg_cnt + 1
 
             except Exception as e:
                 logger.error(f"Error processing a page: {e}")
 
-    # # Get the list of Invoice IDs from the Form Recognizer results
-    # # TODO continue this refactor later
-    # invoice_ids = [result["analyzeResult"]["documents"][
-    #             0]["fields"]["InvoiceId"]["content"] for result in output_data]
-
     pageInvoDate = {}
-
-    pageInvoDate = {}
-
-    def serialize_dates(item):
-        if isinstance(item, dict):
-            return {k: serialize_dates(v) for k, v in item.items()}
-        elif isinstance(item, list):
-            return [serialize_dates(i) for i in item]
-        elif isinstance(item, (datetime, date)):
-            return item.isoformat()
-        else:
-            return item
-
     data_serialized = serialize_dates(output_data)
     with open("data.json", "w") as f:
         json.dump(data_serialized, f, indent=4)
 
     try:
-        for i in range(len(output_data)):
-            pageInvoDate[i + 1] = output_data[i]["documents"][0]["fields"]["InvoiceId"][
+
+        for i in output_data_dt.keys():
+            pageInvoDate[i] = output_data_dt[i]["documents"][0]["fields"]["InvoiceId"][
                 "content"
             ]
     except Exception as er:
@@ -235,16 +246,23 @@ def splitDoc(
         preDt = output_data[docPg]["documents"][0]["fields"]
         prbtHeaderspg = {}
         for pb in preDt:
-            # logger.info(f"line 297: {preDt[pb]}")
-            if (
-                "value_type" in preDt[pb]
-                and preDt[pb]["value_type"] != "array"
-                and pb != "Items"
-            ):
-                prbtHeaderspg[pb] = [
-                    preDt[pb]["content"],
-                    round(float(preDt[pb]["confidence"]) * 100, 2),
-                ]
+            if "content" in preDt[pb]:
+                try:
+                    # logger.info(f"line 297: {preDt[pb]}")
+                    if (
+                        "value_type" in preDt[pb]
+                        and preDt[pb]["value_type"] != "array"
+                        and pb != "Items"
+                        and pb != "list"
+                        and preDt[pb]["value_type"] == "string"
+                    ):
+                        if "confidence" in preDt[pb]:
+                            prbtHeaderspg[pb] = [
+                                preDt[pb]["content"],
+                                round(float(preDt[pb]["confidence"]) * 100, 2),
+                            ]
+                except Exception:
+                    logger.info(f"line 300: {[pb]}")
         prbtHeaders[docPg] = prbtHeaderspg
 
     if sndChk == 1:
@@ -256,8 +274,9 @@ def splitDoc(
         ]
 
         if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
-            # Unpack the tuple and create a list of tuples (n, n)
-            grp_pages = [(i, i) for i in splitpgsDt[0]]
+            #     # Unpack the tuple and create a list of tuples (n, n)
+            # grp_pages = [(i, i) for i in splitpgsDt[0]]
+            grp_pages = splitpgsDt
         elif all(isinstance(i, tuple) for i in splitpgsDt):
             # If the input is already a list of tuples, return it as-is
             grp_pages = splitpgsDt
@@ -265,7 +284,7 @@ def splitDoc(
             grp_pages = splitpgsDt
 
         # grp_pages = splitpgsDt
-        splitfileNames, stampData = split_pdf_and_upload(
+        splitfileNames, stampData, fileSize = split_pdf_and_upload(
             pdf,
             grp_pages,
             destination_container_name,
@@ -280,7 +299,7 @@ def splitDoc(
     else:
 
         grp_pages = output_list
-        splitfileNames, stampData = split_pdf_and_upload(
+        splitfileNames, stampData, fileSize = split_pdf_and_upload(
             pdf,
             output_list,
             destination_container_name,
@@ -299,6 +318,7 @@ def splitDoc(
         len(pdf.pages),
         stampData,
         output_data,
-        1,  # Means success (fr_model_status)
-        "success",  # fr_model_msg
+        1,
+        "success",
+        fileSize,
     )

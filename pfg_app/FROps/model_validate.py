@@ -1,17 +1,11 @@
 import json
 
 import numpy as np
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from pdf2image import convert_from_bytes
 
-credential = DefaultAzureCredential()
-
-"""req_fields_accuracy = 99.2
-req_model_accuracy = 99.5
-mand_fld_list = ['customer_no', 'invoice_no']
-model_path = 'model-6be0c8c5-882f-4900-b0d9-041c60e3ef22.json'
-"""
+from pfg_app import settings
+from pfg_app.core.utils import get_credential
 
 
 def model_validate(
@@ -81,11 +75,11 @@ def model_validate(
                 model_accuracy = 100
                 model_id = data["modelInfo"]["modelId"]
                 trin_doc_path = ""
-                for fld in data["docTypes"][fr_modelid]["fieldConfidence"].keys():
+                for fld in data["doc_types"][fr_modelid]["field_confidence"].keys():
                     tag_list.append(fld)
                     # check for field accuracy:
                     if (
-                        (data["docTypes"][fr_modelid]["fieldConfidence"][fld]) * 100
+                        (data["doc_types"][fr_modelid]["field_confidence"][fld]) * 100
                     ) >= req_fields_accuracy:
                         field_acc_status = field_acc_status * 1
                     else:
@@ -150,10 +144,9 @@ def db_push_data(
     file_path = temp_dir + "/" + old_fld_name + ".json"
     try:
 
-        account_name = cnt_str.split("AccountName=")[1].split(";AccountKey")[0]
-        account_url = f"https://{account_name}.blob.core.windows.net"
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
-            account_url=account_url, credential=credential
+            account_url=account_url, credential=get_credential()
         )
         print("train doc path", trin_doc_path)
         blb_file_nm = trin_doc_path.rsplit(".", 1)[0]
@@ -172,6 +165,9 @@ def db_push_data(
         data = json.loads(lbl_byts)
         if blb_file_ext == "pdf":
             img = convert_from_bytes(pdf_byts, poppler_path=r"/usr/bin")
+            # img = convert_from_bytes(
+            #     pdf_byts, poppler_path=r"C:\\poppler-24.07.0\\Library\\bin"
+            # )
             for ig in img:
                 image = np.array(ig)
             image.shape
@@ -186,7 +182,7 @@ def db_push_data(
             data["ServiceAccount"] = ServiceAccount
         data["ModelID"] = model_id
         for nn in data["labels"]:
-            if nn["key"] is None:
+            if "key" not in nn or nn["key"] is None:
                 nn["key"] = ""
 
         for i in data["labels"]:
@@ -348,10 +344,11 @@ def model_validate_final(
         if model_validate_status == 1:
             if trin_doc_path == "":
                 db_push_status = 1
-                account_name = cnt_str.split("AccountName=")[1].split(";AccountKey")[0]
-                account_url = f"https://{account_name}.blob.core.windows.net"
+                account_url = (
+                    f"https://{settings.storage_account_name}.blob.core.windows.net"
+                )
                 blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=credential
+                    account_url=account_url, credential=get_credential()
                 )
                 container_client = blob_service_client.get_container_client(cnt_nm)
                 list_of_blobs = container_client.list_blobs(name_starts_with=folderpath)
