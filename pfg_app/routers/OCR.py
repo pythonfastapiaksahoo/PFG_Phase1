@@ -145,45 +145,47 @@ def runStatus(
         # just json"""
 
         prompt = """This is an invoice document. It may contain a receiver's stamp and
-        might have inventory or supplies marked or circled with a pen, circled
-        is selected. It contains store number as "STR #".
+            might have inventory or supplies marked or circled with a pen, circled
+            is selected. It contains store number as "STR #".
 
-        InvoiceDocument: Yes/No
-        InvoiceID: [InvoiceID].
-        StampPresent: Yes/No.
+            InvoiceDocument: Yes/No
+            InvoiceID: [InvoiceID].
+            StampPresent: Yes/No.
 
-        If a stamp is present, identify any markings on the document related to
-        Inventory or Supplies, specifically if they are marked or circled with a pen.
-        If a stamp is present, extract the following handwritten details from the
-        stamp: ConfirmationNumber (the confirmation number labeled
-        as 'Confirmation' on the stamp), ReceivingDate
-        (the date when the goods were received), Receiver
-        (the name of the person or department who received the goods),
-        and Department (the handwritten department name or code,
-        or another specified department name),
-        MarkedDept (which may be either 'Inventory' or 'Supplies',
-        based on pen marking).
-        Extract the Invoice Number.
-        Extract the Currency from the invoice document by identifying the currency
-        symbol before the total amount. The currency can be CAD or USD.
-        If the invoice address is in Canada, set the currency to CAD,
-        otherwise set it to USD.
+            If a stamp is present, identify any markings on the document related to
+            Inventory or Supplies, specifically if they are marked or circled
+            with a pen.
+            If a stamp is present, extract the following handwritten details from the
+            stamp: ConfirmationNumber (the confirmation number labeled
+            as 'Confirmation' on the stamp), ReceivingDate
+            (the date when the goods were received), Receiver
+            (the name of the person or department who received the goods),
+            and Department (the handwritten department name or code,
+            or another specified department name),
+            MarkedDept (which may be either 'Inventory' or 'Supplies',
+            based on pen marking).
+            Extract the Invoice Number.
+            Extract the Currency from the invoice document by identifying the currency
+            symbol before the total amount. The currency can be CAD or USD.
+            If the invoice address is in Canada, set the currency to CAD,
+            otherwise set it to USD.
 
-        Provide all information in the following JSON format:
-        {
-            'StampFound': 'Yes/No',
-            'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
-            'Confirmation': 'Extracted data',
-            'ReceivingDate': 'Extracted data',
-            'Receiver': 'Extracted data',
-            'Department': 'Dept code',
-            'Store Number': 'Extracted data',
-            'VendorName': 'Extracted data',
-            'InvoiceID' : 'Extracted data'
-            'Currency': 'Extracted data'
-        }.
-
-        Output should always be in JSON format only."""
+            Provide all information in the following JSON format:
+            {
+                'StampFound': 'Yes/No',
+                'MarkedDept': 'Inventory/Supplies'
+                (whichever is circled more/marked only),
+                'Confirmation': 'Extracted data',
+                'ReceivingDate': 'Extracted data',
+                'Receiver': 'Extracted data',
+                'Department': 'Dept code',
+                'Store Number': 'Extracted data',
+                'VendorName': 'Extracted data',
+                'InvoiceID' : 'Extracted data'
+                'Currency': 'Extracted data'
+            }.
+            Output should always be in above defined JSON
+              format only without any explanation."""
         # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
@@ -1161,16 +1163,13 @@ def runStatus(
                     conn.close()
                 except Exception as qw:
                     logger.info(f"ocr.py line 475: {str(qw)}")
-        except Exception as err:
-            logger.error(f"line 947 ocr.py: {err}")
+                    logger.error(f"API exception ocr.py: {traceback.format_exc()}")
+        except Exception:
             logger.error(f" ocr.py: {traceback.format_exc()}")
 
-    except Exception as err:
-        import traceback
-
+    except Exception:
         logger.error(f"API exception ocr.py: {traceback.format_exc()}")
-        logger.error(f"API exception ocr.py: {str(err)}")
-        status = "error: " + str(err)
+        status = f"{traceback.format_exc()}"
 
     try:
         pfg_sync(invoId, userID, db)
