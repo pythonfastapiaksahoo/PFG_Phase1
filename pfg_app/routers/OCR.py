@@ -71,8 +71,8 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
-    email_path: str = Form(...),
-    subject: str = Form(...),
+    # email_path: str = Form(...),
+    # subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
 ):
     try:
@@ -81,8 +81,8 @@ def runStatus(
         new_split_doc = model.SplitDocTab(
             invoice_path=file_path,
             status="File Received without Check",
-            emailbody_path=email_path,
-            email_subject=subject,
+            emailbody_path="email_path",
+            email_subject="subject",
             sender=sender,
         )
 
@@ -609,7 +609,7 @@ def runStatus(
                                         {
                                             model.frtrigger_tab.status: "PostProcessing Error",  # noqa: E501
                                             model.frtrigger_tab.vendorID: vendorID,
-                                            model.frtrigger_tab.documentid: spltFileName
+                                            model.frtrigger_tab.documentid: spltFileName,
                                         }
                                     )
                                     # Step 3: Commit the transaction
