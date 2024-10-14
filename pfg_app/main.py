@@ -160,23 +160,23 @@ async def root():
     return {"message": "Hello! This is IDP"}
 
 
-scheduler = AsyncIOScheduler()
+# scheduler = AsyncIOScheduler()
 
 
-def bulk_update_status():
-    # Your function implementation
-    print(f"Updating status at {datetime.now()}...")
-    newbulkupdateInvoiceStatus()
+# def bulk_update_status():
+#     # Your function implementation
+#     print(f"Updating status at {datetime.now()}...")
+#     newbulkupdateInvoiceStatus()
 
 
-# Schedule the job
-scheduler.add_job(
-    bulk_update_status, "cron", hour=17, minute=38
-)  # Runs every day at 3 AM
-scheduler.start()
+# # Schedule the job
+# scheduler.add_job(
+#     bulk_update_status, "cron", hour=17, minute=38
+# )  # Runs every day at 3 AM
+# scheduler.start()
 
 
-@app.on_event("startup")
-async def startup_event():
-    # Start the scheduler when the FastAPI app starts
-    scheduler.start()
+# @app.on_event("startup")
+# async def startup_event():
+#     # Start the scheduler when the FastAPI app starts
+#     scheduler.start()
