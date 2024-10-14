@@ -1405,6 +1405,8 @@ class frtrigger_tab(Base):
     created_on = Column(DateTime, nullable=True)
     sender = Column(String, nullable=True)
     page_number = Column(String, nullable=True)
+    filesize = Column(String, nullable=True)
+    documentid = Column(Integer, nullable=True)
 
 
 class VoucherData(Base):

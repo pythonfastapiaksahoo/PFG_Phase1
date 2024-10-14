@@ -1288,10 +1288,10 @@ async def read_doc_history(inv_id, download, db):
             )
         else:
             return (
-                db.query(model.DocumentHistoryLogs)
-                .options(
-                    load_only("documentdescription", "documentStatusID", "CreatedOn")
-                )
+                db.query(
+                    model.DocumentHistoryLogs
+                ).options(load_only("documentdescription","documentStatusID", "CreatedOn"))
+                .filter(model.DocumentHistoryLogs.documentID == model.Document.idDocument)
                 .filter(model.Document.idDocument == inv_id)
                 .order_by(model.DocumentHistoryLogs.CreatedOn)
                 .all()
@@ -1557,3 +1557,25 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         logger.error(traceback.format_exc())
         db.rollback()
         return {"DB error": "Error while inserting document history"}
+
+
+def reject_invoice(invoiceID, userID, reason, db):
+    try:
+        db.query(model.Document).filter(model.Document.idDocument == invoiceID).update(
+            {
+                "documentStatusID": 10,
+                "documentsubstatusID": 13,
+                "documentDescription": reason,
+            }
+        )
+        db.commit()
+    except Exception:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while updating document status"}
+    try:
+        update_docHistory(invoiceID, userID, 10, reason, db)
+    except Exception:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while updating document status"}

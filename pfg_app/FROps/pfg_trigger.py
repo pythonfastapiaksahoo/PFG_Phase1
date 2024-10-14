@@ -334,7 +334,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
 
 
 def pfg_sync(docID, userID, db: Session):
-    logger.info("start on the pfg_sync func()")
+    logger.info(f"start on the pfg_sync,DocID{docID}")
 
     docModel = (
         db.query(model.Document.documentModelID)
@@ -358,6 +358,7 @@ def pfg_sync(docID, userID, db: Session):
     duplicate_status_ck = 0
     duplicate_status_ck_msg = ""
     InvodocStatus = ""
+    fileSizeThreshold = 10
 
     try:
 
@@ -367,6 +368,7 @@ def pfg_sync(docID, userID, db: Session):
 
         for dtb_rw in docTb:
             InvodocStatus = dtb_rw.documentStatusID
+            filePath = dtb_rw.docPath
     except Exception as e:
         logger.error(f"Exception in pfg_sync line 294: {str(e)}")
 
@@ -670,6 +672,25 @@ def pfg_sync(docID, userID, db: Session):
                         "response": [VthChk_msg],
                     }
                     logger.info(f"docStatusSync:{docStatusSync}")
+
+                    # file size check:
+                    try:
+                        frTriggerTab = (
+                            db.query(model.frtrigger_tab)
+                            .filter(model.frtrigger_tab.blobpath == filePath)
+                            .all()
+                        )
+
+                        for fr_rw in frTriggerTab:
+                            fileSize = fr_rw.documentStatusID
+                        if len(fileSize) > 0:
+                            if float(fileSize) <= fileSizeThreshold:
+                                docStatusSync["File Size Check"] = {
+                                    "status": 1,
+                                    "response": ["File Size Check Passed"],
+                                }
+                    except Exception as e:
+                        logger.error(f"pfg_sync- file size check: {str(e)}")
 
                     if docStatusSync["VoucherCreation Data Validation"]["status"] == 1:
                         documentstatus = 4

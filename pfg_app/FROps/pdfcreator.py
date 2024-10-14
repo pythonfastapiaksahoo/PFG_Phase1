@@ -1,13 +1,6 @@
-import os
-from datetime import datetime
-
-import pytz as tz
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
-
-from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
+from reportlab.lib import colors
+from datetime import datetime
 
 
 def createdoc(all_status, docid):
@@ -21,14 +14,35 @@ def createdoc(all_status, docid):
     pdf.drawCentredString(290, 730, subtitle)
     startX = 40
     startY = 590
-    invoiceId = ""
+    invoiceId = ''
+    item_count = 0  # Initialize item count
+    items_per_page = 8  # Define how many items per page
+    i = 0
     for s in all_status:
+        if item_count == items_per_page:  # Check if the limit for the current page is reached
+            pdf.showPage()  # Move to the next page
+            item_count = 0  # Reset item count
+            i += 1
+            if i >= 1:
+                startY = 750
+                items_per_page = 12
         invoiceId = s.docheaderID
         invoicetype = s.UploadDocType
         confirmation_number = s.JournalNumber
         doc_date = s.documentDate
         vendor = s.VendorName
-        text = pdf.beginText(startX, startY)
+        if i == 0:
+            text = pdf.beginText(40,700)
+            text.setFont("Courier-Bold", 12)
+            text.setFillColor(colors.black)
+            text.textLine("Invoice Number: "+ invoiceId)
+            text.textLine("Invoice Date: "+ doc_date)
+            text.textLine("Confirmation #: "+confirmation_number)
+            text.textLine("invoice Type: "+ invoicetype)
+            text.textLine("Vendor/Service Provider: "+ vendor)
+            text.textLine("Document Journey GeneratedDate/Time: "+datetime.utcnow().strftime("%d-%m-%Y %H:%M:%S %p")+" UTC")
+            pdf.drawText(text)
+        text = pdf.beginText(startX,startY)
         text.setFont("Courier-Bold", 10)
         color = colors.green
         if s.DocumentHistoryLogs.documentStatusID in [2, 7, 14]:
@@ -43,29 +57,14 @@ def createdoc(all_status, docid):
         pdf.drawText(text)
         text.setFillColor(colors.black)
         text.setFont("Courier", 10)
-        # text.textLine("Done By: "+ s.firstName if s.firstName is not None else ""+ " "+ s.lastName if s.lastName is not None else "")
         if dt:
             text.textLine(
                 "Date & Time: " + dt.strftime("%d-%m-%Y %H:%M:%S %p") + " UTC"
             )
         else:
             text.textLine("Date & Time:")
-        text.setLeading(10)
         pdf.drawText(text)
         startY -= 60
-    text = pdf.beginText(40, 700)
-    text.setFont("Courier-Bold", 12)
-    text.setFillColor(colors.black)
-    text.textLine("Invoice Number: " + invoiceId)
-    text.textLine("Invoice Date: " + doc_date)
-    text.textLine("Confirmation #: " + confirmation_number)
-    text.textLine("invoice Type: " + invoicetype)
-    text.textLine("Vendor/Service Provider: " + vendor)
-    text.textLine(
-        "Document Journey GeneratedDate/Time: "
-        + datetime.utcnow().strftime("%d-%m-%Y %H:%M:%S %p")
-        + " UTC"
-    )
-    pdf.drawText(text)
+        item_count += 1
     pdf.save()
     return filename
