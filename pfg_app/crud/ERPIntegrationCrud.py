@@ -860,7 +860,7 @@ def processInvoiceVoucher(doc_id, db):
         # Continue processing the file
         print(f"Filepath (Base64 Encoded): {filepath}")
         print(f"Content Type: {content_type}")
-        vdbu = voucherdata.Business_unit
+        # vdbu = voucherdata.Business_unit
         request_payload = {
             "RequestBody": [
                 {

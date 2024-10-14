@@ -99,7 +99,8 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
             "records": {"Labels": tag_rsp, "LineItems": lineItem_rsp},
         }
     except Exception as e:
-        print(traceback.format_exc())
+        logger.info(f"{e}")
+        # print(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()

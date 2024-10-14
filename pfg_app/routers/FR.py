@@ -605,7 +605,7 @@ async def check_duplicate_synonyms(synonym: str, db: Session = Depends(get_db)):
                     "message": f"Synonym already exists for {vendor_name}",
                 }
         # synonym is not present in the list
-        return {"status": "not exists", "message": f"Synonym does not exist"}
+        return {"status": "not exists", "message": "Synonym does not exist"}
     except Exception as e:
         return {
             "status": "error",

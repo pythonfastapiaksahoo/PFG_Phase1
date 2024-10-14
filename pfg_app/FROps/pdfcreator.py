@@ -1,6 +1,7 @@
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
 from datetime import datetime
+
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
 
 
 def createdoc(all_status, docid):
@@ -14,12 +15,14 @@ def createdoc(all_status, docid):
     pdf.drawCentredString(290, 730, subtitle)
     startX = 40
     startY = 590
-    invoiceId = ''
+    invoiceId = ""
     item_count = 0  # Initialize item count
     items_per_page = 8  # Define how many items per page
     i = 0
     for s in all_status:
-        if item_count == items_per_page:  # Check if the limit for the current page is reached
+        if (
+            item_count == items_per_page
+        ):  # Check if the limit for the current page is reached
             pdf.showPage()  # Move to the next page
             item_count = 0  # Reset item count
             i += 1
@@ -32,17 +35,21 @@ def createdoc(all_status, docid):
         doc_date = s.documentDate
         vendor = s.VendorName
         if i == 0:
-            text = pdf.beginText(40,700)
+            text = pdf.beginText(40, 700)
             text.setFont("Courier-Bold", 12)
             text.setFillColor(colors.black)
-            text.textLine("Invoice Number: "+ invoiceId)
-            text.textLine("Invoice Date: "+ doc_date)
-            text.textLine("Confirmation #: "+confirmation_number)
-            text.textLine("invoice Type: "+ invoicetype)
-            text.textLine("Vendor/Service Provider: "+ vendor)
-            text.textLine("Document Journey GeneratedDate/Time: "+datetime.utcnow().strftime("%d-%m-%Y %H:%M:%S %p")+" UTC")
+            text.textLine("Invoice Number: " + invoiceId)
+            text.textLine("Invoice Date: " + doc_date)
+            text.textLine("Confirmation #: " + confirmation_number)
+            text.textLine("invoice Type: " + invoicetype)
+            text.textLine("Vendor/Service Provider: " + vendor)
+            text.textLine(
+                "Document Journey GeneratedDate/Time: "
+                + datetime.utcnow().strftime("%d-%m-%Y %H:%M:%S %p")
+                + " UTC"
+            )
             pdf.drawText(text)
-        text = pdf.beginText(startX,startY)
+        text = pdf.beginText(startX, startY)
         text.setFont("Courier-Bold", 10)
         color = colors.green
         if s.DocumentHistoryLogs.documentStatusID in [2, 7, 14]:
