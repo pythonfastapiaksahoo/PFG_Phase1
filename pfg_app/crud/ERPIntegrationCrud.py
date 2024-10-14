@@ -868,7 +868,7 @@ def processInvoiceVoucher(doc_id, db):
                         {
                             "VCHR_HDR_STG": [
                                 {
-                                    "BUSINESS_UNIT": voucherdata.Business_unit or "",
+                                    "BUSINESS_UNIT": "MERCH",
                                     "VOUCHER_STYLE": "REG",
                                     "INVOICE_ID": voucherdata.Invoice_Id or "",
                                     "INVOICE_DT": voucherdata.Invoice_Dt or "",
@@ -890,8 +890,7 @@ def processInvoiceVoucher(doc_id, db):
                                     "VAT_ENTRD_AMT": 0,
                                     "VCHR_LINE_STG": [
                                         {
-                                            "BUSINESS_UNIT": voucherdata.Business_unit
-                                            or "",
+                                            "BUSINESS_UNIT": "MERCH",
                                             "VOUCHER_LINE_NUM": (
                                                 voucherdata.Voucher_Line_num
                                                 if voucherdata.Voucher_Line_num
@@ -913,8 +912,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "SHIPTO_ID": "",
                                             "VCHR_DIST_STG": [
                                                 {
-                                                    "BUSINESS_UNIT": vdbu  # look above
-                                                    or "",
+                                                    "BUSINESS_UNIT": "MERCH",
                                                     "VOUCHER_LINE_NUM": (
                                                         voucherdata.Voucher_Line_num
                                                         if voucherdata.Voucher_Line_num

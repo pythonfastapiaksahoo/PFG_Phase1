@@ -31,6 +31,7 @@ from pfg_app.FROps.postprocessing import getFrData_MNF, postpro
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.FROps.SplitDoc import splitDoc
 from pfg_app.FROps.stampData import is_valid_date
+from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 
 # from logModule import email_sender
@@ -69,8 +70,31 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
+    email_path: str = Form(...),
+    subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
 ):
+    try:
+        db = next(get_db())
+        # Create a new instance of the SplitDocTab model
+        new_split_doc = model.SplitDocTab(
+            invoice_path=file_path,
+            status="File Received without Check",
+            emailbody_path=email_path,
+            email_subject=subject,
+            sender=sender,
+        )
+
+        # Add the new entry to the session
+        db.add(new_split_doc)
+
+        # Commit the transaction to save it to the database
+        db.commit()
+
+        # Refresh the instance to get the new ID if needed
+        db.refresh(new_split_doc)
+    except Exception as e:
+        print(e)
 
     try:
         invoId = ""
@@ -85,35 +109,80 @@ def runStatus(
             f"file_path: {file_path}, filename: {filename}, file_type: {file_type},\
             source: {source}, invoice_type: {invoice_type}"
         )
-        db = next(get_db())
+        # db = next(get_db())
 
         containername = "invoicesplit-test"  # TODO move to settings
         subfolder_name = "DSD/splitInvo"  # TODO move to settings
         destination_container_name = "apinvoice-container"  # TODO move to settings
         fr_API_version = "2023-07-31"  # TODO move to settings
 
-        prompt = """This is an invoice document.Extract Invoice Number and currency.
-        It may contain a receiver's stamp and
-        might have inventory or supplies marked or circled with a pen, circled is
-        selected. It contains store number as "STR #"
-        InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No.
+        # prompt = """This is an invoice document.Extract Invoice Number and
+        # Extract the Currency from the invoice document by identifying the currency
+        # symbol before the total amount. The currency can be CAD or USD.
+        # If the invoice address is in Canada, set the currency to CAD,
+        # otherwise set it to as per invoice address.
+        # It may contain a receiver's stamp and
+        # might have inventory or supplies marked or circled with a pen, circled is
+        # selected. It contains store number as "STR #"
+        # InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No.
+        # If a stamp is present, identify any markings on the document related to
+        # Inventory or Supplies, specifically if they are marked or circled with a pen.
+        # If a stamp is present, extract the following handwritten details
+        # from the stamp: ConfirmationNumber (the confirmation number labeled as
+        # 'Confirmation' on the stamp),
+        # ReceivingDate (the date when the goods were received),
+        # Receiver (the name of the person or department who received the goods), and
+        # Department (the handwritten department name or code,
+        # or another specified departmentname), MarkedDept (which may be either
+        # 'Inventory' or 'Supplies', based on pen marking).
+        # Provide all information in the following JSON format:
+        # {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'
+        # (which ever is circled more/marked only),
+        # 'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
+        # 'Receiver': 'Extracted data', 'Department': 'Dept code',
+        # 'Store Number':,'VendorName':,'InvoiceID':,'Currency':}.Output should be
+        # just json"""
+
+        prompt = """This is an invoice document. It may contain a receiver's stamp and
+        might have inventory or supplies marked or circled with a pen, circled
+        is selected. It contains store number as "STR #".
+
+        InvoiceDocument: Yes/No
+        InvoiceID: [InvoiceID].
+        StampPresent: Yes/No.
+
         If a stamp is present, identify any markings on the document related to
         Inventory or Supplies, specifically if they are marked or circled with a pen.
-        If a stamp is present, extract the following handwritten details
-        from the stamp: ConfirmationNumber (the confirmation number labeled as
-        'Confirmation' on the stamp),
-        ReceivingDate (the date when the goods were received),
-        Receiver (the name of the person or department who received the goods), and
-        Department (the handwritten department name or code,
-        or another specified departmentname), MarkedDept (which may be either
-        'Inventory' or 'Supplies', based on pen marking).
+        If a stamp is present, extract the following handwritten details from the
+        stamp: ConfirmationNumber (the confirmation number labeled
+        as 'Confirmation' on the stamp), ReceivingDate
+        (the date when the goods were received), Receiver
+        (the name of the person or department who received the goods),
+        and Department (the handwritten department name or code,
+        or another specified department name),
+        MarkedDept (which may be either 'Inventory' or 'Supplies',
+        based on pen marking).
+        Extract the Invoice Number.
+        Extract the Currency from the invoice document by identifying the currency
+        symbol before the total amount. The currency can be CAD or USD.
+        If the invoice address is in Canada, set the currency to CAD,
+        otherwise set it to USD.
+
         Provide all information in the following JSON format:
-        {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'
-        (which ever is circled more/marked only),
-        'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
-        'Receiver': 'Extracted data', 'Department': 'Dept code',
-        'Store Number':,'VendorName':,'InvoiceID':,'InvoiceCurrency':}.Output should be
-        just json"""
+        {
+            'StampFound': 'Yes/No',
+            'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
+            'Confirmation': 'Extracted data',
+            'ReceivingDate': 'Extracted data',
+            'Receiver': 'Extracted data',
+            'Department': 'Dept code',
+            'Store Number': 'Extracted data',
+            'VendorName': 'Extracted data',
+            'InvoiceID' : 'Extracted data'
+            'Currency': 'Extracted data'
+        }.
+
+        Output should always be in JSON format only."""
         # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
@@ -167,18 +236,35 @@ def runStatus(
             vendorName_df = pd.DataFrame(rows, columns=colnames)
             time.sleep(0.5)
             cursor = conn.cursor()
-            insert_splitTab_query = """
-                INSERT INTO pfg_schema.splitdoctab \
-                    (invoice_path, totalpagecount, pages_processed, status,\
-                        emailbody_path)
-                VALUES (%s, %s, %s, %s, %s);
-            """
+            # insert_splitTab_query = """
+            #     INSERT INTO pfg_schema.splitdoctab \
+            #         (invoice_path, totalpagecount, pages_processed, status,\
+            #             emailbody_path)
+            #     VALUES (%s, %s, %s, %s, %s);
+            # """
 
-            cursor.execute(
-                insert_splitTab_query,
-                (file_path, num_pages, grp_pages, "File received", sender),
+            # cursor.execute(
+            #     insert_splitTab_query,
+            #     (file_path, num_pages, grp_pages, "File received", sender),
+            # )
+            # conn.commit()
+            splitdoc_id = new_split_doc.splitdoc_id
+            split_doc = (
+                db.query(model.SplitDocTab)
+                .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                .first()
             )
-            conn.commit()
+            print("grp_pages: ", grp_pages)
+            if split_doc:
+                # Update the fields
+                split_doc.pages_processed = grp_pages
+                split_doc.status = "File Received"
+                split_doc.totalpagecount = num_pages
+                split_doc.num_pages = num_pages
+                split_doc.updated_on = datetime.now()  # Update the timestamp
+
+                # Commit the update
+                db.commit()
 
             fl = 0
             spltinvorange = []
@@ -207,6 +293,7 @@ def runStatus(
                         "blobpath": spltFileName,
                         "status": "File received",
                         "sender": sender,
+                        "splitdoc_id": splitdoc_id,
                         "page_number": spltInv,
                         "filesize": str(InvofileSize),
                     }
@@ -485,19 +572,32 @@ def runStatus(
                                 )
                                 status = "success"
                                 try:
-                                    cur = conn.cursor()
-                                    sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
-                                                SET "status" = %s, "sender" = %s, \
-                                                "vendorID" = %s  documentid = %s,\
-                                            WHERE "blobpath" = %s; """
-                                    FRvalues = (
-                                        "PostProcessing Error",
-                                        sender,
-                                        vendorID,
-                                        spltFileName,
+                                    # cur = conn.cursor()
+                                    # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
+                                    #             SET "status" = %s, "sender" = %s, \
+                                    #             "vendorID" = %s \
+                                    #         WHERE "blobpath" = %s; """
+                                    # FRvalues = (
+                                    #     "PostProcessing Error",
+                                    #     sender,
+                                    #     vendorID,
+                                    #     spltFileName,
+                                    # )
+                                    # cur.execute(sql_updateFR, FRvalues)
+                                    # conn.commit()
+                                    fr_trigger = db.query(model.frtrigger_tab).filter
+                                    (model.frtrigger_tab.blobpath == spltFileName)
+
+                                    # Step 2: Perform the update operation
+                                    fr_trigger.update(
+                                        {
+                                            model.frtrigger_tab.status: "PostProcessing Error",  # noqa: E501
+                                            model.frtrigger_tab.vendorID: vendorID,
+                                            model.frtrigger_tab.documentid: spltFileName
+                                        }
                                     )
-                                    cur.execute(sql_updateFR, FRvalues)
-                                    conn.commit()
+                                    # Step 3: Commit the transaction
+                                    db.commit()
 
                                 except Exception as qw:
                                     logger.info(f"ocr.py line 475: {str(qw)}")
@@ -507,6 +607,31 @@ def runStatus(
                                 f"Postprocessing Exception line 446 orc.py: {str(e)}"
                             )
                             status = "fail"
+
+                        try:
+                            if "Currency" in StampDataList[splt_map[fl]]:
+                                Currency = StampDataList[splt_map[fl]]["Currency"]
+
+                                # Call the validate_currency function
+                                # which now returns True or False
+                                isCurrencyMatch = validate_currency(
+                                    invoId, Currency, db
+                                )  # noqa: E501
+
+                                # Check if the currency matched
+                                # (True means match, False means no match)
+                                if isCurrencyMatch:  # No need to compare to 'True'
+                                    mrkCurrencyCk_isErr = 0
+                                    mrkCurrencyCk_msg = "Success"
+
+                                else:
+                                    mrkCurrencyCk_isErr = 1
+                                    mrkCurrencyCk_msg = "Invalid. Please review."
+                                print(f"mrkCurrencyCk_msg: {mrkCurrencyCk_msg}")
+                                print(f"mrkCurrencyCk_isErr: {mrkCurrencyCk_isErr}")
+
+                        except Exception as e:
+                            print(f"Error occurred: {e}")
 
                         if "StampFound" in StampDataList[splt_map[fl]]:
                             stm_dt_lt = []
@@ -842,14 +967,27 @@ def runStatus(
                         # print("event_generator: ", event_generator)
 
                         try:
-                            cur = conn.cursor()
-                            sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
-                                      SET "status" = %s, "sender" = %s, \
-                                        "vendorID" = %s \
-                                    WHERE "blobpath" = %s; """
-                            FRvalues = ("Processed", sender, vendorID, spltFileName)
-                            cur.execute(sql_updateFR, FRvalues)
-                            conn.commit()
+                            # cur = conn.cursor()
+                            # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
+                            #           SET "status" = %s, "sender" = %s, \
+                            #             "vendorID" = %s \
+                            #         WHERE "blobpath" = %s; """
+                            # FRvalues = ("Processed", sender, vendorID, spltFileName)
+                            # cur.execute(sql_updateFR, FRvalues)
+                            # conn.commit()
+                            fr_trigger = db.query(model.frtrigger_tab).filter
+                            (model.frtrigger_tab.blobpath == spltFileName)
+
+                            # Step 2: Perform the update operation
+                            fr_trigger.update(
+                                {
+                                    model.frtrigger_tab.status: "Processed",
+                                    model.frtrigger_tab.vendorID: vendorID,
+                                }
+                            )
+
+                            # Step 3: Commit the transaction
+                            db.commit()
 
                         except Exception as qw:
                             logger.info(f"ocr.py line 475: {str(qw)}")
@@ -892,36 +1030,56 @@ def runStatus(
                         status = "fail"
                     logger.info("vendor not found!!")
                     try:
-                        cur = conn.cursor()
-                        sql_updateFR_1 = """
-                            UPDATE pfg_schema.frtrigger_tab
-                            SET "status" = %(status)s, sender = %(sender)s
-                            WHERE "blobpath" = %(blobpath)s;
-                        """
-                        FRvalues_1 = {
-                            "status": "VendorNotFound",
-                            "sender": sender,
-                            "blobpath": spltFileName,
-                        }
+                        # cur = conn.cursor()
+                        # sql_updateFR_1 = """
+                        #     UPDATE pfg_schema.frtrigger_tab
+                        #     SET "status" = %(status)s, sender = %(sender)s
+                        #     WHERE "blobpath" = %(blobpath)s;
+                        # """
+                        # FRvalues_1 = {
+                        #     "status": "VendorNotFound",
+                        #     "sender": sender,
+                        #     "blobpath": spltFileName,
+                        # }
 
-                        cur.execute(sql_updateFR_1, FRvalues_1)
-                        conn.commit()
+                        # cur.execute(sql_updateFR_1, FRvalues_1)
+                        # conn.commit()
+                        db.query(model.frtrigger_tab).filter(
+                            model.frtrigger_tab.blobpath == spltFileName
+                        ).update(
+                            {
+                                model.frtrigger_tab.status: "VendorNotFound",
+                            }
+                        )
+
+                        # Commit the transaction
+                        db.commit()
                     except Exception as et:
                         try:
-                            cur = conn.cursor()
-                            sql_updateFR_2 = """
-                                UPDATE pfg_schema.frtrigger_tab
-                                SET "status" = %(status)s, "sender" = %(sender)s
-                                WHERE "blobpath" = %(blobpath)s;
-                            """
-                            FRvalues_2 = {
-                                "status": str(et),
-                                "sender": sender,
-                                "blobpath": spltFileName,
-                            }
+                            # cur = conn.cursor()
+                            # sql_updateFR_2 = """
+                            #     UPDATE pfg_schema.frtrigger_tab
+                            #     SET "status" = %(status)s, "sender" = %(sender)s
+                            #     WHERE "blobpath" = %(blobpath)s;
+                            # """
+                            # FRvalues_2 = {
+                            #     "status": str(et),
+                            #     "sender": sender,
+                            #     "blobpath": spltFileName,
+                            # }
 
-                            cur.execute(sql_updateFR_2, FRvalues_2)
-                            conn.commit()
+                            # cur.execute(sql_updateFR_2, FRvalues_2)
+                            # conn.commit()
+                            db.query(model.frtrigger_tab).filter(
+                                model.frtrigger_tab.blobpath == spltFileName
+                            ).update(
+                                {
+                                    model.frtrigger_tab.status: str(et),
+                                }
+                            )
+
+                            # Commit the transaction
+                            db.commit()
                         except Exception as e:
                             print("frtrigger_tab update exception: ", str(e))
 

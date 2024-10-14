@@ -105,7 +105,9 @@ async def get_tagging_details(
                 filename = b.name.split("/")[-1]
                 if os.path.splitext(b.name)[1].lower() == ".pdf":
                     images = convert_from_bytes(bdata, dpi=92, poppler_path="/usr/bin")
-
+                    # images = convert_from_bytes(
+                    #     bdata, dpi=92, poppler_path=r"C:\\poppler-24.07.0\\Library\\bin"
+                    # )
                     for i in images:
                         im_bytes = BytesIO()
                         i.save(im_bytes, format="JPEG")

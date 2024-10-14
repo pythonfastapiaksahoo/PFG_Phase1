@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 import pfg_app.model as model
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
 from pfg_app.crud.InvoiceCrud import update_docHistory
+from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 
@@ -418,6 +419,24 @@ def pfg_sync(docID, userID, db: Session):
                     docHdrDt[document_tag_def.TagLabel] = document_data.Value
                 logger.info(f"docHdrDt: {docHdrDt}")
 
+                try:
+                    Currency = DocDtHdr["Currency"]
+                    # Call the validate_currency function
+                    # which now returns True or False
+                    isCurrencyMatch = validate_currency(
+                        docID, Currency, db
+                    )  # noqa: E501
+
+                    # Check if the currency matched
+                    # (True means match, False means no match)
+                    if isCurrencyMatch:  # No need to compare to 'True'
+                        dmsg = "Success"
+
+                    else:
+                        dmsg = "Invoice Currency Invalid"
+
+                except Exception as e:
+                    print(f"Error occurred: {e}")
                 # Invoice Total Approval Check
                 try:
                     if float(docHdrDt["InvoiceTotal"]) < dsdApprovalCheck_msg:

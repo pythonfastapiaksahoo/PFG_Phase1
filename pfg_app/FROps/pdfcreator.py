@@ -2,12 +2,13 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from datetime import datetime
 
-def createdoc(all_status,docid):
-    filename = "Invoice#"+str(docid)+"_JourneyMap.pdf"
-    image = 'pfg_app/FROps/pfg-logo.png'
+
+def createdoc(all_status, docid):
+    filename = "Invoice#" + str(docid) + "_JourneyMap.pdf"
+    image = "pfg_app/FROps/pfg-logo.png"
     subtitle = "Pattinson Food Group - Invoice Journey Document"
     pdf = canvas.Canvas(filename)
-    pdf.drawImage(image, 10, 780,120,50)
+    pdf.drawImage(image, 10, 780, 120, 50)
     pdf.setFillColor(colors.black)
     pdf.setFont("Courier-Bold", 14)
     pdf.drawCentredString(290, 730, subtitle)
@@ -44,7 +45,7 @@ def createdoc(all_status,docid):
         text = pdf.beginText(startX,startY)
         text.setFont("Courier-Bold", 10)
         color = colors.green
-        if s.DocumentHistoryLogs.documentStatusID in [2,7,14]:
+        if s.DocumentHistoryLogs.documentStatusID in [2, 7, 14]:
             color = colors.green
         elif s.DocumentHistoryLogs.documentStatusID in [21]:
             color = colors.red
@@ -57,7 +58,9 @@ def createdoc(all_status,docid):
         text.setFillColor(colors.black)
         text.setFont("Courier", 10)
         if dt:
-            text.textLine("Date & Time: "+ dt.strftime('%d-%m-%Y %H:%M:%S %p')+" UTC")
+            text.textLine(
+                "Date & Time: " + dt.strftime("%d-%m-%Y %H:%M:%S %p") + " UTC"
+            )
         else:
             text.textLine("Date & Time:")
         pdf.drawText(text)
