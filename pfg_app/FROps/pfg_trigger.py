@@ -526,16 +526,12 @@ def pfg_sync(docID, userID, db: Session):
                                     + float(docHdrDt["TotalTax"])
                                 ) == float(docHdrDt["InvoiceTotal"]):
                                     invTotalMth = 1
-                                if (invTotalMth == 0) and ("PST" in docHdrDt):
-                                    if float(docHdrDt["SubTotal"]) + float(
-                                        docHdrDt["PST"]
-                                    ):
-                                        invTotalMth = 1
-                                if (invTotalMth == 0) and ("GST" in docHdrDt):
-                                    if float(docHdrDt["SubTotal"]) + float(
-                                        docHdrDt["GST"]
-                                    ):
-                                        invTotalMth = 1
+                            if (invTotalMth == 0) and ("PST" in docHdrDt):
+                                if float(docHdrDt["SubTotal"]) + float(docHdrDt["PST"]):
+                                    invTotalMth = 1
+                            if (invTotalMth == 0) and ("GST" in docHdrDt):
+                                if float(docHdrDt["SubTotal"]) + float(docHdrDt["GST"]):
+                                    invTotalMth = 1
                     except Exception as e:
                         logger.error(f"Exception in pfg_sync line 387: {str(e)}")
                         invTotalMth = 0
