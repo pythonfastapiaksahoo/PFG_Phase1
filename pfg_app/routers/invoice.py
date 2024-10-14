@@ -301,3 +301,35 @@ async def download_journeydoc(
             "status": "error",
             "message": f"Error in downloading journey document: {e}",
         }
+
+
+# Checked - used in the frontend
+@router.post("/updateRejectedDocumentStatus/{inv_id}")
+async def update_rejected_invoice_status(
+    inv_id: int,
+    reason: str,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """API route to update the column position for a user.
+
+    Parameters:
+    ----------
+    bg_task : BackgroundTasks
+        Background task manager for handling asynchronous tasks.
+    col_data : List[columnpos]
+        Body parameter containing a list of column positions
+        represented as a Pydantic model.
+    db : Session
+        Database session object used to interact with the backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update operation,
+        indicating success or failure.
+    """
+    return await crud.reject_invoice(user.idUser, inv_id, reason, db)
