@@ -573,7 +573,7 @@ def runStatus(
                                 status = "success"
                                 try:
                                     # cur = conn.cursor()
-                                    # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
+                                    # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \  # noqa: E501
                                     #             SET "status" = %s, "sender" = %s, \
                                     #             "vendorID" = %s \
                                     #         WHERE "blobpath" = %s; """
@@ -593,7 +593,7 @@ def runStatus(
                                         {
                                             model.frtrigger_tab.status: "PostProcessing Error",  # noqa: E501
                                             model.frtrigger_tab.vendorID: vendorID,
-                                            model.frtrigger_tab.documentid: spltFileName
+                                            model.frtrigger_tab.documentid: spltFileName,  # noqa: E501
                                         }
                                     )
                                     # Step 3: Commit the transaction

@@ -427,35 +427,42 @@ async def read_paginate_doc_inv_list_with_ln_items(
 
         # Apply universal API filter if provided, including line items
         if uni_api_filter:
-            # Normalize the user input filter
-            normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", uni_api_filter.lower())
+            uni_search_param_list = uni_api_filter.split(":")
+            for param in uni_search_param_list:
+                # Normalize the user input filter
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
 
-            # Create a pattern for the search with wildcards
-            pattern = f"%{normalized_filter}%"
+                # Create a pattern for the search with wildcards
+                pattern = f"%{normalized_filter}%"
 
-            filter_condition = or_(
-                normalize_string(model.Document.docheaderID).ilike(pattern),
-                normalize_string(model.Document.documentDate).ilike(pattern),
-                normalize_string(model.Document.sender).ilike(pattern),
-                cast(model.Document.totalAmount, String).ilike(f"%{uni_api_filter}%"),
-                func.to_char(model.Document.CreatedOn, "YYYY-MM-DD").ilike(
-                    f"%{uni_api_filter}%"
-                ),  # noqa: E501
-                normalize_string(model.Document.JournalNumber).ilike(pattern),
-                normalize_string(model.Document.UploadDocType).ilike(pattern),
-                normalize_string(model.Document.store).ilike(pattern),
-                normalize_string(model.Document.dept).ilike(pattern),
-                normalize_string(model.Vendor.VendorName).ilike(pattern),
-                normalize_string(model.Vendor.Address).ilike(pattern),
-                normalize_string(model.DocumentSubStatus.status).ilike(pattern),
-                normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
-                # Check if any related DocumentLineItems.Value matches the filter
-                exists().where(
-                    (model.DocumentLineItems.documentID == model.Document.idDocument)
-                    & normalize_string(model.DocumentLineItems.Value).ilike(pattern)
-                ),
-            )
-            data_query = data_query.filter(filter_condition)
+                filter_condition = or_(
+                    normalize_string(model.Document.docheaderID).ilike(pattern),
+                    normalize_string(model.Document.documentDate).ilike(pattern),
+                    normalize_string(model.Document.sender).ilike(pattern),
+                    cast(model.Document.totalAmount, String).ilike(
+                        f"%{uni_api_filter}%"
+                    ),
+                    func.to_char(model.Document.CreatedOn, "YYYY-MM-DD").ilike(
+                        f"%{uni_api_filter}%"
+                    ),  # noqa: E501
+                    normalize_string(model.Document.JournalNumber).ilike(pattern),
+                    normalize_string(model.Document.UploadDocType).ilike(pattern),
+                    normalize_string(model.Document.store).ilike(pattern),
+                    normalize_string(model.Document.dept).ilike(pattern),
+                    normalize_string(model.Vendor.VendorName).ilike(pattern),
+                    normalize_string(model.Vendor.Address).ilike(pattern),
+                    normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
+                    # Check if any related DocumentLineItems.Value matches the filter
+                    exists().where(
+                        (
+                            model.DocumentLineItems.documentID
+                            == model.Document.idDocument
+                        )
+                        & normalize_string(model.DocumentLineItems.Value).ilike(pattern)
+                    ),
+                )
+                data_query = data_query.filter(filter_condition)
 
         # Get the total count of records before applying limit and offset
         total_count = data_query.distinct(model.Document.idDocument).count()
@@ -480,6 +487,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
         # If uni_api_filter exists, fetch line items
         result = []
         if uni_api_filter:
+            last_filter_param = uni_search_param_list[-1]
             for doc_row in Documentdata:
                 document = doc_row.Document  # Access the Document model instance
                 inv_id = document.idDocument  # Extract document ID
@@ -542,10 +550,10 @@ async def read_paginate_doc_inv_list_with_ln_items(
                         query = query.filter(
                             or_(
                                 model.DocumentLineItems.Value.ilike(
-                                    f"%{uni_api_filter}%"
+                                    f"%{last_filter_param}%"
                                 ),
                                 model.DocumentLineItems.ErrorDesc.ilike(
-                                    f"%{uni_api_filter}%"
+                                    f"%{last_filter_param}%"
                                 ),
                             )
                         )
@@ -1288,10 +1296,13 @@ async def read_doc_history(inv_id, download, db):
             )
         else:
             return (
-                db.query(
-                    model.DocumentHistoryLogs
-                ).options(load_only("documentdescription","documentStatusID", "CreatedOn"))
-                .filter(model.DocumentHistoryLogs.documentID == model.Document.idDocument)
+                db.query(model.DocumentHistoryLogs)
+                .options(
+                    load_only("documentdescription", "documentStatusID", "CreatedOn")
+                )
+                .filter(
+                    model.DocumentHistoryLogs.documentID == model.Document.idDocument
+                )
                 .filter(model.Document.idDocument == inv_id)
                 .order_by(model.DocumentHistoryLogs.CreatedOn)
                 .all()
