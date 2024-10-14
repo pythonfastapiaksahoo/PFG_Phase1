@@ -616,8 +616,8 @@ def runStatus(
                                     # Step 3: Commit the transaction
                                     db.commit()
 
-                                except Exception as qw:
-                                    logger.info(f"ocr.py line 475: {str(qw)}")
+                                except Exception:
+                                    logger.error(f"{traceback.format_exc()}")
 
                         except Exception as e:
                             logger.info(
