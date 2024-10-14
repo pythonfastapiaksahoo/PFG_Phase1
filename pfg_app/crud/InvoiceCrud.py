@@ -1288,10 +1288,13 @@ async def read_doc_history(inv_id, download, db):
             )
         else:
             return (
-                db.query(
-                    model.DocumentHistoryLogs
-                ).options(load_only("documentdescription","documentStatusID", "CreatedOn"))
-                .filter(model.DocumentHistoryLogs.documentID == model.Document.idDocument)
+                db.query(model.DocumentHistoryLogs)
+                .options(
+                    load_only("documentdescription", "documentStatusID", "CreatedOn")
+                )
+                .filter(
+                    model.DocumentHistoryLogs.documentID == model.Document.idDocument
+                )
                 .filter(model.Document.idDocument == inv_id)
                 .order_by(model.DocumentHistoryLogs.CreatedOn)
                 .all()
