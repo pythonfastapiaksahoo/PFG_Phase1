@@ -19,57 +19,6 @@ router = APIRouter(
 )
 
 
-# Checked - used in the frontend
-@router.get("/readPaginatedDocumentINVList")
-async def read_paginate_doc_inv_list_item(
-    ven_id: Optional[int] = None,
-    status: Optional[
-        Literal[
-            "posted",
-            "rejected",
-            "exception",
-            "VendorNotOnboarded",
-            "VendorUnidentified",
-        ]
-    ] = None,
-    offset: int = 1,
-    limit: int = 10,
-    uni_search: Optional[str] = None,
-    ven_status: Optional[str] = None,
-    db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
-):
-    """API route to retrieve a paginated list of invoice documents with various
-    filters.
-
-    Parameters:
-    ----------
-    ven_id : int, optional
-        Vendor ID for filtering documents (default is None).
-    status : Literal, optional
-        Status of the invoice document to filter by.
-        Options: 'posted', 'rejected', 'exception', 'VendorNotOnboarded',
-        'VendorUnidentified' (default is None).
-    offset : int
-        The page number for pagination (default is 1).
-    limit : int
-        Number of records per page (default is 10).
-    uni_search : str, optional
-        Universal search term to filter documents (default is None).
-    ven_status : str, optional
-        Vendor status to filter documents (default is None).
-    db : Session
-        Database session object, used to interact with the database.
-
-    Returns:
-    -------
-    List of invoice documents filtered and paginated according to the input parameters.
-    """
-    return await crud.read_paginate_doc_inv_list(
-        user.idUser, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
-    )
-
-
 # Checked (new) - used in the frontend
 @router.get("/readPaginatedDocumentINVListWithLnItems")
 async def read_paginate_doc_inv_list_with_ln_item(
