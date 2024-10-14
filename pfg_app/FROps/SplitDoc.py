@@ -254,6 +254,7 @@ def splitDoc(
                         and preDt[pb]["value_type"] != "array"
                         and pb != "Items"
                         and pb != "list"
+                        and preDt[pb]["value_type"] == "string"
                     ):
                         if "confidence" in preDt[pb]:
                             prbtHeaderspg[pb] = [
@@ -261,7 +262,7 @@ def splitDoc(
                                 round(float(preDt[pb]["confidence"]) * 100, 2),
                             ]
                 except Exception:
-                    logger.info(f"line 300: {preDt[pb]}")
+                    logger.info(f"line 300: {[pb]}")
         prbtHeaders[docPg] = prbtHeaderspg
 
     if sndChk == 1:
@@ -273,8 +274,9 @@ def splitDoc(
         ]
 
         if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
-            # Unpack the tuple and create a list of tuples (n, n)
-            grp_pages = [(i, i) for i in splitpgsDt[0]]
+            #     # Unpack the tuple and create a list of tuples (n, n)
+            # grp_pages = [(i, i) for i in splitpgsDt[0]]
+            grp_pages = splitpgsDt
         elif all(isinstance(i, tuple) for i in splitpgsDt):
             # If the input is already a list of tuples, return it as-is
             grp_pages = splitpgsDt
