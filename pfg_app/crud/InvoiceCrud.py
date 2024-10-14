@@ -208,26 +208,25 @@ async def read_paginate_doc_inv_list(
         def normalize_string(input_str):
             return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
 
-        # Apply filter logic with normalization
+        # Apply universal API filter if provided, including line items
         if uni_api_filter:
-            # Normalize the input filter by removing
-            # non-alphanumeric characters and making lowercase
-            normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", uni_api_filter.lower())
+            uni_search_param_list = uni_api_filter.split(":")
+            for param in uni_search_param_list:
+                # Normalize the user input filter
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
 
-            # Creating a regex pattern for searching to match
-            # with or without special characters
-            pattern = f"%{normalized_filter}%"  # Include wildcards for partial matching
+                # Create a pattern for the search with wildcards
+                pattern = f"%{normalized_filter}%"
 
-            data_query = data_query.filter(
-                or_(
+                filter_condition = or_(
                     normalize_string(model.Document.docheaderID).ilike(pattern),
                     normalize_string(model.Document.documentDate).ilike(pattern),
                     normalize_string(model.Document.sender).ilike(pattern),
-                    cast(model.Document.totalAmount, String).ilike(pattern),
-                    func.to_char(
-                        model.Document.CreatedOn, "YYYY-MM-DD HH24:MI:SS"
-                    ).ilike(
-                        pattern
+                    cast(model.Document.totalAmount, String).ilike(
+                        f"%{uni_api_filter}%"
+                    ),
+                    func.to_char(model.Document.CreatedOn, "YYYY-MM-DD").ilike(
+                        f"%{uni_api_filter}%"
                     ),  # noqa: E501
                     normalize_string(model.Document.JournalNumber).ilike(pattern),
                     normalize_string(model.Document.UploadDocType).ilike(pattern),
@@ -237,8 +236,16 @@ async def read_paginate_doc_inv_list(
                     normalize_string(model.Vendor.Address).ilike(pattern),
                     normalize_string(model.DocumentSubStatus.status).ilike(pattern),
                     normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
+                    # Check if any related DocumentLineItems.Value matches the filter
+                    exists().where(
+                        (
+                            model.DocumentLineItems.documentID
+                            == model.Document.idDocument
+                        )
+                        & normalize_string(model.DocumentLineItems.Value).ilike(pattern)
+                    ),
                 )
-            )
+                data_query = data_query.filter(filter_condition)
 
         # Get the total count of records before applying limit and offset
         total_count = data_query.distinct(model.Document.idDocument).count()
@@ -427,35 +434,42 @@ async def read_paginate_doc_inv_list_with_ln_items(
 
         # Apply universal API filter if provided, including line items
         if uni_api_filter:
-            # Normalize the user input filter
-            normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", uni_api_filter.lower())
+            uni_search_param_list = uni_api_filter.split(":")
+            for param in uni_search_param_list:
+                # Normalize the user input filter
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
 
-            # Create a pattern for the search with wildcards
-            pattern = f"%{normalized_filter}%"
+                # Create a pattern for the search with wildcards
+                pattern = f"%{normalized_filter}%"
 
-            filter_condition = or_(
-                normalize_string(model.Document.docheaderID).ilike(pattern),
-                normalize_string(model.Document.documentDate).ilike(pattern),
-                normalize_string(model.Document.sender).ilike(pattern),
-                cast(model.Document.totalAmount, String).ilike(f"%{uni_api_filter}%"),
-                func.to_char(model.Document.CreatedOn, "YYYY-MM-DD").ilike(
-                    f"%{uni_api_filter}%"
-                ),  # noqa: E501
-                normalize_string(model.Document.JournalNumber).ilike(pattern),
-                normalize_string(model.Document.UploadDocType).ilike(pattern),
-                normalize_string(model.Document.store).ilike(pattern),
-                normalize_string(model.Document.dept).ilike(pattern),
-                normalize_string(model.Vendor.VendorName).ilike(pattern),
-                normalize_string(model.Vendor.Address).ilike(pattern),
-                normalize_string(model.DocumentSubStatus.status).ilike(pattern),
-                normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
-                # Check if any related DocumentLineItems.Value matches the filter
-                exists().where(
-                    (model.DocumentLineItems.documentID == model.Document.idDocument)
-                    & normalize_string(model.DocumentLineItems.Value).ilike(pattern)
-                ),
-            )
-            data_query = data_query.filter(filter_condition)
+                filter_condition = or_(
+                    normalize_string(model.Document.docheaderID).ilike(pattern),
+                    normalize_string(model.Document.documentDate).ilike(pattern),
+                    normalize_string(model.Document.sender).ilike(pattern),
+                    cast(model.Document.totalAmount, String).ilike(
+                        f"%{uni_api_filter}%"
+                    ),
+                    func.to_char(model.Document.CreatedOn, "YYYY-MM-DD").ilike(
+                        f"%{uni_api_filter}%"
+                    ),  # noqa: E501
+                    normalize_string(model.Document.JournalNumber).ilike(pattern),
+                    normalize_string(model.Document.UploadDocType).ilike(pattern),
+                    normalize_string(model.Document.store).ilike(pattern),
+                    normalize_string(model.Document.dept).ilike(pattern),
+                    normalize_string(model.Vendor.VendorName).ilike(pattern),
+                    normalize_string(model.Vendor.Address).ilike(pattern),
+                    normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
+                    # Check if any related DocumentLineItems.Value matches the filter
+                    exists().where(
+                        (
+                            model.DocumentLineItems.documentID
+                            == model.Document.idDocument
+                        )
+                        & normalize_string(model.DocumentLineItems.Value).ilike(pattern)
+                    ),
+                )
+                data_query = data_query.filter(filter_condition)
 
         # Get the total count of records before applying limit and offset
         total_count = data_query.distinct(model.Document.idDocument).count()
@@ -477,98 +491,8 @@ async def read_paginate_doc_inv_list_with_ln_items(
             .all()
         )
 
-        # If uni_api_filter exists, fetch line items
-        result = []
-        if uni_api_filter:
-            for doc_row in Documentdata:
-                document = doc_row.Document  # Access the Document model instance
-                inv_id = document.idDocument  # Extract document ID
-
-                # Fetch all related line item tag descriptions
-                doclinetags = (
-                    db.query(model.DocumentLineItemTags)
-                    .options(Load(model.DocumentLineItemTags).load_only("TagName"))
-                    .filter(
-                        model.DocumentLineItemTags.idDocumentLineItemTags.in_(
-                            db.query(model.DocumentLineItems.lineItemtagID)
-                            .filter_by(documentID=inv_id)
-                            .distinct()
-                        )
-                    )
-                    .all()
-                )
-
-                # For each line tag, fetch its associated line items and updates
-                for row in doclinetags:
-                    query = (
-                        db.query(model.DocumentLineItems, model.DocumentUpdates)
-                        .options(
-                            Load(model.DocumentLineItems).load_only(
-                                "Value",
-                                "IsUpdated",
-                                "isError",
-                                "ErrorDesc",
-                                "Xcord",
-                                "Ycord",
-                                "Width",
-                                "Height",
-                                "itemCode",
-                            ),
-                            Load(model.DocumentUpdates).load_only(
-                                "OldValue", "UpdatedOn"
-                            ),
-                        )
-                        .filter(
-                            model.DocumentLineItems.lineItemtagID
-                            == row.idDocumentLineItemTags,
-                            model.DocumentLineItems.documentID == inv_id,
-                        )
-                        .join(
-                            model.DocumentUpdates,
-                            model.DocumentUpdates.documentLineItemID
-                            == model.DocumentLineItems.idDocumentLineItems,
-                            isouter=True,
-                        )
-                        .filter(
-                            or_(
-                                model.DocumentLineItems.IsUpdated == 0,
-                                model.DocumentUpdates.IsActive == 1,
-                            )
-                        )
-                    )
-
-                    # Apply universal search filter for line items if necessary
-                    if uni_api_filter:
-                        query = query.filter(
-                            or_(
-                                model.DocumentLineItems.Value.ilike(
-                                    f"%{uni_api_filter}%"
-                                ),
-                                model.DocumentLineItems.ErrorDesc.ilike(
-                                    f"%{uni_api_filter}%"
-                                ),
-                            )
-                        )
-
-                    # Retrieve the line item data
-                    linedata = query.all()
-
-                    # Attach the line item data to the document
-                    row.linedata = linedata
-
-                # Attach the document with its line items and line tags to the result
-                result.append(
-                    {
-                        "document": doc_row,
-                        "lineitems": doclinetags,
-                        # Attach all line tags and their items for this document
-                    }
-                )
-        else:
-            # If no uni_api_filter, just return document data without line items
-            result = [{"document": doc_row} for doc_row in Documentdata]
         # Return paginated document data with line items
-        return {"ok": {"Documentdata": result, "TotalCount": total_count}}
+        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
 
     except Exception:
         logger.error(traceback.format_exc())
