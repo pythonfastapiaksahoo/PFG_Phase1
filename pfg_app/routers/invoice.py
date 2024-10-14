@@ -1,8 +1,10 @@
+import io
 import os
 from typing import List, Literal, Optional
 
+import pandas as pd
 from fastapi import APIRouter, BackgroundTasks, Depends
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from pfg_app.azuread.auth import get_user
@@ -301,6 +303,106 @@ async def download_journeydoc(
             "status": "error",
             "message": f"Error in downloading journey document: {e}",
         }
+
+
+@router.get("/downloadDocumentInvoiceList")
+async def download_documents(
+    ven_id: Optional[int] = None,
+    status: Optional[
+        Literal[
+            "posted",
+            "rejected",
+            "exception",
+            "VendorNotOnboarded",
+            "VendorUnidentified",
+        ]
+    ] = None,
+    uni_search: Optional[str] = None,
+    ven_status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """Endpoint to fetch document invoice data, convert it to Excel, and allow
+    download.
+
+    Parameters:
+    -----------
+    u_id : int
+        User ID
+    ven_id : int
+        Vendor ID to filter
+    inv_type : str
+        Type of invoice ("ser" for service, "ven" for vendor)
+    stat : Optional[str]
+        Status filter
+    uni_api_filter : Optional[str]
+        Universal search filter for the invoice
+    ven_status : Optional[str]
+        Vendor status ("A" for active, "I" for inactive)
+    db : Session
+        Database session injected by FastAPI
+
+    Returns:
+    --------
+    StreamingResponse
+        An Excel file download of the filtered document data.
+    """
+
+    # Fetch the document data using the existing function
+    result = await crud.read_all_doc_inv_list(
+        user.idUser, ven_id, "ven", status, db, uni_search, ven_status
+    )
+
+    # Check if result was successful
+    if "ok" not in result or not result["ok"]["Documentdata"]:
+        return {"error": "No document data found."}
+
+    document_data = result["ok"]["Documentdata"]
+
+    # Extract data into a list of dictionaries to create the DataFrame
+    extracted_data = []
+    for doc in document_data:
+        # Accessing attributes of the Document, Vendor, and other objects directly
+        created_on = pd.to_datetime(doc.Document.CreatedOn).tz_localize(
+            None
+        )  # Convert to timezone-naive
+        extracted_data.append(
+            {
+                "Invoice Number": doc.Document.docheaderID,
+                "Vendor Name": doc.Vendor.VendorName if doc.Vendor else None,
+                "Vendor Address": doc.Vendor.Address if doc.Vendor else None,
+                "Amount": doc.Document.totalAmount,
+                "Confirmation Number": doc.Document.JournalNumber,
+                "Invoice Type": doc.Document.UploadDocType,
+                "Invoice Date": doc.Document.documentDate,
+                "Status": doc.docstatus,
+                "Sub Status": (
+                    doc.DocumentSubStatus.status if doc.DocumentSubStatus else None
+                ),
+                "Sender": doc.Document.sender,
+                "Store": doc.Document.store,
+                "Department": doc.Document.dept,
+                "Upload Date": created_on,
+            }
+        )
+
+    # Convert the extracted data to a pandas DataFrame
+    df = pd.DataFrame(extracted_data)
+
+    # Create an in-memory Excel file using pandas and io
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="DocumentInvoices")
+
+    output.seek(0)
+
+    # Return the Excel file as a StreamingResponse for download
+    headers = {"Content-Disposition": "attachment; filename=document_invoices.xlsx"}
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
 
 
 # Checked - used in the frontend
