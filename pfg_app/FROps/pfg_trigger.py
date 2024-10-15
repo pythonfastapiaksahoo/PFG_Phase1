@@ -464,22 +464,25 @@ def pfg_sync(docID, userID, db: Session):
                     logger.info(f"docHdrDt: {docHdrDt}")
 
                     try:
-                        Currency = docHdrDt["Currency"]
-                        # Call the validate_currency function
-                        # which now returns True or False
-                        isCurrencyMatch = validate_currency(
-                            docID, Currency, db
-                        )  # noqa: E501
+                        if "Currency" in docHdrDt:
+                            Currency = docHdrDt["Currency"]
+                            # Call the validate_currency function
+                            # which now returns True or False
+                            isCurrencyMatch = validate_currency(
+                                docID, Currency, db
+                            )  # noqa: E501
 
-                        # Check if the currency matched
-                        # (True means match, False means no match)
-                        if isCurrencyMatch:  # No need to compare to 'True'
-                            dmsg = "Success"
+                            # Check if the currency matched
+                            # (True means match, False means no match)
+                            if isCurrencyMatch:  # No need to compare to 'True'
+                                dmsg = "Success"
+
+                            else:
+                                dmsg = "Invoice Currency Invalid"
 
                         else:
-                            dmsg = "Invoice Currency Invalid"
+                            dmsg = "No currency found in the OpenAI result"
                         logger.info(f"dmsg: {dmsg}")
-
                     except Exception:
                         logger.info(f"Error occurred: {traceback.format_exc()}")
                     # Invoice Total Approval Check
