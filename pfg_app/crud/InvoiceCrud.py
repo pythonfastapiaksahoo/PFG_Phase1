@@ -966,16 +966,15 @@ async def read_doc_history(inv_id, download, db):
                     model.Document.JournalNumber,
                     model.Document.UploadDocType,
                     model.Vendor.VendorName,
-                    model.User.firstName
+                    model.User.firstName,
                 )
                 .options(
                     load_only("documentdescription", "documentStatusID", "CreatedOn")
                 )
                 .filter(
                     model.DocumentHistoryLogs.documentID == model.Document.idDocument
-                ).filter(
-                    model.DocumentHistoryLogs.userID == model.User.idUser
                 )
+                .filter(model.DocumentHistoryLogs.userID == model.User.idUser)
                 .join(
                     model.VendorAccount,
                     model.Document.vendorAccountID
@@ -993,7 +992,7 @@ async def read_doc_history(inv_id, download, db):
             )
         else:
             return (
-                db.query(model.DocumentHistoryLogs,model.User.firstName)
+                db.query(model.DocumentHistoryLogs, model.User.firstName)
                 .options(
                     load_only("documentdescription", "documentStatusID", "CreatedOn")
                 )
@@ -1001,7 +1000,7 @@ async def read_doc_history(inv_id, download, db):
                     model.DocumentHistoryLogs.documentID == model.Document.idDocument
                 )
                 .filter(model.Document.idDocument == inv_id)
-                .join(model.User,model.DocumentHistoryLogs.userID == model.User.idUser)
+                .join(model.User, model.DocumentHistoryLogs.userID == model.User.idUser)
                 .order_by(model.DocumentHistoryLogs.CreatedOn)
                 .all()
             )
