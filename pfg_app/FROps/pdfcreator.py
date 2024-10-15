@@ -64,6 +64,7 @@ def createdoc(all_status, docid):
         pdf.drawText(text)
         text.setFillColor(colors.black)
         text.setFont("Courier", 10)
+        text.textLine("User: " + s.firstName)
         if dt:
             text.textLine(
                 "Date & Time: " + dt.strftime("%d-%m-%Y %H:%M:%S %p") + " UTC"

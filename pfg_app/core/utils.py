@@ -38,9 +38,9 @@ def get_credential(secret_name: Optional[str] = None):
         # Determine the build type (default to "debug" if not set)
         build_type = settings.build_type
 
-        if build_type == "release" or build_type == "uat":
+        if build_type == "release" or build_type == "uat" or build_type == "dev":
             # Use Managed Identity for release
-            logger.info("Using Managed Identity for authentication in release.")
+            logger.info(f"Using Managed Identity for authentication in {build_type}.")
             try:
                 # Automatically handles MI and other chained credentials
                 return DefaultAzureCredential()
@@ -82,6 +82,41 @@ def get_credential(secret_name: Optional[str] = None):
 
     except AzureError as e:
         logger.error(f"Azure error occurred: {str(e)}")
+        raise
+
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {str(e)}")
+        raise
+
+
+def get_secret_from_vault(credential, secret_name: str, settings_key: str):
+    """Function to retrieve a secret from Azure Key Vault.
+
+    Parameters:
+    ----------
+    credential : Credential
+        Credential object for accessing Azure Key Vault.
+    secret_name : str
+        Name of the secret to retrieve from Azure Key Vault.
+
+    Returns:
+    -------
+    str
+        Value of the secret retrieved from Azure Key Vault.
+    """
+
+    try:
+        key_vault_url = settings.key_vault_url
+        secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+
+        # Retrieve the secret from Key Vault
+        retrieved_secret = secret_client.get_secret(secret_name)
+        secret_value = retrieved_secret.value
+
+        return {"settings_key": settings_key, "secret": secret_value}
+
+    except AzureError as e:
+        logger.error(f"Error accessing Key Vault: {str(e)}")
         raise
 
     except Exception as e:

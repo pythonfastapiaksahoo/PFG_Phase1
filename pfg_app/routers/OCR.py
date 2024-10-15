@@ -508,7 +508,7 @@ def runStatus(
                             logger.info(
                                 f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
                             )
-                            status = "fail"
+                            status = traceback.format_exc()
 
                         logger.info("Vendor Not Onboarded")
                     else:
@@ -633,7 +633,7 @@ def runStatus(
                             logger.info(
                                 f"Postprocessing Exception line 446 orc.py: {str(e)}"
                             )
-                            status = "fail"
+                            status = traceback.format_exc()
 
                         try:
                             if "Currency" in StampDataList[splt_map[fl]]:
@@ -1062,8 +1062,10 @@ def runStatus(
                         logger.info(
                             f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
                         )
+
                         logger.error(f"{traceback.format_exc()}")
                         status = "fail"
+
                     logger.info("vendor not found!!")
                     try:
                         # cur = conn.cursor()
@@ -1123,7 +1125,7 @@ def runStatus(
 
                         logger.error(f"frtrigger_tab update exception: {str(et)}")
 
-                    status = "fail"
+                    status = traceback.format_exc()
                 fl = fl + 1
                 # time.sleep(0.5)
 
@@ -1692,6 +1694,10 @@ def parse_labels(label_data, db, poNumber, modelID):
                 db_data["Value"] = poNumber
             else:
                 db_data["Value"] = label["data"]["value"]
+            if label["data"]["confidence"]:
+                db_data["Fuzzy_scr"] = label["data"]["confidence"]
+            else:
+                db_data["Fuzzy_scr"] = "0"
             db_data["IsUpdated"] = 0
             if label["status"] == 1:
                 db_data["isError"] = 0
@@ -1720,6 +1726,10 @@ def parse_tabel(tabel_data, db, modelID):
         for col in row:
             db_data = {}
             db_data["Value"] = col["data"]
+            if col["data"]["confidence"]:
+                db_data["Fuzzy_scr"] = col["data"]["confidence"]
+            else:
+                db_data["Fuzzy_scr"] = "0"
             db_data["lineItemtagID"] = get_lineitemTagId(db, col["tag"], modelID)
             if "status" in col:
                 if col["status"] == 1:
