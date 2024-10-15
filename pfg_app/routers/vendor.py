@@ -21,32 +21,14 @@ router = APIRouter(
 )
 
 
-# # Checked(Doubt) - used in the frontend
-# # API to read all vendor list
-# @router.get("/vendorlist")
-# async def read_vendor(db: Session = Depends(get_db)):
-#     """###This function creates an api route for Reading Vendor list.
-
-#     It contains 2 parameters.
-#     :param db: It provides a session to interact with the backend
-#         Database,that is of Session Object Type.
-#     :return: it returns vendor list
-#     """
-#     return await crud.readvendor(db)
-
-
-# Checked(Doubt) - used in the frontend
-
-
 # API to read all vendor names
-@router.get("/vendornamelist/{u_id}")
-async def get_vendor_names_list(u_id, db: Session = Depends(get_db)):
+@router.get("/vendornamelist")
+async def get_vendor_names_list(db: Session = Depends(get_db)):
     """API route to retrieve a list of all active vendor names.
 
     Parameters:
     ----------
-    u_id : int
-        User ID of the requester.
+
     db : Session
         Database session object, used to interact with the database.
 
@@ -54,13 +36,12 @@ async def get_vendor_names_list(u_id, db: Session = Depends(get_db)):
     -------
     List of active vendor names.
     """
-    return await crud.readvendorname(u_id, db)
+    return await crud.readvendorname(db)
 
 
 # API to read paginated vendor list
-@router.get("/paginatedvendorlist/{u_id}")
+@router.get("/paginatedvendorlist")
 async def read_paginated_vendor_details(
-    u_id: int,
     ent_id: Optional[int] = None,
     ven_code: Optional[str] = None,
     onb_status: Optional[str] = None,
@@ -75,8 +56,7 @@ async def read_paginated_vendor_details(
 
     Parameters:
     ----------
-    u_id : int
-        User ID of the requester.
+
     ent_id : int, optional
         Entity ID to filter vendors by (default is None).
     ven_code : str, optional
@@ -99,7 +79,6 @@ async def read_paginated_vendor_details(
     List of vendor data filtered and paginated according to the input parameters.
     """
     data = await crud.readpaginatedvendorlist(
-        u_id,
         vendor_type,
         db,
         (offset, limit),
@@ -109,10 +88,8 @@ async def read_paginated_vendor_details(
     return data
 
 
-@router.get("/download-vendor-list/{u_id}")
+@router.get("/download-vendor-list")
 async def download_vendor_list(
-    u_id=int,
-    # user: AzureUser = Depends(get_admin_user),
     ent_id: Optional[int] = None,
     ven_code: Optional[str] = None,
     onb_status: Optional[str] = None,
@@ -120,11 +97,33 @@ async def download_vendor_list(
     vendor_type: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
+    """API route to export the list of vendors based on various filters to
+    excel.
+
+    Parameters:
+    ----------
+
+    ent_id : int, optional
+        Entity ID to filter vendors by (default is None).
+    ven_code : str, optional
+        Vendor code to filter by (default is None).
+    onb_status : str, optional
+        Onboarding status to filter vendors (default is None).
+    ven_status : str, optional
+        Vendor status to filter vendors (default is None).
+    vendor_type : str, optional
+        Type of vendor to filter by (default is None).
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of vendor data filtered and according to the input parameters.
+    """
 
     # Call the readvendorlist function
     try:
         result = await crud.readvendorlist(
-            u_id,
             vendor_type,
             db,
             {"ent_id": ent_id, "ven_code": ven_code, "onb_status": onb_status},
