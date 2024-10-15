@@ -1059,14 +1059,15 @@ def updateInvoiceStatus(doc_id, db):
                 )  # Get the ENTRY_STATUS field
                 # voucher_id = invoice_data.get("VOUCHER_ID")  # TODO: Unused variable
                 # Set the documentstatusid based on the ENTRY_STATUS value
-                if entry_status == "STG":
-                    documentstatusid = 7
-                elif entry_status == "NF":
-                    documentstatusid = 11
+
+                if entry_status == "NF":
+                    documentstatusid = 30
                 elif entry_status == "QCK":
-                    documentstatusid = 10
+                    documentstatusid = 27
                 elif entry_status == "P":
-                    documentstatusid = 8
+                    documentstatusid = 29
+                elif entry_status == "R":
+                    documentstatusid = 28
                 else:
                     documentstatusid = None  # Default if ENTRY_STATUS is not recognized
 
@@ -1074,10 +1075,10 @@ def updateInvoiceStatus(doc_id, db):
                 if documentstatusid is not None:
                     # # Assuming 'doc_id'
                     # is the identifier of the document you want to update
-                    # db.query(model.Document).filter
-                    # (model.Document.documentStatusID == doc_id).
-                    # update({model.Document.documentStatusID: documentstatusid})
-                    # db.commit()  # Commit the transaction to save the changes
+                    db.query(model.Document).filter(
+                        model.Document.documentStatusID == doc_id
+                    ).update({model.Document.documentStatusID: documentstatusid})
+                    db.commit()  # Commit the transaction to save the changes
                     print("DocumentStatusID: ", documentstatusid)
                 invoice_status = {"message": "Success", "data": response.json()}
             else:
