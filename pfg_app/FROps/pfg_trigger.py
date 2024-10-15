@@ -624,7 +624,9 @@ def pfg_sync(docID, userID, db: Session):
                                 dateCheck = 1
                             else:
                                 dateCheck = 0
-                                dateCheck_msg = "Invoice date is invalid,Please review."
+                                dateCheck_msg = (
+                                    "Invoice date is invalid, Please review."
+                                )
 
                         except Exception as er:
                             logger.error(traceback.format_exc())
@@ -750,7 +752,9 @@ def pfg_sync(docID, userID, db: Session):
 
                                     # ------------------------------------------------
                                     if "ConfirmationNumber" in stmpData:
-                                        Confirmation = stmpData["ConfirmationNumber"]
+                                        Confirmation = list(
+                                            stmpData["ConfirmationNumber"].keys()
+                                        )[0]
 
                                         if len(Confirmation) == 9:
                                             try:
