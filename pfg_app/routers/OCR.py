@@ -71,11 +71,13 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
-    email_path: str = Form(...),
-    subject: str = Form(...),
+    # email_path: str = Form("Test Path"),
+    # subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
 ):
     try:
+        email_path = ""
+        subject = ""
         vendorAccountID = 0
         db = next(get_db())
         # Create a new instance of the SplitDocTab model
