@@ -435,3 +435,42 @@ async def update_rejected_invoice_status(
         indicating success or failure.
     """
     return await crud.reject_invoice(user.idUser, inv_id, reason, db)
+
+
+# Checked (new) - used in the frontend
+@router.get("/readSplitDocdata")
+async def read_splitdoc_data(
+    offset: int = 1,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """API route to retrieve a paginated list of invoice documents with line
+    item details as optional when filters is applied  .
+
+    Parameters:
+    ----------
+    ven_id : int, optional
+        Vendor ID for filtering documents (default is None).
+    status : Literal, optional
+        Status of the invoice document to filter by.
+        Options: 'posted', 'rejected', 'exception', 'VendorNotOnboarded',
+        'VendorUnidentified' (default is None).
+    offset : int
+        The page number for pagination (default is 1).
+    limit : int
+        Number of records per page (default is 10).
+    uni_search : str, optional
+        Universal search term to filter documents (default is None).
+    ven_status : str, optional
+        Vendor status to filter documents (default is None).
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of invoice documents filtered and paginated according to the input parameters.
+    """
+
+    docs = await crud.get_all_splitdoc_data(user.idUser, (offset, limit), db)
+    return docs
