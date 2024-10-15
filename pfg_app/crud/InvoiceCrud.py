@@ -1139,15 +1139,46 @@ async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
 
         # Check if records are found
         if not stamp_data_records:
-            return {"error": f"No stamp data found for document ID: {inv_id}"}
+            static_stamp_data_records = [
+                {
+                    "stamptagname": "SelectedDept",
+                    "stampvalue": "",
+                    "is_error": 0,
+                },
+                {
+                    "stamptagname": "ReceivingDate",
+                    "stampvalue": "",
+                    "is_error": 0,
+                },
+                {
+                    "stamptagname": "Receiver",
+                    "stampvalue": "",
+                    "is_error": 0,
+                },
+                {
+                    "stamptagname": "Department",
+                    "stampvalue": "",
+                    "is_error": 0,
+                },
+                {
+                    "stamptagname": "StoreType",
+                    "stampvalue": "",
+                    "is_error": 0,
+                },
+                {
+                    "stamptagname": "StoreNumber",
+                    "stampvalue": "",
+                    "is_error": 0,
+                },
+                {
+                    "stamptagname": "ConfirmationNumber",
+                    "stampvalue": "",
+                    "is_error": 0,
+                },
+            ]
+            return {"StampNotFound": {"stamp_data_records": static_stamp_data_records}}
 
-        # # Prepare the result in a list of dictionaries
-        # result = [
-        #     {"stamptagname": record.stamptagname, "stampvalue": record.stampvalue}
-        #     for record in stamp_data_records
-        # ]
-
-        return stamp_data_records
+        return {"StampFound": {"stamp_data_records": stamp_data_records}}
 
     except SQLAlchemyError:
         # Handle any SQLAlchemy-specific error and rollback
@@ -1499,3 +1530,162 @@ async def read_all_doc_inv_list(
         return Response(status_code=500)
     finally:
         db.close()
+
+
+async def get_all_splitdoc_data(u_id, off_limit, db):
+    """Function to retrieve paginated SplitDocTab data.
+
+    Args:
+    u_id: User ID
+    off_limit (tuple): A tuple containing the (offset, limit) for pagination.
+    db: SQLAlchemy session
+
+    Returns:
+    result: A dictionary containing the total count and data from SplitDocTab rows.
+    """
+
+    # Extract offset and limit for pagination
+    offset, limit = off_limit
+    off_val = (offset - 1) * limit
+
+    # Validate the offset value
+    if off_val < 0:
+        return Response(
+            status_code=403,
+            headers={"ClientError": "Please provide a valid offset value."},
+        )
+
+    # Step 1: Get the total count of SplitDocTab rows
+    total_count = db.query(model.SplitDocTab).count()
+
+    # Step 2: Get the latest SplitDocTab rows in descending order and apply pagination
+    data_query = (
+        db.query(model.SplitDocTab)
+        .order_by(model.SplitDocTab.splitdoc_id.desc())
+        .offset(off_val)
+        .limit(limit)
+    )
+
+    # Debug: Log the SQL statement being executed (optional for debugging)
+    print(str(data_query))  # Output the SQL statement for debugging
+
+    # Execute the query
+    data_results = data_query.all()
+
+    result = []
+
+    # Step 3: For each SplitDocTab row, build a dictionary and add it to the result list
+    for splitdoc in data_results:
+        splitdoc_data = {
+            "splitdoc_id": splitdoc.splitdoc_id,
+            "invoice_path": splitdoc.invoice_path,
+            "emailbody_path": splitdoc.emailbody_path,
+            "created_on": splitdoc.created_on,
+            "totalpagecount": splitdoc.totalpagecount,
+            "pages_processed": splitdoc.pages_processed,
+            "vendortype": splitdoc.vendortype,
+            "status": splitdoc.status,
+            "email_subject": splitdoc.email_subject,
+            "sender": splitdoc.sender,
+            "updated_on": splitdoc.updated_on,
+        }
+
+        # Append the SplitDocTab data to the result list
+        result.append(splitdoc_data)
+
+    return {"total_count": total_count, "data": result}
+
+
+# async def get_all_splitdoc_and_frtrigger_data(u_id, off_limit, db):
+#     """
+#     Function to retrieve paginated SplitDocTab data and
+#     associated frtrigger_tab data based on splitdoc_id.
+
+#     Args:
+#     u_id: User ID
+#     off_limit (tuple): A tuple containing the (offset, limit) for pagination.
+#     db: SQLAlchemy session
+
+#     Returns:
+#     result: A dictionary containing the total count and
+#     data from both SplitDocTab and associated frtrigger_tab rows.
+#     """
+
+#     # Extract offset and limit for pagination
+#     offset, limit = off_limit
+#     off_val = (offset - 1) * limit
+
+#     # Validate the offset value
+#     if off_val < 0:
+#         return Response(
+#             status_code=403,
+#             headers={"ClientError": "Please provide a valid offset value."},
+#         )
+
+#     # Step 1: Get the total count of SplitDocTab rows
+#     total_count = db.query(model.SplitDocTab).count()
+
+#     # Step 2: Create a query object for paginated SplitDocTab rows in descending order
+#     data_query = db.query(model.SplitDocTab)\
+#         .order_by(model.SplitDocTab.created_on.desc())\
+#         .offset(off_val)\
+#         .limit(limit)
+
+#     # Debug: Log the SQL statement being executed
+#     print(str(data_query)) # This will output the SQL statement for debugging purposes
+
+#     # Execute the query
+#     data_results = data_query.all()
+
+#     result = []
+
+#     # Step 3: For each SplitDocTab, retrieve associated frtrigger_tab rows
+#     # using the splitdoc_id
+#     for splitdoc in data_results:
+#         # Query frtrigger_tab for this splitdoc_id
+#         fr_trigger_rows = db.query(model.frtrigger_tab)\
+#             .filter(model.frtrigger_tab.splitdoc_id == splitdoc.splitdoc_id)\
+#             .all()
+
+#         # Step 4: Build a combined dictionary for each splitdoc row and
+#         # its associated frtrigger_tab rows
+#         splitdoc_data = {
+#             "splitdoc": {
+#                 "splitdoc_id": splitdoc.splitdoc_id,
+#                 "invoice_path": splitdoc.invoice_path,
+#                 "emailbody_path": splitdoc.emailbody_path,
+#                 "created_on": splitdoc.created_on,
+#                 "totalpagecount": splitdoc.totalpagecount,
+#                 "pages_processed": splitdoc.pages_processed,
+#                 "vendortype": splitdoc.vendortype,
+#                 "status": splitdoc.status,
+#                 "email_subject": splitdoc.email_subject,
+#                 "sender": splitdoc.sender,
+#                 "updated_on": splitdoc.updated_on
+#             },
+#             "fr_trigger_data": []
+#         }
+
+#         # Append all the frtrigger_tab rows to the "fr_trigger_data" for this splitdoc
+#         for frtrigger in fr_trigger_rows:
+#             fr_trigger_data = {
+#                 "frtrigger_id": frtrigger.frtrigger_id,
+#                 "splitdoc_id": frtrigger.splitdoc_id,
+#                 "pagecount": frtrigger.pagecount,
+#                 "prebuilt_headerdata": frtrigger.prebuilt_headerdata,
+#                 "prebuilt_linedata": frtrigger.prebuilt_linedata,
+#                 "blobpath": frtrigger.blobpath,
+#                 "vendorID": frtrigger.vendorID,
+#                 "status": frtrigger.status,
+#                 "created_on": frtrigger.created_on,
+#                 "sender": frtrigger.sender,
+#                 "page_number": frtrigger.page_number,
+#                 "filesize": frtrigger.filesize,
+#                 "documentid": frtrigger.documentid
+#             }
+#             splitdoc_data["fr_trigger_data"].append(fr_trigger_data)
+
+#         # Append the combined splitdoc + fr_trigger data to the result list
+#         result.append(splitdoc_data)
+
+#     return {"total_count": total_count, "data": result}
