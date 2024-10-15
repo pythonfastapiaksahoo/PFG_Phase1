@@ -13,7 +13,9 @@ from sqlalchemy.orm import load_only
 import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.core.utils import get_credential
+from pfg_app.crud.InvoiceCrud import update_docHistory
 from pfg_app.logger_module import logger
+from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 
 
 async def getDepartmentMaster(db):
@@ -840,27 +842,25 @@ def processInvoiceVoucher(doc_id, db):
         if not voucherdata:
             raise HTTPException(status_code=404, detail="Voucherdata not found")
 
-        # # Call the function to get the base64 file
-        base64file = read_invoice_file_voucher(doc_id, db)
+        # Call the function to get the base64 file and content type
+        try:
+            file_data = read_invoice_file_voucher(doc_id, db)
+            if file_data and "result" in file_data:
+                base64file = file_data["result"]["filepath"]
 
-        # Check if the returned value contains an error
-        if "error" in base64file:
-            return Response(
-                status_code=500,
-                headers={
-                    "codeError": base64file["error"],
-                    "message": base64file["message"],
-                },
-            )
-
-        # If no error, process the file
-        filepath = base64file["filepath"]
-        content_type = base64file["content_type"]
+                # If filepath is a bytes object, decode it
+                if isinstance(base64file, bytes):
+                    base64file = base64file.decode("utf-8")
+            else:
+                base64file = "Error retrieving file: No result found in file data."
+        except Exception as e:
+            # Catch any error from the read_invoice_file
+            # function and use the error message
+            base64file = f"Error retrieving file: {str(e)}"
 
         # Continue processing the file
-        print(f"Filepath (Base64 Encoded): {filepath}")
-        print(f"Content Type: {content_type}")
-        # vdbu = voucherdata.Business_unit
+        # print(f"Filepath (Base64 Encoded or Error): {base64file}")
+
         request_payload = {
             "RequestBody": [
                 {
@@ -944,14 +944,14 @@ def processInvoiceVoucher(doc_id, db):
                             ],
                             "INV_METADATA_STG": [
                                 {
-                                    "BUSINESS_UNIT": voucherdata.Business_unit,
+                                    "BUSINESS_UNIT": "MERCH",
                                     "INVOICE_ID": voucherdata.Invoice_Id,
                                     "INVOICE_DT": voucherdata.Invoice_Dt,
                                     "VENDOR_SETID": voucherdata.Vendor_Setid,
                                     "VENDOR_ID": voucherdata.Vendor_ID,
                                     "IMAGE_NBR": 1,
                                     "FILE_NAME": voucherdata.File_Name,
-                                    "base64file": "+MDYxCiUlRU9GCg==",
+                                    "base64file": base64file,
                                 }
                             ],
                         }
@@ -959,7 +959,7 @@ def processInvoiceVoucher(doc_id, db):
                 }
             ]
         }
-        print(request_payload)
+        # print(request_payload)
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -1057,14 +1057,15 @@ def updateInvoiceStatus(doc_id, db):
                 )  # Get the ENTRY_STATUS field
                 # voucher_id = invoice_data.get("VOUCHER_ID")  # TODO: Unused variable
                 # Set the documentstatusid based on the ENTRY_STATUS value
-                if entry_status == "STG":
-                    documentstatusid = 7
-                elif entry_status == "NF":
-                    documentstatusid = 11
+
+                if entry_status == "NF":
+                    documentstatusid = 30
                 elif entry_status == "QCK":
-                    documentstatusid = 10
+                    documentstatusid = 27
                 elif entry_status == "P":
-                    documentstatusid = 8
+                    documentstatusid = 29
+                elif entry_status == "R":
+                    documentstatusid = 28
                 else:
                     documentstatusid = None  # Default if ENTRY_STATUS is not recognized
 
@@ -1072,10 +1073,10 @@ def updateInvoiceStatus(doc_id, db):
                 if documentstatusid is not None:
                     # # Assuming 'doc_id'
                     # is the identifier of the document you want to update
-                    # db.query(model.Document).filter
-                    # (model.Document.documentStatusID == doc_id).
-                    # update({model.Document.documentStatusID: documentstatusid})
-                    # db.commit()  # Commit the transaction to save the changes
+                    db.query(model.Document).filter(
+                        model.Document.documentStatusID == doc_id
+                    ).update({model.Document.documentStatusID: documentstatusid})
+                    db.commit()  # Commit the transaction to save the changes
                     print("DocumentStatusID: ", documentstatusid)
                 invoice_status = {"message": "Success", "data": response.json()}
             else:
@@ -1108,15 +1109,15 @@ def updateInvoiceStatus(doc_id, db):
     return invoice_status
 
 
-async def read_invoice_file_voucher(inv_id, db):
+def read_invoice_file_voucher(inv_id, db):
     try:
         content_type = "application/pdf"
-        max_size = 5 * 1024 * 1024  # 5 MB in bytes
+        # max_size = 5 * 1024 * 1024  # 5 MB in bytes
 
         # getting invoice data for later operation
         invdat = (
             db.query(model.Document)
-            .options(load_only("docPath", "supplierAccountID", "vendorAccountID"))
+            .options(load_only("docPath", "vendorAccountID"))
             .filter_by(idDocument=inv_id)
             .one()
         )
@@ -1142,26 +1143,21 @@ async def read_invoice_file_voucher(inv_id, db):
                     account_url=account_url, credential=get_credential()
                 )
 
-                # Create the BlobClient
-                if invdat.supplierAccountID:
-                    blob_client = blob_service_client.get_blob_client(
-                        container=fr_data.ContainerName, blob=invdat.docPath
-                    )
                 if invdat.vendorAccountID:
                     blob_client = blob_service_client.get_blob_client(
                         container=fr_data.ContainerName, blob=invdat.docPath
                     )
 
                 # Get file properties to check the size
-                properties = blob_client.get_blob_properties()
-                file_size = properties.size
+                # properties = blob_client.get_blob_properties()
+                # file_size = properties.size
 
-                # Check if the file size is larger than 5 MB
-                if file_size > max_size:
-                    return {
-                        "result": "File size is more than 5MB",
-                        "file_size": f"{file_size / (1024 * 1024):.2f} MB",
-                    }
+                # # Check if the file size is larger than 5 MB
+                # if file_size > max_size:
+                #     return {
+                #         "result": "File size is more than 5MB",
+                #         "file_size": f"{file_size / (1024 * 1024):.2f} MB",
+                #     }
 
                 # If the file size is within the limit, proceed to read and encode
                 filetype = os.path.splitext(invdat.docPath)[1].lower()
@@ -1186,3 +1182,365 @@ async def read_invoice_file_voucher(inv_id, db):
         return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()
+
+
+def bulkupdateInvoiceStatus(db):
+    try:
+        # fetch all the document ids with status id 7>> Sent to Peoplesoft
+        doc_ids = (
+            db.query(model.Document.idDocument)
+            .filter(model.Document.documentStatusID == 7)
+            .all()
+        )
+        # Get the voucherdata for each document id
+        for doc_id in doc_ids:
+            voucherdata = (
+                db.query(model.VoucherData)
+                .filter(model.VoucherData.documentID == doc_id)
+                .scalar()
+            )
+            if not voucherdata:
+                raise HTTPException(status_code=404, detail="Voucherdata not found")
+            # prepare the payload for the POST request
+            invoice_status_payload = {
+                "RequestBody": {
+                    "INV_STAT_RQST": {
+                        "BUSINESS_UNIT": voucherdata.Business_unit,
+                        "INVOICE_ID": voucherdata.Invoice_Id,
+                        "INVOICE_DT": voucherdata.Invoice_Dt,
+                        "VENDOR_SETID": voucherdata.Vendor_Setid,
+                        "VENDOR_ID": voucherdata.Vendor_ID,
+                    }
+                }
+            }
+            # Make a POST request to the external API endpoint
+            api_url = settings.erp_invoice_status_endpoint
+            headers = {"Content-Type": "application/json"}
+            username = settings.erp_user
+            password = settings.erp_password
+
+            response = None
+
+            try:
+                # Make the POST request with basic authentication
+                response = requests.post(
+                    api_url,
+                    json=invoice_status_payload,
+                    headers=headers,
+                    auth=(username, password),
+                    timeout=60,  # Set a timeout of 60 seconds
+                )
+                response.raise_for_status()
+                # Raises an HTTPError if the response was unsuccessful
+                logger.info("Response Status: ", response.status_code)
+                # Check for success
+                if response.status_code == 200:
+
+                    invoice_data = response.json()  # Parse the response JSON data
+                    entry_status = invoice_data.get(
+                        "ENTRY_STATUS"
+                    )  # Get the ENTRY_STATUS field
+                    # voucher_id = invoice_data.get("VOUCHER_ID")  e
+                    # Set the documentstatusid based on the ENTRY_STATUS value
+                    if entry_status == "STG":
+                        documentstatusid = 7
+                    elif entry_status == "NF":
+                        documentstatusid = 11
+                    elif entry_status == "QCK":
+                        documentstatusid = 10
+                    elif entry_status == "P":
+                        documentstatusid = 8
+                    else:
+                        documentstatusid = None
+
+                    # Now update the documentstatusid in the document table
+                    if documentstatusid is not None:
+                        db.query(model.Document).filter(
+                            model.Document.documentStatusID == doc_id
+                        ).update({model.Document.documentStatusID: documentstatusid})
+                        db.commit()  # Commit the transaction to save the changes
+                        print("DocumentStatusID: ", documentstatusid)
+                    invoice_status = {"message": "Success", "data": response.json()}
+                else:
+                    # Return a meaningful message if the status code is not 200
+                    invoice_status = {
+                        "message": "Failed",
+                        "status_code": response.status_code,
+                        "details": response.content.decode(),
+                    }
+            except requests.exceptions.HTTPError as e:
+                print(f"HTTP error occurred: {traceback.format_exc()}")
+                if response:
+                    return {
+                        "message": "HTTP error occurred",
+                        "status_code": response.status_code,
+                        "details": response.content.decode(),
+                    }
+                else:
+                    return {
+                        "message": "HTTP error occurred, no response",
+                        "details": str(e),
+                    }
+
+    except Exception:
+        logger.error(f"Error: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
+        )
+    return invoice_status
+
+
+def newbulkupdateInvoiceStatus(db):
+    try:
+        # db = next(get_db())
+        # Batch size for processing
+        batch_size = 100  # Define a reasonable batch size
+
+        # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
+        doc_query = db.query(model.Document.idDocument).filter(
+            model.Document.documentStatusID == 7
+        )
+
+        total_docs = doc_query.count()  # Total number of documents to process
+        logger.info(f"Total documents to process: {total_docs}")
+
+        # API credentials
+        api_url = settings.erp_invoice_status_endpoint
+        headers = {"Content-Type": "application/json"}
+        auth = (settings.erp_user, settings.erp_password)
+
+        # Process in batches
+        for start in range(0, total_docs, batch_size):
+            doc_ids = doc_query.offset(start).limit(batch_size).all()
+
+            # Fetch voucher data for each document in the batch
+            voucher_data_list = (
+                db.query(model.VoucherData)
+                .filter(
+                    model.VoucherData.documentID.in_([doc_id[0] for doc_id in doc_ids])
+                )
+                .all()
+            )
+
+            # Prepare payloads and make API requests
+            updates = []
+            for voucherdata, doc_id in zip(voucher_data_list, doc_ids):
+                # Prepare the payload for the API request
+                invoice_status_payload = {
+                    "RequestBody": {
+                        "INV_STAT_RQST": {
+                            "BUSINESS_UNIT": voucherdata.Business_unit,
+                            "INVOICE_ID": voucherdata.Invoice_Id,
+                            "INVOICE_DT": voucherdata.Invoice_Dt,
+                            "VENDOR_SETID": voucherdata.Vendor_Setid,
+                            "VENDOR_ID": voucherdata.Vendor_ID,
+                        }
+                    }
+                }
+
+                try:
+                    # Make a POST request to the external API
+                    response = requests.post(
+                        api_url,
+                        json=invoice_status_payload,
+                        headers=headers,
+                        auth=auth,
+                        timeout=60,  # Set a timeout of 60 seconds
+                    )
+                    response.raise_for_status()  # Raise an exception for HTTP errors
+
+                    # Process the response if the status code is 200
+                    if response.status_code == 200:
+                        invoice_data = response.json()
+                        entry_status = invoice_data.get("ENTRY_STATUS")
+
+                        # Determine the new document status based on ENTRY_STATUS
+                        documentstatusid = None
+                        if entry_status == "STG":
+                            # Skip updating if entry_status is "STG"
+                            # because the status is already 7
+                            continue
+                        elif entry_status == "QCK":
+                            documentstatusid = 27
+                        elif entry_status == "R":
+                            documentstatusid = 28
+                        elif entry_status == "P":
+                            documentstatusid = 29
+                        elif entry_status == "NF":
+                            documentstatusid = 30
+
+                        # If there's a valid document status update,
+                        # add it to the bulk update list
+                        if documentstatusid:
+                            updates.append(
+                                {
+                                    "idDocument": doc_id[0],
+                                    "documentStatusID": documentstatusid,
+                                }
+                            )
+
+                except requests.exceptions.RequestException as e:
+                    # Log the error and skip this document,
+                    # but don't interrupt the batch
+                    logger.error(f"Error for doc_id {doc_id[0]}: {str(e)}")
+
+            # Perform bulk database update for the batch
+            if updates:
+                db.bulk_update_mappings(model.Document, updates)
+                db.commit()  # Commit the changes for this batch
+
+            logger.info(f"Processed batch {start} to {start + batch_size}")
+
+        return {"message": "Bulk update completed successfully"}
+
+    except Exception as e:
+        logger.error(f"Error: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500, detail=f"Error processing invoice voucher: {str(e)}"
+        )
+
+
+def bulkProcessVoucherData(db):
+    try:
+        # db = next(get_db())
+        # Batch size for processing
+        batch_size = 100  # Define a reasonable batch size
+        # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
+        doc_query = db.query(model.Document.idDocument).filter(
+            model.Document.documentStatusID == 7
+        )
+
+        total_docs = doc_query.count()  # Total number of documents to process
+        logger.info(f"Total documents to process: {total_docs}")
+        # Process in batches
+        for start in range(0, total_docs, batch_size):
+            doc_ids = doc_query.offset(start).limit(batch_size).all()
+        for docID in doc_ids:
+            try:
+                resp = processInvoiceVoucher(docID, db)
+                try:
+                    if "data" in resp:
+                        if "Http Response" in resp["data"]:
+                            RespCode = resp["data"]["Http Response"]
+                            if resp["data"]["Http Response"].isdigit():
+                                RespCodeInt = int(RespCode)
+                                if RespCodeInt == 201:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.SUCCESS_STAGED  # noqa: E501
+                                    )
+                                    docStatus = 7
+                                    docSubStatus = 43
+
+                                elif RespCodeInt == 400:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 108
+
+                                elif RespCodeInt == 406:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_INVOICE  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 109
+
+                                elif RespCodeInt == 422:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 110
+
+                                elif RespCodeInt == 424:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_FILE_ATTACHMENT  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 111
+
+                                elif RespCodeInt == 500:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.INTERNAL_SERVER_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 53
+                                else:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 112
+                            else:
+                                dmsg = (
+                                    InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                )
+                                docStatus = 21
+                                docSubStatus = 112
+                        else:
+                            dmsg = (
+                                InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                            )
+                            docStatus = 21
+                            docSubStatus = 112
+                    else:
+                        dmsg = (
+                            InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                        )
+                        docStatus = 21
+                        docSubStatus = 112
+                except Exception as err:
+                    logger.info(f"PopleSoftResponseError: {err}")
+                    dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
+                        err
+                    )
+                    docStatus = 21
+                    docSubStatus = 112
+
+                try:
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: docStatus,
+                            model.Document.documentsubstausID: docSubStatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.info(f"ErrorUpdatingPostingData: {err}")
+                try:
+                    userID = 1
+                    update_docHistory(docID, userID, docStatus, dmsg, db)
+                except Exception as e:
+                    logger.error(f"pfg_sync 501: {str(e)}")
+            except Exception as e:
+                print(
+                    "Error in ProcessInvoiceVoucher fun(): ",
+                    traceback.format_exc(),
+                )
+                logger.info(f"PopleSoftResponseError: {e}")
+                dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(e)
+                docStatus = 21
+                docSubStatus = 112
+
+                try:
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: docStatus,
+                            model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.info(f"ErrorUpdatingPostingData 156: {err}")
+                try:
+                    documentstatus = 21
+                    update_docHistory(docID, userID, documentstatus, dmsg, db)
+                except Exception as e:
+                    logger.error(f"ErrorUpdatingDocHistory 163: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error in schedule IDP to Peoplesoft : {str(e)}")
