@@ -502,7 +502,7 @@ def runStatus(
                             logger.info(
                                 f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
                             )
-                            status = "fail"
+                            status = traceback.format_exc()
 
                         logger.info("Vendor Not Onboarded")
                     else:
@@ -623,7 +623,7 @@ def runStatus(
                             logger.info(
                                 f"Postprocessing Exception line 446 orc.py: {str(e)}"
                             )
-                            status = "fail"
+                            status = traceback.format_exc()
 
                         try:
                             if "Currency" in StampDataList[splt_map[fl]]:
@@ -1044,7 +1044,7 @@ def runStatus(
                         logger.info(
                             f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
                         )
-                        status = "fail"
+                        status = traceback.format_exc()
                     logger.info("vendor not found!!")
                     try:
                         # cur = conn.cursor()
@@ -1102,7 +1102,7 @@ def runStatus(
 
                         logger.error(f"frtrigger_tab update exception: {str(et)}")
 
-                    status = "fail"
+                    status = traceback.format_exc()
                 fl = fl + 1
                 # time.sleep(0.5)
 
