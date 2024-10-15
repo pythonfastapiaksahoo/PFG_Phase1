@@ -651,7 +651,7 @@ def postpro(
     skp_tab_mand_ck = 0
     doc_VendorName = ""
     doc_VendorAddress = ""
-    InvoTotal_data = ""
+    # InvoTotal_data = ""
 
     try:
 
@@ -1679,7 +1679,7 @@ def postpro(
                     dt["header"][tg]["status"] = 0
 
             if dt["header"][tg]["tag"] == "InvoiceTotal":
-                InvoTotal_data = dt["header"][tg]["data"]["value"]
+                # InvoTotal_data = dt["header"][tg]["data"]["value"]
                 dt["header"][tg]["data"]["value"] = cln_amt(
                     dt["header"][tg]["data"]["value"]
                 )
@@ -1747,23 +1747,23 @@ def postpro(
                     }
                     present_header.append("InvoiceTotal")
                     fr_data["header"].append(tmp)
-            if "SubTotal" not in present_header:
-                if InvoTotal_data != "":
-                    tmp = {}
-                    # tmp['tag'] = 'InvoiceTotal'
-                    tmp = {
-                        "tag": "SubTotal",
-                        "data": {
-                            "value": str(InvoTotal_data),
-                            "prebuilt_confidence": "0.0",
-                            "custom_confidence": "0.0",
-                        },
-                        "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
-                        "status": 1,
-                        "status_message": "Calculated Value",
-                    }
-                    present_header.append("InvoiceTotal")
-                    fr_data["header"].append(tmp)
+            # if "SubTotal" not in present_header:
+            #     if InvoTotal_data != "":
+            #         tmp = {}
+            #         # tmp['tag'] = 'InvoiceTotal'
+            #         tmp = {
+            #             "tag": "SubTotal",
+            #             "data": {
+            #                 "value": str(InvoTotal_data),
+            #                 "prebuilt_confidence": "0.0",
+            #                 "custom_confidence": "0.0",
+            #             },
+            #             "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+            #             "status": 1,
+            #             "status_message": "Calculated Value",
+            #         }
+            #         present_header.append("InvoiceTotal")
+            #         fr_data["header"].append(tmp)
 
         except Exception as e:
             logger.error(f"postpro line 1347: {str(e)}")
