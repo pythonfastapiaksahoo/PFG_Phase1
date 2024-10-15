@@ -1696,8 +1696,11 @@ def parse_labels(label_data, db, poNumber, modelID):
                 db_data["Value"] = poNumber
             else:
                 db_data["Value"] = label["data"]["value"]
-            if label["data"]["confidence"]:
-                db_data["Fuzzy_scr"] = label["data"]["confidence"]
+            if "confidence" in label["data"]:
+                if label["data"]["confidence"]:
+                    db_data["Fuzzy_scr"] = label["data"]["confidence"]
+                else:
+                    db_data["Fuzzy_scr"] = "0.0"
             else:
                 db_data["Fuzzy_scr"] = "0"
             db_data["IsUpdated"] = 0
