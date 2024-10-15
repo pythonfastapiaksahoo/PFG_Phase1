@@ -48,7 +48,7 @@ def stampDataFn(blob_data, prompt):
         "Content-Type": "application/json",
     }
     response = requests.post(
-        settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+        settings.open_ai_endpoint, headers=headers, json=data, timeout=600
     )
 
     # Check and process the response
