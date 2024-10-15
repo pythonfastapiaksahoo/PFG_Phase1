@@ -71,11 +71,13 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
-    email_path: str = Form(...),
-    subject: str = Form(...),
+    # email_path: str = Form("Test Path"),
+    # subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
 ):
     try:
+        email_path = ""
+        subject = ""
         vendorAccountID = 0
         db = next(get_db())
         # Create a new instance of the SplitDocTab model
@@ -184,7 +186,7 @@ def runStatus(
             'Currency': 'Extracted data'
         }.
 
-        Output should always be in JSON format only."""
+        Output should always be in above defined JSON format only."""
         # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
@@ -1694,8 +1696,11 @@ def parse_labels(label_data, db, poNumber, modelID):
                 db_data["Value"] = poNumber
             else:
                 db_data["Value"] = label["data"]["value"]
-            if label["data"]["confidence"]:
-                db_data["Fuzzy_scr"] = label["data"]["confidence"]
+            if "confidence" in label["data"]:
+                if label["data"]["confidence"]:
+                    db_data["Fuzzy_scr"] = label["data"]["confidence"]
+                else:
+                    db_data["Fuzzy_scr"] = "0.0"
             else:
                 db_data["Fuzzy_scr"] = "0"
             db_data["IsUpdated"] = 0
@@ -1726,8 +1731,11 @@ def parse_tabel(tabel_data, db, modelID):
         for col in row:
             db_data = {}
             db_data["Value"] = col["data"]
-            if col["data"]["confidence"]:
-                db_data["Fuzzy_scr"] = col["data"]["confidence"]
+            if "confidence" in col["data"]:
+                if col["data"]["confidence"]:
+                    db_data["Fuzzy_scr"] = col["data"]["confidence"]
+                else:
+                    db_data["Fuzzy_scr"] = "0"
             else:
                 db_data["Fuzzy_scr"] = "0"
             db_data["lineItemtagID"] = get_lineitemTagId(db, col["tag"], modelID)
