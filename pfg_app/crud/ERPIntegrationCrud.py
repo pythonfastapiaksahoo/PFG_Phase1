@@ -961,7 +961,7 @@ def processInvoiceVoucher(doc_id, db):
                 }
             ]
         }
-        print(request_payload)
+        # print(request_payload)
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
