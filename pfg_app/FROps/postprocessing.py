@@ -484,7 +484,14 @@ def getFrData_MNF(input_data):
                                 "Prebuilt Low confidence: " + str(cfd)
                             )
 
-                        if prTg in ["InvoiceTotal", "SubTotal", "TotalTax"]:
+                        if prTg in [
+                            "InvoiceTotal",
+                            "SubTotal",
+                            "TotalTax",
+                            "GST",
+                            "PST",
+                            "HST",
+                        ]:
 
                             if isinstance(
                                 tb_cln_amt(getData_headerPg[prTg]["content"]), float
@@ -642,6 +649,9 @@ def postpro(
     totalTax_rw = ""
     invoiceTotal_rw = ""
     skp_tab_mand_ck = 0
+    doc_VendorName = ""
+    doc_VendorAddress = ""
+    # InvoTotal_data = ""
 
     try:
 
@@ -965,8 +975,13 @@ def postpro(
                                     except KeyError:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                     try:
-                                        if isinstance(bo_bx[0], dict):
+
+                                        if len(bo_bx) > 0 and isinstance(
+                                            bo_bx[0], dict
+                                        ):
                                             bx = getBBox(bo_bx)
+                                        else:
+                                            bx = {"x": "", "y": "", "w": "", "h": ""}
 
                                     except Exception:
                                         logger.error(traceback.format_exc())
@@ -1370,19 +1385,15 @@ def postpro(
             + "));"
         )
         vdr_nm_trn_df = pd.read_sql(get_nm_trn_qry, SQLALCHEMY_DATABASE_URL)
-        vdr_trn_df = pd.DataFrame(vdr_nm_trn_df["TRNNumber"])
+        # vdr_trn_df = pd.DataFrame(vdr_nm_trn_df["TRNNumber"])
         vdr_name_df = pd.DataFrame(vdr_nm_trn_df["VendorName"])
-        trn_val = (
-            list(vdr_trn_df["TRNNumber"])[0]
-            if "TRNNumber" in vdr_trn_df and len(list(vdr_trn_df["TRNNumber"])) > 0
-            else ""
-        )
+
         name_val = (
             list(vdr_name_df["VendorName"])[0]
             if "VendorName" in vdr_name_df and len(list(vdr_name_df["VendorName"])) > 0
             else ""
         )
-        trn_match_metadata = 0
+
         for tg in range(len(dt["header"])):
             if dt["header"][tg]["tag"] == "InvoiceId":
                 doc_invID = dt["header"][tg]["data"]["value"]
@@ -1434,114 +1445,110 @@ def postpro(
                 else:
                     dt["header"][tg]["data"]["value"] = req_date
                     dt["header"][tg]["status"] = 0
-                    dt["header"][tg]["status_message"] = "Invalid Date formate"
+                    dt["header"][tg]["status_message"] = "Invalid Date format"
 
-            if dt["header"][tg]["tag"] == "TRN":
-                doc_trn = dt["header"][tg]["data"]["value"]
-                try:
-                    doc_trn_nw = ""
-                    for trn_sp in doc_trn.split(" "):
-                        # print(trn_sp)
-                        sb_tn = ""
-                        for i_ in trn_sp:
-                            if i_.isdigit():
-                                sb_tn = sb_tn + i_
-                        if len(sb_tn) > 0:
-                            doc_trn_nw = doc_trn_nw + " " + sb_tn
+            # if dt["header"][tg]["tag"] == "TRN":
+            #     doc_trn = dt["header"][tg]["data"]["value"]
+            #     try:
+            #         doc_trn_nw = ""
+            #         for trn_sp in doc_trn.split(" "):
+            #             # print(trn_sp)
+            #             sb_tn = ""
+            #             for i_ in trn_sp:
+            #                 if i_.isdigit():
+            #                     sb_tn = sb_tn + i_
+            #             if len(sb_tn) > 0:
+            #                 doc_trn_nw = doc_trn_nw + " " + sb_tn
 
-                    ocr_trn = max(
-                        (re.findall(r"\b\d+\b", doc_trn_nw)), default=0, key=len
-                    )
-                    dt["header"][tg]["data"]["value"] = ocr_trn
-                    # TRN Match:
-                    get_trn_qry = (
-                        'SELECT "TRNNumber" FROM '
-                        + SCHEMA
-                        + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
-                        + SCHEMA
-                        + '.vendoraccount where "idVendorAccount" in '
-                        + '(SELECT "idVendorAccount" FROM '
-                        + SCHEMA
-                        + '.documentmodel WHERE "idDocumentModel"='
-                        + str(invo_model_id)
-                        + "));"
-                    )
-                    vdr_trn_df = pd.read_sql(get_trn_qry, SQLALCHEMY_DATABASE_URL)
-                    trn_val = (
-                        list(vdr_trn_df["TRNNumber"])[0]
-                        if "TRNNumber" in vdr_trn_df
-                        and len(list(vdr_trn_df["TRNNumber"])) > 0
-                        else ""
-                    )
-                    if trn_val == "":
-                        dt["header"][tg][
-                            "status_message"
-                        ] = "TRN is missing from Vendor metadata."
-                        dt["header"][tg]["status"] = 0
-                        trn_match_metadata = 0
+            #         ocr_trn = max(
+            #             (re.findall(r"\b\d+\b", doc_trn_nw)), default=0, key=len
+            #         )
+            #         dt["header"][tg]["data"]["value"] = ocr_trn
+            #         # TRN Match:
+            #         get_trn_qry = (
+            #             'SELECT "TRNNumber" FROM '
+            #             + SCHEMA
+            #             + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
+            #             + SCHEMA
+            #             + '.vendoraccount where "idVendorAccount" in '
+            #             + '(SELECT "idVendorAccount" FROM '
+            #             + SCHEMA
+            #             + '.documentmodel WHERE "idDocumentModel"='
+            #             + str(invo_model_id)
+            #             + "));"
+            #         )
+            #         vdr_trn_df = pd.read_sql(get_trn_qry, SQLALCHEMY_DATABASE_URL)
+            #         trn_val = (
+            #             list(vdr_trn_df["TRNNumber"])[0]
+            #             if "TRNNumber" in vdr_trn_df
+            #             and len(list(vdr_trn_df["TRNNumber"])) > 0
+            #             else ""
+            #         )
+            #         if trn_val == "":
+            #             dt["header"][tg][
+            #                 "status_message"
+            #             ] = "TRN is missing from Vendor metadata."
+            #             dt["header"][tg]["status"] = 0
+            #             trn_match_metadata = 0
 
-                    vdr_trn = re.findall(r"\d+", trn_val)[0]
-                    if len(vdr_trn) > 12:
-                        trn_val = vdr_trn
-                    else:
-                        trn_val = ""
-                        dt["header"][tg][
-                            "status_message"
-                        ] = "TRN is missing from Vendor metadata."
-                        dt["header"][tg]["status"] = 0
-                    # else:
-                    #     trn_match_metadata = 1
-                    if trn_val != "" and trn_val != ocr_trn:
-                        dt["header"][tg]["status_message"] = (
-                            "TRN not matching with vendor metadata("
-                            + str(trn_val)
-                            + ")."
-                        )
-                        dt["header"][tg]["status"] = 0
-                        trn_match_metadata = 0
-                    elif trn_val == ocr_trn:
-                        trn_match_metadata = 1
+            #         vdr_trn = re.findall(r"\d+", trn_val)[0]
+            #         if len(vdr_trn) > 12:
+            #             trn_val = vdr_trn
+            #         else:
+            #             trn_val = ""
+            #             dt["header"][tg][
+            #                 "status_message"
+            #             ] = "TRN is missing from Vendor metadata."
+            #             dt["header"][tg]["status"] = 0
+            #         # else:
+            #         #     trn_match_metadata = 1
+            #         if trn_val != "" and trn_val != ocr_trn:
+            #             dt["header"][tg]["status_message"] = (
+            #                 "TRN not matching with vendor metadata("
+            #                 + str(trn_val)
+            #                 + ")."
+            #             )
+            #             dt["header"][tg]["status"] = 0
+            #             trn_match_metadata = 0
 
-                    else:
-                        trn_match_metadata = 0
-                        dt["header"][tg]["status"] = 0
-                        dt["header"][tg][
-                            "status_message"
-                        ] = "Low Confidence, Please Review."
+            #         else:
 
-                except Exception as trn_exp:
-                    logger.error(f"trn exception:{trn_exp} ")
-                    # print(trn_exp)
-                    dt["header"][tg]["status_message"] = (
-                        "Low Confidence, Meta data trn:" + str(trn_val) + ")."
-                    )
-                    dt["header"][tg]["status"] = 0
-                    trn_match_metadata = 0
+            #             dt["header"][tg]["status"] = 0
+            #             dt["header"][tg][
+            #                 "status_message"
+            #             ] = "Low Confidence, Please Review."
 
-            if dt["header"][tg]["tag"] == "PurchaseOrder":
-                doc_po = dt["header"][tg]["data"]["value"]
+            #     except Exception as trn_exp:
+            #         logger.error(f"trn exception:{trn_exp} ")
+            #         # print(trn_exp)
+            #         dt["header"][tg]["status_message"] = (
+            #             "Low Confidence, Meta data trn:" + str(trn_val) + ")."
+            #         )
+            #         dt["header"][tg]["status"] = 0
 
-                formatted_po, po_status = po_cvn(doc_po, entityID)
-                dt["header"][tg]["data"]["value"] = formatted_po
+            # if dt["header"][tg]["tag"] == "PurchaseOrder":
+            #     doc_po = dt["header"][tg]["data"]["value"]
 
-                po_doc = (
-                    db.query(model.Document)
-                    .filter(
-                        model.Document.PODocumentID == formatted_po,
-                        model.Document.idDocumentType == 1,
-                    )
-                    .first()
-                )
-                if po_status == 1:
-                    dt["header"][tg]["status_message"] = "Please Review PO number."
-                    dt["header"][tg]["status"] = 0
-                if po_doc is None:
-                    dt["header"][tg]["status_message"] = "PO not found in Serina!"
-                    dt["header"][tg]["status"] = 0
-            doc_VendorName = ""
-            doc_VendorAddress = ""
+            #     formatted_po, po_status = po_cvn(doc_po, entityID)
+            #     dt["header"][tg]["data"]["value"] = formatted_po
+
+            #     po_doc = (
+            #         db.query(model.Document)
+            #         .filter(
+            #             model.Document.PODocumentID == formatted_po,
+            #             model.Document.idDocumentType == 1,
+            #         )
+            #         .first()
+            #     )
+            #     if po_status == 1:
+            #         dt["header"][tg]["status_message"] = "Please Review PO number."
+            #         dt["header"][tg]["status"] = 0
+            #     if po_doc is None:
+            #         dt["header"][tg]["status_message"] = "PO not found in Serina!"
+            #         dt["header"][tg]["status"] = 0
+
             try:
-                # metaVendorName, metaVendorAdd
+                # metaVendorName, metaVendorAdd match check
                 if dt["header"][tg]["tag"] == "VendorName":
                     doc_VendorName = dt["header"][tg]["data"]["value"]
 
@@ -1588,7 +1595,6 @@ def postpro(
                         ] = "Invalid Value, Please review"
                         dt["header"][tg]["status"] = 0
                         totalTax_rw = ""
-
         try:
 
             vndMth_ck, vndMth_address_ck = VndMatchFn(
@@ -1673,6 +1679,7 @@ def postpro(
                     dt["header"][tg]["status"] = 0
 
             if dt["header"][tg]["tag"] == "InvoiceTotal":
+                # InvoTotal_data = dt["header"][tg]["data"]["value"]
                 dt["header"][tg]["data"]["value"] = cln_amt(
                     dt["header"][tg]["data"]["value"]
                 )
@@ -1716,26 +1723,6 @@ def postpro(
                 # TotalTax = dt["header"][tg]["data"]["value"]  # TODO: Unused variable
                 fr_data = dt
 
-            if dt["header"][tg]["tag"] == "VendorName":
-                ocr_vdr_nm = dt["header"][tg]["data"]["value"]
-
-                if trn_match_metadata == 1:
-                    dt["header"][tg]["data"]["value"] = name_val
-                    dt["header"][tg]["status"] = 1
-                elif trn_match_metadata == 0:
-                    vendor_nm_list = name_val.lower().split(" ")
-                    nm_scr = len(vendor_nm_list)
-                    vdr_nm_mth = ""
-                    for inm in vendor_nm_list:
-                        if ocr_vdr_nm.find(inm) == -1:
-                            nm_scr = nm_scr - 1
-                        else:
-                            vdr_nm_mth = vdr_nm_mth + inm + " "
-                    if nm_scr >= (len(vendor_nm_list) - 1):
-                        dt["header"][tg]["data"]["value"] = vdr_nm_mth
-                    else:
-                        dt["header"][tg]["status"] = 0
-
         present_header = []
         missing_header = []
 
@@ -1760,6 +1747,24 @@ def postpro(
                     }
                     present_header.append("InvoiceTotal")
                     fr_data["header"].append(tmp)
+            # if "SubTotal" not in present_header:
+            #     if InvoTotal_data != "":
+            #         tmp = {}
+            #         # tmp['tag'] = 'InvoiceTotal'
+            #         tmp = {
+            #             "tag": "SubTotal",
+            #             "data": {
+            #                 "value": str(InvoTotal_data),
+            #                 "prebuilt_confidence": "0.0",
+            #                 "custom_confidence": "0.0",
+            #             },
+            #             "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+            #             "status": 1,
+            #             "status_message": "Calculated Value",
+            #         }
+            #         present_header.append("InvoiceTotal")
+            #         fr_data["header"].append(tmp)
+
         except Exception as e:
             logger.error(f"postpro line 1347: {str(e)}")
             logger.error(f" {traceback.format_exc()}")

@@ -845,7 +845,7 @@ def processInvoiceVoucher(doc_id, db):
 
         # Call the function to get the base64 file and content type
         try:
-            file_data = read_invoice_file(doc_id, db)
+            file_data = read_invoice_file_voucher(doc_id, db)
             if file_data and "result" in file_data:
                 base64file = file_data["result"]["filepath"]
 
@@ -870,7 +870,7 @@ def processInvoiceVoucher(doc_id, db):
                         {
                             "VCHR_HDR_STG": [
                                 {
-                                    "BUSINESS_UNIT": voucherdata.Business_unit or "",
+                                    "BUSINESS_UNIT": "MERCH",
                                     "VOUCHER_STYLE": "REG",
                                     "INVOICE_ID": voucherdata.Invoice_Id or "",
                                     "INVOICE_DT": voucherdata.Invoice_Dt or "",
@@ -892,8 +892,7 @@ def processInvoiceVoucher(doc_id, db):
                                     "VAT_ENTRD_AMT": 0,
                                     "VCHR_LINE_STG": [
                                         {
-                                            "BUSINESS_UNIT": voucherdata.Business_unit
-                                            or "",
+                                            "BUSINESS_UNIT": "MERCH",
                                             "VOUCHER_LINE_NUM": (
                                                 voucherdata.Voucher_Line_num
                                                 if voucherdata.Voucher_Line_num
@@ -915,8 +914,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "SHIPTO_ID": "",
                                             "VCHR_DIST_STG": [
                                                 {
-                                                    "BUSINESS_UNIT": vdbu  # look above
-                                                    or "",
+                                                    "BUSINESS_UNIT": "MERCH",
                                                     "VOUCHER_LINE_NUM": (
                                                         voucherdata.Voucher_Line_num
                                                         if voucherdata.Voucher_Line_num
@@ -948,7 +946,7 @@ def processInvoiceVoucher(doc_id, db):
                             ],
                             "INV_METADATA_STG": [
                                 {
-                                    "BUSINESS_UNIT": voucherdata.Business_unit,
+                                    "BUSINESS_UNIT": "MERCH",
                                     "INVOICE_ID": voucherdata.Invoice_Id,
                                     "INVOICE_DT": voucherdata.Invoice_Dt,
                                     "VENDOR_SETID": voucherdata.Vendor_Setid,
@@ -1112,7 +1110,7 @@ def updateInvoiceStatus(doc_id, db):
     return invoice_status
 
 
-def read_invoice_file(inv_id, db):
+def read_invoice_file_voucher(inv_id, db):
     try:
         content_type = "application/pdf"
         # max_size = 5 * 1024 * 1024  # 5 MB in bytes

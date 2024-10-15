@@ -19,6 +19,9 @@ def get_open_ai_token():
 
 def stampDataFn(blob_data, prompt):
     pdf_img = convert_from_bytes(blob_data)
+    # pdf_img = convert_from_bytes(
+    #     blob_data, poppler_path=r"C:\\poppler-24.07.0\\Library\\bin"
+    # )
     buffered = BytesIO()
     pdf_img[0].save(buffered, format="JPEG")
     encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
@@ -45,7 +48,7 @@ def stampDataFn(blob_data, prompt):
         "Content-Type": "application/json",
     }
     response = requests.post(
-        settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+        settings.open_ai_endpoint, headers=headers, json=data, timeout=600
     )
 
     # Check and process the response

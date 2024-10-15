@@ -105,7 +105,9 @@ async def get_tagging_details(
                 filename = b.name.split("/")[-1]
                 if os.path.splitext(b.name)[1].lower() == ".pdf":
                     images = convert_from_bytes(bdata, dpi=92, poppler_path="/usr/bin")
-
+                    # images = convert_from_bytes(
+                    #     bdata, dpi=92, poppler_path=r"C:\\poppler-24.07.0\\Library\\bin" # noqa: E501
+                    # )
                     for i in images:
                         im_bytes = BytesIO()
                         i.save(im_bytes, format="JPEG")
@@ -806,7 +808,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
             "prebuilt-invoice",
             locale=language[0],
         )
-
+        get_resp = core_fr.process_polygons(get_resp)
         fields = get_resp["documents"][0]["fields"]
         pages = get_resp["pages"]
         page_width = pages[0]["width"]
@@ -864,10 +866,10 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                             labels_json["labels"].append(obj)
                     i = i + 1
             if (
-                fields[f]["type"] == "string"
-                or fields[f]["type"] == "currency"
-                or fields[f]["type"] == "date"
-                or fields[f]["type"] == "address"
+                fields[f]["value_type"] == "string"
+                or fields[f]["value_type"] == "currency"
+                or fields[f]["value_type"] == "date"
+                or fields[f]["value_type"] == "address"
             ):
                 label = f
                 if label in header:

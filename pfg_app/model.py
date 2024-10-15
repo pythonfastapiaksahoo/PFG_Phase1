@@ -156,6 +156,7 @@ class DocumentData(Base):
     Ycord = Column(String(45), nullable=True)
     Width = Column(String(45), nullable=True)
     Height = Column(String(45), nullable=True)
+    Fuzzy_scr = Column(Float, nullable=True)
     CreatedOn = Column(DateTime(timezone=True), nullable=True)
 
     # document = relationship("Document", back_populates="documentdata")
@@ -1405,6 +1406,8 @@ class frtrigger_tab(Base):
     created_on = Column(DateTime, nullable=True)
     sender = Column(String, nullable=True)
     page_number = Column(String, nullable=True)
+    filesize = Column(String, nullable=True)
+    documentid = Column(Integer, nullable=True)
 
 
 class VoucherData(Base):

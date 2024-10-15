@@ -11,35 +11,35 @@ class Settings(BaseSettings):
     build_type: str = "debug"  # debug or release
 
     # Azure Auth
-    api_client_id: str
-    api_client_secret: str
-    swagger_ui_client_id: str
-    aad_tenant_id: str
-    aad_instance: str
-    api_audience: str
+    api_client_id: str = ""
+    api_client_secret: str = ""
+    swagger_ui_client_id: str = ""
+    aad_tenant_id: str = ""
+    aad_instance: str = ""
+    api_audience: str = ""
 
     # DB (TODO - Change to use system identity)
-    db_host: str
-    db_port: int
-    db_user: str
-    db_password: str
-    db_name: str
-    db_schema: str
+    db_host: str = ""
+    db_port: int = 0
+    db_user: str = ""
+    db_password: str = ""
+    db_name: str = ""
+    db_schema: str = ""
 
     # Azure
-    form_recognizer_endpoint: str
-    api_version: str
-    tenant_id: str
-    client_id: str
-    client_secret: str
-    key_vault_url: str
-    open_ai_endpoint: str
-    storage_account_name: str
-    application_insights_instrumentation_key: str
+    form_recognizer_endpoint: str = ""
+    api_version: str = ""
+    tenant_id: str = ""
+    client_id: str = ""
+    client_secret: str = ""
+    key_vault_url: str = ""
+    open_ai_endpoint: str = ""
+    storage_account_name: str = ""
+    application_insights_instrumentation_key: str = ""
 
     # ERP
-    erp_url: str
-    erp_invoice_import_endpoint: str
-    erp_invoice_status_endpoint: str
-    erp_user: str
-    erp_password: str
+    erp_url: str = ""
+    erp_invoice_import_endpoint: str = ""
+    erp_invoice_status_endpoint: str = ""
+    erp_user: str = ""
+    erp_password: str = ""
