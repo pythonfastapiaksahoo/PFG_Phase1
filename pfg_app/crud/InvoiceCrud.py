@@ -1282,14 +1282,11 @@ async def reject_invoice(userID, invoiceID, reason, db):
             }
         )
         db.commit()
+
+        update_docHistory(invoiceID, userID, 10, reason, db)
+
         return "success: document status changed to rejected!"
 
-    except Exception:
-        logger.error(traceback.format_exc())
-        db.rollback()
-        return {"DB error": "Error while updating document status"}
-    try:
-        update_docHistory(invoiceID, userID, 10, reason, db)
     except Exception:
         logger.error(traceback.format_exc())
         db.rollback()

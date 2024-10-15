@@ -1136,22 +1136,23 @@ def check_same_vendors_same_entity(vendoraccountId, modelname, db):
         account = (
             db.query(model.VendorAccount.Account)
             .filter(model.VendorAccount.idVendorAccount == vendoraccountId)
-            .first()
+            .scalar()
         )
 
         # Get the vendorname for the account
         vendorname = (
             db.query(model.Vendor.VendorName)
             .filter(model.Vendor.VendorCode == account)
-            .first()
+            .scalar()
         )
 
-        # Get all vendorcodes associated with the vendorname
-        vendorcodes = (
-            db.query(model.Vendor.VendorCode)
+        # # Get all vendor codes associated with the vendor name as a list
+        vendorcodes = [
+            vc[0]
+            for vc in db.query(model.Vendor.VendorCode)
             .filter(model.Vendor.VendorName == vendorname)
-            .all
-        )
+            .all()
+        ]
 
         # Initialize count and vendorName
         count = 0
@@ -1176,6 +1177,7 @@ def check_same_vendors_same_entity(vendoraccountId, modelname, db):
                     )
                     .first()
                 )
+
                 if checkmodel is None:
                     count += 1
 
@@ -1186,14 +1188,15 @@ def check_same_vendors_same_entity(vendoraccountId, modelname, db):
                 .filter(model.Vendor.VendorCode == vendorcode)
                 .first()
             )
+
             vendorName = vendor[0]
         # Return the result based on the count
         if count >= 1:
             return {"message": "exists", "vendor": vendorName, "count": count - 1}
         else:
             return {"message": "not exists", "vendor": vendorName, "count": count}
-    except Exception as e:
-        print(e)
+    except Exception:
+        print(traceback.format_exc())
         return {"message": "exception"}
     finally:
         db.close()
@@ -1205,22 +1208,23 @@ def copymodels(vendoraccountId, modelname, db):
         account = (
             db.query(model.VendorAccount.Account)
             .filter(model.VendorAccount.idVendorAccount == vendoraccountId)
-            .first()
+            .scalar()
         )
 
         # Get the vendorname for the account
         vendorname = (
             db.query(model.Vendor.VendorName)
             .filter(model.Vendor.VendorCode == account)
-            .first()
+            .scalar()
         )
 
-        # Get all vendorcodes associated with the vendorname
-        vendorcodes = (
-            db.query(model.Vendor.VendorCode)
+        # # Get all vendor codes associated with the vendor name as a list
+        vendorcodes = [
+            vc[0]
+            for vc in db.query(model.Vendor.VendorCode)
             .filter(model.Vendor.VendorName == vendorname)
-            .all
-        )
+            .all()
+        ]
 
         # Loop through each vendorcode in the list of vendorcodes
         for vendorcode in vendorcodes:
