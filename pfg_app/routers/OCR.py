@@ -1731,8 +1731,11 @@ def parse_tabel(tabel_data, db, modelID):
         for col in row:
             db_data = {}
             db_data["Value"] = col["data"]
-            if col["data"]["confidence"]:
-                db_data["Fuzzy_scr"] = col["data"]["confidence"]
+            if "confidence" in col["data"]:
+                if col["data"]["confidence"]:
+                    db_data["Fuzzy_scr"] = col["data"]["confidence"]
+                else:
+                    db_data["Fuzzy_scr"] = "0"
             else:
                 db_data["Fuzzy_scr"] = "0"
             db_data["lineItemtagID"] = get_lineitemTagId(db, col["tag"], modelID)
