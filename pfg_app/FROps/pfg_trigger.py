@@ -101,7 +101,10 @@ def IntegratedvoucherData(inv_id, db: Session):
     for i in Invo_header:
         invo_hrd_data[i.documentTagDefID] = i.Value
     invo_total = invo_hrd_data[invo_total_Tg]
-    invo_SubTotal = invo_hrd_data[invo_SubTotal_Tg]
+    if invo_SubTotal_Tg in invo_hrd_data:
+        invo_SubTotal = invo_hrd_data[invo_SubTotal_Tg]
+    else:
+        invo_SubTotal = invo_total
     invo_Date = invo_hrd_data[invo_Date_Tg]
     invo_ID = invo_hrd_data[invo_ID_Tg]
 
@@ -230,7 +233,10 @@ def nonIntegratedVoucherData(inv_id, db: Session):
     for i in Invo_header:
         invo_hrd_data[i.documentTagDefID] = i.Value
     invo_total = invo_hrd_data[invo_total_Tg]
-    invo_SubTotal = invo_hrd_data[invo_SubTotal_Tg]
+    if invo_SubTotal_Tg in invo_hrd_data:
+        invo_SubTotal = invo_hrd_data[invo_SubTotal_Tg]
+    else:
+        invo_SubTotal = invo_total
     invo_Date = invo_hrd_data[invo_Date_Tg]
     invo_ID = invo_hrd_data[invo_ID_Tg]
 
