@@ -537,32 +537,37 @@ def pfg_sync(docID, userID, db: Session):
                     if dsdApprovalCheck == 1:
 
                         try:
-                            if docHdrDt["InvoiceTotal"] == docHdrDt["SubTotal"]:
-                                invTotalMth = 1
+                            if "SubTotal" in docHdrDt:
 
-                            elif (invTotalMth == 0) and (
-                                docHdrDt["InvoiceTotal"] != docHdrDt["SubTotal"]
-                            ):
-                                if float(docHdrDt["InvoiceTotal"]) == float(
-                                    docHdrDt["SubTotal"]
-                                ):
+                                if docHdrDt["InvoiceTotal"] == docHdrDt["SubTotal"]:
                                     invTotalMth = 1
-                                if (invTotalMth == 0) and ("TotalTax" in docHdrDt):
-                                    if (
-                                        float(docHdrDt["SubTotal"])
-                                        + float(docHdrDt["TotalTax"])
-                                    ) == float(docHdrDt["InvoiceTotal"]):
-                                        invTotalMth = 1
-                                if (invTotalMth == 0) and ("PST" in docHdrDt):
-                                    if float(docHdrDt["SubTotal"]) + float(
-                                        docHdrDt["PST"]
+
+                                elif (invTotalMth == 0) and (
+                                    docHdrDt["InvoiceTotal"] != docHdrDt["SubTotal"]
+                                ):
+                                    if float(docHdrDt["InvoiceTotal"]) == float(
+                                        docHdrDt["SubTotal"]
                                     ):
                                         invTotalMth = 1
-                                if (invTotalMth == 0) and ("GST" in docHdrDt):
-                                    if float(docHdrDt["SubTotal"]) + float(
-                                        docHdrDt["GST"]
-                                    ):
-                                        invTotalMth = 1
+                                    if (invTotalMth == 0) and ("TotalTax" in docHdrDt):
+                                        if (
+                                            float(docHdrDt["SubTotal"])
+                                            + float(docHdrDt["TotalTax"])
+                                        ) == float(docHdrDt["InvoiceTotal"]):
+                                            invTotalMth = 1
+                                    if (invTotalMth == 0) and ("PST" in docHdrDt):
+                                        if float(docHdrDt["SubTotal"]) + float(
+                                            docHdrDt["PST"]
+                                        ):
+                                            invTotalMth = 1
+                                    if (invTotalMth == 0) and ("GST" in docHdrDt):
+                                        if float(docHdrDt["SubTotal"]) + float(
+                                            docHdrDt["GST"]
+                                        ):
+                                            invTotalMth = 1
+                            else:
+                                invTotalMth = 1
+                                invTotalMth_msg = "Skip total check: Subtotal Missing"
                         except Exception as e:
                             logger.error(f"Exception in pfg_sync line 387: {str(e)}")
                             invTotalMth = 0

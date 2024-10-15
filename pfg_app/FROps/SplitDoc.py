@@ -1,6 +1,7 @@
 import concurrent.futures
 import json
 import time
+import traceback
 from datetime import date, datetime
 from io import BytesIO
 
@@ -90,6 +91,7 @@ def split_pdf_and_upload(
 
         except Exception as e:
             logger.error(f"Exception in fileSize: {str(e)}")
+            logger.error(f"{traceback.format_exc()}")
 
         account_name = settings.storage_account_name
         account_url = f"https://{account_name}.blob.core.windows.net"
@@ -194,6 +196,7 @@ def splitDoc(
 
             except Exception as e:
                 logger.error(f"Error processing a page: {e}")
+                logger.error(f"{traceback.format_exc()}")
 
     pageInvoDate = {}
     data_serialized = serialize_dates(output_data)
@@ -207,6 +210,7 @@ def splitDoc(
                 "content"
             ]
     except Exception as er:
+        logger.error(f"{traceback.format_exc()}")
         logger.info(f"Exception splitDoc line 261: {er}")
     grouped_dict = {}
     sndChk = 0
@@ -240,8 +244,8 @@ def splitDoc(
 
         try:
             rwOcrData.append(output_data[docPg]["content"])
-        except Exception as er:
-            logger.error(f"Exception splitdoc line 291: {er}")
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")
 
         preDt = output_data[docPg]["documents"][0]["fields"]
         prbtHeaderspg = {}
@@ -263,6 +267,7 @@ def splitDoc(
                             ]
                 except Exception:
                     logger.info(f"line 300: {[pb]}")
+                    logger.error(f"{traceback.format_exc()}")
         prbtHeaders[docPg] = prbtHeaderspg
 
     if sndChk == 1:

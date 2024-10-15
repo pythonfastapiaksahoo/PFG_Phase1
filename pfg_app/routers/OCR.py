@@ -71,18 +71,19 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
-    # email_path: str = Form(...),
-    # subject: str = Form(...),
+    email_path: str = Form(...),
+    subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
 ):
     try:
+        vendorAccountID = 0
         db = next(get_db())
         # Create a new instance of the SplitDocTab model
         new_split_doc = model.SplitDocTab(
             invoice_path=file_path,
             status="File Received without Check",
-            emailbody_path="email_path",
-            email_subject="subject",
+            emailbody_path=email_path,
+            email_subject=subject,
             sender=sender,
         )
 
@@ -94,8 +95,8 @@ def runStatus(
 
         # Refresh the instance to get the new ID if needed
         db.refresh(new_split_doc)
-    except Exception as e:
-        print(e)
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
 
     try:
         invoId = ""
@@ -145,47 +146,45 @@ def runStatus(
         # just json"""
 
         prompt = """This is an invoice document. It may contain a receiver's stamp and
-            might have inventory or supplies marked or circled with a pen, circled
-            is selected. It contains store number as "STR #".
+        might have inventory or supplies marked or circled with a pen, circled
+        is selected. It contains store number as "STR #".
 
-            InvoiceDocument: Yes/No
-            InvoiceID: [InvoiceID].
-            StampPresent: Yes/No.
+        InvoiceDocument: Yes/No
+        InvoiceID: [InvoiceID].
+        StampPresent: Yes/No.
 
-            If a stamp is present, identify any markings on the document related to
-            Inventory or Supplies, specifically if they are marked or circled
-            with a pen.
-            If a stamp is present, extract the following handwritten details from the
-            stamp: ConfirmationNumber (the confirmation number labeled
-            as 'Confirmation' on the stamp), ReceivingDate
-            (the date when the goods were received), Receiver
-            (the name of the person or department who received the goods),
-            and Department (the handwritten department name or code,
-            or another specified department name),
-            MarkedDept (which may be either 'Inventory' or 'Supplies',
-            based on pen marking).
-            Extract the Invoice Number.
-            Extract the Currency from the invoice document by identifying the currency
-            symbol before the total amount. The currency can be CAD or USD.
-            If the invoice address is in Canada, set the currency to CAD,
-            otherwise set it to USD.
+        If a stamp is present, identify any markings on the document related to
+        Inventory or Supplies, specifically if they are marked or circled with a pen.
+        If a stamp is present, extract the following handwritten details from the
+        stamp: ConfirmationNumber (the confirmation number labeled
+        as 'Confirmation' on the stamp), ReceivingDate
+        (the date when the goods were received), Receiver
+        (the name of the person or department who received the goods),
+        and Department (the handwritten department name or code,
+        or another specified department name),
+        MarkedDept (which may be either 'Inventory' or 'Supplies',
+        based on pen marking).
+        Extract the Invoice Number.
+        Extract the Currency from the invoice document by identifying the currency
+        symbol before the total amount. The currency can be CAD or USD.
+        If the invoice address is in Canada, set the currency to CAD,
+        otherwise set it to USD.
 
-            Provide all information in the following JSON format:
-            {
-                'StampFound': 'Yes/No',
-                'MarkedDept': 'Inventory/Supplies'
-                (whichever is circled more/marked only),
-                'Confirmation': 'Extracted data',
-                'ReceivingDate': 'Extracted data',
-                'Receiver': 'Extracted data',
-                'Department': 'Dept code',
-                'Store Number': 'Extracted data',
-                'VendorName': 'Extracted data',
-                'InvoiceID' : 'Extracted data'
-                'Currency': 'Extracted data'
-            }.
-            Output should always be in above defined JSON
-              format only without any explanation."""
+        Provide all information in the following JSON format:
+        {
+            'StampFound': 'Yes/No',
+            'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
+            'Confirmation': 'Extracted data',
+            'ReceivingDate': 'Extracted data',
+            'Receiver': 'Extracted data',
+            'Department': 'Dept code',
+            'Store Number': 'Extracted data',
+            'VendorName': 'Extracted data',
+            'InvoiceID' : 'Extracted data'
+            'Currency': 'Extracted data'
+        }.
+
+        Output should always be in JSON format only."""
         # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
@@ -304,6 +303,7 @@ def runStatus(
                 try:
                     InvofileSize = fileSize[spltFileName]
                 except Exception:
+                    logger.error(f"{traceback.format_exc()}")
                     InvofileSize = ""
                 try:
 
@@ -320,6 +320,7 @@ def runStatus(
                     db.commit()
 
                 except Exception as rt:
+                    logger.error(f"{traceback.format_exc()}")
                     logger.info(f"line 180: DB insertion error:{str(rt)} ")
 
                 if "VendorName" in prbtHeaders[splt_map[fl]]:
@@ -431,11 +432,13 @@ def runStatus(
                                                     break
 
                     except Exception as rt:
+                        logger.error(f"{traceback.format_exc()}")
                         logger.info(f"ocr.py line 220 {str(rt)}")
                         vdrFound = 0
 
                 except Exception as er:
                     logger.info(f"ocr.py exception: {str(er)}")
+                    logger.error(f"{traceback.format_exc()}")
                     vdrFound = 0
 
                 # vxdrFound = 0
@@ -449,6 +452,7 @@ def runStatus(
                         )[0]
 
                     except Exception:
+                        logger.error(f"{traceback.format_exc()}")
                         metaVendorAdd = ""
                     try:
                         metaVendorName = list(
@@ -457,9 +461,10 @@ def runStatus(
                             ]
                         )[0]
                     except Exception as err:
+                        logger.error(f"{traceback.format_exc()}")
                         logger.error(f"metaVendorName exception:{str(err)}")
                         metaVendorName = ""
-                    vendorAccountID = str(vendorID)
+                    vendorAccountID = vendorID
                     poNumber = "nonPO"
                     VendoruserID = 1
                     configs = getOcrParameters(customerID, db)
@@ -499,6 +504,7 @@ def runStatus(
                             status = "success"
 
                         except Exception as e:
+                            logger.error(f"{traceback.format_exc()}")
                             logger.info(
                                 f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
                             )
@@ -554,6 +560,7 @@ def runStatus(
                             logger.info(f"DocumentID:{invoId}")
                         except Exception as e:
                             invoId = ""
+                            logger.error(f"{traceback.format_exc()}")
                             logger.error(f"Exception in live_model_fn_1: {str(e)}")
 
                         try:
@@ -591,7 +598,7 @@ def runStatus(
                                 status = "success"
                                 try:
                                     # cur = conn.cursor()
-                                    # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \  # noqa: E501
+                                    # sql_updateFR="""UPDATE pfg_schema.frtrigger_tab \
                                     #             SET "status" = %s, "sender" = %s, \
                                     #             "vendorID" = %s \
                                     #         WHERE "blobpath" = %s; """
@@ -611,15 +618,18 @@ def runStatus(
                                         {
                                             model.frtrigger_tab.status: "PostProcessing Error",  # noqa: E501
                                             model.frtrigger_tab.vendorID: vendorID,
+                                            model.frtrigger_tab.documentid: spltFileName,  # noqa: E501
                                         }
                                     )
                                     # Step 3: Commit the transaction
                                     db.commit()
 
-                                except Exception:
+                                except Exception as qw:
                                     logger.error(f"{traceback.format_exc()}")
+                                    logger.info(f"ocr.py line 475: {str(qw)}")
 
                         except Exception as e:
+                            logger.error(f"{traceback.format_exc()}")
                             logger.info(
                                 f"Postprocessing Exception line 446 orc.py: {str(e)}"
                             )
@@ -647,8 +657,8 @@ def runStatus(
                                 print(f"mrkCurrencyCk_msg: {mrkCurrencyCk_msg}")
                                 print(f"mrkCurrencyCk_isErr: {mrkCurrencyCk_isErr}")
 
-                        except Exception as e:
-                            print(f"Error occurred: {e}")
+                        except Exception:
+                            logger.error(f"{traceback.format_exc()}")
 
                         if "StampFound" in StampDataList[splt_map[fl]]:
                             stm_dt_lt = []
@@ -725,6 +735,7 @@ def runStatus(
                                                 )
 
                                         except Exception as e:
+                                            logger.error(f"{traceback.format_exc()}")
                                             logger.error(
                                                 f"Error executing query: {str(e)}"
                                             )
@@ -858,6 +869,7 @@ def runStatus(
                                                 StrTyp_msg = ""
                                                 store_type = "Integrated"
                                         except Exception as e:
+                                            logger.error(f"{traceback.format_exc()}")
                                             logger.info(
                                                 f"Error fetching stores type: {str(e)}"
                                             )
@@ -871,6 +883,7 @@ def runStatus(
                                             strCk_msg = "Store Number Not Matching"
 
                                     except Exception as e:
+                                        logger.error(f"{traceback.format_exc()}")
                                         strCk_isErr = 1
                                         strCk_msg = "Error:" + str(e)
                                 else:
@@ -912,6 +925,7 @@ def runStatus(
                                         conn.commit()
 
                                     except Exception as e:
+                                        logger.error(f"{traceback.format_exc()}")
                                         logger.error(
                                             f"stampdata insertion exception: {str(e)}"
                                         )
@@ -958,12 +972,14 @@ def runStatus(
                                         cur.execute(sql_updateDoc, values)
                                         conn.commit()
                                     except Exception as e:
+                                        logger.error(f"{traceback.format_exc()}")
                                         logger.error(
                                             f"stampdata insertion exception: {str(e)}"
                                         )
                                         # print('line 372',str(e))
 
                                 except Exception as e:
+                                    logger.error(f"{traceback.format_exc()}")
                                     logger.error(
                                         f"stampdata insertion exception: {str(e)}"
                                     )
@@ -975,6 +991,7 @@ def runStatus(
                                     nonIntegratedVoucherData(invoId, db)
                             except Exception as er:
                                 logger.info(f"VoucherDateException:{er}")
+                                logger.error(f"{traceback.format_exc()}")
 
                         #
                         # except Exception as er:
@@ -1007,7 +1024,8 @@ def runStatus(
                             db.commit()
 
                         except Exception as qw:
-                            logger.info(f"ocr.py line 475: {str(qw)}")
+                            logger.info(f"ocr.py  {str(qw)}")
+                            logger.error(f"{traceback.format_exc()}")
 
                         status = "success"
 
@@ -1044,6 +1062,7 @@ def runStatus(
                         logger.info(
                             f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
                         )
+                        logger.error(f"{traceback.format_exc()}")
                         status = "fail"
                     logger.info("vendor not found!!")
                     try:
@@ -1072,6 +1091,7 @@ def runStatus(
                         # Commit the transaction
                         db.commit()
                     except Exception as et:
+                        logger.error(f"{traceback.format_exc()}")
                         try:
                             # cur = conn.cursor()
                             # sql_updateFR_2 = """
@@ -1099,6 +1119,7 @@ def runStatus(
                             db.commit()
                         except Exception as e:
                             print("frtrigger_tab update exception: ", str(e))
+                            logger.error(f"{traceback.format_exc()}")
 
                         logger.error(f"frtrigger_tab update exception: {str(et)}")
 
@@ -1162,20 +1183,24 @@ def runStatus(
                     cursor.close()
                     conn.close()
                 except Exception as qw:
-                    logger.info(f"ocr.py line 475: {str(qw)}")
-                    logger.error(f"API exception ocr.py: {traceback.format_exc()}")
-        except Exception:
+                    logger.info(f"ocr.py: {str(qw)}")
+                    logger.error(f"{traceback.format_exc()}")
+        except Exception as err:
+            logger.error(f"ocr.py: {err}")
             logger.error(f" ocr.py: {traceback.format_exc()}")
 
-    except Exception:
+    except Exception as err:
+
         logger.error(f"API exception ocr.py: {traceback.format_exc()}")
-        status = f"{traceback.format_exc()}"
+        logger.error(f"API exception ocr.py: {str(err)}")
+        status = "error: " + str(err)
 
     try:
         pfg_sync(invoId, userID, db)
         logger.info("pfg_sync Done!")
     except Exception as Er:
         logger.info(f"Ocr.py SyncError: {Er}")
+        logger.error(f"{traceback.format_exc()}")
 
     return status
 
@@ -1191,22 +1216,26 @@ def nomodelfound():
 
 
 def getModelData(vendorAccountID, db):
-    modelDetails = []
-    modelData = (
-        db.query(model.DocumentModel)
-        .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
-        .order_by(model.DocumentModel.UpdatedOn)
-        .all()
-    )
-    # print("modelData line 403: ", modelData)
-    reqModel = None
-    for m in modelData:
-        if m.modelID is not None and m.modelID != "":
-            reqModel = m
-            modelDetails.append(
-                {"IdDocumentModel": m.idDocumentModel, "modelName": m.modelName}
-            )
-    return reqModel, modelDetails
+    try:
+        modelDetails = []
+        modelData = (
+            db.query(model.DocumentModel)
+            .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
+            .order_by(model.DocumentModel.UpdatedOn)
+            .all()
+        )
+        # print("modelData line 403: ", modelData)
+        reqModel = None
+        for m in modelData:
+            if m.modelID is not None and m.modelID != "":
+                reqModel = m
+                modelDetails.append(
+                    {"IdDocumentModel": m.idDocumentModel, "modelName": m.modelName}
+                )
+        return reqModel, modelDetails
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        return None
 
 
 def getEntityData(vendorAccountID, db):
@@ -1222,16 +1251,20 @@ def getEntityData(vendorAccountID, db):
 
 
 def getMetaData(vendorAccountID, db):
-    metadata = (
-        db.query(model.FRMetaData)
-        .join(
-            model.DocumentModel,
-            model.FRMetaData.idInvoiceModel == model.DocumentModel.idDocumentModel,
+    try:
+        metadata = (
+            db.query(model.FRMetaData)
+            .join(
+                model.DocumentModel,
+                model.FRMetaData.idInvoiceModel == model.DocumentModel.idDocumentModel,
+            )
+            .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
+            .first()
         )
-        .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
-        .first()
-    )
-    return metadata
+        return metadata
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        return None
 
 
 def getRuleData(idDocumentModel, db):
@@ -1443,6 +1476,7 @@ def live_model_fn_1(generatorObj):
                     db.add(data_switch_)
                     db.commit()
                 except Exception as ep:
+                    logger.error(f"{traceback.format_exc()}")
                     logger.error(f"ocr.py line 594: exception:{str(ep)}")
                     # {"DB error": "Error while inserting data"}
 
@@ -1581,6 +1615,7 @@ def push_frdata(
         db.add(db_data)
         db.commit()
     except Exception as e:
+        logger.error(f"{traceback.format_exc()}")
         db.rollback()
         if "Incorrect datetime value" in str(e):
             invoice_data["documentDate"] = None
@@ -1590,6 +1625,7 @@ def push_frdata(
             db.add(db_data)
             db.commit()
         except Exception as e:
+            logger.error(f"{traceback.format_exc()}")
             db.rollback()
             if "for column 'docheaderID'" in str(e):
                 invoice_data["docheaderID"] = ""
@@ -1598,6 +1634,7 @@ def push_frdata(
                 db.add(db_data)
                 db.commit()
             except Exception as e:
+                logger.error(f"{traceback.format_exc()}")
                 db.rollback()
                 if "for column 'PODocumentID'" in str(e):
                     invoice_data["PODocumentID"] = ""
@@ -1607,6 +1644,7 @@ def push_frdata(
                     db.add(db_data)
                     db.commit()
                 except Exception as e:
+                    logger.error(f"{traceback.format_exc()}")
                     db.rollback()
                     if "for column 'totalAmount'" in str(e):
                         invoice_data["totalAmount"] = None
@@ -1716,16 +1754,20 @@ def get_lineitemTagId(db, item, modelID):
 
 
 def get_labelId(db, item, modelID):
-    result = (
-        db.query(model.DocumentTagDef)
-        .filter(
-            model.DocumentTagDef.TagLabel == item,
-            model.DocumentTagDef.idDocumentModel == modelID,
+    try:
+        result = (
+            db.query(model.DocumentTagDef)
+            .filter(
+                model.DocumentTagDef.TagLabel == item,
+                model.DocumentTagDef.idDocumentModel == modelID,
+            )
+            .first()
         )
-        .first()
-    )
-    if result is not None:
-        return result.idDocumentTagDef
+        if result is not None:
+            return result.idDocumentTagDef
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        return None
 
 
 def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
