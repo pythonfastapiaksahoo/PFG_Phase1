@@ -1,6 +1,3 @@
-from datetime import datetime
-
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 
 # from dependency.dependencies import get_query_token, get_token_header
@@ -12,7 +9,6 @@ from opencensus.trace.propagation.trace_context_http_header_format import (
 )
 
 from pfg_app import settings
-from pfg_app.crud.ERPIntegrationCrud import newbulkupdateInvoiceStatus
 from pfg_app.logger_module import logger
 from pfg_app.routers import (  # maillistener,
     FR,
@@ -158,25 +154,3 @@ async def root():
 
     logger.info("Root endpoint was accessed -new change")
     return {"message": "Hello! This is IDP"}
-
-
-# scheduler = AsyncIOScheduler()
-
-
-# def bulk_update_status():
-#     # Your function implementation
-#     print(f"Updating status at {datetime.now()}...")
-#     newbulkupdateInvoiceStatus()
-
-
-# # Schedule the job
-# scheduler.add_job(
-#     bulk_update_status, "cron", hour=17, minute=38
-# )  # Runs every day at 3 AM
-# scheduler.start()
-
-
-# @app.on_event("startup")
-# async def startup_event():
-#     # Start the scheduler when the FastAPI app starts
-#     scheduler.start()

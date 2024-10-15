@@ -16,7 +16,6 @@ from pfg_app.core.utils import get_credential
 from pfg_app.crud.InvoiceCrud import update_docHistory
 from pfg_app.logger_module import logger
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
-from pfg_app.session.session import get_db
 
 
 async def getDepartmentMaster(db):
@@ -862,7 +861,6 @@ def processInvoiceVoucher(doc_id, db):
         # Continue processing the file
         # print(f"Filepath (Base64 Encoded or Error): {base64file}")
 
-        vdbu = voucherdata.Business_unit
         request_payload = {
             "RequestBody": [
                 {
