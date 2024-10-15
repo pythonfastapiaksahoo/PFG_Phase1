@@ -186,7 +186,7 @@ def runStatus(
             'Currency': 'Extracted data'
         }.
 
-        Output should always be in JSON format only."""
+        Output should always be in above defined JSON format only."""
         # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
