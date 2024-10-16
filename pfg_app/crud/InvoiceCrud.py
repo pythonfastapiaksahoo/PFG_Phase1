@@ -785,6 +785,50 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                                 )
                                 db.flush()
 
+                                # Fetch all documentTagDefs for the updated
+                                # documentModel
+                                all_tag_defs = (
+                                    db.query(model.DocumentTagDef)
+                                    .filter_by(
+                                        idDocumentModel=document_model.idDocumentModel
+                                    )
+                                    .all()
+                                )
+
+                                # Fetch all  DocumentData based on inv_id
+                                doc_data = (
+                                    db.query(model.DocumentData)
+                                    .filter_by(documentID=inv_id)
+                                    .all()
+                                )
+
+                                # Loop through DocumentData entries
+                                for doc_entry in doc_data:
+                                    # Get the current TagLabel for the documentTagDefID
+                                    # in DocumentData
+                                    current_tag_label = (
+                                        db.query(model.DocumentTagDef.TagLabel)
+                                        .filter_by(
+                                            idDocumentTagDef=doc_entry.documentTagDefID
+                                        )
+                                        .scalar()
+                                    )
+
+                                    # Check if the TagLabel matches with any
+                                    # from all_tag_defs
+                                    for tag_def in all_tag_defs:
+                                        if current_tag_label == tag_def.TagLabel:
+                                            # Swap the documentTagDefID in DocumentData
+                                            db.query(model.DocumentData).filter_by(
+                                                idDocumentData=doc_entry.idDocumentData
+                                            ).update(
+                                                {
+                                                    "documentTagDefID": tag_def.idDocumentTagDef  # noqa: E501
+                                                }
+                                            )  # noqa: E501
+                                            db.flush()
+                                            break  # TagLabel match found, stop the loo
+
                 # Update document data as per original logic
                 db.query(model.DocumentData).filter_by(
                     idDocumentData=row.documentDataID
