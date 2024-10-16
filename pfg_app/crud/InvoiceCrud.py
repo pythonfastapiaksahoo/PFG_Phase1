@@ -1273,11 +1273,14 @@ async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
 async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     """Function to update stamp data fields based on document ID.
 
+    If a record does not exist for a given `stamptagname` and `inv_id`,
+    a new record will be inserted.
+
     :param u_id: User ID of the requestor.
-    :param inv_id: Document ID to filter the stamp data for updating.
-    :param update_data: Data to update the specific fields.
+    :param inv_id: Document ID to filter the stamp data for updating or inserting.
+    :param update_data_list: List of data to update or insert specific fields.
     :param db: Session to interact with the database.
-    :return: The updated StampData object.
+    :return: List of updated or newly inserted StampData objects.
     """
     dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
     updated_records = []
@@ -1300,30 +1303,40 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     .first()
                 )
 
-                # If no record is found, log an error and continue
+                # If no record is found, create a new record (insert operation)
                 if not stamp_data:
-                    updated_records.append(
-                        {
-                            "stamptagname": stamptagname,
-                            "error": "No matching stamp data found for "
-                            + f"stamptagname: {stamptagname}",
-                        }
+                    # Create a new StampDataValidation object
+                    new_stamp_data = model.StampDataValidation(
+                        documentid=inv_id,
+                        stamptagname=stamptagname,
+                        stampvalue=new_value,
+                        is_error=0,
+                        IsUpdated=1,
+                        OldValue=old_value,
+                        UpdatedOn=dt,
                     )
-                    continue
 
-                # Update the OldValue, stampvalue (new value), IsUpdated, and UpdatedOn
-                stamp_data.OldValue = old_value
-                stamp_data.stampvalue = new_value
-                stamp_data.IsUpdated = 1
-                stamp_data.UpdatedOn = dt
+                    # Add the new object to the session for insertion
+                    db.add(new_stamp_data)
 
-                # Add the updated object to the list (it will be refreshed later)
-                updated_records.append(stamp_data)
+                    # Track this record as newly inserted
+                    updated_records.append(new_stamp_data)
+
+                else:
+                    # If record exists, update the values
+                    stamp_data.OldValue = old_value
+                    stamp_data.stampvalue = new_value
+                    stamp_data.is_error = 0
+                    stamp_data.IsUpdated = 1
+                    stamp_data.UpdatedOn = dt
+
+                    # Track this record as updated
+                    updated_records.append(stamp_data)
 
             except SQLAlchemyError:
                 logger.error(traceback.format_exc())
-                # Catch any SQLAlchemy-specific error
-                # during the update of a single record
+                # Catch any SQLAlchemy-specific error during the
+                # update/insert of a single record
                 updated_records.append(
                     {
                         "stamptagname": stamptagname,
@@ -1333,10 +1346,10 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                 )
                 # Continue to next record without breaking the loop
 
-        # Commit the changes to the database
+        # Commit the changes to the database (insert and update)
         db.commit()
 
-        # Refresh and return the updated records
+        # Refresh and return the updated or newly inserted records
         for stamp_data in updated_records:
             if isinstance(stamp_data, model.StampDataValidation):
                 db.refresh(stamp_data)
