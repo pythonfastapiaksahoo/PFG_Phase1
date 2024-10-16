@@ -1,7 +1,7 @@
 # import logging
 import json
 import os
-import time
+import re
 import traceback
 from datetime import datetime, timezone
 
@@ -251,7 +251,7 @@ def runStatus(
             # else:
             #     colnames = []  # Handle the case where cursor.description is None
             # vendorName_df = pd.DataFrame(rows, columns=colnames)
-            time.sleep(0.5)
+            # time.sleep(0.5)
             # cursor = conn.cursor()
             # insert_splitTab_query = """
             #     INSERT INTO pfg_schema.splitdoctab \
@@ -354,9 +354,13 @@ def runStatus(
                                 synlt = json.loads(syn)
                                 if isinstance(synlt, list):
                                     for syn1 in synlt:
+                                        if stop:
+                                            break
                                         syn_1 = syn1.split(",")
 
                                         for syn2 in syn_1:
+                                            if stop:
+                                                break
 
                                             tfidf_matrix_di = vectorizer.fit_transform(
                                                 [syn2, di_inv_vendorName]
@@ -712,10 +716,13 @@ def runStatus(
                                 stm_dt_lt.append(stmp_dt)
 
                                 if "Confirmation" in StampDataList[splt_map[fl]]:
-                                    Confirmation = StampDataList[splt_map[fl]][
+                                    Confirmation_rw = StampDataList[splt_map[fl]][
                                         "Confirmation"
                                     ]
                                     str_nm = ""
+                                    Confirmation = "".join(
+                                        re.findall(r"\d", Confirmation_rw)
+                                    )
                                     if len(Confirmation) == 9:
                                         try:
 

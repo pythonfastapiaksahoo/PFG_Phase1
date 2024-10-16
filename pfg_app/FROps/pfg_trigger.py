@@ -1,4 +1,5 @@
 import json
+import re
 import traceback
 from datetime import datetime
 from typing import Union
@@ -753,10 +754,13 @@ def pfg_sync(docID, userID, db: Session):
 
                                         # -----------------------------------------
                                         if "ConfirmationNumber" in stmpData:
-                                            Confirmation = list(
+                                            Confirmation_rw = list(
                                                 stmpData["ConfirmationNumber"].keys()
                                             )[0]
 
+                                            Confirmation = "".join(
+                                                re.findall(r"\d", Confirmation_rw)
+                                            )
                                             if len(Confirmation) == 9:
                                                 try:
 
