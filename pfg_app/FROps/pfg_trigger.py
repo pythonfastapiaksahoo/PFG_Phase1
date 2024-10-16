@@ -1069,8 +1069,6 @@ def pfg_sync(docID, userID, db: Session):
                                             docStatus = 21
                                             docSubStatus = 112
 
-
-
                                         try:
                                             db.query(model.Document).filter(
                                                 model.Document.idDocument == docID
@@ -1085,22 +1083,18 @@ def pfg_sync(docID, userID, db: Session):
                                             logger.info(
                                                 f"ErrorUpdatingPostingData: {err}"
                                             )
+
                                         try:
-
-
-                                            try:
-                                                documentstatus = 21
-                                                update_docHistory(
-                                                    docID,
-                                                    userID,
-                                                    documentstatus,
-                                                    dmsg,
-                                                    db,  # noqa: E501
-                                                )
-                                            except Exception:
-                                                logger.error(
-                                                    f"{traceback.format_exc()}"
-                                                )
+                                            documentstatus = 21
+                                            update_docHistory(
+                                                docID,
+                                                userID,
+                                                documentstatus,
+                                                dmsg,
+                                                db,  # noqa: E501
+                                            )
+                                        except Exception:
+                                            logger.error(f"{traceback.format_exc()}")
                                     else:
                                         overAllstatus_msg = "Validation Failed"
                                 else:
