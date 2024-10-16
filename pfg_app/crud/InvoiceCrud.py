@@ -70,6 +70,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
         A list containing the filtered document invoice data.
     """
     try:
+        # Mapping document statuses to IDs
         all_status = {
             "posted": 14,
             "rejected": 10,
@@ -78,7 +79,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "VendorUnidentified": 26,
         }
 
-        # Build doc_status case statement for labeling
+        # Case statement for determining the document status based on substatus/status
         doc_status = case(
             [
                 (model.Document.documentsubstatusID == value[0], value[1])
@@ -100,7 +101,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ],
             else_="",
         ).label("docstatus")
-
+        # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
         inv_choice = {
             "ser": (
                 model.ServiceProvider,
@@ -116,7 +117,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
-        # Initial query setup
+        # Initial query setup for fetching document, status, and related entities
         data_query = (
             db.query(
                 model.Document,
@@ -627,11 +628,11 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     ).update({ser_doc_table_match[label]: value})
                 db.query(model.DocumentData).filter_by(
                     idDocumentData=row.documentDataID
-                ).update({"IsUpdated": 1, "Value": data.NewValue})
+                ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
             else:
                 db.query(model.DocumentLineItems).filter_by(
                     idDocumentLineItems=row.documentLineItemID
-                ).update({"IsUpdated": 1, "Value": data.NewValue})
+                ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
             db.flush()
         # last updated time stamp
         db.query(model.Document).filter_by(idDocument=inv_id).update(
@@ -711,6 +712,7 @@ async def read_column_pos(userID, tabtype, db):
         A dictionary containing the column positions for the specified tab type.
     """
     try:
+        # Query to retrieve column data based on userID and tab type
         column_data = (
             db.query(model.DocumentColumnPos, model.ColumnPosDef)
             .filter_by()
@@ -729,12 +731,14 @@ async def read_column_pos(userID, tabtype, db):
             )
             .all()
         )
+        # If no column data is found, copy default settings from the admin (userID=1)
         if len(column_data) == 0:
             allcolumns = (
                 db.query(model.DocumentColumnPos)
                 .filter(model.DocumentColumnPos.userID == 1)
                 .all()
             )
+            # Insert default column positions for the current user
             for ac in allcolumns:
                 to_insert = {
                     "columnNameDefID": ac.columnNameDefID,
@@ -745,6 +749,7 @@ async def read_column_pos(userID, tabtype, db):
                 }
                 db.add(model.DocumentColumnPos(**to_insert))
                 db.commit()
+            # Fetch column data again after inserting defaults
             column_data = (
                 db.query(model.DocumentColumnPos, model.ColumnPosDef)
                 .filter_by()
@@ -764,7 +769,7 @@ async def read_column_pos(userID, tabtype, db):
                 )
                 .all()
             )
-        # Convert the tuple to a list of dictionaries
+        # Convert the query result (a tuple of two models) to a list of dictionaries
         column_data_list = []
         for row in column_data:
             row_dict = {}
@@ -785,43 +790,73 @@ async def read_column_pos(userID, tabtype, db):
             column_data_list.append(row_dict)
         return {"col_data": column_data_list}
     except Exception:
+        # Log any exceptions and return a 500 response
         logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
+        # Ensure the database session is closed
         db.close()
 
 
 async def get_role_priority(u_id, db):
+    """This function retrieves the role priority for a given user based on
+    their access permissions.
+
+    Parameters:
+    ----------
+    u_id : int
+        The ID of the user whose role priority is being retrieved.
+    db : Session
+        Database session object to interact with the backend.
+
+    Returns:
+    -------
+    int
+        The priority value of the user's role. If an error occurs, it returns
+        0 as a default.
+    """
     try:
+        # Subquery to get the permission definition ID for the user
         sub_query = db.query(model.AccessPermission.permissionDefID).filter_by(
             userID=u_id
         )
-        # return priority
+        # Query to get the priority value for the permission definition
+        # from AccessPermissionDef table
         return (
             db.query(model.AccessPermissionDef.Priority)
             .filter_by(idAccessPermissionDef=sub_query.scalar_subquery())
             .scalar()
         )
     except Exception:
+        # Log the error and return a default priority of 0 in case of failure
         logger.error(traceback.format_exc())
         return 0
     finally:
+        # Ensure the database session is closed properly
         db.close()
 
 
 async def read_invoice_status_history(u_id, inv_id, db):
-    """This function is used to read invoice history logs, contains following
-    parameters.
+    """Function to read the invoice status history logs.
 
-    :param u_id: It is a function parameters that is of integer type, it
-        provides the user Id.
-    :param inv_id: It is a function parameters that is of integer type,
-        it provides the invoice Id.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of list type.
+    Parameters:
+    ----------
+    u_id : int
+        The ID of the user requesting the invoice status history.
+    inv_id : int
+        The ID of the invoice whose status history is being retrieved.
+    db : Session
+        Database session object to interact with the backend.
+
+    Returns:
+    -------
+    list
+        A list of document history logs with associated user information,
+        status descriptions, and financial status.
     """
     try:
+        # Define a case statement to translate the status and sub-status IDs into
+        # meaningful status descriptions
         doc_status_hist = case(
             [
                 (
@@ -904,6 +939,8 @@ async def read_invoice_status_history(u_id, inv_id, db):
                 ),
             ]
         ).label("dochistorystatus")
+        # Define another case statement to translate the financial status
+        # into meaningful labels
         doc_fin_status = case(
             [
                 (
@@ -917,6 +954,7 @@ async def read_invoice_status_history(u_id, inv_id, db):
             ],
             else_="UNKNOWN",
         ).label("documentFinancialStatus")
+        # Query to fetch document history logs with relevant fields
         return (
             db.query(
                 model.DocumentHistoryLogs,
@@ -938,25 +976,36 @@ async def read_invoice_status_history(u_id, inv_id, db):
             .all()
         )
     except Exception:
+        # In case of any error, log it and return a server error response
         logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server Error"})
     finally:
+        # Ensure the database session is closed properly
         db.close()
 
 
 async def read_doc_history(inv_id, download, db):
-    """This function is used to read invoice history logs, contains following
-    parameters.
+    """Function to read invoice history logs.
 
-    :param u_id: It is a function parameters that is of integer type, it
-        provides the user Id.
-    :param inv_id: It is a function parameters that is of integer type,
-        it provides the invoice Id.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of list type.
+    Parameters:
+    ----------
+    inv_id : int
+        The ID of the invoice whose history is being retrieved.
+    download : bool
+        A flag to indicate if the request is for a downloadable version of
+        the history logs.
+    db : Session
+        Database session object to interact with the backend.
+
+    Returns:
+    -------
+    list
+        A list of document history logs with associated details such as
+        user and vendor info.
     """
     try:
+        # If download is requested, fetch detailed information including vendor
+        # and document info
         if download:
             return (
                 db.query(
@@ -991,6 +1040,7 @@ async def read_doc_history(inv_id, download, db):
                 .all()
             )
         else:
+            # If download is not requested, fetch only the essential history log details
             return (
                 db.query(model.DocumentHistoryLogs, model.User.firstName)
                 .options(
@@ -1005,13 +1055,34 @@ async def read_doc_history(inv_id, download, db):
                 .all()
             )
     except Exception:
+        # Log the error and return a server error response
         logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server Error"})
     finally:
+        # Ensure that the database session is closed after execution
         db.close()
 
 
 async def read_document_lock_status(u_id, inv_id, client_ip, db):
+    """Function to check the current lock status of a document.
+
+    Parameters:
+    ----------
+    u_id : int
+        The ID of the user requesting the document lock status.
+    inv_id : int
+        The ID of the document whose lock status is being checked.
+    client_ip : object
+        The client IP address of the user to compare with the lock's host client.
+    db : Session
+        Database session object to interact with the backend.
+
+    Returns:
+    -------
+    dict
+        A dictionary with the current lock status, including user and
+        host details, or an error message.
+    """
     try:
         # get current date time
         current_datetime = datetime.utcnow()
@@ -1062,25 +1133,27 @@ async def read_document_lock_status(u_id, inv_id, client_ip, db):
 
 async def update_document_lock_status(u_id, inv_id, session_datetime, db):
     try:
-        # get the lock uid value
+        # Retrieve the current user who has locked the document (if any)
         lock_uid = (
             db.query(model.Document.lock_user_id)
             .filter(model.Document.idDocument == inv_id)
             .scalar()
         )
-        # session status value
+        # Extract session status and other details from the input dictionary
         session_datetime = dict(session_datetime)
-        # if user id is not null or lock uid is some other user raise return response
+        # If the document is locked by another user, return a forbidden error response
         if lock_uid and lock_uid != u_id:
             return Response(
                 status_code=403,
                 headers={"ClientError": "check lock status before updating"},
             )
         else:
+            # If session is active, update the lock info and set a lock timeout
             if session_datetime["session_status"]:
                 session_time = datetime.utcnow()
                 session_time = session_time + timedelta(minutes=5)
                 session_time = session_time.strftime("%Y-%m-%d %H:%M:%S")
+                # Update the document lock information in the database
                 db.query(model.Document).filter_by(idDocument=inv_id).update(
                     {
                         "lock_info": {
@@ -1092,16 +1165,21 @@ async def update_document_lock_status(u_id, inv_id, session_datetime, db):
                     }
                 )
             else:
+                # If session is not active, remove the lock information
                 session_time = ""
                 db.query(model.Document).filter_by(idDocument=inv_id).update(
                     {"lock_info": None, "lock_user_id": None}
                 )
+            # Commit the changes to the database
             db.commit()
+            # Return the result along with the session's end time
             return {"result": "updated", "session_end_time": session_time}
     except Exception:
+        # Log any error that occurs and return a server error response
         logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Server error"})
     finally:
+        # Ensure that the database session is closed after operation
         db.close()
 
 
@@ -1137,7 +1215,7 @@ async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
             .all()
         )
 
-        # Check if records are found
+        # Check if records exists or not
         if not stamp_data_records:
             static_stamp_data_records = [
                 {
@@ -1283,27 +1361,75 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
 
 
 def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
+    """Function to update the document history by inserting a new record into
+    the DocumentHistoryLogs table.
+
+    Parameters:
+    ----------
+    documentID : int
+        The ID of the document for which history is being updated.
+    userID : int
+        The ID of the user who is making the update.
+    documentstatus : int
+        The current status of the document being recorded in the history.
+    documentdesc : str
+        A description or reason for the status change.
+    db : Session
+        Database session object to interact with the backend.
+
+    Returns:
+    -------
+    None or dict
+        Returns None on success or an error message on failure.
+    """
     try:
+        # Creating a dictionary to hold the document history data
         docHistory = {}
         docHistory["documentID"] = documentID
         docHistory["userID"] = userID
         docHistory["documentStatusID"] = documentstatus
         docHistory["documentdescription"] = documentdesc
         docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        # Insert the new document history log into the database
         db.add(model.DocumentHistoryLogs(**docHistory))
+        # Commit the transaction to save the changes
         db.commit()
     except Exception:
+        # Log the exception details for debugging
         logger.error(traceback.format_exc())
+        # Rollback the transaction in case of an error
         db.rollback()
+        # Return a descriptive error message to the caller
         return {"DB error": "Error while inserting document history"}
 
 
 async def reject_invoice(userID, invoiceID, reason, db):
+    """Function to reject an invoice by updating its status and logging the
+    change.
+
+    Parameters:
+    ----------
+    userID : int
+        The ID of the user rejecting the invoice.
+    invoiceID : int
+        The ID of the invoice being rejected.
+    reason : str
+        The reason provided for rejecting the invoice.
+    db : Session
+        The database session object used for interacting with the backend.
+
+    Returns:
+    -------
+    str or dict
+        Returns a success message or a dictionary with an error message
+        if the operation fails.
+    """
     try:
+        # Fetching the first name of the user performing the rejection
         first_name = (
             db.query(model.User.firstName).filter(model.User.idUser == userID).scalar()
         )
-
+        # Updating the document's status to rejected
         db.query(model.Document).filter(model.Document.idDocument == invoiceID).update(
             {
                 "documentStatusID": 10,
@@ -1311,13 +1437,15 @@ async def reject_invoice(userID, invoiceID, reason, db):
                 "documentDescription": reason + " by " + first_name,
             }
         )
+        # Commit the changes to the database
         db.commit()
-
+        # Update document history with the new status change
         update_docHistory(invoiceID, userID, 10, reason, db)
 
         return "success: document status changed to rejected!"
 
     except Exception:
+        # Logging the error and rolling back any changes in case of failure
         logger.error(traceback.format_exc())
         db.rollback()
         return {"DB error": "Error while updating document status"}
@@ -1349,6 +1477,7 @@ async def read_all_doc_inv_list(
         A list containing the filtered document invoice data.
     """
     try:
+        # Mapping document statuses to IDs
         all_status = {
             "posted": 14,
             "rejected": 10,
@@ -1356,7 +1485,7 @@ async def read_all_doc_inv_list(
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
         }
-
+        # Case statement for determining the document status based on substatus/status
         doc_status = case(
             [
                 (model.Document.documentsubstatusID == value[0], value[1])
@@ -1378,7 +1507,7 @@ async def read_all_doc_inv_list(
             ],
             else_="",
         ).label("docstatus")
-
+        # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
         inv_choice = {
             "ser": (
                 model.ServiceProvider,
@@ -1393,7 +1522,7 @@ async def read_all_doc_inv_list(
                 Load(model.VendorAccount).load_only("Account"),
             ),
         }
-        # Initial query setup
+        # Initial query setup for fetching document, status, and related entities
         data_query = (
             db.query(
                 model.Document,
@@ -1443,7 +1572,7 @@ async def read_all_doc_inv_list(
             )
         )
 
-        # filters for query parameters
+        # Filter by vendor ID if provided
         if ven_id:
             sub_query = db.query(model.VendorAccount.idVendorAccount).filter_by(
                 vendorID=ven_id
@@ -1451,12 +1580,12 @@ async def read_all_doc_inv_list(
             data_query = data_query.filter(
                 model.Document.vendorAccountID.in_(sub_query)
             )
-        # filter by status
+        # Filter by document status if a status is provided
         if stat:
             data_query = data_query.filter(
                 model.Document.documentStatusID == all_status[stat]
             )
-
+        # Filter by vendor status (active or inactive) if provided
         if ven_status:
             if ven_status == "A":
                 data_query = data_query.filter(
@@ -1474,12 +1603,12 @@ async def read_all_doc_inv_list(
                     == "I"
                 )
 
-        # Function to normalize strings by removing non-alphanumeric
-        # characters and converting to lowercase
+        # Function to normalize strings
+        # (removes non-alphanumeric characters and converts to lowercase)
         def normalize_string(input_str):
             return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
 
-        # Apply universal API filter if provided, including line items
+        # Apply universal API filter across multiple columns if provided
         if uni_api_filter:
             uni_search_param_list = uni_api_filter.split(":")
             for param in uni_search_param_list:
@@ -1488,7 +1617,7 @@ async def read_all_doc_inv_list(
 
                 # Create a pattern for the search with wildcards
                 pattern = f"%{normalized_filter}%"
-
+                # Apply the filter to several columns using OR conditions
                 filter_condition = or_(
                     normalize_string(model.Document.docheaderID).ilike(pattern),
                     normalize_string(model.Document.documentDate).ilike(pattern),
@@ -1520,20 +1649,22 @@ async def read_all_doc_inv_list(
 
         # Get the total count of records
         total_count = data_query.distinct(model.Document.idDocument).count()
-        # Get all records without pagination
+        # Retrieve all records sorted by creation date, without pagination
         Documentdata = data_query.order_by(model.Document.CreatedOn.desc()).all()
 
         return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
 
     except Exception:
+        # Log the error and return a 500 response in case of failure
         logger.error(traceback.format_exc())
         return Response(status_code=500)
     finally:
         db.close()
 
 
-async def get_all_splitdoc_data(u_id, off_limit, db):
-    """Function to retrieve paginated SplitDocTab data.
+async def get_all_splitdoc_and_frtrigger_data(u_id, off_limit, db):
+    """Function to retrieve paginated SplitDocTab data and associated
+    frtrigger_tab data based on splitdoc_id.
 
     Args:
     u_id: User ID
@@ -1541,151 +1672,93 @@ async def get_all_splitdoc_data(u_id, off_limit, db):
     db: SQLAlchemy session
 
     Returns:
-    result: A dictionary containing the total count and data from SplitDocTab rows.
+    result: A dictionary containing the total count and
+    data from both SplitDocTab and associated frtrigger_tab rows.
     """
+    try:
 
-    # Extract offset and limit for pagination
-    offset, limit = off_limit
-    off_val = (offset - 1) * limit
+        # Extract offset and limit for pagination
+        offset, limit = off_limit
+        off_val = (offset - 1) * limit
 
-    # Validate the offset value
-    if off_val < 0:
-        return Response(
-            status_code=403,
-            headers={"ClientError": "Please provide a valid offset value."},
+        # Validate the offset value
+        if off_val < 0:
+            return Response(
+                status_code=403,
+                headers={"ClientError": "Please provide a valid offset value."},
+            )
+
+        # Get the total count of SplitDocTab rows
+        total_count = db.query(model.SplitDocTab).count()
+
+        # Create a query object for paginated SplitDocTab rows in descending order
+        data_query = (
+            db.query(model.SplitDocTab)
+            .order_by(model.SplitDocTab.splitdoc_id.desc())
+            .offset(off_val)
+            .limit(limit)
         )
 
-    # Step 1: Get the total count of SplitDocTab rows
-    total_count = db.query(model.SplitDocTab).count()
+        # Execute the query
+        data_results = data_query.all()
 
-    # Step 2: Get the latest SplitDocTab rows in descending order and apply pagination
-    data_query = (
-        db.query(model.SplitDocTab)
-        .order_by(model.SplitDocTab.splitdoc_id.desc())
-        .offset(off_val)
-        .limit(limit)
-    )
+        result = []
 
-    # Debug: Log the SQL statement being executed (optional for debugging)
-    print(str(data_query))  # Output the SQL statement for debugging
+        # For each SplitDocTab, retrieve associated frtrigger_tab rows
+        # using the splitdoc_id
+        for splitdoc in data_results:
+            # Query frtrigger_tab for this splitdoc_id
+            fr_trigger_rows = (
+                db.query(model.frtrigger_tab)
+                .filter(model.frtrigger_tab.splitdoc_id == splitdoc.splitdoc_id)
+                .all()
+            )
 
-    # Execute the query
-    data_results = data_query.all()
+            # Build a combined dictionary for each splitdoc row and
+            # its associated frtrigger_tab rows
+            splitdoc_data = {
+                "splitdoc": {
+                    "splitdoc_id": splitdoc.splitdoc_id,
+                    "invoice_path": splitdoc.invoice_path,
+                    "emailbody_path": splitdoc.emailbody_path,
+                    "created_on": splitdoc.created_on,
+                    "totalpagecount": splitdoc.totalpagecount,
+                    "pages_processed": splitdoc.pages_processed,
+                    "vendortype": splitdoc.vendortype,
+                    "status": splitdoc.status,
+                    "email_subject": splitdoc.email_subject,
+                    "sender": splitdoc.sender,
+                    "updated_on": splitdoc.updated_on,
+                },
+                "fr_trigger_data": [],
+            }
 
-    result = []
+            # Append all the frtrigger_tab rows to the "fr_trigger_data"
+            # for this splitdoc
+            for frtrigger in fr_trigger_rows:
+                fr_trigger_data = {
+                    "frtrigger_id": frtrigger.frtrigger_id,
+                    "splitdoc_id": frtrigger.splitdoc_id,
+                    "pagecount": frtrigger.pagecount,
+                    "prebuilt_headerdata": frtrigger.prebuilt_headerdata,
+                    "prebuilt_linedata": frtrigger.prebuilt_linedata,
+                    "blobpath": frtrigger.blobpath,
+                    "vendorID": frtrigger.vendorID,
+                    "status": frtrigger.status,
+                    "created_on": frtrigger.created_on,
+                    "sender": frtrigger.sender,
+                    "page_number": frtrigger.page_number,
+                    "filesize": frtrigger.filesize,
+                    "documentid": frtrigger.documentid,
+                }
+                splitdoc_data["fr_trigger_data"].append(fr_trigger_data)
 
-    # Step 3: For each SplitDocTab row, build a dictionary and add it to the result list
-    for splitdoc in data_results:
-        splitdoc_data = {
-            "splitdoc_id": splitdoc.splitdoc_id,
-            "invoice_path": splitdoc.invoice_path,
-            "emailbody_path": splitdoc.emailbody_path,
-            "created_on": splitdoc.created_on,
-            "totalpagecount": splitdoc.totalpagecount,
-            "pages_processed": splitdoc.pages_processed,
-            "vendortype": splitdoc.vendortype,
-            "status": splitdoc.status,
-            "email_subject": splitdoc.email_subject,
-            "sender": splitdoc.sender,
-            "updated_on": splitdoc.updated_on,
-        }
+            # Append the combined splitdoc + fr_trigger data to the result list
+            result.append(splitdoc_data)
 
-        # Append the SplitDocTab data to the result list
-        result.append(splitdoc_data)
+        return {"total_count": total_count, "data": result}
 
-    return {"total_count": total_count, "data": result}
-
-
-# async def get_all_splitdoc_and_frtrigger_data(u_id, off_limit, db):
-#     """
-#     Function to retrieve paginated SplitDocTab data and
-#     associated frtrigger_tab data based on splitdoc_id.
-
-#     Args:
-#     u_id: User ID
-#     off_limit (tuple): A tuple containing the (offset, limit) for pagination.
-#     db: SQLAlchemy session
-
-#     Returns:
-#     result: A dictionary containing the total count and
-#     data from both SplitDocTab and associated frtrigger_tab rows.
-#     """
-
-#     # Extract offset and limit for pagination
-#     offset, limit = off_limit
-#     off_val = (offset - 1) * limit
-
-#     # Validate the offset value
-#     if off_val < 0:
-#         return Response(
-#             status_code=403,
-#             headers={"ClientError": "Please provide a valid offset value."},
-#         )
-
-#     # Step 1: Get the total count of SplitDocTab rows
-#     total_count = db.query(model.SplitDocTab).count()
-
-#     # Step 2: Create a query object for paginated SplitDocTab rows in descending order
-#     data_query = db.query(model.SplitDocTab)\
-#         .order_by(model.SplitDocTab.created_on.desc())\
-#         .offset(off_val)\
-#         .limit(limit)
-
-#     # Debug: Log the SQL statement being executed
-#     print(str(data_query)) # This will output the SQL statement for debugging purposes
-
-#     # Execute the query
-#     data_results = data_query.all()
-
-#     result = []
-
-#     # Step 3: For each SplitDocTab, retrieve associated frtrigger_tab rows
-#     # using the splitdoc_id
-#     for splitdoc in data_results:
-#         # Query frtrigger_tab for this splitdoc_id
-#         fr_trigger_rows = db.query(model.frtrigger_tab)\
-#             .filter(model.frtrigger_tab.splitdoc_id == splitdoc.splitdoc_id)\
-#             .all()
-
-#         # Step 4: Build a combined dictionary for each splitdoc row and
-#         # its associated frtrigger_tab rows
-#         splitdoc_data = {
-#             "splitdoc": {
-#                 "splitdoc_id": splitdoc.splitdoc_id,
-#                 "invoice_path": splitdoc.invoice_path,
-#                 "emailbody_path": splitdoc.emailbody_path,
-#                 "created_on": splitdoc.created_on,
-#                 "totalpagecount": splitdoc.totalpagecount,
-#                 "pages_processed": splitdoc.pages_processed,
-#                 "vendortype": splitdoc.vendortype,
-#                 "status": splitdoc.status,
-#                 "email_subject": splitdoc.email_subject,
-#                 "sender": splitdoc.sender,
-#                 "updated_on": splitdoc.updated_on
-#             },
-#             "fr_trigger_data": []
-#         }
-
-#         # Append all the frtrigger_tab rows to the "fr_trigger_data" for this splitdoc
-#         for frtrigger in fr_trigger_rows:
-#             fr_trigger_data = {
-#                 "frtrigger_id": frtrigger.frtrigger_id,
-#                 "splitdoc_id": frtrigger.splitdoc_id,
-#                 "pagecount": frtrigger.pagecount,
-#                 "prebuilt_headerdata": frtrigger.prebuilt_headerdata,
-#                 "prebuilt_linedata": frtrigger.prebuilt_linedata,
-#                 "blobpath": frtrigger.blobpath,
-#                 "vendorID": frtrigger.vendorID,
-#                 "status": frtrigger.status,
-#                 "created_on": frtrigger.created_on,
-#                 "sender": frtrigger.sender,
-#                 "page_number": frtrigger.page_number,
-#                 "filesize": frtrigger.filesize,
-#                 "documentid": frtrigger.documentid
-#             }
-#             splitdoc_data["fr_trigger_data"].append(fr_trigger_data)
-
-#         # Append the combined splitdoc + fr_trigger data to the result list
-#         result.append(splitdoc_data)
-
-#     return {"total_count": total_count, "data": result}
+    except Exception:
+        # Log the error and return a 500 response in case of failure
+        logger.error(traceback.format_exc())
+        return Response(status_code=500)
