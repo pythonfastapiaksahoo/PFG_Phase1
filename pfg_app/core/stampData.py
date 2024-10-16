@@ -96,14 +96,18 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
                             + "vendor data from two sources: vendor1 from master data"
                             + "and vendor2 from an OCR model. Your task is to"
                             + "confirm if both vendor names and their addresses are"
-                            + "the same. Compare the vendor names, ignoring case"
+                            + " matching based on location,because in few cases it "
+                            + "would be mentioned in short."
+                            + ". Compare the vendor names, ignoring case"
                             + "sensitivity and trimming extra spaces.For addresses, "
                             + "normalize the text by handling common abbreviations"
                             + "like 'Road' and 'RD'.Return response in JSON format as"
                             + "{'vendorMatching': 'yes/no','addressMatching': 'yes/no'}"
                             + "only with two keys: vendorMatching and addressMatching,"
                             + "each having a value of either 'yes' or 'no' based on"
-                            + "the comparison without any explanation. "
+                            + "the comparison without any explanation.Give me response"
+                            + "in Json Format in {'vendorMatching': 'yes/no',"
+                            + "'addressMatching': 'yes/no'} without any explanation"
                         ),
                     }
                 ],

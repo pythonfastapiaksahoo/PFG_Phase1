@@ -6,10 +6,12 @@ import traceback
 from datetime import datetime, timezone
 
 import pandas as pd
-import psycopg2
+
+# import psycopg2
 import pytz as tz
 from fastapi import APIRouter, File, Form, Response, UploadFile
-from psycopg2 import extras
+
+# from psycopg2 import extras
 from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -219,19 +221,15 @@ def runStatus(
             #     "port": str(settings.db_port),
             # }
 
-            conn = psycopg2.connect(
-                dbname=settings.db_name,
-                user=settings.db_user,
-                password=settings.db_password,
-                host=settings.db_host,
-                port=str(settings.db_port),  # Ensure port is a string
-            )
-            cursor = conn.cursor()
-            # cursor.execute(
-            #     'SELECT "idVendor","VendorName","Synonyms","Address" \
-            #         FROM pfg_schema.vendor;'
+            # conn = psycopg2.connect(
+            #     dbname=settings.db_name,
+            #     user=settings.db_user,
+            #     password=settings.db_password,
+            #     host=settings.db_host,
+            #     port=str(settings.db_port),  # Ensure port is a string
             # )
-            # rows = cursor.fetchall()
+            # cursor = conn.cursor()
+
             query = db.query(
                 model.Vendor.idVendor,
                 model.Vendor.VendorName,
@@ -254,7 +252,7 @@ def runStatus(
             #     colnames = []  # Handle the case where cursor.description is None
             # vendorName_df = pd.DataFrame(rows, columns=colnames)
             time.sleep(0.5)
-            cursor = conn.cursor()
+            # cursor = conn.cursor()
             # insert_splitTab_query = """
             #     INSERT INTO pfg_schema.splitdoctab \
             #         (invoice_path, totalpagecount, pages_processed, status,\
@@ -721,15 +719,27 @@ def runStatus(
                                     if len(Confirmation) == 9:
                                         try:
 
-                                            query = 'SELECT * \
-                                                FROM pfg_schema.pfgreceipt \
-                                                    WHERE "RECEIVER_ID" = %s'
-                                            cursor.execute(query, (Confirmation,))
-                                            row = cursor.fetchone()
-                                            if row:
+                                            # query = 'SELECT * \
+                                            #     FROM pfg_schema.pfgreceipt \
+                                            #         WHERE "RECEIVER_ID" = %s'
+                                            # (
+                                            query = (
+                                                db.query(model.PFGReceipt)
+                                                .filter(
+                                                    model.PFGReceipt.RECEIVER_ID
+                                                    == Confirmation
+                                                )
+                                                .first()
+                                            )
+                                            # cursor.execute(query, (Confirmation,))
+                                            # row = cursor.fetchone()
+                                            if query:
+                                                # for invRpt in query:
+                                                str_nm = query.LOCATION
+                                                # VENDOR_SETID = invRpt.VENDOR_SETID
                                                 confCk_isErr = 0
                                                 confCk_msg = "Valid Confirmation Number"
-                                                str_nm = row[15]
+                                                # str_nm = row[15]
                                             else:
                                                 confCk_isErr = 1
                                                 confCk_msg = (
@@ -875,10 +885,13 @@ def runStatus(
                                             logger.info(
                                                 f"Error fetching stores type: {str(e)}"
                                             )
-
-                                        if int(storenumber) == int(str_nm):
-                                            strCk_isErr = 0
-                                            strCk_msg = ""
+                                        if len(str_nm) > 0:
+                                            if int(storenumber) == int(str_nm):
+                                                strCk_isErr = 0
+                                                strCk_msg = ""
+                                            else:
+                                                strCk_isErr = 0
+                                                strCk_msg = "Store Number Not Matching"
 
                                         else:
                                             strCk_isErr = 0
@@ -914,65 +927,96 @@ def runStatus(
                                 stm_dt_lt.append(stmp_dt)
                                 try:
                                     try:
-                                        insert_query = """ INSERT INTO \
-                                            stampdatavalidation \
-                                                (documentid, stamptagname, stampvalue,\
-                                                      is_error, errordesc, created_on)
-                                                        VALUES %s
-                                                        """
-                                        extras.execute_values(
-                                            cursor, insert_query, stm_dt_lt
+                                        stmp_rw_insert = []
+                                        for stLt in stm_dt_lt:
+                                            records = {
+                                                "documentid": stLt[0],
+                                                "stamptagname": stLt[1],
+                                                "stampvalue": stLt[2],
+                                                "is_error": stLt[3],
+                                                "errordesc": stLt[4],
+                                                "created_on": stLt[5],
+                                            }
+                                            stmp_rw_insert.append(records)
+                                            # db.add(records)
+                                            # db.commit()
+                                        new_records = [
+                                            model.StampDataValidation(**record)
+                                            for record in stmp_rw_insert
+                                        ]
+                                        logger.info(
+                                            f"StampDataValidation records:{(new_records)}"  # noqa: E501
                                         )
 
-                                        conn.commit()
+                                        # insert_query = """ INSERT INTO \
+                                        #     stampdatavalidation \
+                                        #  (documentid, stamptagname, stampvalue,\
+                                        #       is_error, errordesc, created_on)
+                                        #                 VALUES %s
+                                        #                 """
+                                        # extras.execute_values(
+                                        #     cursor, insert_query, stm_dt_lt
+                                        # )
+
+                                        # conn.commit()
 
                                     except Exception as e:
                                         logger.error(f"{traceback.format_exc()}")
                                         logger.error(
                                             f"stampdata insertion exception: {str(e)}"
                                         )
-                                    cursor = conn.cursor()
-                                    insert_query = """
-                                    INSERT INTO \
-                                        pfg_schema.stampdata \
-                                            ("DOCUMENT_ID", "DEPTNAME", \
-                                                "RECEIVING_DATE", \
-                                                    "CONFIRMATION_NUMBER",\
-                                                        "RECEIVER", "SELECTED_DEPT",\
-                                                            "storenumber")
-                                                VALUES (%s, %s, %s, %s, %s, %s, %s);
-                                    """
+                                    # cursor = conn.cursor()
+                                    # insert_query = """
+                                    # INSERT INTO \
+                                    #     pfg_schema.stampdata \
+                                    #         ("DOCUMENT_ID", "DEPTNAME", \
+                                    #             "RECEIVING_DATE", \
+                                    #                 "CONFIRMATION_NUMBER",\
+                                    #                     "RECEIVER", "SELECTED_DEPT",\
+                                    #                         "storenumber")
+                                    #             VALUES (%s, %s, %s, %s, %s, %s, %s);
+                                    # """
 
-                                    data_to_insert = (
-                                        invoId,
-                                        Department,
-                                        ReceivingDate,
-                                        Confirmation,
-                                        Receiver,
-                                        MarkedDept,
-                                        storenumber,
-                                    )
-                                    cursor.execute(insert_query, data_to_insert)
+                                    # data_to_insert = (
+                                    #     invoId,
+                                    #     Department,
+                                    #     ReceivingDate,
+                                    #     Confirmation,
+                                    #     Receiver,
+                                    #     MarkedDept,
+                                    #     storenumber,
+                                    # )
+                                    # cursor.execute(insert_query, data_to_insert)
 
-                                    conn.commit()
-                                    time.sleep(0.5)
+                                    # conn.commit()
+                                    # time.sleep(0.5)
                                     try:
-                                        # print("in stampdata insertion")
-                                        cur = conn.cursor()
-                                        sql_updateDoc = """
-                                            UPDATE pfg_schema.document
-                                            SET "JournalNumber" = %s,
-                                                "dept" = %s, "store" = %s
-                                            WHERE "idDocument" = %s;
-                                        """
-                                        values = (
-                                            Confirmation,
-                                            Department,
-                                            storenumber,
-                                            invoId,
+                                        db.query(model.Document).filter(
+                                            model.Document.idDocument == invoId
+                                        ).update(
+                                            {
+                                                model.Document.JournalNumber: Confirmation,  # noqa: E501
+                                                model.Document.dept: Department,
+                                                model.Document.store: storenumber,
+                                            }
                                         )
-                                        cur.execute(sql_updateDoc, values)
-                                        conn.commit()
+                                        db.commit()
+                                        # print("in stampdata insertion")
+                                        # cur = conn.cursor()
+                                        # sql_updateDoc = """
+                                        #     UPDATE pfg_schema.document
+                                        #     SET "JournalNumber" = %s,
+                                        #         "dept" = %s, "store" = %s
+                                        #     WHERE "idDocument" = %s;
+                                        # """
+                                        # values = (
+                                        #     Confirmation,
+                                        #     Department,
+                                        #     storenumber,
+                                        #     invoId,
+                                        # )
+                                        # cur.execute(sql_updateDoc, values)
+                                        # conn.commit()
                                     except Exception as e:
                                         logger.error(f"{traceback.format_exc()}")
                                         logger.error(
@@ -1010,17 +1054,26 @@ def runStatus(
                             #         WHERE "blobpath" = %s; """
                             # FRvalues = ("Processed", sender, vendorID, spltFileName)
                             # cur.execute(sql_updateFR, FRvalues)
-                            # conn.commit()
-                            fr_trigger = db.query(model.frtrigger_tab).filter
-                            (model.frtrigger_tab.blobpath == spltFileName)
+                            # # conn.commit()
+                            # fr_trigger = db.query(model.frtrigger_tab).filter
+                            # (model.frtrigger_tab.blobpath == spltFileName)
 
                             # Step 2: Perform the update operation
-                            fr_trigger.update(
+                            db.query(model.frtrigger_tab).filter(
+                                model.frtrigger_tab.blobpath == spltFileName
+                            ).update(
                                 {
                                     model.frtrigger_tab.status: "Processed",
                                     model.frtrigger_tab.vendorID: vendorID,
-                                }
+                                },
                             )
+                            db.commit()
+                            # fr_trigger.update(
+                            #     {
+                            #         model.frtrigger_tab.status: "Processed",
+                            #         model.frtrigger_tab.vendorID: vendorID,
+                            #     }
+                            # )
 
                             # Step 3: Commit the transaction
                             db.commit()
@@ -1131,8 +1184,8 @@ def runStatus(
                 fl = fl + 1
                 # time.sleep(0.5)
 
-            cursor.close()
-            conn.close()
+            # cursor.close()
+            # conn.close()
         else:
 
             logger.error(f"DI responed error: {fr_model_status, fr_model_msg}")
@@ -1168,24 +1221,38 @@ def runStatus(
                 status = "Error"
 
                 try:
-                    conn = psycopg2.connect(
-                        dbname=settings.db_name,
-                        user=settings.db_user,
-                        password=settings.db_password,
-                        host=settings.db_host,
-                        port=str(settings.db_port),  # Ensure port is a string
-                    )
 
-                    cur = conn.cursor()
-                    sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
-                                SET "status" = %s, "sender" = %s, \
-                                "vendorID" = %s \
-                            WHERE "blobpath" = %s; """
-                    FRvalues = ("PostProcessing Error", sender, vendorID, spltFileName)
-                    cur.execute(sql_updateFR, FRvalues)
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
+                    # Update multiple fields where 'documentid' matches a certain value
+                    db.query(model.frtrigger_tab).filter(
+                        model.frtrigger_tab.blobpath == spltFileName
+                    ).update(
+                        {
+                            model.frtrigger_tab.status: "PostProcessing Error",
+                            model.frtrigger_tab.sender: sender,
+                            model.frtrigger_tab.vendorID: vendorID,
+                        }
+                    )
+                    db.commit()
+
+                    # conn = psycopg2.connect(
+                    #     dbname=settings.db_name,
+                    #     user=settings.db_user,
+                    #     password=settings.db_password,
+                    #     host=settings.db_host,
+                    #     port=str(settings.db_port),  # Ensure port is a string
+                    # )
+
+                    # cur = conn.cursor()
+                    # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
+                    #             SET "status" = %s, "sender" = %s, \
+                    #             "vendorID" = %s \
+                    #         WHERE "blobpath" = %s; """
+                    # FRvalues = ("PostProcessing Error", sender, vendorID,
+                    # spltFileName)
+                    # cur.execute(sql_updateFR, FRvalues)
+                    # conn.commit()
+                    # cursor.close()
+                    # conn.close()
                 except Exception as qw:
                     logger.info(f"ocr.py: {str(qw)}")
                     logger.error(f"{traceback.format_exc()}")
