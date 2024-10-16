@@ -1069,21 +1069,24 @@ def pfg_sync(docID, userID, db: Session):
                                             docStatus = 21
                                             docSubStatus = 112
 
-                                            try:
-                                                db.query(model.Document).filter(
-                                                    model.Document.idDocument == docID
-                                                ).update(
-                                                    {
-                                                        model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
-                                                    }
-                                                )
-                                                db.commit()
-                                            except Exception:
-                                                logger.info(
-                                                    f"ErrorUpdatingPostingData:\
-                                                            {traceback.format_exc()}"
-                                                )
+
+
+                                        try:
+                                            db.query(model.Document).filter(
+                                                model.Document.idDocument == docID
+                                            ).update(
+                                                {
+                                                    model.Document.documentStatusID: docStatus,  # noqa: E501
+                                                    model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                                }
+                                            )
+                                            db.commit()
+                                        except Exception as err:
+                                            logger.info(
+                                                f"ErrorUpdatingPostingData: {err}"
+                                            )
+                                        try:
+
 
                                             try:
                                                 documentstatus = 21
