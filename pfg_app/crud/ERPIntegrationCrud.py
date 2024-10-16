@@ -1184,113 +1184,6 @@ def read_invoice_file_voucher(inv_id, db):
         db.close()
 
 
-def bulkupdateInvoiceStatus(db):
-    try:
-        # fetch all the document ids with status id 7>> Sent to Peoplesoft
-        doc_ids = (
-            db.query(model.Document.idDocument)
-            .filter(model.Document.documentStatusID == 7)
-            .all()
-        )
-        # Get the voucherdata for each document id
-        for doc_id in doc_ids:
-            voucherdata = (
-                db.query(model.VoucherData)
-                .filter(model.VoucherData.documentID == doc_id)
-                .scalar()
-            )
-            if not voucherdata:
-                raise HTTPException(status_code=404, detail="Voucherdata not found")
-            # prepare the payload for the POST request
-            invoice_status_payload = {
-                "RequestBody": {
-                    "INV_STAT_RQST": {
-                        "BUSINESS_UNIT": voucherdata.Business_unit,
-                        "INVOICE_ID": voucherdata.Invoice_Id,
-                        "INVOICE_DT": voucherdata.Invoice_Dt,
-                        "VENDOR_SETID": voucherdata.Vendor_Setid,
-                        "VENDOR_ID": voucherdata.Vendor_ID,
-                    }
-                }
-            }
-            # Make a POST request to the external API endpoint
-            api_url = settings.erp_invoice_status_endpoint
-            headers = {"Content-Type": "application/json"}
-            username = settings.erp_user
-            password = settings.erp_password
-
-            response = None
-
-            try:
-                # Make the POST request with basic authentication
-                response = requests.post(
-                    api_url,
-                    json=invoice_status_payload,
-                    headers=headers,
-                    auth=(username, password),
-                    timeout=60,  # Set a timeout of 60 seconds
-                )
-                response.raise_for_status()
-                # Raises an HTTPError if the response was unsuccessful
-                logger.info("Response Status: ", response.status_code)
-                # Check for success
-                if response.status_code == 200:
-
-                    invoice_data = response.json()  # Parse the response JSON data
-                    entry_status = invoice_data.get(
-                        "ENTRY_STATUS"
-                    )  # Get the ENTRY_STATUS field
-                    # voucher_id = invoice_data.get("VOUCHER_ID")  e
-                    # Set the documentstatusid based on the ENTRY_STATUS value
-                    if entry_status == "STG":
-                        documentstatusid = 7
-                    elif entry_status == "NF":
-                        documentstatusid = 11
-                    elif entry_status == "QCK":
-                        documentstatusid = 10
-                    elif entry_status == "P":
-                        documentstatusid = 8
-                    else:
-                        documentstatusid = None
-
-                    # Now update the documentstatusid in the document table
-                    if documentstatusid is not None:
-                        db.query(model.Document).filter(
-                            model.Document.documentStatusID == doc_id
-                        ).update({model.Document.documentStatusID: documentstatusid})
-                        db.commit()  # Commit the transaction to save the changes
-                        print("DocumentStatusID: ", documentstatusid)
-                    invoice_status = {"message": "Success", "data": response.json()}
-                else:
-                    # Return a meaningful message if the status code is not 200
-                    invoice_status = {
-                        "message": "Failed",
-                        "status_code": response.status_code,
-                        "details": response.content.decode(),
-                    }
-            except requests.exceptions.HTTPError as e:
-                print(f"HTTP error occurred: {traceback.format_exc()}")
-                if response:
-                    return {
-                        "message": "HTTP error occurred",
-                        "status_code": response.status_code,
-                        "details": response.content.decode(),
-                    }
-                else:
-                    return {
-                        "message": "HTTP error occurred, no response",
-                        "details": str(e),
-                    }
-
-    except Exception:
-        logger.error(f"Error: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
-        )
-    return invoice_status
-
-
 def newbulkupdateInvoiceStatus(db):
     try:
         # db = next(get_db())
@@ -1330,7 +1223,7 @@ def newbulkupdateInvoiceStatus(db):
                 invoice_status_payload = {
                     "RequestBody": {
                         "INV_STAT_RQST": {
-                            "BUSINESS_UNIT": voucherdata.Business_unit,
+                            "BUSINESS_UNIT": "MERCH",
                             "INVOICE_ID": voucherdata.Invoice_Id,
                             "INVOICE_DT": voucherdata.Invoice_Dt,
                             "VENDOR_SETID": voucherdata.Vendor_Setid,
@@ -1349,7 +1242,7 @@ def newbulkupdateInvoiceStatus(db):
                         timeout=60,  # Set a timeout of 60 seconds
                     )
                     response.raise_for_status()  # Raise an exception for HTTP errors
-
+                    logger.info(response.json())
                     # Process the response if the status code is 200
                     if response.status_code == 200:
                         invoice_data = response.json()
@@ -1403,6 +1296,7 @@ def newbulkupdateInvoiceStatus(db):
 
 def bulkProcessVoucherData(db):
     try:
+        userID = 1
         # db = next(get_db())
         # Batch size for processing
         batch_size = 100  # Define a reasonable batch size
@@ -1416,7 +1310,7 @@ def bulkProcessVoucherData(db):
         # Process in batches
         for start in range(0, total_docs, batch_size):
             doc_ids = doc_query.offset(start).limit(batch_size).all()
-        for docID in doc_ids:
+        for (docID,) in doc_ids:
             try:
                 resp = processInvoiceVoucher(docID, db)
                 try:
@@ -1499,19 +1393,20 @@ def bulkProcessVoucherData(db):
                     docSubStatus = 112
 
                 try:
+                    logger.info(f"Updating the document status for doc_id:{docID}")
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
                     ).update(
                         {
                             model.Document.documentStatusID: docStatus,
-                            model.Document.documentsubstausID: docSubStatus,  # noqa: E501
+                            model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
                         }
                     )
                     db.commit()
                 except Exception as err:
                     logger.info(f"ErrorUpdatingPostingData: {err}")
                 try:
-                    userID = 1
+                    # userID = 1
                     update_docHistory(docID, userID, docStatus, dmsg, db)
                 except Exception as e:
                     logger.error(f"pfg_sync 501: {str(e)}")
