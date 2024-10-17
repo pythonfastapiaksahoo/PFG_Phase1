@@ -1156,11 +1156,11 @@ def pfg_sync(docID, userID, db: Session):
                         else:
                             docStatusSync["Stamp Data Validations"] = {
                                 "status": 0,
-                                "response": ["No StampData Found"],
+                                "response": ["No Stamp Data Found"],
                             }
                             documentSubstatus = 118
                             documentstatus = 4
-                            documentdesc = "No StampData Found"
+                            documentdesc = "No Stamp Data Found"
                             try:
                                 update_docHistory(
                                     docID, userID, documentstatus, documentdesc, db
