@@ -5,6 +5,10 @@ class InvoiceVoucherSchema(str, Enum):
     """This class defines the schema for the Invoice Voucher data."""
 
     SUCCESS_STAGED = "Success: Invoice Staged"
+    QUICK_INVOICE = "Success: Quick Invoice"
+    RECYCLED_INVOICE = "Success: Recycled Invoice"
+    VOUCHER_CREATED = "Success: Voucher Created"
+    VOUCHER_NOT_FOUND = "Failure: Voucher Not Found"
     FAILURE_IICS = "Failure: Data Error - IICS could not process the message"
     FAILURE_INVOICE = "Failure: Data Error - Invoice could not be staged"
     FAILURE_PEOPLESOFT = "Failure: PeopleSoft could not parse the json message"
