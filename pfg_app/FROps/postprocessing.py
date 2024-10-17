@@ -878,7 +878,15 @@ def postpro(
                             "Low Confidence Detected:" + str(cst_conf * 100) + "%."
                         )
                         ovrll_conf_ck = ovrll_conf_ck * 0
-                    if ct_tag in ["InvoiceTotal", "SubTotal", "TotalTax"]:
+                    if ct_tag in [
+                        "InvoiceTotal",
+                        "SubTotal",
+                        "TotalTax",
+                        "GST",
+                        "PST",
+                        "LitterDeposit",
+                        "HST",
+                    ]:
                         if isinstance(tb_cln_amt(cst_dict[ct_tag]["content"]), float):
                             tag_status = 1
                         else:

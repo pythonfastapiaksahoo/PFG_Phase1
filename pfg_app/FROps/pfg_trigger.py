@@ -15,6 +15,16 @@ from pfg_app.logger_module import logger
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 
 
+def clean_amount(amount_str):
+    try:
+        cleaned_amount = re.findall(r"[\d.]+", amount_str)
+        if cleaned_amount:
+            return round(float("".join(cleaned_amount)), 2)
+    except Exception:
+        return None
+    return 0.0
+
+
 # db = SCHEMA
 def IntegratedvoucherData(inv_id, db: Session):
     # inv_id = 418
@@ -575,33 +585,70 @@ def pfg_sync(docID, userID, db: Session):
 
                         try:
                             if "SubTotal" in docHdrDt:
+                                subTotal = clean_amount(docHdrDt["SubTotal"])
 
-                                if docHdrDt["InvoiceTotal"] == docHdrDt["SubTotal"]:
-                                    invTotalMth = 1
+                                if subTotal is not None:
+                                    invoTotal = clean_amount(docHdrDt["InvoiceTotal"])
+                                    if invoTotal is not None:
+                                        if invoTotal == subTotal:
+                                            invTotalMth = 1
+                                        if (invTotalMth == 0) and (
+                                            "TotalTax" in docHdrDt
+                                        ):
+                                            totlTax = clean_amount(docHdrDt["TotalTax"])
+                                            if totlTax is not None:
+                                                if (subTotal + totlTax) == invoTotal:
+                                                    invTotalMth = 1
+                                        if (invTotalMth == 0) and ("PST" in docHdrDt):
+                                            pst = clean_amount(docHdrDt["PST"])
+                                            if pst is not None:
+                                                if (subTotal + pst) == invoTotal:
+                                                    invTotalMth = 1
+                                                if (invTotalMth == 0) and (
+                                                    "TotalTax" in docHdrDt
+                                                ):
+                                                    if (
+                                                        subTotal + pst + totlTax
+                                                    ) == invoTotal:
+                                                        invTotalMth = 1
+                                        if (invTotalMth == 0) and ("GST" in docHdrDt):
+                                            gst = clean_amount(docHdrDt["GST"])
+                                            if gst is not None:
+                                                if round((subTotal + gst), 2) == round(
+                                                    invoTotal, 2
+                                                ):
+                                                    invTotalMth = 1
+                                                if (invTotalMth == 0) and (
+                                                    "PST" in docHdrDt
+                                                ):
+                                                    if (
+                                                        subTotal + gst + pst
+                                                    ) == invoTotal:
+                                                        invTotalMth = 1
+                                        if (invTotalMth == 0) and ("HST" in docHdrDt):
+                                            hst = clean_amount(docHdrDt["HST"])
+                                            if hst is not None:
+                                                if (subTotal + hst) == invoTotal:
+                                                    invTotalMth = 1
+                                                if (invTotalMth == 0) and (
+                                                    "GST" in docHdrDt
+                                                ):
+                                                    if (
+                                                        subTotal + hst + gst
+                                                    ) == invoTotal:
+                                                        invTotalMth = 1
+                                        if (invTotalMth == 0) and (
+                                            "LitterDeposit" in docHdrDt
+                                        ):
+                                            litterDeposit = clean_amount(
+                                                docHdrDt["LitterDeposit"]
+                                            )
+                                            if litterDeposit is not None:
+                                                if (
+                                                    subTotal + litterDeposit
+                                                ) == invoTotal:
+                                                    invTotalMth = 1
 
-                                elif (invTotalMth == 0) and (
-                                    docHdrDt["InvoiceTotal"] != docHdrDt["SubTotal"]
-                                ):
-                                    if float(docHdrDt["InvoiceTotal"]) == float(
-                                        docHdrDt["SubTotal"]
-                                    ):
-                                        invTotalMth = 1
-                                    if (invTotalMth == 0) and ("TotalTax" in docHdrDt):
-                                        if (
-                                            float(docHdrDt["SubTotal"])
-                                            + float(docHdrDt["TotalTax"])
-                                        ) == float(docHdrDt["InvoiceTotal"]):
-                                            invTotalMth = 1
-                                    if (invTotalMth == 0) and ("PST" in docHdrDt):
-                                        if float(docHdrDt["SubTotal"]) + float(
-                                            docHdrDt["PST"]
-                                        ):
-                                            invTotalMth = 1
-                                    if (invTotalMth == 0) and ("GST" in docHdrDt):
-                                        if float(docHdrDt["SubTotal"]) + float(
-                                            docHdrDt["GST"]
-                                        ):
-                                            invTotalMth = 1
                             else:
                                 invTotalMth = 1
                                 invTotalMth_msg = "Skip total check: Subtotal Missing"
@@ -641,18 +688,6 @@ def pfg_sync(docID, userID, db: Session):
                         )
 
                     if dateCheck == 1:
-                        # try:
-                        #     dateTag = tagNames["InvoiceDate"]
-
-                        #     docDtUpdate = {}
-                        #     docDtUpdate["Value"] = documentID
-                        #     docDtUpdate["isError"] = 0
-
-                        #     db.add(model.DocumentHistoryLogs(**docHistory))
-                        #     db.commit()
-
-                        # except Exception:
-                        #     logger.error(traceback.format_exc())
                         ocrCheck = 1
                         ocrCheck_msg.append("Success")
                     else:
@@ -676,9 +711,6 @@ def pfg_sync(docID, userID, db: Session):
                         "status": totalCheck,
                         "response": totalCheck_msg,
                     }
-
-                    # stampdata check: check2
-                    # mandatory stamp fields(until integrated or non integrated)
 
                     if (
                         docStatusSync["OCR Validations"]["status"] == 1
@@ -781,8 +813,7 @@ def pfg_sync(docID, userID, db: Session):
 
                                                     else:
                                                         confirmation_ck = 0
-                                                        confirmation_ck_msg = "Confi\
-                                                            rmation Number Not Found"
+                                                        confirmation_ck_msg = "Confirmation Number Not Found"  # noqa: E501s
 
                                                 except Exception as e:
                                                     logger.error(
