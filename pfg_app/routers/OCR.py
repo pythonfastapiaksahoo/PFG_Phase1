@@ -213,23 +213,6 @@ def runStatus(
             fr_API_version,
         )
         if fr_model_status == 1:
-            # logger.info(f"StampDataList: {StampDataList}")
-            # conn_params: Dict[str, str] = {
-            #     "dbname": settings.db_name,
-            #     "user": settings.db_user,
-            #     "password": settings.db_password,
-            #     "host": settings.db_host,
-            #     "port": str(settings.db_port),
-            # }
-
-            # conn = psycopg2.connect(
-            #     dbname=settings.db_name,
-            #     user=settings.db_user,
-            #     password=settings.db_password,
-            #     host=settings.db_host,
-            #     port=str(settings.db_port),  # Ensure port is a string
-            # )
-            # cursor = conn.cursor()
 
             query = db.query(
                 model.Vendor.idVendor,
@@ -247,25 +230,6 @@ def runStatus(
 
             vendorName_df = pd.DataFrame(rows, columns=columns)
 
-            # if cursor.description is not None:
-            #     colnames = [desc[0] for desc in cursor.description]
-            # else:
-            #     colnames = []  # Handle the case where cursor.description is None
-            # vendorName_df = pd.DataFrame(rows, columns=colnames)
-            # time.sleep(0.5)
-            # cursor = conn.cursor()
-            # insert_splitTab_query = """
-            #     INSERT INTO pfg_schema.splitdoctab \
-            #         (invoice_path, totalpagecount, pages_processed, status,\
-            #             emailbody_path)
-            #     VALUES (%s, %s, %s, %s, %s);
-            # """
-
-            # cursor.execute(
-            #     insert_splitTab_query,
-            #     (file_path, num_pages, grp_pages, "File received", sender),
-            # )
-            # conn.commit()
             splitdoc_id = new_split_doc.splitdoc_id
             split_doc = (
                 db.query(model.SplitDocTab)
