@@ -77,26 +77,51 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
+            "QuickInvoice": 27,
+            "RecycledInvoice": 28,
+            "VoucherCreated": 29,
+            "VoucherNotFound": 30,
         }
 
         # Case statement for determining the document status based on substatus/status
         doc_status = case(
+            # Check substatus
             [
                 (model.Document.documentsubstatusID == value[0], value[1])
                 for value in substatus
             ]
+            # Check document status
             + [
                 (model.Document.documentStatusID == value[0] + 1, value[1])
                 for value in enumerate(status)
             ]
+            # Check for VendorUnidentified status
             + [
                 (
                     model.Document.documentStatusID == all_status["VendorUnidentified"],
                     "VendorUnidentified",
                 ),
+                # Check for VendorNotOnboarded status
                 (
                     model.Document.documentStatusID == all_status["VendorNotOnboarded"],
                     "VendorNotOnboarded",
+                ),
+                # Add any other new statuses from all_status
+                (
+                    model.Document.documentStatusID == all_status["QuickInvoice"],
+                    "Quick Invoice",
+                ),
+                (
+                    model.Document.documentStatusID == all_status["RecycledInvoice"],
+                    "Recycled Invoice",
+                ),
+                (
+                    model.Document.documentStatusID == all_status["VoucherCreated"],
+                    "Voucher Created",
+                ),
+                (
+                    model.Document.documentStatusID == all_status["VoucherNotFound"],
+                    "Voucher Not Found",
                 ),
             ],
             else_="",
