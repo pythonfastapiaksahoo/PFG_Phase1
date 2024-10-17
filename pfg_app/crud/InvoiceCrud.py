@@ -325,16 +325,21 @@ async def read_invoice_data(u_id, inv_id, db):
     """
     try:
         vendordata = ""
-        # getting invoice data for later operation
+        # Fetching invoice data along with DocumentStatus using correct join
         invdat = (
-            db.query(model.Document)
-            .options(load_only("docPath", "vendorAccountID", "uploadtime"))
-            .filter_by(idDocument=inv_id)
+            db.query(model.Document, model.DocumentStatus.status)
+            .join(
+                model.DocumentStatus,
+                model.Document.documentStatusID
+                == model.DocumentStatus.idDocumentstatus,
+                isouter=True,
+            )
+            .filter(model.Document.idDocument == inv_id)  # Use correct field in filter
             .one()
         )
 
         # provide vendor details
-        if invdat.vendorAccountID:
+        if invdat.Document.vendorAccountID:
             vendordata = (
                 db.query(model.Vendor, model.VendorAccount)
                 .options(
@@ -348,7 +353,10 @@ async def read_invoice_data(u_id, inv_id, db):
                     ),
                     Load(model.VendorAccount).load_only("Account"),
                 )
-                .filter(model.VendorAccount.idVendorAccount == invdat.vendorAccountID)
+                .filter(
+                    model.VendorAccount.idVendorAccount
+                    == invdat.Document.vendorAccountID
+                )
                 .join(
                     model.VendorAccount,
                     model.VendorAccount.vendorID == model.Vendor.idVendor,
@@ -453,7 +461,9 @@ async def read_invoice_data(u_id, inv_id, db):
                 "vendordata": vendordata,
                 "headerdata": headerdata,
                 "linedata": doclinetags,
-                "uploadtime": invdat.uploadtime,
+                "uploadtime": invdat.Document.uploadtime,
+                "documentstatusid": invdat.Document.documentStatusID,
+                "documentstatus": invdat.status,  # Return status
             }
         }
 
