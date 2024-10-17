@@ -724,6 +724,12 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
 
             # If documentDataID is present, check for VendorName updates
             if row.documentDataID:
+                doc_table_match = {
+                    "InvoiceTotal": "totalAmount",
+                    "InvoiceDate": "documentDate",
+                    "InvoiceId": "docheaderID",
+                }
+
                 # Get the documentTagDefID associated with the documentDataID
                 tag_def_inv_id = (
                     db.query(
@@ -740,7 +746,11 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     .filter_by(idDocumentTagDef=tag_def_inv_id.documentTagDefID)
                     .scalar()
                 )
-
+                # to update the document if header data is updated
+                if label in doc_table_match.keys():
+                    db.query(model.Document).filter_by(
+                        idDocument=tag_def_inv_id.documentID
+                    ).update({doc_table_match[label]: data.NewValue})
                 # If the TagLabel is "VendorName", proceed with fetching VendorCode
                 if label == "VendorName":
                     # Fetch VendorCode using the NewValue from the Vendor table
@@ -1537,7 +1547,21 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
 
                     # Track this record as updated
                     updated_records.append(stamp_data)
+                # If the stamptagname is 'ConfirmationNumber',
+                # update the JournalNumber field in Document table
+                if stamptagname == "ConfirmationNumber":
+                    # Query the Document table for the corresponding document
+                    document_record = (
+                        db.query(model.Document)
+                        .filter(model.Document.idDocument == inv_id)
+                        .first()
+                    )
 
+                    if document_record:
+                        # Update the JournalNumber field
+                        document_record.JournalNumber = new_value
+                        # Add the updated document to the session for commit
+                        db.add(document_record)
             except SQLAlchemyError:
                 logger.error(traceback.format_exc())
                 # Catch any SQLAlchemy-specific error during the
