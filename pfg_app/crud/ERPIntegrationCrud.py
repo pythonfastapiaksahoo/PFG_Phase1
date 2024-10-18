@@ -1220,6 +1220,7 @@ def newbulkupdateInvoiceStatus(db):
             # Prepare payloads and make API requests
             updates = []
             for voucherdata, doc_id in zip(voucher_data_list, doc_ids):
+                dmsg = None  # Initialize dmsg to ensure it's defined
                 # Prepare the payload for the API request
                 invoice_status_payload = {
                     "RequestBody": {
@@ -1248,13 +1249,16 @@ def newbulkupdateInvoiceStatus(db):
                     if response.status_code == 200:
                         invoice_data = response.json()
                         entry_status = invoice_data.get("ENTRY_STATUS")
+                        voucher_id = invoice_data.get("VOUCHER_ID")
 
                         # Determine the new document status based on ENTRY_STATUS
                         documentstatusid = None
                         if entry_status == "STG":
+                            documentstatusid = 7
+                            docsubstatusid = 43
                             # Skip updating if entry_status is "STG"
                             # because the status is already 7
-                            continue
+                            # continue
                         elif entry_status == "QCK":
                             documentstatusid = 27
                             docsubstatusid = 114
@@ -1280,6 +1284,7 @@ def newbulkupdateInvoiceStatus(db):
                                     "idDocument": doc_id[0],
                                     "documentStatusID": documentstatusid,
                                     "documentsubstatusID": docsubstatusid,
+                                    "voucher_id": voucher_id,
                                 }
                             )
 
@@ -1287,6 +1292,7 @@ def newbulkupdateInvoiceStatus(db):
                     # Log the error and skip this document,
                     # but don't interrupt the batch
                     logger.error(f"Error for doc_id {doc_id[0]}: {str(e)}")
+
             try:
                 # Perform bulk database update for the batch
                 if updates:
@@ -1300,7 +1306,8 @@ def newbulkupdateInvoiceStatus(db):
             try:
 
                 update_docHistory(doc_id[0], userID, documentstatusid, dmsg, db)
-            except Exception:
+            except Exception as err:
+                dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(err)
                 logger.error(f"Error while update dochistlog: {traceback.format_exc()}")
 
         return {"message": "Bulk update completed successfully"}
