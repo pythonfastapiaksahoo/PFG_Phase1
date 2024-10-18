@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Union
 
 from sqlalchemy import or_
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import pfg_app.model as model
@@ -262,14 +263,22 @@ def nonIntegratedVoucherData(inv_id, db: Session):
     stmpData = {}
     for stDt in InvStmDt:
         stmpData[stDt.stamptagname] = stDt.stampvalue
+    stmpDept = stmpData["Department"]
+    itmSelected = stmpData["SelectedDept"]
+    if itmSelected == "Inventory":
+        ACCOUNT = "14100"
+    elif itmSelected == "Supplies":
+        ACCOUNT = "71999"
+    else:
+        ACCOUNT = ""
 
-    if stmpData["Department"].isdigit():
+    if stmpDept.isdigit():
         dpt_cd = []
-        if len(stmpData["Department"]) == 2:
-            dpt_cd.append(stmpData["Department"] + "00")
-            dpt_cd.append("00" + stmpData["Department"])
+        if len(stmpDept) == 2:
+            dpt_cd.append(stmpDept + "00")
+            dpt_cd.append("00" + stmpDept)
         else:
-            dpt_cd.append(stmpData["Department"])
+            dpt_cd.append(stmpDept)
 
         dpt_cd_dt = (
             db.query(model.PFGDepartment)
@@ -278,7 +287,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
                     model.PFGDepartment.DEPTID.in_(
                         dpt_cd
                     ),  # DEPTID matches any value in dpt_cd
-                    model.PFGDepartment.DEPTID == stmpData["Department"],  # Exact match
+                    model.PFGDepartment.DEPTID == stmpDept,  # Exact match
                 )
             )
             .all()
@@ -289,26 +298,46 @@ def nonIntegratedVoucherData(inv_id, db: Session):
             DEPTID = department.DEPTID
             VENDOR_SETID = department.SETID
             BUSINESS_UNIT = "OFGDS"
-            ACCOUNT = "71999"
+            # ACCOUNT = "71999"
 
     else:
+        try:
 
-        dpt_cd_dt = (
-            db.query(model.PFGDepartment)
-            .filter(
-                or_(
-                    model.PFGDepartment.DESCR.in_([stmpData["Department"]]),
-                    model.PFGDepartment.DESCRSHORT == [stmpData["Department"]],
-                    model.PFGDepartment.DESCRSHORT.like(stmpData["Department"]),
+            dpt_cd_dt = (
+                db.query(model.PFGDepartment)
+                .filter(
+                    or_(
+                        model.PFGDepartment.DESCR.in_([stmpDept]),
+                        model.PFGDepartment.DESCRSHORT == stmpDept,
+                        model.PFGDepartment.DESCRSHORT.like("%" + stmpDept + "%"),
+                    )
                 )
+                .all()
             )
-            .all()
-        )
-        for department in dpt_cd_dt:
-            DEPTID = department.DEPTID
-            VENDOR_SETID = department.SETID
-            BUSINESS_UNIT = "OFGDS"
-            ACCOUNT = "71999"
+            for department in dpt_cd_dt:
+                DEPTID = department.DEPTID
+                VENDOR_SETID = department.SETID
+                BUSINESS_UNIT = "OFGDS"
+                # ACCOUNT = "71999"
+        except SQLAlchemyError:
+            db.rollback()
+
+        # dpt_cd_dt = (
+        #     db.query(model.PFGDepartment)
+        #     .filter(
+        #         or_(
+        #             model.PFGDepartment.DESCR.in_([stmpData["Department"]]),
+        #             model.PFGDepartment.DESCRSHORT == [stmpData["Department"]],
+        #             model.PFGDepartment.DESCRSHORT.like(stmpData["Department"]),
+        #         )
+        #     )
+        #     .all()
+        # )
+        # for department in dpt_cd_dt:
+        #     DEPTID = department.DEPTID
+        #     VENDOR_SETID = department.SETID
+        #     BUSINESS_UNIT = "OFGDS"
+        #     ACCOUNT = "71999"
 
     existing_record = db.query(model.VoucherData).filter_by(documentID=inv_id).first()
 
@@ -868,14 +897,7 @@ def pfg_sync(docID, userID, db: Session):
                                     NullVal = []
                                     VthChk = 0
                                     VthChk_msg = ""
-                                if confirmation_ck == 0:
-                                    VthChk = confirmation_ck
-                                    VthChk_msg = confirmation_ck_msg
-                                elif row_count > 1:
-                                    VthChk = 0
-                                    VthChk_msg = "Multiple entries found"
-
-                                elif row_count == 1:
+                                if row_count == 1:
 
                                     voucher_row = voucher_query.first()
                                     has_null_or_empty = False
@@ -893,6 +915,13 @@ def pfg_sync(docID, userID, db: Session):
                                     else:
                                         VthChk = 1
                                         VthChk_msg = "Success"
+
+                                elif confirmation_ck == 0:
+                                    VthChk = confirmation_ck
+                                    VthChk_msg = confirmation_ck_msg
+                                elif row_count > 1:
+                                    VthChk = 0
+                                    VthChk_msg = "Multiple entries found"
 
                                 else:
                                     VthChk = 0
