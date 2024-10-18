@@ -83,49 +83,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "VoucherNotFound": 30,
         }
 
-        # Case statement for determining the document status based on substatus/status
-        doc_status = case(
-            # Check substatus
-            [
-                (model.Document.documentsubstatusID == value[0], value[1])
-                for value in substatus
-            ]
-            # Check document status
-            + [
-                (model.Document.documentStatusID == value[0] + 1, value[1])
-                for value in enumerate(status)
-            ]
-            # Check for VendorUnidentified status
-            + [
-                (
-                    model.Document.documentStatusID == all_status["VendorUnidentified"],
-                    "VendorUnidentified",
-                ),
-                # Check for VendorNotOnboarded status
-                (
-                    model.Document.documentStatusID == all_status["VendorNotOnboarded"],
-                    "VendorNotOnboarded",
-                ),
-                # Add any other new statuses from all_status
-                (
-                    model.Document.documentStatusID == all_status["QuickInvoice"],
-                    "Quick Invoice",
-                ),
-                (
-                    model.Document.documentStatusID == all_status["RecycledInvoice"],
-                    "Recycled Invoice",
-                ),
-                (
-                    model.Document.documentStatusID == all_status["VoucherCreated"],
-                    "Voucher Created",
-                ),
-                (
-                    model.Document.documentStatusID == all_status["VoucherNotFound"],
-                    "Voucher Not Found",
-                ),
-            ],
-            else_="",
-        ).label("docstatus")
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
         inv_choice = {
             "ser": (
@@ -146,7 +103,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
         data_query = (
             db.query(
                 model.Document,
-                doc_status,
+                model.DocumentStatus,
                 model.DocumentSubStatus,
                 inv_choice[inv_type][0],
                 inv_choice[inv_type][1],
@@ -167,6 +124,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     "documentDescription",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
+                Load(model.DocumentStatus).load_only("status", "description"),
                 inv_choice[inv_type][2],
                 inv_choice[inv_type][3],
             )
@@ -262,6 +220,8 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     normalize_string(model.Vendor.VendorName).ilike(pattern),
                     normalize_string(model.Vendor.Address).ilike(pattern),
                     normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.description).ilike(pattern),
                     normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
                     # Check if any related DocumentLineItems.Value matches the filter
                     exists().where(
@@ -325,16 +285,21 @@ async def read_invoice_data(u_id, inv_id, db):
     """
     try:
         vendordata = ""
-        # getting invoice data for later operation
+        # Fetching invoice data along with DocumentStatus using correct join
         invdat = (
-            db.query(model.Document)
-            .options(load_only("docPath", "vendorAccountID", "uploadtime"))
-            .filter_by(idDocument=inv_id)
+            db.query(model.Document, model.DocumentStatus.status)
+            .join(
+                model.DocumentStatus,
+                model.Document.documentStatusID
+                == model.DocumentStatus.idDocumentstatus,
+                isouter=True,
+            )
+            .filter(model.Document.idDocument == inv_id)  # Use correct field in filter
             .one()
         )
 
         # provide vendor details
-        if invdat.vendorAccountID:
+        if invdat.Document.vendorAccountID:
             vendordata = (
                 db.query(model.Vendor, model.VendorAccount)
                 .options(
@@ -348,7 +313,10 @@ async def read_invoice_data(u_id, inv_id, db):
                     ),
                     Load(model.VendorAccount).load_only("Account"),
                 )
-                .filter(model.VendorAccount.idVendorAccount == invdat.vendorAccountID)
+                .filter(
+                    model.VendorAccount.idVendorAccount
+                    == invdat.Document.vendorAccountID
+                )
                 .join(
                     model.VendorAccount,
                     model.VendorAccount.vendorID == model.Vendor.idVendor,
@@ -453,7 +421,9 @@ async def read_invoice_data(u_id, inv_id, db):
                 "vendordata": vendordata,
                 "headerdata": headerdata,
                 "linedata": doclinetags,
-                "uploadtime": invdat.uploadtime,
+                "uploadtime": invdat.Document.uploadtime,
+                "documentstatusid": invdat.Document.documentStatusID,
+                "documentstatus": invdat.status,  # Return status
             }
         }
 
@@ -544,6 +514,141 @@ async def read_invoice_file(u_id, inv_id, db):
         db.close()
 
 
+# async def update_invoice_data(u_id, inv_id, inv_data, db):
+#     """Function to update the invoice line item data.
+
+#     Parameters:
+#     ----------
+#     u_id : int
+#         User ID of the requester.
+#     inv_id : int
+#         Invoice ID for the invoice line item to be updated.
+#     inv_data : PydanticModel
+#         Pydantic model object containing the member data for updating the invoice line
+#         item.
+#     db : Session
+#         Database session object, used to interact with the backend database.
+
+#     Returns:
+#     -------
+#     dict
+#         A dictionary containing the result of the update operation.
+#     """
+#     try:
+#         # avoid data updates by other users if in lock
+#         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#         for row in inv_data:
+#             try:
+#                 # check to see if the document id and document data are related
+#                 if row.documentDataID:
+#                     db.query(model.DocumentData).filter_by(
+#                         documentID=inv_id, idDocumentData=row.documentDataID
+#                     ).scalar()
+#                 else:
+#                     db.query(model.DocumentLineItems).filter_by(
+#                         documentID=inv_id, idDocumentLineItems=row.documentLineItemID
+#                     ).scalar()
+#             except Exception:
+#                 logger.error(traceback.format_exc())
+#                 return Response(
+#                     status_code=403,
+#                     headers={"ClientError": "invoice and value mismatch"},
+#                 )
+#             # to check if the document update table, already has rows present in it
+#             inv_up_data_id = (
+#                 db.query(model.DocumentUpdates.idDocumentUpdates)
+#                 .filter_by(documentDataID=row.documentDataID)
+#                 .all()
+#             )
+#             inv_up_line_id = (
+#                 db.query(model.DocumentUpdates.idDocumentUpdates)
+#                 .filter_by(documentLineItemID=row.documentLineItemID)
+#                 .all()
+#             )
+#             if len(inv_up_data_id) > 0 or len(inv_up_line_id) > 0:
+#                 # if present set active status to false for old row
+#                 if row.documentDataID:
+#                     db.query(model.DocumentUpdates).filter_by(
+#                         documentDataID=row.documentDataID, IsActive=1
+#                     ).update({"IsActive": 0})
+#                 else:
+#                     db.query(model.DocumentUpdates).filter_by(
+#                         documentLineItemID=row.documentLineItemID, IsActive=1
+#                     ).update({"IsActive": 0})
+#                 db.flush()
+#             data = dict(row)
+#             data["IsActive"] = 1
+#             # data["updatedBy"] = u_id
+#             data["UpdatedOn"] = dt
+#             data = model.DocumentUpdates(**data)
+#             db.add(data)
+#             db.flush()
+#             if row.documentDataID:
+#                 doc_table_match = {
+#                     "InvoiceTotal": "totalAmount",
+#                     "InvoiceDate": "documentDate",
+#                     "InvoiceId": "docheaderID",
+#                     "PurchaseOrder": "PODocumentID",
+#                 }
+#                 ser_doc_table_match = {
+#                     "Issue Date": "documentDate",
+#                     "Total Due Inc VAT": "totalAmount",
+#                     "Invoice ID": "docheaderID",
+#                 }
+#                 tag_def_inv_id = (
+#                     db.query(
+#                         model.DocumentData.documentTagDefID,
+#                         model.DocumentData.documentID,
+#                     )
+#                     .filter_by(idDocumentData=row.documentDataID)
+#                     .one()
+#                 )
+#                 label = (
+#                     db.query(model.DocumentTagDef.TagLabel)
+#                     .filter_by(idDocumentTagDef=tag_def_inv_id.documentTagDefID)
+#                     .scalar()
+#                 )
+#                 # to update the document if header data is updated
+#                 if label in doc_table_match.keys():
+#                     db.query(model.Document).filter_by(
+#                         idDocument=tag_def_inv_id.documentID
+#                     ).update({doc_table_match[label]: data.NewValue})
+
+#                 # update the document if header data is updated for service provider
+#                 if label in ser_doc_table_match.keys():
+#                     value = data.NewValue
+#                     if label == "Total Due Inc VAT":
+#                         value = float(re.sub(r"[^0-9.]", "", value))
+#                     db.query(model.Document).filter_by(
+#                         idDocument=tag_def_inv_id.documentID
+#                     ).update({ser_doc_table_match[label]: value})
+#                 db.query(model.DocumentData).filter_by(
+#                     idDocumentData=row.documentDataID
+#                 ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
+
+
+#             else:
+#                 db.query(model.DocumentLineItems).filter_by(
+#                     idDocumentLineItems=row.documentLineItemID
+#                 ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
+#             db.flush()
+#         # last updated time stamp
+#         db.query(model.Document).filter_by(idDocument=inv_id).update(
+#             {"UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+#         )
+#         db.commit()
+#         return {"result": "success"}
+#     except Exception:
+#         logger.error(traceback.format_exc())
+#         db.rollback()
+#         return Response(status_code=500, headers={"Error": "Server error"})
+#     finally:
+#         db.close()
+
+
+# ------------------------------New Change ---------------------------------------
+
+
 async def update_invoice_data(u_id, inv_id, inv_data, db):
     """Function to update the invoice line item data.
 
@@ -567,9 +672,10 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
     try:
         # avoid data updates by other users if in lock
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         for row in inv_data:
             try:
-                # check to see if the document id and document data are related
+                # Check if the document id and document data are related
                 if row.documentDataID:
                     db.query(model.DocumentData).filter_by(
                         documentID=inv_id, idDocumentData=row.documentDataID
@@ -584,7 +690,8 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     status_code=403,
                     headers={"ClientError": "invoice and value mismatch"},
                 )
-            # to check if the document update table, already has rows present in it
+
+            # Check if the document update table already has rows present in it
             inv_up_data_id = (
                 db.query(model.DocumentUpdates.idDocumentUpdates)
                 .filter_by(documentDataID=row.documentDataID)
@@ -596,7 +703,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                 .all()
             )
             if len(inv_up_data_id) > 0 or len(inv_up_line_id) > 0:
-                # if present set active status to false for old row
+                # If present, set the active status to false for the old row
                 if row.documentDataID:
                     db.query(model.DocumentUpdates).filter_by(
                         documentDataID=row.documentDataID, IsActive=1
@@ -606,25 +713,24 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                         documentLineItemID=row.documentLineItemID, IsActive=1
                     ).update({"IsActive": 0})
                 db.flush()
+
+            # Add the new update to DocumentUpdates
             data = dict(row)
             data["IsActive"] = 1
-            # data["updatedBy"] = u_id
             data["UpdatedOn"] = dt
             data = model.DocumentUpdates(**data)
             db.add(data)
             db.flush()
+
+            # If documentDataID is present, check for VendorName updates
             if row.documentDataID:
                 doc_table_match = {
                     "InvoiceTotal": "totalAmount",
                     "InvoiceDate": "documentDate",
                     "InvoiceId": "docheaderID",
-                    "PurchaseOrder": "PODocumentID",
                 }
-                ser_doc_table_match = {
-                    "Issue Date": "documentDate",
-                    "Total Due Inc VAT": "totalAmount",
-                    "Invoice ID": "docheaderID",
-                }
+
+                # Get the documentTagDefID associated with the documentDataID
                 tag_def_inv_id = (
                     db.query(
                         model.DocumentData.documentTagDefID,
@@ -633,6 +739,8 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     .filter_by(idDocumentData=row.documentDataID)
                     .one()
                 )
+
+                # Get the TagLabel from the DocumentTagDef table
                 label = (
                     db.query(model.DocumentTagDef.TagLabel)
                     .filter_by(idDocumentTagDef=tag_def_inv_id.documentTagDefID)
@@ -643,28 +751,110 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     db.query(model.Document).filter_by(
                         idDocument=tag_def_inv_id.documentID
                     ).update({doc_table_match[label]: data.NewValue})
-                # to update the document if header data is updated for service provider
-                if label in ser_doc_table_match.keys():
-                    value = data.NewValue
-                    if label == "Total Due Inc VAT":
-                        value = float(re.sub(r"[^0-9.]", "", value))
-                    db.query(model.Document).filter_by(
-                        idDocument=tag_def_inv_id.documentID
-                    ).update({ser_doc_table_match[label]: value})
+                # If the TagLabel is "VendorName", proceed with fetching VendorCode
+                if label == "VendorName":
+                    # Fetch VendorCode using the NewValue from the Vendor table
+                    vendor = (
+                        db.query(model.Vendor)
+                        .filter_by(VendorName=row.NewValue)
+                        .first()
+                    )
+
+                    if vendor and vendor.VendorCode:
+                        # Get idVendorAccount using the VendorCode
+                        vendor_account = (
+                            db.query(model.VendorAccount)
+                            .filter_by(Account=vendor.VendorCode)
+                            .first()
+                        )
+
+                        if vendor_account:
+                            # Get idDocumentModel using the vendorAccountID
+                            document_model = (
+                                db.query(model.DocumentModel)
+                                .filter_by(
+                                    idVendorAccount=vendor_account.idVendorAccount
+                                )
+                                .first()
+                            )
+
+                            if document_model:
+                                # Update Document's vendorAccountID and idDocumentModel
+                                db.query(model.Document).filter_by(
+                                    idDocument=inv_id
+                                ).update(
+                                    {
+                                        "vendorAccountID": vendor_account.idVendorAccount,  # noqa: E501
+                                        "documentModelID": document_model.idDocumentModel,  # noqa: E501
+                                    }
+                                )
+                                db.flush()
+
+                                # Fetch all documentTagDefs for the updated
+                                # documentModel
+                                all_tag_defs = (
+                                    db.query(model.DocumentTagDef)
+                                    .filter_by(
+                                        idDocumentModel=document_model.idDocumentModel
+                                    )
+                                    .all()
+                                )
+
+                                # Fetch all  DocumentData based on inv_id
+                                doc_data = (
+                                    db.query(model.DocumentData)
+                                    .filter_by(documentID=inv_id)
+                                    .all()
+                                )
+
+                                # Loop through DocumentData entries
+                                for doc_entry in doc_data:
+                                    # Get the current TagLabel for the documentTagDefID
+                                    # in DocumentData
+                                    current_tag_label = (
+                                        db.query(model.DocumentTagDef.TagLabel)
+                                        .filter_by(
+                                            idDocumentTagDef=doc_entry.documentTagDefID
+                                        )
+                                        .scalar()
+                                    )
+
+                                    # Check if the TagLabel matches with any
+                                    # from all_tag_defs
+                                    for tag_def in all_tag_defs:
+                                        if current_tag_label == tag_def.TagLabel:
+                                            # Swap the documentTagDefID in DocumentData
+                                            db.query(model.DocumentData).filter_by(
+                                                idDocumentData=doc_entry.idDocumentData
+                                            ).update(
+                                                {
+                                                    "documentTagDefID": tag_def.idDocumentTagDef  # noqa: E501
+                                                }
+                                            )  # noqa: E501
+                                            db.flush()
+                                            break  # TagLabel match found, stop the loo
+
+                # Update document data as per original logic
                 db.query(model.DocumentData).filter_by(
                     idDocumentData=row.documentDataID
                 ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
+
             else:
+                # Update DocumentLineItems for line item updates
                 db.query(model.DocumentLineItems).filter_by(
                     idDocumentLineItems=row.documentLineItemID
                 ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
+
             db.flush()
-        # last updated time stamp
+
+        # Update the last updated timestamp for the document
         db.query(model.Document).filter_by(idDocument=inv_id).update(
             {"UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
         )
         db.commit()
+
         return {"result": "success"}
+
     except Exception:
         logger.error(traceback.format_exc())
         db.rollback()
@@ -1298,11 +1488,14 @@ async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
 async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     """Function to update stamp data fields based on document ID.
 
+    If a record does not exist for a given `stamptagname` and `inv_id`,
+    a new record will be inserted.
+
     :param u_id: User ID of the requestor.
-    :param inv_id: Document ID to filter the stamp data for updating.
-    :param update_data: Data to update the specific fields.
+    :param inv_id: Document ID to filter the stamp data for updating or inserting.
+    :param update_data_list: List of data to update or insert specific fields.
     :param db: Session to interact with the database.
-    :return: The updated StampData object.
+    :return: List of updated or newly inserted StampData objects.
     """
     dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
     updated_records = []
@@ -1325,30 +1518,54 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     .first()
                 )
 
-                # If no record is found, log an error and continue
+                # If no record is found, create a new record (insert operation)
                 if not stamp_data:
-                    updated_records.append(
-                        {
-                            "stamptagname": stamptagname,
-                            "error": "No matching stamp data found for "
-                            + f"stamptagname: {stamptagname}",
-                        }
+                    # Create a new StampDataValidation object
+                    new_stamp_data = model.StampDataValidation(
+                        documentid=inv_id,
+                        stamptagname=stamptagname,
+                        stampvalue=new_value,
+                        is_error=0,
+                        IsUpdated=1,
+                        OldValue=old_value,
+                        UpdatedOn=dt,
                     )
-                    continue
 
-                # Update the OldValue, stampvalue (new value), IsUpdated, and UpdatedOn
-                stamp_data.OldValue = old_value
-                stamp_data.stampvalue = new_value
-                stamp_data.IsUpdated = 1
-                stamp_data.UpdatedOn = dt
+                    # Add the new object to the session for insertion
+                    db.add(new_stamp_data)
 
-                # Add the updated object to the list (it will be refreshed later)
-                updated_records.append(stamp_data)
+                    # Track this record as newly inserted
+                    updated_records.append(new_stamp_data)
 
+                else:
+                    # If record exists, update the values
+                    stamp_data.OldValue = old_value
+                    stamp_data.stampvalue = new_value
+                    stamp_data.is_error = 0
+                    stamp_data.IsUpdated = 1
+                    stamp_data.UpdatedOn = dt
+
+                    # Track this record as updated
+                    updated_records.append(stamp_data)
+                # If the stamptagname is 'ConfirmationNumber',
+                # update the JournalNumber field in Document table
+                if stamptagname == "ConfirmationNumber":
+                    # Query the Document table for the corresponding document
+                    document_record = (
+                        db.query(model.Document)
+                        .filter(model.Document.idDocument == inv_id)
+                        .first()
+                    )
+
+                    if document_record:
+                        # Update the JournalNumber field
+                        document_record.JournalNumber = new_value
+                        # Add the updated document to the session for commit
+                        db.add(document_record)
             except SQLAlchemyError:
                 logger.error(traceback.format_exc())
-                # Catch any SQLAlchemy-specific error
-                # during the update of a single record
+                # Catch any SQLAlchemy-specific error during the
+                # update/insert of a single record
                 updated_records.append(
                     {
                         "stamptagname": stamptagname,
@@ -1358,10 +1575,10 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                 )
                 # Continue to next record without breaking the loop
 
-        # Commit the changes to the database
+        # Commit the changes to the database (insert and update)
         db.commit()
 
-        # Refresh and return the updated records
+        # Refresh and return the updated or newly inserted records
         for stamp_data in updated_records:
             if isinstance(stamp_data, model.StampDataValidation):
                 db.refresh(stamp_data)

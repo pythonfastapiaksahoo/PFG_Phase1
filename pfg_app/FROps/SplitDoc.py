@@ -277,11 +277,15 @@ def splitDoc(
             (x[0] + 1, x[0] + 1) if len(x) == 1 else tuple(y + 1 for y in x)
             for x in grouped_pages
         ]
-
-        if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
-            #     # Unpack the tuple and create a list of tuples (n, n)
-            # grp_pages = [(i, i) for i in splitpgsDt[0]]
-            grp_pages = splitpgsDt
+        if len(splitpgsDt) == 1:
+            if splitpgsDt[0][0] != splitpgsDt[0][1]:
+                if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
+                    #     # Unpack the tuple and create a list of tuples (n, n)
+                    grp_pages = [(i, i) for i in splitpgsDt[0]]
+                else:
+                    grp_pages = splitpgsDt
+            else:
+                grp_pages = splitpgsDt
         elif all(isinstance(i, tuple) for i in splitpgsDt):
             # If the input is already a list of tuples, return it as-is
             grp_pages = splitpgsDt
