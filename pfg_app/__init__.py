@@ -39,6 +39,9 @@ if settings.build_type != "debug":
         {
             "application_insights_instrumentation_key": "APPORTAL-APPLICATION-INSIGHTS-INSTRUMENTATION-KEY"  # noqa: E501
         },
+        {
+            "application_insights_connection_string": "APPORTAL-APPLICATION-INSIGHTS-CONNECTION-STRING"  # noqa: E501
+        },
         {"erp_url": "APPORTAL-ERP-URL"},
         {"erp_invoice_import_endpoint": "APPORTAL-ERP-INVOICE-IMPORT-ENDPOINT"},
         {"erp_invoice_status_endpoint": "APPORTAL-ERP-INVOICE-STATUS-ENDPOINT"},

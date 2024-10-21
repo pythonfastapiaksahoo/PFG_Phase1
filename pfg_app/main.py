@@ -48,7 +48,7 @@ app.add_middleware(
 
 # # Set up tracing
 # exporter = AzureExporter(
-#     connection_string=settings.application_insights_instrumentation_key
+#     connection_string=settings.application_insights_connection_string
 # )
 # propagator = TraceContextPropagator()
 
