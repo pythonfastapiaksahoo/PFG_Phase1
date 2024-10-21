@@ -10,7 +10,7 @@ from typing import Dict
 import pandas as pd
 import pytz as tz
 from fastapi.responses import Response
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Load, load_only
 
 import pfg_app.model as model
@@ -1150,29 +1150,35 @@ def check_same_vendors_same_entity(vendoraccountId, modelname, db):
         vendorcodes = [
             vc[0]
             for vc in db.query(model.Vendor.VendorCode)
-            .filter(model.Vendor.VendorName == vendorname)
+            .filter(
+                model.Vendor.VendorName == vendorname,
+                func.jsonb_extract_path_text(
+                    model.Vendor.miscellaneous, "VENDOR_STATUS"
+                )
+                == "A",
+            )
             .all()
         ]
 
         # Initialize count and vendorName
         count = 0
-        vendorName = None
-
         # Loop through each vendorcode in the list of vendorcodes
-        for vendorcode in vendorcodes:
-            # Get all VendorAccount IDs associated with the current vendorcode
-            vendors = (
-                db.query(model.VendorAccount.idVendorAccount)
-                .filter(model.VendorAccount.Account == vendorcode)
-                .all()
-            )
 
+        # Get all VendorAccount IDs associated with the current vendorcode
+        vendors = (
+            db.query(model.VendorAccount.idVendorAccount)
+            .filter(model.VendorAccount.Account.in_(vendorcodes))
+            .all()
+        )
+        # Flatten the result from list of tuples to a list of IDs
+        vendors = [vendor[0] for vendor in vendors]
         for v in vendors:
-            if v[0] != vendoraccountId:
+            if v != vendoraccountId:
+                print(v)
                 checkmodel = (
                     db.query(model.DocumentModel)
                     .filter(
-                        model.DocumentModel.idVendorAccount == v[0],
+                        model.DocumentModel.idVendorAccount == v,
                         model.DocumentModel.modelName == modelname,
                     )
                     .first()
@@ -1181,20 +1187,11 @@ def check_same_vendors_same_entity(vendoraccountId, modelname, db):
                 if checkmodel is None:
                     count += 1
 
-        # After the loop, we retrieve the vendorName from the first vendorcode
-        if vendorcodes:
-            vendor = (
-                db.query(model.Vendor.VendorName)
-                .filter(model.Vendor.VendorCode == vendorcode)
-                .first()
-            )
-
-            vendorName = vendor[0]
         # Return the result based on the count
         if count >= 1:
-            return {"message": "exists", "vendor": vendorName, "count": count - 1}
+            return {"message": "exists", "vendor": vendorname, "count": count}
         else:
-            return {"message": "not exists", "vendor": vendorName, "count": count}
+            return {"message": "not exists", "vendor": vendorname, "count": count}
     except Exception:
         print(traceback.format_exc())
         return {"message": "exception"}
