@@ -1,11 +1,13 @@
 import logging
 
+from opencensus.ext.azure.log_exporter import AzureLogHandler
+
+from pfg_app import settings
+
 # import os
 
-# from opencensus.ext.azure.log_exporter import AzureLogHandler
-# from opencensus.trace import execution_context
 
-# from pfg_app import settings
+# from opencensus.trace import execution_context
 
 
 # class TraceIdFilter(logging.Filter):
@@ -31,9 +33,9 @@ import logging
 #     "%(asctime)s - %(environment)s - \
 #         Worker PID: %(worker_pid)s - %(trace_id)s - %(message)s"
 # )
-# handler = AzureLogHandler(
-#     connection_string=settings.application_insights_instrumentation_key
-# )
+handler = AzureLogHandler(
+    connection_string=settings.application_insights_instrumentation_key
+)
 # handler.setFormatter(formatter)
 # handler.addFilter(trace_id_filter)
 
@@ -44,6 +46,6 @@ console_handler = logging.StreamHandler()
 # console_handler.addFilter(trace_id_filter)
 
 logger = logging.getLogger(__name__)
-# logger.addHandler(handler)
+logger.addHandler(handler)
 logger.addHandler(console_handler)
 logger.setLevel(logging.INFO)
