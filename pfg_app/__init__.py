@@ -64,12 +64,12 @@ if settings.build_type not in ["debug", "dev"]:
             try:
                 result = future.result()
                 key_vault_secrets.append(result)
-                logger.info(
+                logger.info(  # type: ignore
                     (
                         f"Secret retrieved: {result['settings_key']}:"
                         f"{result['secret']}"
                     )
-                )  # noqa: E501
+                )  # type: ignore
                 # Assign the secret to the settings object
                 setattr(settings, result["settings_key"], result["secret"])
 

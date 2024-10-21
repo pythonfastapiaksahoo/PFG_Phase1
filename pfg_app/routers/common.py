@@ -1,3 +1,5 @@
+import traceback
+
 import requests
 from fastapi import APIRouter, Depends, Response
 
@@ -61,23 +63,25 @@ def get_blob_file(container_name: str, blob_path: str):
 
 @router.get("/iics-status")
 def iics_status():
-
-    response = requests.post(
-        settings.erp_url + settings.erp_invoice_status_endpoint,
-        json={
-            "RequestBody": {
-                "INV_STAT_RQST": {
-                    "BUSINESS_UNIT": "MERCH",
-                    "INVOICE_ID": "9999999",
-                    "INVOICE_DT": "2023-06-10",
-                    "VENDOR_SETID": "GLOBL",
-                    "VENDOR_ID": "97879",
+    try:
+        response = requests.post(
+            settings.erp_invoice_status_endpoint,
+            json={
+                "RequestBody": {
+                    "INV_STAT_RQST": {
+                        "BUSINESS_UNIT": "MERCH",
+                        "INVOICE_ID": "9999999",
+                        "INVOICE_DT": "2023-06-10",
+                        "VENDOR_SETID": "GLOBL",
+                        "VENDOR_ID": "97879",
+                    }
                 }
-            }
-        },
-        headers={"Content-Type": "application/json"},
-        auth=(settings.erp_user, settings.erp_password),
-        timeout=60,  # Set a timeout of 60 seconds
-    )
+            },
+            headers={"Content-Type": "application/json"},
+            auth=(settings.erp_user, settings.erp_password),
+            timeout=60,  # Set a timeout of 60 seconds
+        )
 
-    return response.json()
+        return response.json()
+    except Exception:
+        return {"error": traceback.format_exc()}

@@ -1,4 +1,5 @@
 import os
+import traceback
 
 from fastapi import FastAPI, Request  # , Request
 
@@ -184,7 +185,7 @@ async def root(request: Request):
         # Test the connection
         with engine.connect() as connection:
             result = connection.execute("SELECT 1")
-            print(result.fetchone())
-    except Exception as e:
-        logger.error(f"Main.py-ROOT error: {str(e)}")
+            logger.info(f"Result of DB Connection {result.fetchone()}")
+    except Exception:
+        logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
     return {"message": "Hello! This is IDP"}
