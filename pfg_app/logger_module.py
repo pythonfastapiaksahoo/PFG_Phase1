@@ -33,6 +33,7 @@ from pfg_app import settings
 #     "%(asctime)s - %(environment)s - \
 #         Worker PID: %(worker_pid)s - %(trace_id)s - %(message)s"
 # )
+print(settings.application_insights_connection_string)
 handler = AzureLogHandler(
     connection_string=settings.application_insights_connection_string
 )
