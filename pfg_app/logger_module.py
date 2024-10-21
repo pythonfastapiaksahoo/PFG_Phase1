@@ -1,4 +1,5 @@
 import logging
+import os
 
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 
@@ -35,7 +36,7 @@ from pfg_app import settings
 # )
 print(settings.application_insights_connection_string)
 handler = AzureLogHandler(
-    connection_string=settings.application_insights_connection_string
+    connection_string=os.getenv("APPLICATION_INSIGHTS_CONNECTION_STRING")
 )
 # handler.setFormatter(formatter)
 # handler.addFilter(trace_id_filter)
