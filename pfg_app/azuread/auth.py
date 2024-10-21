@@ -24,8 +24,9 @@ def get_user(
 
     user = AzureUser(
         id="generic_id",
-        name="Test User",
+        name="Generic User",
         email="generic_email",
+        preferred_username="Generic User",
     )
     # check if this user exists in the database agaisnt user tabel
     user_in_db = db.query(User).filter(User.azure_id == user.id).first()
@@ -49,7 +50,11 @@ def get_admin_user(
     # user: AzureUser = Depends(authorize)
 ) -> AzureUser:
     user = AzureUser(
-        id="generic_id", name="Test User", email="generic_email", roles=["Admin"]
+        id="generic_id",
+        name="Test User",
+        email="generic_email",
+        roles=["Admin"],
+        preferred_username="Generic admin",
     )
     if "Admin" in user.roles:
         return user

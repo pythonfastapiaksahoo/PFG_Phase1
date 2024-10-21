@@ -34,8 +34,11 @@ from pfg_app import settings
 #     "%(asctime)s - %(environment)s - \
 #         Worker PID: %(worker_pid)s - %(trace_id)s - %(message)s"
 # )
-print(settings.application_insights_connection_string)
-handler = AzureLogHandler(connection_string=os.getenv("APPINSIGHTS_CONNECTION_STRING"))
+if settings.build_type != "debug":
+    print(settings.application_insights_connection_string)
+    handler = AzureLogHandler(
+        connection_string=os.getenv("APPINSIGHTS_CONNECTION_STRING")
+    )
 # handler.setFormatter(formatter)
 # handler.addFilter(trace_id_filter)
 
@@ -46,6 +49,7 @@ console_handler = logging.StreamHandler()
 # console_handler.addFilter(trace_id_filter)
 
 logger = logging.getLogger(__name__)
-logger.addHandler(handler)
+if settings.build_type != "debug":
+    logger.addHandler(handler)
 logger.addHandler(console_handler)
 logger.setLevel(logging.INFO)
