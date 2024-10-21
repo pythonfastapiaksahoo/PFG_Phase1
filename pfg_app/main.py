@@ -156,6 +156,6 @@ async def app_startup():
 
 @app.get("/")
 async def root():
-
+    print("Root endpoint was accessed")
     logger.info("Root endpoint was accessed -new change")
     return {"message": "Hello! This is IDP"}
