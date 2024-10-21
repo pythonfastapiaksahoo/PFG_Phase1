@@ -1,15 +1,17 @@
 # import logging
 import json
 import os
-import time
+import re
 import traceback
 from datetime import datetime, timezone
 
 import pandas as pd
-import psycopg2
+
+# import psycopg2
 import pytz as tz
 from fastapi import APIRouter, File, Form, Response, UploadFile
-from psycopg2 import extras
+
+# from psycopg2 import extras
 from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -71,18 +73,21 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
-    # email_path: str = Form(...),
+    # email_path: str = Form("Test Path"),
     # subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
 ):
     try:
+        email_path = ""
+        subject = ""
+        vendorAccountID = 0
         db = next(get_db())
         # Create a new instance of the SplitDocTab model
         new_split_doc = model.SplitDocTab(
             invoice_path=file_path,
             status="File Received without Check",
-            emailbody_path="email_path",
-            email_subject="subject",
+            emailbody_path=email_path,
+            email_subject=subject,
             sender=sender,
         )
 
@@ -94,10 +99,11 @@ def runStatus(
 
         # Refresh the instance to get the new ID if needed
         db.refresh(new_split_doc)
-    except Exception as e:
-        print(e)
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
 
     try:
+        IsUpdated = 0
         invoId = ""
         customerID = 1
         userID = 1
@@ -145,47 +151,45 @@ def runStatus(
         # just json"""
 
         prompt = """This is an invoice document. It may contain a receiver's stamp and
-            might have inventory or supplies marked or circled with a pen, circled
-            is selected. It contains store number as "STR #".
+        might have inventory or supplies marked or circled with a pen, circled
+        is selected. It contains store number as "STR #".
 
-            InvoiceDocument: Yes/No
-            InvoiceID: [InvoiceID].
-            StampPresent: Yes/No.
+        InvoiceDocument: Yes/No
+        InvoiceID: [InvoiceID].
+        StampPresent: Yes/No.
 
-            If a stamp is present, identify any markings on the document related to
-            Inventory or Supplies, specifically if they are marked or circled
-            with a pen.
-            If a stamp is present, extract the following handwritten details from the
-            stamp: ConfirmationNumber (the confirmation number labeled
-            as 'Confirmation' on the stamp), ReceivingDate
-            (the date when the goods were received), Receiver
-            (the name of the person or department who received the goods),
-            and Department (the handwritten department name or code,
-            or another specified department name),
-            MarkedDept (which may be either 'Inventory' or 'Supplies',
-            based on pen marking).
-            Extract the Invoice Number.
-            Extract the Currency from the invoice document by identifying the currency
-            symbol before the total amount. The currency can be CAD or USD.
-            If the invoice address is in Canada, set the currency to CAD,
-            otherwise set it to USD.
+        If a stamp is present, identify any markings on the document related to
+        Inventory or Supplies, specifically if they are marked or circled with a pen.
+        If a stamp is present, extract the following handwritten details from the
+        stamp: ConfirmationNumber (the confirmation number labeled
+        as 'Confirmation' on the stamp), ReceivingDate
+        (the date when the goods were received), Receiver
+        (the name of the person or department who received the goods),
+        and Department (the handwritten department name or code,
+        or another specified department name),
+        MarkedDept (which may be either 'Inventory' or 'Supplies',
+        based on pen marking).
+        Extract the Invoice Number.
+        Extract the Currency from the invoice document by identifying the currency
+        symbol before the total amount. The currency can be CAD or USD.
+        If the invoice address is in Canada, set the currency to CAD,
+        otherwise set it to USD.
 
-            Provide all information in the following JSON format:
-            {
-                'StampFound': 'Yes/No',
-                'MarkedDept': 'Inventory/Supplies'
-                (whichever is circled more/marked only),
-                'Confirmation': 'Extracted data',
-                'ReceivingDate': 'Extracted data',
-                'Receiver': 'Extracted data',
-                'Department': 'Dept code',
-                'Store Number': 'Extracted data',
-                'VendorName': 'Extracted data',
-                'InvoiceID' : 'Extracted data'
-                'Currency': 'Extracted data'
-            }.
-            Output should always be in above defined JSON
-              format only without any explanation."""
+        Provide all information in the following JSON format:
+        {
+            'StampFound': 'Yes/No',
+            'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
+            'Confirmation': 'Extracted data',
+            'ReceivingDate': 'Extracted data',
+            'Receiver': 'Extracted data',
+            'Department': 'Dept code',
+            'Store Number': 'Extracted data',
+            'VendorName': 'Extracted data',
+            'InvoiceID' : 'Extracted data'
+            'Currency': 'Extracted data'
+        }.
+
+        Output should always be in above defined JSON format only."""
         # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
@@ -209,28 +213,7 @@ def runStatus(
             fr_API_version,
         )
         if fr_model_status == 1:
-            # logger.info(f"StampDataList: {StampDataList}")
-            # conn_params: Dict[str, str] = {
-            #     "dbname": settings.db_name,
-            #     "user": settings.db_user,
-            #     "password": settings.db_password,
-            #     "host": settings.db_host,
-            #     "port": str(settings.db_port),
-            # }
 
-            conn = psycopg2.connect(
-                dbname=settings.db_name,
-                user=settings.db_user,
-                password=settings.db_password,
-                host=settings.db_host,
-                port=str(settings.db_port),  # Ensure port is a string
-            )
-            cursor = conn.cursor()
-            # cursor.execute(
-            #     'SELECT "idVendor","VendorName","Synonyms","Address" \
-            #         FROM pfg_schema.vendor;'
-            # )
-            # rows = cursor.fetchall()
             query = db.query(
                 model.Vendor.idVendor,
                 model.Vendor.VendorName,
@@ -247,25 +230,6 @@ def runStatus(
 
             vendorName_df = pd.DataFrame(rows, columns=columns)
 
-            # if cursor.description is not None:
-            #     colnames = [desc[0] for desc in cursor.description]
-            # else:
-            #     colnames = []  # Handle the case where cursor.description is None
-            # vendorName_df = pd.DataFrame(rows, columns=colnames)
-            time.sleep(0.5)
-            cursor = conn.cursor()
-            # insert_splitTab_query = """
-            #     INSERT INTO pfg_schema.splitdoctab \
-            #         (invoice_path, totalpagecount, pages_processed, status,\
-            #             emailbody_path)
-            #     VALUES (%s, %s, %s, %s, %s);
-            # """
-
-            # cursor.execute(
-            #     insert_splitTab_query,
-            #     (file_path, num_pages, grp_pages, "File received", sender),
-            # )
-            # conn.commit()
             splitdoc_id = new_split_doc.splitdoc_id
             split_doc = (
                 db.query(model.SplitDocTab)
@@ -304,6 +268,7 @@ def runStatus(
                 try:
                     InvofileSize = fileSize[spltFileName]
                 except Exception:
+                    logger.error(f"{traceback.format_exc()}")
                     InvofileSize = ""
                 try:
 
@@ -320,6 +285,7 @@ def runStatus(
                     db.commit()
 
                 except Exception as rt:
+                    logger.error(f"{traceback.format_exc()}")
                     logger.info(f"line 180: DB insertion error:{str(rt)} ")
 
                 if "VendorName" in prbtHeaders[splt_map[fl]]:
@@ -353,9 +319,13 @@ def runStatus(
                                 synlt = json.loads(syn)
                                 if isinstance(synlt, list):
                                     for syn1 in synlt:
+                                        if stop:
+                                            break
                                         syn_1 = syn1.split(",")
 
                                         for syn2 in syn_1:
+                                            if stop:
+                                                break
 
                                             tfidf_matrix_di = vectorizer.fit_transform(
                                                 [syn2, di_inv_vendorName]
@@ -431,11 +401,13 @@ def runStatus(
                                                     break
 
                     except Exception as rt:
+                        logger.error(f"{traceback.format_exc()}")
                         logger.info(f"ocr.py line 220 {str(rt)}")
                         vdrFound = 0
 
                 except Exception as er:
                     logger.info(f"ocr.py exception: {str(er)}")
+                    logger.error(f"{traceback.format_exc()}")
                     vdrFound = 0
 
                 # vxdrFound = 0
@@ -449,6 +421,7 @@ def runStatus(
                         )[0]
 
                     except Exception:
+                        logger.error(f"{traceback.format_exc()}")
                         metaVendorAdd = ""
                     try:
                         metaVendorName = list(
@@ -457,9 +430,10 @@ def runStatus(
                             ]
                         )[0]
                     except Exception as err:
+                        logger.error(f"{traceback.format_exc()}")
                         logger.error(f"metaVendorName exception:{str(err)}")
                         metaVendorName = ""
-                    vendorAccountID = str(vendorID)
+                    vendorAccountID = vendorID
                     poNumber = "nonPO"
                     VendoruserID = 1
                     configs = getOcrParameters(customerID, db)
@@ -499,10 +473,11 @@ def runStatus(
                             status = "success"
 
                         except Exception as e:
+                            logger.error(f"{traceback.format_exc()}")
                             logger.info(
                                 f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
                             )
-                            status = "fail"
+                            status = traceback.format_exc()
 
                         logger.info("Vendor Not Onboarded")
                     else:
@@ -554,6 +529,7 @@ def runStatus(
                             logger.info(f"DocumentID:{invoId}")
                         except Exception as e:
                             invoId = ""
+                            logger.error(f"{traceback.format_exc()}")
                             logger.error(f"Exception in live_model_fn_1: {str(e)}")
 
                         try:
@@ -591,7 +567,7 @@ def runStatus(
                                 status = "success"
                                 try:
                                     # cur = conn.cursor()
-                                    # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \  # noqa: E501
+                                    # sql_updateFR="""UPDATE pfg_schema.frtrigger_tab \
                                     #             SET "status" = %s, "sender" = %s, \
                                     #             "vendorID" = %s \
                                     #         WHERE "blobpath" = %s; """
@@ -611,19 +587,22 @@ def runStatus(
                                         {
                                             model.frtrigger_tab.status: "PostProcessing Error",  # noqa: E501
                                             model.frtrigger_tab.vendorID: vendorID,
+                                            model.frtrigger_tab.documentid: spltFileName,  # noqa: E501
                                         }
                                     )
                                     # Step 3: Commit the transaction
                                     db.commit()
 
-                                except Exception:
+                                except Exception as qw:
                                     logger.error(f"{traceback.format_exc()}")
+                                    logger.info(f"ocr.py line 475: {str(qw)}")
 
                         except Exception as e:
+                            logger.error(f"{traceback.format_exc()}")
                             logger.info(
                                 f"Postprocessing Exception line 446 orc.py: {str(e)}"
                             )
-                            status = "fail"
+                            status = traceback.format_exc()
 
                         try:
                             if "Currency" in StampDataList[splt_map[fl]]:
@@ -647,11 +626,11 @@ def runStatus(
                                 print(f"mrkCurrencyCk_msg: {mrkCurrencyCk_msg}")
                                 print(f"mrkCurrencyCk_isErr: {mrkCurrencyCk_isErr}")
 
-                        except Exception as e:
-                            print(f"Error occurred: {e}")
+                        except Exception:
+                            logger.error(f"{traceback.format_exc()}")
 
                         if "StampFound" in StampDataList[splt_map[fl]]:
-                            stm_dt_lt = []
+                            # stm_dt_lt = []
                             confCk_isErr = 1
                             confCk_msg = "Confirmation Number Not Found"
                             RevDateCk_isErr = 1
@@ -690,34 +669,51 @@ def runStatus(
                                     mrkDeptCk_isErr = 1
                                     mrkDeptCk_msg = "Not Found."
                                     MarkedDept = "N/A"
+                                # ----------------------
 
-                                stmp_dt = [
-                                    invoId,
-                                    "SelectedDept",
-                                    MarkedDept,
-                                    mrkDeptCk_isErr,
-                                    mrkDeptCk_msg,
-                                    stmp_created_on,
-                                ]
-                                stm_dt_lt.append(stmp_dt)
+                                stampdata: dict[str, int | str] = {}
+                                stampdata["documentid"] = invoId
+                                stampdata["stamptagname"] = "SelectedDept"
+                                stampdata["stampvalue"] = MarkedDept
+                                stampdata["is_error"] = mrkDeptCk_isErr
+                                stampdata["errordesc"] = mrkDeptCk_msg
+                                stampdata["created_on"] = stmp_created_on
+                                stampdata["IsUpdated"] = IsUpdated
+                                db.add(model.StampDataValidation(**stampdata))
+                                db.commit()
 
                                 if "Confirmation" in StampDataList[splt_map[fl]]:
-                                    Confirmation = StampDataList[splt_map[fl]][
+                                    Confirmation_rw = StampDataList[splt_map[fl]][
                                         "Confirmation"
                                     ]
                                     str_nm = ""
+                                    Confirmation = "".join(
+                                        re.findall(r"\d", Confirmation_rw)
+                                    )
                                     if len(Confirmation) == 9:
                                         try:
 
-                                            query = 'SELECT * \
-                                                FROM pfg_schema.pfgreceipt \
-                                                    WHERE "RECEIVER_ID" = %s'
-                                            cursor.execute(query, (Confirmation,))
-                                            row = cursor.fetchone()
-                                            if row:
+                                            # query = 'SELECT * \
+                                            #     FROM pfg_schema.pfgreceipt \
+                                            #         WHERE "RECEIVER_ID" = %s'
+                                            # (
+                                            query = (
+                                                db.query(model.PFGReceipt)
+                                                .filter(
+                                                    model.PFGReceipt.RECEIVER_ID
+                                                    == Confirmation
+                                                )
+                                                .first()
+                                            )
+                                            # cursor.execute(query, (Confirmation,))
+                                            # row = cursor.fetchone()
+                                            if query:
+                                                # for invRpt in query:
+                                                str_nm = query.LOCATION
+                                                # VENDOR_SETID = invRpt.VENDOR_SETID
                                                 confCk_isErr = 0
                                                 confCk_msg = "Valid Confirmation Number"
-                                                str_nm = row[15]
+                                                # str_nm = row[15]
                                             else:
                                                 confCk_isErr = 1
                                                 confCk_msg = (
@@ -725,6 +721,7 @@ def runStatus(
                                                 )
 
                                         except Exception as e:
+                                            logger.error(f"{traceback.format_exc()}")
                                             logger.error(
                                                 f"Error executing query: {str(e)}"
                                             )
@@ -741,15 +738,17 @@ def runStatus(
                                     confCk_isErr = 1
                                     confCk_msg = "Confirmation Number NotFound"
 
-                                stmp_dt = [
-                                    invoId,
-                                    "ConfirmationNumber",
-                                    Confirmation,
-                                    confCk_isErr,
-                                    confCk_msg,
-                                    stmp_created_on,
-                                ]
-                                stm_dt_lt.append(stmp_dt)
+                                # stampdata = {}
+                                # stampdata: dict[str, int | str] = {}
+                                stampdata["documentid"] = invoId
+                                stampdata["stamptagname"] = "ConfirmationNumber"
+                                stampdata["stampvalue"] = Confirmation
+                                stampdata["is_error"] = confCk_isErr
+                                stampdata["errordesc"] = confCk_msg
+                                stampdata["created_on"] = stmp_created_on
+                                stampdata["IsUpdated"] = IsUpdated
+                                db.add(model.StampDataValidation(**stampdata))
+                                db.commit()
 
                                 if "ReceivingDate" in StampDataList[splt_map[fl]]:
                                     ReceivingDate = StampDataList[splt_map[fl]][
@@ -766,15 +765,17 @@ def runStatus(
                                     RevDateCk_isErr = 1
                                     RevDateCk_msg = "ReceivingDate Not Found."
 
-                                stmp_dt = [
-                                    invoId,
-                                    "ReceivingDate",
-                                    ReceivingDate,
-                                    RevDateCk_isErr,
-                                    RevDateCk_msg,
-                                    stmp_created_on,
-                                ]
-                                stm_dt_lt.append(stmp_dt)
+                                # stampdata = {}
+                                # stampdata: dict[str, int | str] = {}
+                                stampdata["documentid"] = invoId
+                                stampdata["stamptagname"] = "ReceivingDate"
+                                stampdata["stampvalue"] = ReceivingDate
+                                stampdata["is_error"] = RevDateCk_isErr
+                                stampdata["errordesc"] = RevDateCk_msg
+                                stampdata["created_on"] = stmp_created_on
+                                stampdata["IsUpdated"] = IsUpdated
+                                db.add(model.StampDataValidation(**stampdata))
+                                db.commit()
 
                                 if "Receiver" in StampDataList[splt_map[fl]]:
                                     Receiver = StampDataList[splt_map[fl]]["Receiver"]
@@ -784,15 +785,18 @@ def runStatus(
                                     Receiver = "N/A"
                                     RvrCk_isErr = 1
                                     RvrCk_msg = "Receiver Not Available"
-                                stmp_dt = [
-                                    invoId,
-                                    "Receiver",
-                                    Receiver,
-                                    RvrCk_isErr,
-                                    RvrCk_msg,
-                                    stmp_created_on,
-                                ]
-                                stm_dt_lt.append(stmp_dt)
+
+                                # stampdata = {}
+                                # stampdata: dict[str, int | str] = {}
+                                stampdata["documentid"] = invoId
+                                stampdata["stamptagname"] = "Receiver"
+                                stampdata["stampvalue"] = Receiver
+                                stampdata["is_error"] = RvrCk_isErr
+                                stampdata["errordesc"] = RvrCk_msg
+                                stampdata["created_on"] = stmp_created_on
+                                stampdata["IsUpdated"] = IsUpdated
+                                db.add(model.StampDataValidation(**stampdata))
+                                db.commit()
 
                                 if "Department" in StampDataList[splt_map[fl]]:
                                     Department = StampDataList[splt_map[fl]][
@@ -804,15 +808,18 @@ def runStatus(
                                     Department = "N/A"
                                     deptCk_isErr = 1
                                     deptCk_msg = "Department Not Found."
-                                stmp_dt = [
-                                    invoId,
-                                    "Department",
-                                    Department,
-                                    deptCk_isErr,
-                                    deptCk_msg,
-                                    stmp_created_on,
-                                ]
-                                stm_dt_lt.append(stmp_dt)
+
+                                # st/ampdata = {}
+                                # stampdata: dict[str, int | str] = {}
+                                stampdata["documentid"] = invoId
+                                stampdata["stamptagname"] = "Department"
+                                stampdata["stampvalue"] = Department
+                                stampdata["is_error"] = deptCk_isErr
+                                stampdata["errordesc"] = deptCk_msg
+                                stampdata["created_on"] = stmp_created_on
+                                stampdata["IsUpdated"] = IsUpdated
+                                db.add(model.StampDataValidation(**stampdata))
+                                db.commit()
 
                                 if "Store Number" in StampDataList[splt_map[fl]]:
                                     storenumber = StampDataList[splt_map[fl]][
@@ -858,19 +865,24 @@ def runStatus(
                                                 StrTyp_msg = ""
                                                 store_type = "Integrated"
                                         except Exception as e:
+                                            logger.error(f"{traceback.format_exc()}")
                                             logger.info(
                                                 f"Error fetching stores type: {str(e)}"
                                             )
-
-                                        if int(storenumber) == int(str_nm):
-                                            strCk_isErr = 0
-                                            strCk_msg = ""
+                                        if len(str_nm) > 0:
+                                            if int(storenumber) == int(str_nm):
+                                                strCk_isErr = 0
+                                                strCk_msg = ""
+                                            else:
+                                                strCk_isErr = 0
+                                                strCk_msg = "Store Number Not Matching"
 
                                         else:
                                             strCk_isErr = 0
                                             strCk_msg = "Store Number Not Matching"
 
                                     except Exception as e:
+                                        logger.error(f"{traceback.format_exc()}")
                                         strCk_isErr = 1
                                         strCk_msg = "Error:" + str(e)
                                 else:
@@ -878,136 +890,74 @@ def runStatus(
                                     strCk_isErr = 1
                                     strCk_msg = ""
 
-                                stmp_dt = [
-                                    invoId,
-                                    "StoreType",
-                                    store_type,
-                                    StrTyp_IsErr,
-                                    StrTyp_msg,
-                                    stmp_created_on,
-                                ]
-                                stm_dt_lt.append(stmp_dt)
+                                # stampdata = {}
+                                # stampdata: dict[str, int | str] = {}
+                                stampdata["documentid"] = invoId
+                                stampdata["stamptagname"] = "StoreType"
+                                stampdata["stampvalue"] = store_type
+                                stampdata["is_error"] = StrTyp_IsErr
+                                stampdata["errordesc"] = StrTyp_msg
+                                stampdata["created_on"] = stmp_created_on
+                                stampdata["IsUpdated"] = IsUpdated
+                                db.add(model.StampDataValidation(**stampdata))
+                                db.commit()
 
-                                stmp_dt = [
-                                    invoId,
-                                    "StoreNumber",
-                                    storenumber,
-                                    strCk_isErr,
-                                    strCk_msg,
-                                    stmp_created_on,
-                                ]
-                                stm_dt_lt.append(stmp_dt)
+                                # stampdata = {}
+                                # stampdata: dict[str, int | str] = {}
+                                stampdata["documentid"] = invoId
+                                stampdata["stamptagname"] = "StoreNumber"
+                                stampdata["stampvalue"] = storenumber
+                                stampdata["is_error"] = strCk_isErr
+                                stampdata["errordesc"] = strCk_msg
+                                stampdata["created_on"] = str(stmp_created_on)
+                                stampdata["IsUpdated"] = IsUpdated
+                                db.add(model.StampDataValidation(**stampdata))
+                                db.commit()
+
                                 try:
-                                    try:
-                                        insert_query = """ INSERT INTO \
-                                            stampdatavalidation \
-                                                (documentid, stamptagname, stampvalue,\
-                                                      is_error, errordesc, created_on)
-                                                        VALUES %s
-                                                        """
-                                        extras.execute_values(
-                                            cursor, insert_query, stm_dt_lt
-                                        )
-
-                                        conn.commit()
-
-                                    except Exception as e:
-                                        logger.error(
-                                            f"stampdata insertion exception: {str(e)}"
-                                        )
-                                    cursor = conn.cursor()
-                                    insert_query = """
-                                    INSERT INTO \
-                                        pfg_schema.stampdata \
-                                            ("DOCUMENT_ID", "DEPTNAME", \
-                                                "RECEIVING_DATE", \
-                                                    "CONFIRMATION_NUMBER",\
-                                                        "RECEIVER", "SELECTED_DEPT",\
-                                                            "storenumber")
-                                                VALUES (%s, %s, %s, %s, %s, %s, %s);
-                                    """
-
-                                    data_to_insert = (
-                                        invoId,
-                                        Department,
-                                        ReceivingDate,
-                                        Confirmation,
-                                        Receiver,
-                                        MarkedDept,
-                                        storenumber,
+                                    db.query(model.Document).filter(
+                                        model.Document.idDocument == invoId
+                                    ).update(
+                                        {
+                                            model.Document.JournalNumber: str(
+                                                Confirmation
+                                            ),  # noqa: E501
+                                            model.Document.dept: str(Department),
+                                            model.Document.store: str(storenumber),
+                                        }
                                     )
-                                    cursor.execute(insert_query, data_to_insert)
-
-                                    conn.commit()
-                                    time.sleep(0.5)
-                                    try:
-                                        # print("in stampdata insertion")
-                                        cur = conn.cursor()
-                                        sql_updateDoc = """
-                                            UPDATE pfg_schema.document
-                                            SET "JournalNumber" = %s,
-                                                "dept" = %s, "store" = %s
-                                            WHERE "idDocument" = %s;
-                                        """
-                                        values = (
-                                            Confirmation,
-                                            Department,
-                                            storenumber,
-                                            invoId,
-                                        )
-                                        cur.execute(sql_updateDoc, values)
-                                        conn.commit()
-                                    except Exception as e:
-                                        logger.error(
-                                            f"stampdata insertion exception: {str(e)}"
-                                        )
-                                        # print('line 372',str(e))
+                                    db.commit()
 
                                 except Exception as e:
+                                    logger.error(f"{traceback.format_exc()}")
                                     logger.error(
                                         f"stampdata insertion exception: {str(e)}"
                                     )
-                                    # db.rollback()
-                            try:
-                                if store_type == "Integrated":
-                                    IntegratedvoucherData(invoId, db)
-                                elif store_type == "Non-Integrated":
-                                    nonIntegratedVoucherData(invoId, db)
-                            except Exception as er:
-                                logger.info(f"VoucherDateException:{er}")
 
-                        #
-                        # except Exception as er:
-                        #     print(str(er))
-                        #     pass
-
-                        # print("event_generator: ", event_generator)
+                                try:
+                                    if store_type == "Integrated":
+                                        IntegratedvoucherData(invoId, db)
+                                    elif store_type == "Non-Integrated":
+                                        nonIntegratedVoucherData(invoId, db)
+                                except Exception as er:
+                                    logger.info(f"VoucherDateException:{er}")
+                                    logger.error(f"{traceback.format_exc()}")
 
                         try:
-                            # cur = conn.cursor()
-                            # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
-                            #           SET "status" = %s, "sender" = %s, \
-                            #             "vendorID" = %s \
-                            #         WHERE "blobpath" = %s; """
-                            # FRvalues = ("Processed", sender, vendorID, spltFileName)
-                            # cur.execute(sql_updateFR, FRvalues)
-                            # conn.commit()
-                            fr_trigger = db.query(model.frtrigger_tab).filter
-                            (model.frtrigger_tab.blobpath == spltFileName)
 
-                            # Step 2: Perform the update operation
-                            fr_trigger.update(
+                            db.query(model.frtrigger_tab).filter(
+                                model.frtrigger_tab.blobpath == spltFileName
+                            ).update(
                                 {
                                     model.frtrigger_tab.status: "Processed",
                                     model.frtrigger_tab.vendorID: vendorID,
-                                }
+                                },
                             )
-
-                            # Step 3: Commit the transaction
                             db.commit()
 
                         except Exception as qw:
-                            logger.info(f"ocr.py line 475: {str(qw)}")
+                            logger.info(f"ocr.py  {str(qw)}")
+                            logger.error(f"{traceback.format_exc()}")
 
                         status = "success"
 
@@ -1044,7 +994,10 @@ def runStatus(
                         logger.info(
                             f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
                         )
+
+                        logger.error(f"{traceback.format_exc()}")
                         status = "fail"
+
                     logger.info("vendor not found!!")
                     try:
                         # cur = conn.cursor()
@@ -1072,6 +1025,7 @@ def runStatus(
                         # Commit the transaction
                         db.commit()
                     except Exception as et:
+                        logger.error(f"{traceback.format_exc()}")
                         try:
                             # cur = conn.cursor()
                             # sql_updateFR_2 = """
@@ -1099,15 +1053,16 @@ def runStatus(
                             db.commit()
                         except Exception as e:
                             print("frtrigger_tab update exception: ", str(e))
+                            logger.error(f"{traceback.format_exc()}")
 
                         logger.error(f"frtrigger_tab update exception: {str(et)}")
 
-                    status = "fail"
+                    status = traceback.format_exc()
                 fl = fl + 1
                 # time.sleep(0.5)
 
-            cursor.close()
-            conn.close()
+            # cursor.close()
+            # conn.close()
         else:
 
             logger.error(f"DI responed error: {fr_model_status, fr_model_msg}")
@@ -1143,39 +1098,57 @@ def runStatus(
                 status = "Error"
 
                 try:
-                    conn = psycopg2.connect(
-                        dbname=settings.db_name,
-                        user=settings.db_user,
-                        password=settings.db_password,
-                        host=settings.db_host,
-                        port=str(settings.db_port),  # Ensure port is a string
-                    )
 
-                    cur = conn.cursor()
-                    sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
-                                SET "status" = %s, "sender" = %s, \
-                                "vendorID" = %s \
-                            WHERE "blobpath" = %s; """
-                    FRvalues = ("PostProcessing Error", sender, vendorID, spltFileName)
-                    cur.execute(sql_updateFR, FRvalues)
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
+                    # Update multiple fields where 'documentid' matches a certain value
+                    db.query(model.frtrigger_tab).filter(
+                        model.frtrigger_tab.blobpath == spltFileName
+                    ).update(
+                        {
+                            model.frtrigger_tab.status: "PostProcessing Error",
+                            model.frtrigger_tab.sender: sender,
+                            model.frtrigger_tab.vendorID: vendorID,
+                        }
+                    )
+                    db.commit()
+
+                    # conn = psycopg2.connect(
+                    #     dbname=settings.db_name,
+                    #     user=settings.db_user,
+                    #     password=settings.db_password,
+                    #     host=settings.db_host,
+                    #     port=str(settings.db_port),  # Ensure port is a string
+                    # )
+
+                    # cur = conn.cursor()
+                    # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
+                    #             SET "status" = %s, "sender" = %s, \
+                    #             "vendorID" = %s \
+                    #         WHERE "blobpath" = %s; """
+                    # FRvalues = ("PostProcessing Error", sender, vendorID,
+                    # spltFileName)
+                    # cur.execute(sql_updateFR, FRvalues)
+                    # conn.commit()
+                    # cursor.close()
+                    # conn.close()
                 except Exception as qw:
-                    logger.info(f"ocr.py line 475: {str(qw)}")
-                    logger.error(f"API exception ocr.py: {traceback.format_exc()}")
-        except Exception:
+                    logger.info(f"ocr.py: {str(qw)}")
+                    logger.error(f"{traceback.format_exc()}")
+        except Exception as err:
+            logger.error(f"ocr.py: {err}")
             logger.error(f" ocr.py: {traceback.format_exc()}")
 
-    except Exception:
+    except Exception as err:
+
         logger.error(f"API exception ocr.py: {traceback.format_exc()}")
-        status = f"{traceback.format_exc()}"
+        logger.error(f"API exception ocr.py: {str(err)}")
+        status = "error: " + str(err)
 
     try:
         pfg_sync(invoId, userID, db)
         logger.info("pfg_sync Done!")
     except Exception as Er:
         logger.info(f"Ocr.py SyncError: {Er}")
+        logger.error(f"{traceback.format_exc()}")
 
     return status
 
@@ -1191,22 +1164,26 @@ def nomodelfound():
 
 
 def getModelData(vendorAccountID, db):
-    modelDetails = []
-    modelData = (
-        db.query(model.DocumentModel)
-        .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
-        .order_by(model.DocumentModel.UpdatedOn)
-        .all()
-    )
-    # print("modelData line 403: ", modelData)
-    reqModel = None
-    for m in modelData:
-        if m.modelID is not None and m.modelID != "":
-            reqModel = m
-            modelDetails.append(
-                {"IdDocumentModel": m.idDocumentModel, "modelName": m.modelName}
-            )
-    return reqModel, modelDetails
+    try:
+        modelDetails = []
+        modelData = (
+            db.query(model.DocumentModel)
+            .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
+            .order_by(model.DocumentModel.UpdatedOn)
+            .all()
+        )
+        # print("modelData line 403: ", modelData)
+        reqModel = None
+        for m in modelData:
+            if m.modelID is not None and m.modelID != "":
+                reqModel = m
+                modelDetails.append(
+                    {"IdDocumentModel": m.idDocumentModel, "modelName": m.modelName}
+                )
+        return reqModel, modelDetails
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        return None
 
 
 def getEntityData(vendorAccountID, db):
@@ -1222,16 +1199,20 @@ def getEntityData(vendorAccountID, db):
 
 
 def getMetaData(vendorAccountID, db):
-    metadata = (
-        db.query(model.FRMetaData)
-        .join(
-            model.DocumentModel,
-            model.FRMetaData.idInvoiceModel == model.DocumentModel.idDocumentModel,
+    try:
+        metadata = (
+            db.query(model.FRMetaData)
+            .join(
+                model.DocumentModel,
+                model.FRMetaData.idInvoiceModel == model.DocumentModel.idDocumentModel,
+            )
+            .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
+            .first()
         )
-        .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
-        .first()
-    )
-    return metadata
+        return metadata
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        return None
 
 
 def getRuleData(idDocumentModel, db):
@@ -1443,6 +1424,7 @@ def live_model_fn_1(generatorObj):
                     db.add(data_switch_)
                     db.commit()
                 except Exception as ep:
+                    logger.error(f"{traceback.format_exc()}")
                     logger.error(f"ocr.py line 594: exception:{str(ep)}")
                     # {"DB error": "Error while inserting data"}
 
@@ -1581,6 +1563,7 @@ def push_frdata(
         db.add(db_data)
         db.commit()
     except Exception as e:
+        logger.error(f"{traceback.format_exc()}")
         db.rollback()
         if "Incorrect datetime value" in str(e):
             invoice_data["documentDate"] = None
@@ -1590,6 +1573,7 @@ def push_frdata(
             db.add(db_data)
             db.commit()
         except Exception as e:
+            logger.error(f"{traceback.format_exc()}")
             db.rollback()
             if "for column 'docheaderID'" in str(e):
                 invoice_data["docheaderID"] = ""
@@ -1598,6 +1582,7 @@ def push_frdata(
                 db.add(db_data)
                 db.commit()
             except Exception as e:
+                logger.error(f"{traceback.format_exc()}")
                 db.rollback()
                 if "for column 'PODocumentID'" in str(e):
                     invoice_data["PODocumentID"] = ""
@@ -1607,6 +1592,7 @@ def push_frdata(
                     db.add(db_data)
                     db.commit()
                 except Exception as e:
+                    logger.error(f"{traceback.format_exc()}")
                     db.rollback()
                     if "for column 'totalAmount'" in str(e):
                         invoice_data["totalAmount"] = None
@@ -1654,10 +1640,17 @@ def parse_labels(label_data, db, poNumber, modelID):
                 db_data["Value"] = poNumber
             else:
                 db_data["Value"] = label["data"]["value"]
-            if label["data"]["confidence"]:
-                db_data["Fuzzy_scr"] = label["data"]["confidence"]
-            else:
-                db_data["Fuzzy_scr"] = "0"
+            try:
+                if "prebuilt_confidence" in label["data"] and label["data"]["prebuilt_confidence"] != "":
+                    db_data["Fuzzy_scr"] = label["data"]["prebuilt_confidence"]
+                else:
+                    db_data["Fuzzy_scr"] = "0.0"
+                if "custom_confidence" in label["data"] and label["data"]["custom_confidence"] != "":
+                    db_data["Fuzzy_scr"] = label["data"]["custom_confidence"]
+                else:
+                    db_data["Fuzzy_scr"] = "0.0"
+            except Exception:
+                db_data["Fuzzy_scr"] = "0.0"
             db_data["IsUpdated"] = 0
             if label["status"] == 1:
                 db_data["isError"] = 0
@@ -1686,9 +1679,16 @@ def parse_tabel(tabel_data, db, modelID):
         for col in row:
             db_data = {}
             db_data["Value"] = col["data"]
-            if col["data"]["confidence"]:
-                db_data["Fuzzy_scr"] = col["data"]["confidence"]
-            else:
+            try:
+                if "prebuilt_confidence" in col["data"] and col["data"]["prebuilt_confidence"] != "":
+                    db_data["Fuzzy_scr"] = col["data"]["prebuilt_confidence"]
+                else:
+                    db_data["Fuzzy_scr"] = "0.0"
+                if "custom_confidence" in col["data"] and col["data"]["custom_confidence"] != "":
+                    db_data["Fuzzy_scr"] = col["data"]["custom_confidence"]
+                else:
+                    db_data["Fuzzy_scr"] = "0.0"
+            except Exception:
                 db_data["Fuzzy_scr"] = "0"
             db_data["lineItemtagID"] = get_lineitemTagId(db, col["tag"], modelID)
             if "status" in col:
@@ -1724,16 +1724,20 @@ def get_lineitemTagId(db, item, modelID):
 
 
 def get_labelId(db, item, modelID):
-    result = (
-        db.query(model.DocumentTagDef)
-        .filter(
-            model.DocumentTagDef.TagLabel == item,
-            model.DocumentTagDef.idDocumentModel == modelID,
+    try:
+        result = (
+            db.query(model.DocumentTagDef)
+            .filter(
+                model.DocumentTagDef.TagLabel == item,
+                model.DocumentTagDef.idDocumentModel == modelID,
+            )
+            .first()
         )
-        .first()
-    )
-    if result is not None:
-        return result.idDocumentTagDef
+        if result is not None:
+            return result.idDocumentTagDef
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        return None
 
 
 def update_docHistory(documentID, userID, documentstatus, documentdesc, db):

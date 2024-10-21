@@ -32,6 +32,10 @@ async def read_paginate_doc_inv_list_with_ln_item(
             "exception",
             "VendorNotOnboarded",
             "VendorUnidentified",
+            "QuickInvoice",
+            "RecycledInvoice",
+            "VoucherCreated",
+            "VoucherNotFound",
         ]
     ] = None,
     offset: int = 1,
@@ -413,25 +417,57 @@ async def update_rejected_invoice_status(
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
 ):
-    """API route to update the column position for a user.
+    """API route to update the status of a rejected invoice.
 
     Parameters:
     ----------
-    bg_task : BackgroundTasks
-        Background task manager for handling asynchronous tasks.
-    col_data : List[columnpos]
-        Body parameter containing a list of column positions
-        represented as a Pydantic model.
+    inv_id : int
+        The ID of the invoice to update the status for.
+    reason : str
+        The reason for rejecting the invoice.
     db : Session
         Database session object used to interact with the backend database.
-    user : Depends(get_user)
-        User object retrieved from the authentication system
-        to identify the user making the request.
+    user : AzureUser
+        User object retrieved from the authentication system, used to identify the
+        user making the request.
 
     Returns:
     -------
     dict
-        A dictionary containing the result of the update operation,
-        indicating success or failure.
+        A response indicating the success or failure of the operation.
     """
     return await crud.reject_invoice(user.idUser, inv_id, reason, db)
+
+
+# Checked (new) - used in the frontend
+@router.get("/readSplitDocdata")
+async def read_splitdoc_data(
+    offset: int = 1,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """API route to retrieve a paginated list of invoice documents with line
+    item details as optional when filters is applied  .
+
+    Parameters:
+    ----------
+
+    offset : int
+        The page number for pagination (default is 1).
+
+    limit : int
+        Number of records per page (default is 10).
+
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of invoice documents filtered and paginated according to the input parameters.
+    """
+
+    docs = await crud.get_all_splitdoc_and_frtrigger_data(
+        user.idUser, (offset, limit), db
+    )
+    return docs

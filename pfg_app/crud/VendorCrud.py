@@ -14,7 +14,7 @@ tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
 tz_region = tz.timezone(tz_region_name)
 
 
-async def readvendorname(u_id, db):
+async def readvendorname(db):
     """This function read list of VendorNames.
 
     It contains 2 parameter.
@@ -41,9 +41,7 @@ async def readvendorname(u_id, db):
         db.close()
 
 
-async def readpaginatedvendorlist(
-    u_id, vendor_type, db, off_limit, api_filter, ven_status
-):
+async def readpaginatedvendorlist(vendor_type, db, off_limit, api_filter, ven_status):
     """Reads a list of Vendors based on the provided user ID and filtering
     criteria.
 
@@ -243,7 +241,7 @@ async def readpaginatedvendorlist(
         db.close()
 
 
-async def readvendorlist(u_id, vendor_type, db, api_filter, ven_status):
+async def readvendorlist(vendor_type, db, api_filter, ven_status):
     """Reads a list of Vendors based on the provided user ID and filtering
     criteria.
 

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
+# from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.crud import ERPIntegrationCrud as crud
 from pfg_app.schemas.ERPIntegrationSchema import (
@@ -158,6 +159,34 @@ async def create_invoice_voucher(inv_id: int, db: Session = Depends(get_db)):
     try:
         # Process the request using the mock CRUD function
         response = crud.processInvoiceVoucher(inv_id, db)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# API endpoint to handle the invoice status request
+@router.post(
+    "/bulkupdateinvoicestatus",
+    # response_model=InvoiceResponse
+)
+async def bulk_update_invoice_status(db: Session = Depends(get_db)):
+    try:
+        # Process the request using the mock CRUD function
+        response = crud.newbulkupdateInvoiceStatus(db)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# API endpoint to handle the invoice status request
+@router.post(
+    "/bulkprocessvoucherdata",
+    # response_model=InvoiceResponse
+)
+async def bulk_process_voucher_data(db: Session = Depends(get_db)):
+    try:
+        # Process the request using the mock CRUD function
+        response = crud.bulkProcessVoucherData(db)
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
