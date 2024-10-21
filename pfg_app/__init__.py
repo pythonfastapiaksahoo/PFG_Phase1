@@ -64,6 +64,7 @@ if settings.build_type != "debug":
             try:
                 result = future.result()
                 key_vault_secrets.append(result)
+                print(result)
 
                 # Assign the secret to the settings object
                 setattr(settings, result["settings_key"], result["secret"])
