@@ -34,7 +34,7 @@ from pfg_app import settings
 #         Worker PID: %(worker_pid)s - %(trace_id)s - %(message)s"
 # )
 handler = AzureLogHandler(
-    connection_string=settings.application_insights_instrumentation_key
+    connection_string=settings.application_insights_connection_string
 )
 # handler.setFormatter(formatter)
 # handler.addFilter(trace_id_filter)
