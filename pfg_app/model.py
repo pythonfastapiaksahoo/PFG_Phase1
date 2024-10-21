@@ -69,12 +69,12 @@ class DocumentModel(Base):
     # document_model = relationship("DocumentModel", back_populates="document_tags")
 
 
-# class DocumentType(Base):
-#     __tablename__ = "documenttype"
+class DocumentType(Base):
+    __tablename__ = "documenttype"
 
-#     idDocumentType = Column(Integer, primary_key=True, index=True)
-#     Name = Column(String(45), nullable=True)
-#     CreatedOn = Column(DateTime, nullable=True)
+    idDocumentType = Column(Integer, primary_key=True, index=True)
+    Name = Column(String(45), nullable=True)
+    CreatedOn = Column(DateTime, nullable=True)
 
     # __mapper_args__ = {"eager_defaults": True}
 
@@ -129,13 +129,13 @@ class Document(Base):
     # __mapper_args__ = {"eager_defaults": True}
 
 
-# class DocumentStatus(Base):
-#     __tablename__ = "documentstatus"
+class DocumentStatus(Base):
+    __tablename__ = "documentstatus"
 
-#     idDocumentstatus = Column(Integer, primary_key=True, index=True)
-#     status = Column(String(45), nullable=True)
-#     description = Column(String(100), nullable=True)
-#     createdOn = Column(DateTime, nullable=True)
+    idDocumentstatus = Column(Integer, primary_key=True, index=True)
+    status = Column(String(45), nullable=True)
+    description = Column(String(100), nullable=True)
+    createdOn = Column(DateTime, nullable=True)
 
     # __mapper_args__ = {"eager_defaults": True}
 
@@ -216,29 +216,29 @@ class DocumentUpdates(Base):
 # creating class to load DocumentStage table
 
 
-# class DocumentStage(Base):
-#     __tablename__ = "documentstage"
+class DocumentStage(Base):
+    __tablename__ = "documentstage"
 
-#     idDocumentStage = Column(Integer, primary_key=True, autoincrement=True)
-#     Stage = Column(String(45), nullable=True)
-#     CreatedOn = Column(DateTime(timezone=True), nullable=True)
+    idDocumentStage = Column(Integer, primary_key=True, autoincrement=True)
+    Stage = Column(String(45), nullable=True)
+    CreatedOn = Column(DateTime(timezone=True), nullable=True)
 
 
 # creating class to load DocumentTableDef table
 
 
-# class DocumentTableDef(Base):
-#     __tablename__ = "documenttabledef"
+class DocumentTableDef(Base):
+    __tablename__ = "documenttabledef"
 
-#     idDocumentTableDef = Column(Integer, primary_key=True, autoincrement=True)
-#     documentID = Column(Integer, ForeignKey("document.idDocument"), nullable=True)
-#     Xcord = Column(String(45), nullable=True)
-#     Ycord = Column(String(45), nullable=True)
-#     Width = Column(String(45), nullable=True)
-#     Height = Column(String(45), nullable=True)
-#     CreatedOn = Column(DateTime(timezone=True), nullable=True)
-#     UpdatedOn = Column(DateTime(timezone=True), nullable=True)
-#     updatedBy = Column(Integer, ForeignKey("user.idUser"), nullable=True)
+    idDocumentTableDef = Column(Integer, primary_key=True, autoincrement=True)
+    documentID = Column(Integer, ForeignKey("document.idDocument"), nullable=True)
+    Xcord = Column(String(45), nullable=True)
+    Ycord = Column(String(45), nullable=True)
+    Width = Column(String(45), nullable=True)
+    Height = Column(String(45), nullable=True)
+    CreatedOn = Column(DateTime(timezone=True), nullable=True)
+    UpdatedOn = Column(DateTime(timezone=True), nullable=True)
+    updatedBy = Column(Integer, ForeignKey("user.idUser"), nullable=True)
 
     # document = relationship("Document", back_populates="document_table_defs")
     # user = relationship("User", back_populates="document_table_defs")
@@ -327,11 +327,11 @@ class DocumentHistoryLogs(Base):
 # creating class to load customer table
 
 
-# class Customer(Base):
-#     __tablename__ = "customer"
+class Customer(Base):
+    __tablename__ = "customer"
 
-#     idCustomer = Column(Integer, primary_key=True, index=True)
-#     CustomerName = Column(String(90), nullable=True)
+    idCustomer = Column(Integer, primary_key=True, index=True)
+    CustomerName = Column(String(90), nullable=True)
 
     # __mapper_args__ = {"eager_defaults": True}
 
@@ -339,12 +339,12 @@ class DocumentHistoryLogs(Base):
 # creating class to load entitytype table
 
 
-# class EntityType(Base):
-#     __tablename__ = "entitytype"
+class EntityType(Base):
+    __tablename__ = "entitytype"
 
-#     idEntityType = Column(Integer, primary_key=True, index=True)
-#     TypeofEntity = Column(String(45), nullable=True)
-#     CreatedOn = Column(DateTime, nullable=True)
+    idEntityType = Column(Integer, primary_key=True, index=True)
+    TypeofEntity = Column(String(45), nullable=True)
+    CreatedOn = Column(DateTime, nullable=True)
 
     # entity = relationship("Entity", back_populates="entity_type")
 
@@ -378,12 +378,12 @@ class Entity(Base):
 # creating class to load entitybodytype table
 
 
-# class EntityBodyType(Base):
-#     __tablename__ = "entitybodytype"
+class EntityBodyType(Base):
+    __tablename__ = "entitybodytype"
 
-#     idEntityBodyType = Column(Integer, primary_key=True, index=True)
-#     TypeofEntityBody = Column(String(45), nullable=True)
-#     CreatedOn = Column(DateTime, nullable=True)
+    idEntityBodyType = Column(Integer, primary_key=True, index=True)
+    TypeofEntityBody = Column(String(45), nullable=True)
+    CreatedOn = Column(DateTime, nullable=True)
 
     # __mapper_args__ = {"eager_defaults": True}
 
@@ -391,18 +391,18 @@ class Entity(Base):
 # creating class to load entitybody table
 
 
-# class EntityBody(Base):
-#     __tablename__ = "entitybody"
+class EntityBody(Base):
+    __tablename__ = "entitybody"
 
-#     idEntityBody = Column(Integer, primary_key=True, index=True)
-#     EntityBodyName = Column(String(150), nullable=True)
-#     EntityCode = Column(String(45), nullable=True)
-#     Address = Column(String(100), nullable=True)
-#     LocationCode = Column(String(45), nullable=True)
-#     City = Column(String(45), nullable=True)
-#     Country = Column(String(45), nullable=True)
-#     entityID = Column(Integer, ForeignKey("entity.idEntity"))
-#     entityBodyTypeID = Column(Integer, ForeignKey("entitybodytype.idEntityBodyType"))
+    idEntityBody = Column(Integer, primary_key=True, index=True)
+    EntityBodyName = Column(String(150), nullable=True)
+    EntityCode = Column(String(45), nullable=True)
+    Address = Column(String(100), nullable=True)
+    LocationCode = Column(String(45), nullable=True)
+    City = Column(String(45), nullable=True)
+    Country = Column(String(45), nullable=True)
+    entityID = Column(Integer, ForeignKey("entity.idEntity"))
+    entityBodyTypeID = Column(Integer, ForeignKey("entitybodytype.idEntityBodyType"))
 
     # __mapper_args__ = {"eager_defaults": True}
 
@@ -455,25 +455,25 @@ class UserAccess(Base):
 
 
 # to store the login table
-# class LoginInfoLog(Base):
-#     __tablename__ = "login_info_log"
+class LoginInfoLog(Base):
+    __tablename__ = "login_info_log"
 
-#     idlogininfo = Column(Integer, primary_key=True, autoincrement=True)
-#     userID = Column(SmallInteger, ForeignKey("user.idUser"), nullable=False)
-#     loginDate = Column(DateTime, nullable=False)
+    idlogininfo = Column(Integer, primary_key=True, autoincrement=True)
+    userID = Column(SmallInteger, ForeignKey("user.idUser"), nullable=False)
+    loginDate = Column(DateTime, nullable=False)
 
     # # Relationship to User table for ORM purposes
     # user = relationship('User', back_populates='login_logs')
 
 
 # to store the otp and expiry date
-# class Otp_Code(Base):
-#     __tablename__ = "password_otp"
+class Otp_Code(Base):
+    __tablename__ = "password_otp"
 
-#     idpassword_otp = Column(Integer, primary_key=True, autoincrement=True)
-#     password_otpcolcode = Column(String(6), nullable=True)
-#     password_otp_userid = Column(SmallInteger, ForeignKey("user.idUser"), nullable=True)
-#     expDate = Column(DateTime, nullable=True)
+    idpassword_otp = Column(Integer, primary_key=True, autoincrement=True)
+    password_otpcolcode = Column(String(6), nullable=True)
+    password_otp_userid = Column(SmallInteger, ForeignKey("user.idUser"), nullable=True)
+    expDate = Column(DateTime, nullable=True)
 
     # # Relationship to User table for ORM purposes
     # user = relationship('User', back_populates='otp_codes')
@@ -648,52 +648,52 @@ class ServiceProviderSchedule(Base):
 
 
 # BatchTriggerHistory Table
-# class BatchTriggerHistory(Base):
-#     __tablename__ = "batchprocesshistory"
+class BatchTriggerHistory(Base):
+    __tablename__ = "batchprocesshistory"
 
-#     idbatchprocesshistory = Column(Integer, primary_key=True, autoincrement=True)
-#     batchProcessType = Column(Integer, nullable=True)
-#     started_by = Column(Integer, nullable=True)
-#     entityID = Column(Integer, ForeignKey("entity.idEntity"), nullable=True)
-#     status = Column(String(45), nullable=True)
-#     uniqueID = Column(String(45), nullable=True)
-#     started_on = Column(DateTime, nullable=True)
-#     compeleted_on = Column(DateTime, nullable=True)
+    idbatchprocesshistory = Column(Integer, primary_key=True, autoincrement=True)
+    batchProcessType = Column(Integer, nullable=True)
+    started_by = Column(Integer, nullable=True)
+    entityID = Column(Integer, ForeignKey("entity.idEntity"), nullable=True)
+    status = Column(String(45), nullable=True)
+    uniqueID = Column(String(45), nullable=True)
+    started_on = Column(DateTime, nullable=True)
+    compeleted_on = Column(DateTime, nullable=True)
 
 
 # AccountCostAllocation Table
-# class AccountCostAllocation(Base):
-#     __tablename__ = "accountcostallocation"
+class AccountCostAllocation(Base):
+    __tablename__ = "accountcostallocation"
 
-#     idAccountCostAllocation = Column(Integer, primary_key=True, index=True)
-#     accountID = Column(Integer, ForeignKey("vendor.idVendor"), nullable=False)
-#     venAccountID = Column(String(100), nullable=True)
-#     entityID = Column(Integer, ForeignKey("entity.idEntity"), nullable=False)
-#     entityBodyID = Column(
-#         Integer, ForeignKey("entitybody.idEntityBody"), nullable=False
-#     )
-#     interco = Column(String(45), nullable=True)
-#     departmentID = Column(
-#         Integer, ForeignKey("department.idDepartment"), nullable=False
-#     )
-#     description = Column(String(255), nullable=True)
-#     mainAccount = Column(String(255), nullable=True)
-#     locationCode = Column(String(45), nullable=True)
-#     naturalAccountWater = Column(String(45), nullable=True)
-#     naturalAccountHousing = Column(String(45), nullable=True)
-#     costCenter = Column(String(45), nullable=True)
-#     product = Column(String(45), nullable=True)
-#     project = Column(String(45), nullable=True)
-#     elementFactor = Column(Integer, nullable=True)
-#     Element = Column(String(200), nullable=True)
-#     segments = Column(String(100), nullable=True)
-#     bsMovements = Column(String(100), nullable=True)
-#     fixedAssetDepartment = Column(String(100), nullable=True)
-#     fixedAssetGroup = Column(String(100), nullable=True)
-#     isactive_Alloc = Column(Integer)
-#     CreatedOn = Column(DateTime, nullable=True)
-#     UpdatedOn = Column(DateTime, nullable=True)
-#     new_columns = Column(JSON, nullable=True)
+    idAccountCostAllocation = Column(Integer, primary_key=True, index=True)
+    accountID = Column(Integer, ForeignKey("vendor.idVendor"), nullable=False)
+    venAccountID = Column(String(100), nullable=True)
+    entityID = Column(Integer, ForeignKey("entity.idEntity"), nullable=False)
+    entityBodyID = Column(
+        Integer, ForeignKey("entitybody.idEntityBody"), nullable=False
+    )
+    interco = Column(String(45), nullable=True)
+    departmentID = Column(
+        Integer, ForeignKey("department.idDepartment"), nullable=False
+    )
+    description = Column(String(255), nullable=True)
+    mainAccount = Column(String(255), nullable=True)
+    locationCode = Column(String(45), nullable=True)
+    naturalAccountWater = Column(String(45), nullable=True)
+    naturalAccountHousing = Column(String(45), nullable=True)
+    costCenter = Column(String(45), nullable=True)
+    product = Column(String(45), nullable=True)
+    project = Column(String(45), nullable=True)
+    elementFactor = Column(Integer, nullable=True)
+    Element = Column(String(200), nullable=True)
+    segments = Column(String(100), nullable=True)
+    bsMovements = Column(String(100), nullable=True)
+    fixedAssetDepartment = Column(String(100), nullable=True)
+    fixedAssetGroup = Column(String(100), nullable=True)
+    isactive_Alloc = Column(Integer)
+    CreatedOn = Column(DateTime, nullable=True)
+    UpdatedOn = Column(DateTime, nullable=True)
+    new_columns = Column(JSON, nullable=True)
 
 
 #     __mapper_args__ = {"eager_defaults": True}
@@ -797,11 +797,11 @@ class AccessPermissionType(Base):
 
 
 # AmountApproveLevel Table
-# class AmountApproveLevel(Base):
-#     __tablename__ = "amountapprovelevel"
+class AmountApproveLevel(Base):
+    __tablename__ = "amountapprovelevel"
 
-#     idAmountApproveLevel = Column(Integer, primary_key=True, index=True)
-#     MaxAmount = Column(Integer, nullable=True)
+    idAmountApproveLevel = Column(Integer, primary_key=True, index=True)
+    MaxAmount = Column(Integer, nullable=True)
 
 
 #
@@ -899,18 +899,18 @@ class FRMetaData(Base):
 # OCR Log Table
 
 
-# class OCRlogs(Base):
-#     __tablename__ = "ocrlogs"
+class OCRlogs(Base):
+    __tablename__ = "ocrlogs"
 
-#     idOCRlogs = Column(Integer, primary_key=True, autoincrement=True)
-#     documentId = Column(Integer, ForeignKey("document.idDocument"), nullable=True)
-#     labelType = Column(String(45), nullable=True)
-#     predictedValue = Column(String(45), nullable=True)
-#     editedValue = Column(String(45), nullable=True)
-#     accuracy = Column(String(45), nullable=True)
-#     editedOn = Column(String(45), nullable=True)
-#     frModelID = Column(String(45), nullable=True)
-#     errorFlag = Column(Integer, nullable=True)
+    idOCRlogs = Column(Integer, primary_key=True, autoincrement=True)
+    documentId = Column(Integer, ForeignKey("document.idDocument"), nullable=True)
+    labelType = Column(String(45), nullable=True)
+    predictedValue = Column(String(45), nullable=True)
+    editedValue = Column(String(45), nullable=True)
+    accuracy = Column(String(45), nullable=True)
+    editedOn = Column(String(45), nullable=True)
+    frModelID = Column(String(45), nullable=True)
+    errorFlag = Column(Integer, nullable=True)
 
     # # Relationship to Document table for ORM purposes
     # document = relationship('Document', back_populates='ocr_logs')
@@ -940,20 +940,20 @@ class UserItemMapping(Base):
 # Application General config
 
 
-# class GeneralConfig(Base):
-#     __tablename__ = "generalconfig"
+class GeneralConfig(Base):
+    __tablename__ = "generalconfig"
 
-#     idgeneralconfig = Column(Integer, primary_key=True, autoincrement=True)
-#     customerID = Column(SmallInteger, nullable=True)
-#     isRoleBased = Column(SmallInteger, nullable=True)
-#     delayednotification = Column(SmallInteger, nullable=True)
-#     serviceBatchConf = Column(JSON, primary_key=True, autoincrement=True)
-#     vendorBatchConf = Column(JSON, nullable=True)
-#     itemMetaDataConf = Column(JSON, nullable=True)
-#     updatedBy = Column(Integer, nullable=True)
-#     createdON = Column(DateTime, nullable=True)
-#     UpdatedOn = Column(DateTime, nullable=True)
-#     isApprovalEnabled = Column(Integer, nullable=True)
+    idgeneralconfig = Column(Integer, primary_key=True, autoincrement=True)
+    customerID = Column(SmallInteger, nullable=True)
+    isRoleBased = Column(SmallInteger, nullable=True)
+    delayednotification = Column(SmallInteger, nullable=True)
+    serviceBatchConf = Column(JSON, primary_key=True, autoincrement=True)
+    vendorBatchConf = Column(JSON, nullable=True)
+    itemMetaDataConf = Column(JSON, nullable=True)
+    updatedBy = Column(Integer, nullable=True)
+    createdON = Column(DateTime, nullable=True)
+    UpdatedOn = Column(DateTime, nullable=True)
+    isApprovalEnabled = Column(Integer, nullable=True)
 
 
 # documentRules data
@@ -973,15 +973,15 @@ class Rule(Base):
 #     __mapper_args__ = {"eager_defaults": True}
 
 
-# class PFGRule(Base):
-#     __tablename__ = "erprulecodes"
+class PFGRule(Base):
+    __tablename__ = "erprulecodes"
 
-#     iderprules = Column(Integer, primary_key=True, index=True)
-#     Name = Column(String(45), nullable=True)
-#     description = Column(String(255), nullable=True)
-#     category = Column(String(45), nullable=True)
-#     IsActive = Column(Integer, nullable=True)
-#     createdOn = Column(DateTime, nullable=True)
+    iderprules = Column(Integer, primary_key=True, index=True)
+    Name = Column(String(45), nullable=True)
+    description = Column(String(255), nullable=True)
+    category = Column(String(45), nullable=True)
+    IsActive = Column(Integer, nullable=True)
+    createdOn = Column(DateTime, nullable=True)
 
 
 class DocumentSubStatus(Base):
@@ -998,14 +998,14 @@ class DocumentSubStatus(Base):
 #     __mapper_args__ = {"eager_defaults": True}
 
 
-# class DocumentRulemapping(Base):
-#     __tablename__ = "docrulestatusmapping"
+class DocumentRulemapping(Base):
+    __tablename__ = "docrulestatusmapping"
 
-#     iddocrulestatusmapping = Column(Integer, primary_key=True, index=True)
-#     DocumentstatusID = Column(Integer, ForeignKey("documentstatus.idDocumentstatus"))
-#     DocumentRulesID = Column(Integer, ForeignKey("documentrules.idDocumentRules"))
-#     createdOn = Column(DateTime, nullable=True)
-#     statusorder = Column(Integer, nullable=True)
+    iddocrulestatusmapping = Column(Integer, primary_key=True, index=True)
+    DocumentstatusID = Column(Integer, ForeignKey("documentstatus.idDocumentstatus"))
+    DocumentRulesID = Column(Integer, ForeignKey("documentrules.idDocumentRules"))
+    createdOn = Column(DateTime, nullable=True)
+    statusorder = Column(Integer, nullable=True)
 
 
 class DocumentRuleupdates(Base):
@@ -1038,41 +1038,41 @@ class DocumentModelComposed(Base):
 # notification Models
 
 
-# class NotificationPriority(Base):
-#     __tablename__ = "notificationpriority"
+class NotificationPriority(Base):
+    __tablename__ = "notificationpriority"
 
-#     idNotificationPriority = Column(Integer, primary_key=True, autoincrement=True)
-#     notificationPriority = Column(String(45), nullable=False)
-#     CreatedOn = Column(DateTime, nullable=True)
-#     UpdatedOn = Column(DateTime, nullable=True)
-
-
-# class NotificationType(Base):
-#     __tablename__ = "notificationtype"
-
-#     idNotificationType = Column(Integer, primary_key=True, autoincrement=True)
-#     notificationtype = Column(String(45), nullable=False)
-#     CreatedOn = Column(DateTime, nullable=True)
-#     UpdatedOn = Column(DateTime, nullable=True)
+    idNotificationPriority = Column(Integer, primary_key=True, autoincrement=True)
+    notificationPriority = Column(String(45), nullable=False)
+    CreatedOn = Column(DateTime, nullable=True)
+    UpdatedOn = Column(DateTime, nullable=True)
 
 
-# class PullNotification(Base):
-#     __tablename__ = "pullnotification"
+class NotificationType(Base):
+    __tablename__ = "notificationtype"
 
-#     idPullNotification = Column(Integer, primary_key=True, autoincrement=True)
-#     userID = Column(SmallInteger, ForeignKey("user.idUser"), nullable=True)
-#     notificationPriorityID = Column(
-#         Integer,
-#         ForeignKey("notificationpriority.idNotificationPriority"),
-#         nullable=True,
-#     )
-#     notificationTypeID = Column(
-#         Integer, ForeignKey("notificationtype.idNotificationType"), nullable=True
-#     )
-#     notificationMessage = Column(String(180), nullable=True)
-#     delayby = Column(DateTime, nullable=True)
-#     isSeen = Column(Boolean, default=False)
-#     CreatedOn = Column(DateTime, nullable=True)
+    idNotificationType = Column(Integer, primary_key=True, autoincrement=True)
+    notificationtype = Column(String(45), nullable=False)
+    CreatedOn = Column(DateTime, nullable=True)
+    UpdatedOn = Column(DateTime, nullable=True)
+
+
+class PullNotification(Base):
+    __tablename__ = "pullnotification"
+
+    idPullNotification = Column(Integer, primary_key=True, autoincrement=True)
+    userID = Column(SmallInteger, ForeignKey("user.idUser"), nullable=True)
+    notificationPriorityID = Column(
+        Integer,
+        ForeignKey("notificationpriority.idNotificationPriority"),
+        nullable=True,
+    )
+    notificationTypeID = Column(
+        Integer, ForeignKey("notificationtype.idNotificationType"), nullable=True
+    )
+    notificationMessage = Column(String(180), nullable=True)
+    delayby = Column(DateTime, nullable=True)
+    isSeen = Column(Boolean, default=False)
+    CreatedOn = Column(DateTime, nullable=True)
 
     # # Relationships to the referenced tables for ORM purposes
     # user = relationship('User', back_populates='pull_notifications')
@@ -1082,30 +1082,30 @@ class DocumentModelComposed(Base):
     # back_populates='pull_notifications')
 
 
-# class PullNotificationTemplate(Base):
-#     __tablename__ = "pullnotificationtemplate"
+class PullNotificationTemplate(Base):
+    __tablename__ = "pullnotificationtemplate"
 
-#     idPullNotificationTemplate = Column(Integer, primary_key=True, autoincrement=True)
-#     templateHeading = Column(String(180), nullable=True)
-#     templateMessage = Column(String(180), nullable=True)
-#     notificationTypeID = Column(
-#         Integer, ForeignKey("notificationtype.idNotificationType"), nullable=True
-#     )
-#     notificationPriorityID = Column(
-#         Integer,
-#         ForeignKey("notificationpriority.idNotificationPriority"),
-#         nullable=True,
-#     )
-#     triggerDescriptionID = Column(
-#         Integer, ForeignKey("triggerdescription.idTriggerDescription"), nullable=True
-#     )
-#     notification_on_off = Column(Boolean, default=True)
-#     notificationCategory = Column(SmallInteger, nullable=True)
-#     message_type = Column(Integer, nullable=True)
-#     subject = Column(String(180), nullable=True)
-#     CustomerID = Column(SmallInteger, ForeignKey("customer.idCustomer"), nullable=True)
-#     CreatedOn = Column(DateTime, nullable=True)
-#     UpdatedOn = Column(DateTime, nullable=True)
+    idPullNotificationTemplate = Column(Integer, primary_key=True, autoincrement=True)
+    templateHeading = Column(String(180), nullable=True)
+    templateMessage = Column(String(180), nullable=True)
+    notificationTypeID = Column(
+        Integer, ForeignKey("notificationtype.idNotificationType"), nullable=True
+    )
+    notificationPriorityID = Column(
+        Integer,
+        ForeignKey("notificationpriority.idNotificationPriority"),
+        nullable=True,
+    )
+    triggerDescriptionID = Column(
+        Integer, ForeignKey("triggerdescription.idTriggerDescription"), nullable=True
+    )
+    notification_on_off = Column(Boolean, default=True)
+    notificationCategory = Column(SmallInteger, nullable=True)
+    message_type = Column(Integer, nullable=True)
+    subject = Column(String(180), nullable=True)
+    CustomerID = Column(SmallInteger, ForeignKey("customer.idCustomer"), nullable=True)
+    CreatedOn = Column(DateTime, nullable=True)
+    UpdatedOn = Column(DateTime, nullable=True)
 
     # # Relationships to the referenced tables for ORM purposes
     # notification_type = relationship('NotificationType',
@@ -1117,32 +1117,32 @@ class DocumentModelComposed(Base):
     # user = relationship('User', back_populates='pull_notification_templates')
 
 
-# class NotificationCategoryRecipient(Base):
-#     __tablename__ = "notificationrecipents"
+class NotificationCategoryRecipient(Base):
+    __tablename__ = "notificationrecipents"
 
-#     idnotificationrecipents = Column(Integer, primary_key=True, autoincrement=True)
-#     entityID = Column(Integer, ForeignKey("entity.idEntity"), nullable=True)
-#     isDefaultRecepients = Column(SmallInteger, nullable=True)
-#     notificationTypeID = Column(
-#         Integer, ForeignKey("notificationtype.idNotificationType"), nullable=True
-#     )
-#     notificationrecipient = Column(JSON, nullable=True)
-#     roles = Column(JSON, nullable=True)
-#     updated_by = Column(Integer, nullable=True)
-#     CreatedOn = Column(DateTime, nullable=True)
-#     UpdatedOn = Column(DateTime, nullable=True)
+    idnotificationrecipents = Column(Integer, primary_key=True, autoincrement=True)
+    entityID = Column(Integer, ForeignKey("entity.idEntity"), nullable=True)
+    isDefaultRecepients = Column(SmallInteger, nullable=True)
+    notificationTypeID = Column(
+        Integer, ForeignKey("notificationtype.idNotificationType"), nullable=True
+    )
+    notificationrecipient = Column(JSON, nullable=True)
+    roles = Column(JSON, nullable=True)
+    updated_by = Column(Integer, nullable=True)
+    CreatedOn = Column(DateTime, nullable=True)
+    UpdatedOn = Column(DateTime, nullable=True)
 
 
-# class TriggerDescription(Base):
-#     __tablename__ = "triggerdescription"
+class TriggerDescription(Base):
+    __tablename__ = "triggerdescription"
 
-#     idTriggerDescription = Column(Integer, primary_key=True, autoincrement=True)
-#     triggerOriginName = Column(String(50), nullable=False)
-#     triggerDescription = Column(String(100), nullable=True)
-#     triggerExceptionCode = Column(String(45), nullable=True)
-#     event_type = Column(Integer, nullable=True)
-#     CreatedOn = Column(DateTime, nullable=True)
-#     UpdatedOn = Column(DateTime, nullable=True)
+    idTriggerDescription = Column(Integer, primary_key=True, autoincrement=True)
+    triggerOriginName = Column(String(50), nullable=False)
+    triggerDescription = Column(String(100), nullable=True)
+    triggerExceptionCode = Column(String(45), nullable=True)
+    event_type = Column(Integer, nullable=True)
+    CreatedOn = Column(DateTime, nullable=True)
+    UpdatedOn = Column(DateTime, nullable=True)
 
     # # Relationships to PullNotificationTemplate if needed
     # pull_notification_templates = relationship('PullNotificationTemplate',
@@ -1206,22 +1206,22 @@ class DefaultFields(Base):
 #                       autoload=True, autoload_with=engine)
 
 
-# class ERPTAGMAP(Base):
-#     __tablename__ = "erp_tag_map"
+class ERPTAGMAP(Base):
+    __tablename__ = "erp_tag_map"
 
-#     erpmapid = Column(Integer, primary_key=True, autoincrement=True)
-#     serina_tag = Column(String(255), nullable=False)
-#     cust_tag = Column(String(255), nullable=True)
+    erpmapid = Column(Integer, primary_key=True, autoincrement=True)
+    serina_tag = Column(String(255), nullable=False)
+    cust_tag = Column(String(255), nullable=True)
 
 
-# class RuleCodes(Base):
-#     __tablename__ = "documentrulecode"
+class RuleCodes(Base):
+    __tablename__ = "documentrulecode"
 
-#     iddocumentrulecode = Column(Integer, primary_key=True, index=True)
-#     status = Column(String(45), nullable=True)
-#     description = Column(String(100), nullable=True)
-#     type = Column(String(15), nullable=True)
-#     createdOn = Column(DateTime, nullable=True)
+    iddocumentrulecode = Column(Integer, primary_key=True, index=True)
+    status = Column(String(45), nullable=True)
+    description = Column(String(100), nullable=True)
+    type = Column(String(15), nullable=True)
+    createdOn = Column(DateTime, nullable=True)
 
 
 # class ReleaseUpdate(Base):
