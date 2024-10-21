@@ -1,7 +1,10 @@
-from fastapi import FastAPI  # , Request
+import os
+
+from fastapi import FastAPI, Request  # , Request
 
 # from dependency.dependencies import get_query_token, get_token_header
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import create_engine
 
 from pfg_app import settings
 from pfg_app.logger_module import logger
@@ -155,7 +158,33 @@ async def app_startup():
 
 
 @app.get("/")
-async def root():
-    print("Root endpoint was accessed")
-    logger.info("Root endpoint was accessed -new change")
+async def root(request: Request):
+    # get the domain name
+    domain = request.url.hostname
+    logger.info(f"Root endpoint was accessed - {domain}")
+
+    try:
+        # connect to the database
+
+        # Replace these variables with your actual database credentials
+        username = os.getenv("DB_USER")
+        password = os.getenv("DB_PASSWORD")
+        host = os.getenv("DB_HOST")
+        port = os.getenv("DB_PORT")
+        database = os.getenv("DB_NAME")
+
+        # Create the connection string
+        connection_string = (
+            f"postgresql://{username}:{password}@{host}:{port}/{database}"
+        )
+
+        # Create the engine
+        engine = create_engine(connection_string)
+
+        # Test the connection
+        with engine.connect() as connection:
+            result = connection.execute("SELECT 1")
+            print(result.fetchone())
+    except Exception as e:
+        logger.error(f"Main.py-ROOT error: {str(e)}")
     return {"message": "Hello! This is IDP"}
