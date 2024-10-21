@@ -43,7 +43,7 @@ substatus = [
 
 
 async def read_paginate_doc_inv_list_with_ln_items(
-    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status
+    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status, date_range
 ):
     """Function to read the paginated document invoice list.
 
@@ -187,6 +187,31 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     )
                     == "I"
                 )
+
+        # # Apply date range filter for documentDate
+        # if date_range:
+        #     frdate, todate = date_range.lower().split("to")
+        #     frdate = datetime.strptime(frdate.strip(), '%Y-%m-%d')
+        #     todate = datetime.strptime(todate.strip(), '%Y-%m-%d')
+        #     data_query = data_query.filter(
+        #         model.Document.documentDate.between(frdate, todate)
+        #     )
+
+        # Apply date range filter for documentDate
+        if date_range:
+            frdate, todate = date_range.lower().split("to")
+            frdate = datetime.strptime(frdate.strip(), "%Y-%m-%d")
+            todate = datetime.strptime(
+                todate.strip(), "%Y-%m-%d"
+            )  # Remove timedelta adjustments
+            frdate_str = frdate.strftime("%Y-%m-%d")
+            todate_str = todate.strftime("%Y-%m-%d")
+            data_query = data_query.filter(
+                or_(
+                    model.Document.documentDate.between(frdate_str, todate_str),
+                    model.Document.CreatedOn.between(frdate, todate),
+                )
+            )
 
         # Function to normalize strings by removing non-alphanumeric
         # characters and converting to lowercase
