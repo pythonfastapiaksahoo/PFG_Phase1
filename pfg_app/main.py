@@ -1,12 +1,7 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI  # , Request
 
 # from dependency.dependencies import get_query_token, get_token_header
 from fastapi.middleware.cors import CORSMiddleware
-from opencensus.ext.azure.trace_exporter import AzureExporter
-from opencensus.trace import execution_context
-from opencensus.trace.propagation.trace_context_http_header_format import (
-    TraceContextPropagator,
-)
 
 from pfg_app import settings
 from pfg_app.logger_module import logger
@@ -20,6 +15,13 @@ from pfg_app.routers import (  # maillistener,
     modelonboarding,
     vendor,
 )
+
+# from opencensus.ext.azure.trace_exporter import AzureExporter
+# from opencensus.trace import execution_context
+# from opencensus.trace.propagation.trace_context_http_header_format import (
+#     TraceContextPropagator,
+# )
+
 
 # , Request
 
@@ -44,32 +46,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Set up tracing
-exporter = AzureExporter(
-    connection_string=settings.application_insights_instrumentation_key
-)
-propagator = TraceContextPropagator()
+# # Set up tracing
+# exporter = AzureExporter(
+#     connection_string=settings.application_insights_instrumentation_key
+# )
+# propagator = TraceContextPropagator()
 
 
-@app.middleware("http")
-async def add_tracing(request: Request, call_next):
-    context = propagator.from_headers(request.headers)
+# @app.middleware("http")
+# async def add_tracing(request: Request, call_next):
+#     context = propagator.from_headers(request.headers)
 
-    # Set the trace context for the current request
-    tracer = execution_context.get_opencensus_tracer()
-    trace_id = context.trace_id or "00000000000000000000000000000000"
-    tracer.span_context.trace_id = trace_id
-    tracer.span_context.span_id = context.span_id
-    tracer.exporter = exporter
+#     # Set the trace context for the current request
+#     tracer = execution_context.get_opencensus_tracer()
+#     trace_id = context.trace_id or "00000000000000000000000000000000"
+#     tracer.span_context.trace_id = trace_id
+#     tracer.span_context.span_id = context.span_id
+#     tracer.exporter = exporter
 
-    # Process the request and get the response
-    with tracer.span(name=request.url.path):
-        response = await call_next(request)
+#     # Process the request and get the response
+#     with tracer.span(name=request.url.path):
+#         response = await call_next(request)
 
-    # Add the trace_id to the response headers
-    response.headers["X-Trace-Id"] = trace_id
+#     # Add the trace_id to the response headers
+#     response.headers["X-Trace-Id"] = trace_id
 
-    return response
+#     return response
 
 
 # Define routers in the main
