@@ -70,4 +70,4 @@ if settings.build_type != "debug":
                 setattr(settings, result["settings_key"], result["secret"])
 
             except Exception as e:
-                logger.error(f"Error processing a secret: {e}")  # noqa
+                logger.error(f"Error processing a secret: {e}")  # type: ignore
