@@ -1,7 +1,6 @@
 from datetime import date, datetime, timedelta
-from typing import Optional
 
-from azure.core.credentials import AzureKeyCredential
+# from azure.core.credentials import AzureKeyCredential
 from azure.core.exceptions import AzureError
 from azure.identity import (
     ClientSecretCredential,
@@ -18,10 +17,12 @@ from azure.storage.blob import (
 from pfg_app import settings
 from pfg_app.logger_module import logger
 
+# from typing import Optional
+
 
 # Shared function to get the correct credential based on the environment
 # variable
-def get_credential(secret_name: Optional[str] = None):
+def get_credential():
     """Retrieves credentials based on the build type specified in the
     'BUILD_TYPE' environment variable. The function attempts to acquire
     credentials through Managed Identity (MI) or, optionally, retrieves secrets
@@ -43,18 +44,20 @@ def get_credential(secret_name: Optional[str] = None):
             logger.info(f"Using Managed Identity for authentication in {build_type}.")
             try:
                 # Automatically handles MI and other chained credentials
-                return DefaultAzureCredential()
+                credential = DefaultAzureCredential()
+                logger.info("Managed Identity is available.")
+                return credential
             except CredentialUnavailableError as e:
                 logger.error(f"Managed Identity is not available: {str(e)}")
                 raise
 
         else:
             # Use Key Vault to retrieve the API key for build_type
-            logger.info(f"Using API key for authentication in {build_type}.")
+            logger.info(f"Using SPN for authentication in {build_type}.")
 
-            key_vault_url = settings.key_vault_url
-            # Credentials to access Key Vault (using client ID & secret for
-            # debug)
+            # key_vault_url = settings.key_vault_url
+            # # Credentials to access Key Vault (using client ID & secret for
+            # # debug)
             tenant_id = settings.tenant_id
             client_id = settings.client_id
             client_secret = settings.client_secret
@@ -63,21 +66,23 @@ def get_credential(secret_name: Optional[str] = None):
                 # Try to create a ClientSecretCredential and access Key Vault
                 credential = ClientSecretCredential(tenant_id, client_id, client_secret)
 
-                if secret_name:
-                    secret_client = SecretClient(
-                        vault_url=key_vault_url, credential=credential
-                    )
+                # if secret_name:
+                #     secret_client = SecretClient(
+                #         vault_url=key_vault_url, credential=credential
+                #     )
 
-                    # Retrieve the API key from Key Vault
-                    retrieved_secret = secret_client.get_secret(secret_name)
-                    secret_key = retrieved_secret.value
+                #     # Retrieve the API key from Key Vault
+                #     retrieved_secret = secret_client.get_secret(secret_name)
+                #     secret_key = retrieved_secret.value
 
                 # Return the API key credential if secret_name is provided else
                 # return the credential
-                return AzureKeyCredential(secret_key) if secret_name else credential
+                logger.info("SPN is available.")
+                return credential
+                # return AzureKeyCredential(secret_key) if secret_name else credential
 
             except AzureError as e:
-                logger.error(f"Error accessing Key Vault: {str(e)}")
+                logger.error(f"Error to get Credential with SPN: {str(e)}")
                 raise
 
     except AzureError as e:

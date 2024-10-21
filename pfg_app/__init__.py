@@ -12,7 +12,7 @@ settings: Settings = Settings()
 from pfg_app.core.utils import get_credential, get_secret_from_vault  # noqa: E402
 from pfg_app.logger_module import logger  # noqa: E402
 
-if settings.build_type != "debug":
+if settings.build_type not in ["debug", "dev"]:
     credential = get_credential()
     key_vault_secrets = []
     key_vault_secrets_names = [
@@ -64,8 +64,12 @@ if settings.build_type != "debug":
             try:
                 result = future.result()
                 key_vault_secrets.append(result)
-                print(result)
-
+                logger.info(
+                    (
+                        f"Secret retrieved: {result['settings_key']}:"
+                        f"{result['secret']}"
+                    )
+                )  # noqa: E501
                 # Assign the secret to the settings object
                 setattr(settings, result["settings_key"], result["secret"])
 
