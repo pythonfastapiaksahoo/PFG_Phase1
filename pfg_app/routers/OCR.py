@@ -588,6 +588,7 @@ def runStatus(
                                             model.frtrigger_tab.status: "PostProcessing Error",  # noqa: E501
                                             model.frtrigger_tab.vendorID: vendorID,
                                             model.frtrigger_tab.documentid: spltFileName,  # noqa: E501
+                                            model.frtrigger_tab.documentid: invoId,
                                         }
                                     )
                                     # Step 3: Commit the transaction
@@ -951,6 +952,7 @@ def runStatus(
                                 {
                                     model.frtrigger_tab.status: "Processed",
                                     model.frtrigger_tab.vendorID: vendorID,
+                                    model.frtrigger_tab.documentid: invoId,
                                 },
                             )
                             db.commit()
@@ -1019,6 +1021,7 @@ def runStatus(
                         ).update(
                             {
                                 model.frtrigger_tab.status: "VendorNotFound",
+                                model.frtrigger_tab.documentid: invoId,
                             }
                         )
 
@@ -1046,6 +1049,7 @@ def runStatus(
                             ).update(
                                 {
                                     model.frtrigger_tab.status: str(et),
+                                    model.frtrigger_tab.documentid: invoId,
                                 }
                             )
 
@@ -1107,6 +1111,7 @@ def runStatus(
                             model.frtrigger_tab.status: "PostProcessing Error",
                             model.frtrigger_tab.sender: sender,
                             model.frtrigger_tab.vendorID: vendorID,
+                            model.frtrigger_tab.documentid: invoId,
                         }
                     )
                     db.commit()
