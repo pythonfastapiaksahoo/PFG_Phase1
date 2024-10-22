@@ -39,8 +39,8 @@ def get_credential():
         # Determine the build type (default to "debug" if not set)
         build_type = settings.build_type
 
-        if build_type == "release" or build_type == "qa" or build_type == "dev":
-            # Use Managed Identity for release
+        if build_type == "prod" or build_type == "qa" or build_type == "dev":
+            # Use Managed Identity for prod/qa/dev
             logger.info(f"Using Managed Identity for authentication in {build_type}.")
             try:
                 # Automatically handles MI and other chained credentials
