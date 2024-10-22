@@ -479,25 +479,40 @@ async def readvendor(db):
 
 
 async def readvendoraccount(db, v_id: int):
-    """This function read Vendor account details.
+    """Retrieve the details of vendor accounts associated with a specific
+    vendor ID.
 
-    It contains 2 parameter.
-    :param v_ID: It is a function parameters that is of integer type, it
-        provides the vendor Id.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of dictionary type.
+    Parameters:
+    ----------
+    v_id : int
+        The ID of the vendor whose accounts are to be retrieved.
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    list
+        A list of VendorAccount objects associated with the given vendor ID.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
     """
     try:
+        # Query to fetch all VendorAccount entries linked to the provided vendor ID
         return (
             db.query(model.VendorAccount)
             .filter(model.VendorAccount.vendorID == v_id)
             .all()
         )
     except Exception:
+        # Log the error with a stack trace
         logger.error(traceback.format_exc())
+        # Return a 500 response in case of failure
         return Response(status_code=500)
     finally:
+        # Ensure the database session is closed after the operation
         db.close()
 
 
@@ -525,17 +540,33 @@ async def readspaccount(db, s_id: int):
 
 
 async def addOCRLog(logData, db):
-    """This functions creates a new log in OCRlogs table based on an OCR run on
-    a document.
+    """Create a new log entry in the OCRLogs table based on an OCR run on a
+    document.
 
-    - logData: pydantic class object of the log data obtained from the OCR run
-    - db: It provides a session to interact with
-    the backend Database,that is of Session Object Type.
+    Parameters:
+    ----------
+    logData : Pydantic model
+        A Pydantic model instance containing the log data obtained from the OCR run.
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the insertion and the inserted records.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
     """
     try:
+        # Convert Pydantic model to a dictionary
         logData = dict(logData)
+        # Add the current timestamp for editedOn
         logData["editedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         db.add(model.OCRLogs(**logData))
+        # Commit the transaction to save changes in the database
         db.commit()
         return {"result": "Updated", "records": logData}
     except Exception:
@@ -546,16 +577,33 @@ async def addOCRLog(logData, db):
 
 
 async def addItemMapping(mapData, db):
-    """This functions creates a new user defined item mapping.
+    """Create a new user-defined item mapping in the database.
 
-    - mapData: pydantic class object of the item mapping
-    - db: It provides a session to interact with
-    the backend Database,that is of Session Object Type.
+    Parameters:
+    ----------
+    mapData : Pydantic model
+        A Pydantic model instance containing the item mapping data.
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the insertion and the inserted records.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
     """
     try:
+        # Convert Pydantic model to a dictionary
         mapData = dict(mapData)
+        # Add creation timestamp
         mapData["createdOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        # Create a new UserItemMapping instance and add it to the session
         db.add(model.UserItemMapping(**mapData))
+        # Commit the transaction to save changes in the database
         db.commit()
         return {"result": "Updated", "records": mapData}
     except Exception:
@@ -566,18 +614,38 @@ async def addItemMapping(mapData, db):
 
 
 async def addfrMetadata(m_id: int, r_id: int, n_fr_mdata, db):
-    """This functions creates a new user defined item mapping.
+    """Add a new user-defined FR metadata item mapping to the database.
 
-    - frmData: pydantic class object of the fr meta data
-    - db: It provides a session to interact with
-    the backend Database,that is of Session Object Type.
+    Parameters:
+    ----------
+    m_id : int
+        The ID of the invoice model to which the metadata is associated.
+    r_id : int
+        The ID of the rule related to the metadata.
+    n_fr_mdata : Pydantic model
+        A Pydantic model instance containing the new FR metadata fields.
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the insertion and the inserted records.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
     """
     try:
-
+        # Convert Pydantic model to a dictionary
         frmData = dict(n_fr_mdata)
+        # Add required fields to the metadata
         frmData["idInvoiceModel"] = m_id
         frmData["ruleID"] = r_id
+        # Create a new FRMetaData instance and add it to the session
         db.add(model.FRMetaData(**frmData))
+        # Commit the transaction to save changes in the database
         db.commit()
         return {"result": "Inserted", "records": frmData}
     except Exception:
@@ -588,24 +656,47 @@ async def addfrMetadata(m_id: int, r_id: int, n_fr_mdata, db):
 
 
 async def getMetaData(documentId: int, db):
+    """Retrieve metadata for a specific document, including vendor synonyms and
+    FR metadata.
+
+    Parameters:
+    ----------
+    documentId : int
+        The ID of the document for which metadata is being retrieved.
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing FR metadata and vendor synonyms.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
+    """
     merged_data = {}
     try:
+        # Retrieve vendor account ID for the given document ID
         vendor_account_id = (
             db.query(model.DocumentModel.idVendorAccount)
             .filter(model.DocumentModel.idDocumentModel == documentId)
             .scalar()
         )
+        # Retrieve vendor ID using the vendor account ID
         vendor_id = (
             db.query(model.VendorAccount.vendorID)
             .filter(model.VendorAccount.idVendorAccount == vendor_account_id)
             .scalar()
         )
+        # Retrieve synonyms for the vendor ID
         synonyms = (
             db.query(model.Vendor.Synonyms)
             .filter(model.Vendor.idVendor == vendor_id)
             .scalar()
         )
-
+        # Retrieve FR metadata for the document ID
         frmetadata = (
             db.query(model.FRMetaData)
             .filter(model.FRMetaData.idInvoiceModel == documentId)
@@ -631,7 +722,28 @@ async def getMetaData(documentId: int, db):
 
 
 async def getTrainTestRes(modelId: int, db):
+    """Retrieve the training and test results for a specific document model.
+
+    Parameters:
+    ----------
+    modelId : int
+        The ID of the document model for which the results are being retrieved.
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    DocumentModel or None
+        The DocumentModel object containing training and test results if found,
+        or None if not found.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
+    """
     try:
+        # Return the found DocumentModel or None if not found
         return (
             db.query(model.DocumentModel)
             .options(load_only("training_result", "test_result"))
@@ -639,14 +751,46 @@ async def getTrainTestRes(modelId: int, db):
             .first()
         )
     except Exception:
+        # Log the error with a stack trace
         logger.error(traceback.format_exc())
+        # Return a 500 response in case of failure
         return Response(status_code=500)
     finally:
+        # Ensure the database session is closed after the operation
         db.close()
 
 
 async def getActualAccuracy(tp: str, nm: str, db):
+    """Retrieve accuracy metrics for documents associated with a specific
+    vendor.
+
+    Parameters:
+    ----------
+    tp : str
+        Specifies the type of entity; either 'vendor' or 'service provider'.
+    nm : str
+        The name of the vendor or service provider to filter the results.
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing accuracy metrics for each tag label,
+        along with the document count.
+        The structure includes:
+        - Tag labels as keys
+            - 'miss': Count of errors or updates
+            - 'match': Count of successful matches
+        - 'DocumentCount': A dictionary with the total count of documents processed.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
+    """
     try:
+        # Query for accuracy data based on the entity type (vendor or service provider)
         if tp == "vendor":
             accuracy_data = (
                 db.query(
@@ -730,8 +874,9 @@ async def getActualAccuracy(tp: str, nm: str, db):
                 )
                 .all()
             )
+        # Initialize dictionary to hold accuracy metrics
         final_dict: Dict[str, Dict[str, int]] = {}
-        documents = []
+        documents = []  # Track unique document IDs
         for a in accuracy_data:
             documentid = a.Document.idDocument
             if documentid not in documents:
@@ -740,29 +885,54 @@ async def getActualAccuracy(tp: str, nm: str, db):
             iserror = a.DocumentData.isError
             isupdated = a.DocumentData.IsUpdated
 
-            # Ensure final_dict[key] is a dict
+            # Initialize the dictionary entry for the tag label if not present
             if key not in final_dict or not isinstance(final_dict[key], dict):
                 final_dict[key] = {"miss": 0, "match": 0}
             elif isinstance(final_dict[key], dict):
+                # Update counts based on error and update flags
                 if iserror == 1 or isupdated == 1:
                     final_dict[key]["miss"] += 1
                 else:
                     final_dict[key]["match"] += 1
-
+        # Store the document count as a dictionary
         final_dict["DocumentCount"] = {
             "count": len(documents)
         }  # instead of int value, it should be
         # a dict to avoid confusion and type issues
         return final_dict
-    except Exception as e:
-        print(e)
+    except Exception:
+        # Log the error for debugging
+        logger.error(traceback.format_exc())
+        # Return a 500 response in case of failure
         return Response(status_code=500)
     finally:
+        # Ensure the database session is closed after the operation
         db.close()
 
 
 async def getActualAccuracyByEntity(type, db):
+    """This function retrieves accuracy metrics of documents based on the
+    entity type.
+
+    Parameters:
+    ----------
+    type : str
+        Specifies the entity type; either 'vendor' or another entity type.
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing accuracy metrics for each entity and tag label.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
+    """
     try:
+        # Define the base query based on the entity type
         if type == "vendor":
             accuracy_data = (
                 db.query(
@@ -827,15 +997,18 @@ async def getActualAccuracyByEntity(type, db):
             )
         final_dict = {}
         entitydata = accuracy_data.all()
+        # Iterate through each entity and compile accuracy metrics
         for a in entitydata:
             entity = a.Entity.EntityName
             if entity not in final_dict.keys():
                 final_dict[entity] = {}
+                # Query all data for the current entity
                 data = accuracy_data.filter(model.Entity.EntityName == entity).all()
                 for d in data:
                     key = d.DocumentTagDef.TagLabel
                     iserror = d.DocumentData.isError
                     isupdated = d.DocumentData.IsUpdated
+                    # Initialize dictionary entry for the tag label if it does not exist
                     if key not in final_dict[entity].keys():
                         final_dict[entity][key] = {
                             "Total Invoices": 0,
@@ -844,10 +1017,13 @@ async def getActualAccuracyByEntity(type, db):
                             "Accuracy": 0,
                         }
                     else:
+                        # Increment match or miss counters based on error and
+                        # update flags
                         if iserror == 1 or isupdated == 1:
                             final_dict[entity][key]["Miss"] += 1
                         else:
                             final_dict[entity][key]["Match"] += 1
+                    # Update total invoices and calculate accuracy
                     final_dict[entity][key]["Total Invoices"] = (
                         final_dict[entity][key]["Match"]
                         + final_dict[entity][key]["Miss"]
@@ -869,16 +1045,45 @@ async def getActualAccuracyByEntity(type, db):
                         != 0
                         else 0.0
                     )
-        return final_dict
-    except Exception as e:
-        print(e)
+        return final_dict  # Return the final accuracy metrics
+    except Exception:
+        # Log the exception for debugging
+        logger.error(traceback.format_exc())
+        # Return a 500 response in case of failure
         return Response(status_code=500)
     finally:
+        # Ensure the database session is closed after the operation
         db.close()
 
 
 async def getall_tags(tagtype, db):
+    """This function retrieves both header and line tags from the database
+    based on the tag type.
+
+    The tags are filtered by their type (either 'Header' or 'line') and the provided
+    tag type (e.g., Invoice, Purchase Order).
+
+    Parameters:
+    ----------
+    tagtype : str
+        The type of tags to retrieve (e.g., 'Invoice', 'Purchase Order').
+    db : Session
+        SQLAlchemy session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing two keys:
+        - "header": List of header tags.
+        - "line": List of line tags.
+
+    Raises:
+    ------
+    Exception
+        In case of an error during database interaction, a 500 response is returned.
+    """
     try:
+        # Query to fetch all header tags for the given tagtype
         header_tags = (
             db.query(model.DefaultFields)
             .options(load_only("Name", "Ismendatory"))
@@ -888,6 +1093,7 @@ async def getall_tags(tagtype, db):
             )
             .all()
         )
+        # Query to fetch all line tags for the given tagtype
         line_tags = (
             db.query(model.DefaultFields)
             .options(load_only("Name", "Ismendatory"))
@@ -897,15 +1103,36 @@ async def getall_tags(tagtype, db):
             )
             .all()
         )
+        # Return the header and line tags in a dictionary format
         return {"header": header_tags, "line": line_tags}
     except Exception:
+        # Log the error with full traceback for debugging purposes
         logger.error(traceback.format_exc())
+        # Return a 500 response in case of failure
         return Response(status_code=500)
     finally:
+        # Ensure the database session is properly closed after the operation
         db.close()
 
 
 async def get_entity_level_taggedInfo(db):
+    """Retrieves the entity-level tagged information for vendors and saves the
+    result as an Excel file.
+
+    The function joins several tables: Entity, Vendor, VendorAccount, DocumentModel,
+    and FRMetaData
+    to extract metadata tags for each vendor. The final result is saved as an Excelfile.
+
+    Parameters:
+    ----------
+    db : Session
+        SQLAlchemy session object, used to interact with the backend database.
+
+    Returns:
+    -------
+    str
+        The filename of the Excel file containing the retrieved tagged information.
+    """
     try:
         # Build the query using SQLAlchemy ORM
         result = (
@@ -993,45 +1220,76 @@ async def get_entity_level_taggedInfo(db):
 
 
 async def readdocumentrules(db):
-    """This function read document rules list.
+    """This function retrieves the list of document rules from the Rule table.
 
-    It contains 1 parameter.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of dictionary type.
+    Parameters:
+    ----------
+    db : Session
+        SQLAlchemy session object, used to interact with the backend database.
+
+    Returns:
+    -------
+    list
+        A list of Rule objects if the query is successful.
+    Response
+        A 500 status code response in case of an exception.
     """
     try:
+        # Return the result as a list of Rule objects
         return db.query(model.Rule).all()
     except Exception:
+        # Log the exception traceback for debugging purpose
         logger.error(traceback.format_exc())
+        # Return a 500 Internal Server Error response in case of failure
         return Response(status_code=500)
     finally:
         db.close()
 
 
 async def readnewdocrules(db):
-    """This function read new document rules list for agi.
+    """This function retrieves the list of new document rules from the AGIRule
+    table.
 
-    It contains 1 parameter.
-    :param db: It provides a session to interact with the backend
-        Database,that is of Session Object Type.
-    :return: It return a result of dictionary type.
+    Parameters:
+    ----------
+    db : Session
+        SQLAlchemy session object, used to interact with the backend database.
+
+    Returns:
+    -------
+    list
+        A list of AGIRule objects if the query is successful.
+    Response
+        A 500 status code response in case of an exception.
     """
     try:
+        # Return the result as a list of AGIRule objects
         return db.query(model.AGIRule).all()
     except Exception:
+        # Log the exception traceback for debugging purposes
         logger.error(traceback.format_exc())
+        # Return a 500 Internal Server Error response in case of failure
         return Response(status_code=500)
     finally:
         db.close()
 
 
 async def update_email_info(emailInfo, db):
-    """This function updates the email_listener_info for a given user.
+    """This function updates the email_listener_info for a given user in the
+    FRConfiguration table.
 
-    :param emailInfo: Form Recognizer Configuration Pydantic model.
-    :param db: SQLAlchemy session to interact with the backend Database.
-    :return: A result dictionary.
+    Parameters:
+    ----------
+    emailInfo : PydanticModel
+        Form Recognizer Configuration Pydantic model containing email
+        listener information.
+    db : Session
+        SQLAlchemy session used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update operation.
     """
     try:
         # Extract email_listener_info from the emailInfo object
@@ -1102,21 +1360,32 @@ async def update_email_info(emailInfo, db):
 
 
 async def get_email_info(db):
-    """This function retrieves the email_listener_info for a given
-    configuration.
+    """This function retrieves the email listener information from the
+    configuration table.
 
-    :param db: SQLAlchemy session to interact with the backend Database.
-    :return: A result dictionary containing the email_listener_info.
+    Parameters:
+    ----------
+    db : Session
+        SQLAlchemy session used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the operation and the email listener
+        info if available.
+        If no information is found, it returns a message indicating that.
     """
     try:
-        # Retrieve the email_listener_info from the database
+        # Query the database to retrieve the email_listener_info from FRConfiguration
         email_listener_info = db.query(
             model.FRConfiguration.email_listener_info
         ).first()
 
         if email_listener_info:
+            # Return success message along with the email listener info
             return {"result": "Success", "email_listener_info": email_listener_info}
         else:
+            # Return message if no email_listener_info is found
             return {"result": "No email_listener_info found"}
 
     except Exception:
@@ -1131,22 +1400,42 @@ async def get_email_info(db):
 
 
 def check_same_vendors_same_entity(vendoraccountId, modelname, db):
+    """This function checks whether a document model with the specified name
+    exists across multiple vendor accounts that share the same vendor name as
+    the provided vendor account. It looks for active vendors and counts how
+    many do not have the specified document model.
+
+    Parameters:
+    ----------
+    vendoraccountId : int
+        The ID of the vendor account from which to check for the document model.
+    modelname : str
+        The name of the document model to be checked across different vendors.
+    db : Session
+        The database session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing a message indicating whether the document model exists,
+        the vendor name, and a count of missing models.
+    """
     try:
-        # Get the account for the given vendoraccountId
+        # Retrieve the account associated with the provided vendoraccountId
         account = (
             db.query(model.VendorAccount.Account)
             .filter(model.VendorAccount.idVendorAccount == vendoraccountId)
             .scalar()
         )
 
-        # Get the vendorname for the account
+        # Retrieve the vendor name associated with the vendor account
         vendorname = (
             db.query(model.Vendor.VendorName)
             .filter(model.Vendor.VendorCode == account)
             .scalar()
         )
 
-        # # Get all vendor codes associated with the vendor name as a list
+        # Retrieve all vendor codes with the same vendor name and active status
         vendorcodes = [
             vc[0]
             for vc in db.query(model.Vendor.VendorCode)
@@ -1200,22 +1489,46 @@ def check_same_vendors_same_entity(vendoraccountId, modelname, db):
 
 
 def copymodels(vendoraccountId, modelname, db):
+    """This function copies a document model and its associated metadata, tag
+    definitions, and line item tags from one vendor account to other vendor
+    accounts that share the same vendor name. It performs the following steps:
+
+    1. Retrieves the vendor name for the given vendor account.
+    2. Finds all other vendor accounts associated with the same vendor name.
+    3. Copies the document model, metadata, tag definitions, and line item tags
+        for the provided vendor account to all other associated vendor accounts.
+
+    Parameters:
+    ----------
+    vendoraccountId : int
+        The ID of the vendor account from which the document model is copied.
+    modelname : str
+        The name of the document model to be copied.
+    db : Session
+        The database session object used to interact with the database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing a success message or an exception message
+        in case of an error.
+    """
     try:
-        # Get the account for the given vendoraccountId
+        # Retrieve the account associated with the provided vendoraccountId
         account = (
             db.query(model.VendorAccount.Account)
             .filter(model.VendorAccount.idVendorAccount == vendoraccountId)
             .scalar()
         )
 
-        # Get the vendorname for the account
+        # Retrieve the vendor name associated with the vendor account
         vendorname = (
             db.query(model.Vendor.VendorName)
             .filter(model.Vendor.VendorCode == account)
             .scalar()
         )
 
-        # Get all vendor codes associated with the vendor name as a list
+        # Retrieve all vendor codes with the same vendor name and active status
         vendorcodes = [
             vc[0]
             for vc in db.query(model.Vendor.VendorCode)
@@ -1229,52 +1542,39 @@ def copymodels(vendoraccountId, modelname, db):
             .all()
         ]
 
-        # Get all VendorAccount IDs associated with the current vendorcode
+        # Retrieve all VendorAccount IDs associated with the vendor codes
         vendors = (
             db.query(model.VendorAccount.idVendorAccount)
             .filter(model.VendorAccount.Account.in_(vendorcodes))
             .all()
         )
-        # Flatten the result from list of tuples to a list of IDs
+        # Flatten the result into a list of vendor IDs
         vendors = [vendor[0] for vendor in vendors]
 
-        # Query for DocumentModel associated with the current vendor account
-        # and model name
+        # Retrieve the document model for the given vendor account and model name
         docmodel = (
             db.query(model.DocumentModel)
             .filter(
                 model.DocumentModel.idVendorAccount == vendoraccountId,
                 model.DocumentModel.modelName == modelname,
             )
-            .all()
+            .one()
         )
 
-        # Create an input model dictionary from the first row of results
-        inputmodel = {}
-        if docmodel:
-            first_row = docmodel[0]  # Use the first row
-            inputmodel = {"idDocumentModel": first_row.idDocumentModel}
-
+        # Convert the document model to a dictionary for modification
+        inputmodel = docmodel.to_dict()
+        # Get the model ID
         model_id = inputmodel.get("idDocumentModel")
 
-        # Query for FRMetadata associated with the document model
+        # Retrieve FRMetadata for the document model
         frmetadatares = (
             db.query(model.FRMetaData)
             .filter(model.FRMetaData.idInvoiceModel == model_id)
-            .all()
+            .one()
         )
 
-        # Prepare FRMetadata to copy
-        frmetadata = {}
-        if frmetadatares:
-            frmetadata_row = frmetadatares[
-                0
-            ]  # Assume you're only copying the first result
-            for key in frmetadata_row.__dict__.keys():
-                if key != "idFrMetaData":
-                    frmetadata[key] = getattr(frmetadata_row, key)
-
-        # del frmetadata["idFrMetaData"]
+        # Convert FRMetadata to a dictionary and remove its ID to avoid duplication
+        frmetadata = frmetadatares.to_dict()
         # Safely delete 'idFrMetaData' if it exists
         frmetadata.pop(
             "idFrMetaData", None
@@ -1282,6 +1582,7 @@ def copymodels(vendoraccountId, modelname, db):
         del inputmodel["idDocumentModel"]
 
         allmodelid = []
+        # Loop through all vendors and copy the model where it does not already exist
         for v in vendors:
             if v != vendoraccountId:
                 # Check if a document model for this vendor account already exists
@@ -1293,7 +1594,7 @@ def copymodels(vendoraccountId, modelname, db):
                     )
                     .first()
                 )
-
+                # If no existing model, create a new one
                 if iddocqr is None:
                     inputmodel["idVendorAccount"] = v
                     inputmodel["CreatedOn"] = datetime.utcnow().strftime(
@@ -1307,35 +1608,25 @@ def copymodels(vendoraccountId, modelname, db):
                     db.commit()
                     allmodelid.append(invoiceModelDB.idDocumentModel)
 
-        # Copy FRMetadata for all new models
+        # Copy FRMetadata for all the newly created models
         for m in allmodelid:
             frmetadata["idInvoiceModel"] = m
-            # frmetaDataDB = model.FRMetaData(**frmetadata) # replaced with below
-            # Remove any non-column attributes (e.g., SQLAlchemy internal attributes)
-            valid_frmetadata = {
-                key: value
-                for key, value in frmetadata.items()
-                if key in model.FRMetaData.__table__.columns
-            }
-
-            frmetaDataDB = model.FRMetaData(**valid_frmetadata)
+            frmetaDataDB = model.FRMetaData(**frmetadata)
             db.add(frmetaDataDB)
             db.commit()
 
-        # Query for DocumentTagDef associated with the original document model
+        # Retrieve DocumentTagDef associated with the original document model
         documenttagdefres = (
             db.query(model.DocumentTagDef)
             .filter(model.DocumentTagDef.idDocumentModel == model_id)
             .all()
         )
-
+        # Prepare a list of tag definitions to be copied
         documenttagdef = []
         for tag_def in documenttagdefres:
-            obj = {}
-            for key in tag_def.__dict__.keys():
-                if key != "idDocumentTagDef":
-                    obj[key] = getattr(tag_def, key)
-            documenttagdef.append(obj)
+            new_tag_def = tag_def.to_dict()
+            del new_tag_def["idDocumentTagDef"]
+            documenttagdef.append(new_tag_def)
 
         # Copy DocumentTagDef for all new models
         for m in allmodelid:
@@ -1347,16 +1638,8 @@ def copymodels(vendoraccountId, modelname, db):
             if checktag is None:
                 for d in documenttagdef:
                     d["idDocumentModel"] = m
-                    # documenttagdefDB = model.DocumentTagDef(**d)  replace with below
-                    # Filter out non-model fields like '_sa_instance_state'
-                    valid_documenttagdef = {
-                        key: value
-                        for key, value in d.items()
-                        if key in model.DocumentTagDef.__table__.columns
-                    }
-
+                    documenttagdefDB = model.DocumentTagDef(**d)
                     # Create and add the new DocumentTagDef entry
-                    documenttagdefDB = model.DocumentTagDef(**valid_documenttagdef)
                     db.add(documenttagdefDB)
                     db.commit()
 
@@ -1366,15 +1649,13 @@ def copymodels(vendoraccountId, modelname, db):
             .filter(model.DocumentLineItemTags.idDocumentModel == model_id)
             .all()
         )
-
+        # Prepare a list of line item tags to be copied
         documentlinedef = []
         for line_tag in documentlinedefres:
-            obj = {}
-            for key in line_tag.__dict__.keys():
-                if key != "idDocumentLineItemTags":
-                    obj[key] = getattr(line_tag, key)
-            documentlinedef.append(obj)
 
+            new_line_item = line_tag.to_dict()
+            del new_line_item["idDocumentLineItemTags"]
+            documenttagdef.append(new_line_item)
         # Copy DocumentLineItemTags for all new models
         for m in allmodelid:
             checktag = (
@@ -1385,21 +1666,8 @@ def copymodels(vendoraccountId, modelname, db):
             if checktag is None:
                 for d in documentlinedef:
                     d["idDocumentModel"] = m
-                    # documentlinedefDB = model.DocumentLineItemTags(**d)
-                    # Filter out any invalid keys, like '_sa_instance_state'
-                    # or any other non-model fields
-                    valid_documentlinedef = {
-                        key: value
-                        for key, value in d.items()
-                        if key in model.DocumentLineItemTags.__table__.columns
-                    }
-                    # Create a new instance of the DocumentLineItemTags
-                    # model with valid fields
-                    documentlinedefDB = model.DocumentLineItemTags(
-                        **valid_documentlinedef
-                    )
                     # Add the new instance to the session
-                    db.add(documentlinedefDB)
+                    db.add(**d)
                     db.commit()
 
         return {"message": "success"}
@@ -1410,156 +1678,3 @@ def copymodels(vendoraccountId, modelname, db):
 
     finally:
         db.close()
-
-
-# def copymodels(vendoraccountId, modelname, db):
-#     try:
-#         # Get the account for the given vendoraccountId
-#         account = (
-#             db.query(model.VendorAccount.Account)
-#             .filter(model.VendorAccount.idVendorAccount == vendoraccountId)
-#             .scalar()
-#         )
-
-#         # Get the vendorname for the account
-#         vendorname = (
-#             db.query(model.Vendor.VendorName)
-#             .filter(model.Vendor.VendorCode == account)
-#             .scalar()
-#         )
-
-#         # # Get all vendor codes associated with the vendor name as a list
-#         vendorcodes = [
-#             vc[0]
-#             for vc in db.query(model.Vendor.VendorCode)
-#             .filter(model.Vendor.VendorName == vendorname)
-#             .all()
-#         ]
-
-#         # Loop through each vendorcode in the list of vendorcodes
-#         for vendorcode in vendorcodes:
-#             # Get all VendorAccount IDs associated with the current vendorcode
-#             vendors = (
-#                 db.query(model.VendorAccount.idVendorAccount)
-#                 .filter(model.VendorAccount.Account == vendorcode)
-#                 .all()
-#             )
-
-#         docmodelqr = (
-#             "SELECT * FROM "
-#             + DB
-#             + ".documentmodel WHERE idVendorAccount="
-#             + str(vendoraccountId)
-#             + " and modelName = '"
-#             + modelname
-#             + "';"
-#         )
-#         docmodel = pd.read_sql(docmodelqr, SQLALCHEMY_DATABASE_URL)
-#         inputmodel = {}
-#         for d in docmodel.head():
-#             inputmodel[d] = docmodel[d][0]
-#         model_id = inputmodel["idDocumentModel"]
-#         frmetadataqr = (
-#             "SELECT * FROM "
-#             + DB
-#             + ".frmetadata WHERE idInvoiceModel="
-#             + str(model_id)
-#             + ""
-#         )
-#         frmetadatares = pd.read_sql(frmetadataqr, SQLALCHEMY_DATABASE_URL)
-#         frmetadata = {}
-#         for f in frmetadatares.head():
-#             frmetadata[f] = frmetadatares[f][0]
-#         del frmetadata["idFrMetaData"]
-#         del inputmodel["idDocumentModel"]
-#         allmodelid = []
-#         for v in vendors:
-#             if v[0] != vendoraccountId:
-#                 iddocqr = (
-#                     db.query(model.DocumentModel.idDocumentModel)
-#                     .filter(
-#                         model.DocumentModel.idVendorAccount == v[0],
-#                         model.DocumentModel.modelName == modelname,
-#                     )
-#                     .first()
-#                 )
-#                 if iddocqr is None:
-#                     inputmodel["idVendorAccount"] = v[0]
-#                     inputmodel["CreatedOn"] = datetime.utcnow().strftime(
-#                         "%Y-%m-%d %H:%M:%S"
-#                     )
-#                     inputmodel["UpdatedOn"] = inputmodel["CreatedOn"]
-#                     invoiceModelDB = model.DocumentModel(**inputmodel)
-#                     db.add(invoiceModelDB)
-#                     db.commit()
-#                     print(v[0])
-#                     allmodelid.append(invoiceModelDB.idDocumentModel)
-#         print(f"frmetadata {allmodelid}")
-#         for m in allmodelid:
-#             frmetadata["idInvoiceModel"] = m
-#             frmetaDataDB = model.FRMetaData(**frmetadata)
-#             db.add(frmetaDataDB)
-#             db.commit()
-#             print(m)
-#         documenttagdefqr = (
-#             "SELECT * FROM "
-#             + DB
-#             + ".documenttagdef WHERE idDocumentModel="
-#             + str(model_id)
-#             + ""
-#         )
-#         documenttagdefres = pd.read_sql(documenttagdefqr, SQLALCHEMY_DATABASE_URL)
-#         documenttagdef = []
-#         for i in range(len(documenttagdefres)):
-#             obj = {}
-#             for f in documenttagdefres.head():
-#                 if f != "idDocumentTagDef":
-#                     obj[f] = documenttagdefres[f][i]
-#             documenttagdef.append(obj)
-#         print(f"header tag {documenttagdef}")
-#         for m in allmodelid:
-#             checktag = (
-#                 db.query(model.DocumentTagDef)
-#                 .filter(model.DocumentTagDef.idDocumentModel == m)
-#                 .first()
-#             )
-#             if checktag is None:
-#                 for d in documenttagdef:
-#                     d["idDocumentModel"] = m
-#                     documenttagdefDB = model.DocumentTagDef(**d)
-#                     db.add(documenttagdefDB)
-#                     db.commit()
-#         documentlinedefqr = (
-#             "SELECT * FROM "
-#             + DB
-#             + ".documentlineitemtags WHERE idDocumentModel="
-#             + str(model_id)
-#             + ""
-#         )
-#         documentlinedefres = pd.read_sql(documentlinedefqr, SQLALCHEMY_DATABASE_URL)
-#         documentlinedef = []
-#         for i in range(len(documentlinedefres)):
-#             obj = {}
-#             for f in documentlinedefres.head():
-#                 if f != "idDocumentLineItemTags":
-#                     obj[f] = documentlinedefres[f][i]
-#             documentlinedef.append(obj)
-#         print(f"line tag {documentlinedef}")
-#         for m in allmodelid:
-#             checktag = (
-#                 db.query(model.DocumentLineItemTags)
-#                 .filter(model.DocumentLineItemTags.idDocumentModel == m)
-#                 .first()
-#             )
-#             if checktag is None:
-#                 for d in documentlinedef:
-#                     d["idDocumentModel"] = m
-#                     documentlinedefDB = model.DocumentLineItemTags(**d)
-#                     db.add(documentlinedefDB)
-#                     db.commit()
-#         return {"message": "success"}
-#     except Exception:
-#         logger.error(traceback.format_exc())
-#         return {"message": "exception"}
-#     finally:
-#         db.close()
