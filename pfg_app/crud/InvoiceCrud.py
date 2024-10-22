@@ -1904,9 +1904,8 @@ async def read_all_doc_inv_list(
         db.close()
 
 
-async def get_all_splitdoc_and_frtrigger_data(u_id, off_limit, db):
-    """Function to retrieve paginated SplitDocTab data and associated
-    frtrigger_tab data based on splitdoc_id.
+async def get_all_splitdoc_data(u_id, off_limit, db):
+    """Function to retrieve paginated SplitDocTab data.
 
     Args:
     u_id: User ID
@@ -1914,93 +1913,102 @@ async def get_all_splitdoc_and_frtrigger_data(u_id, off_limit, db):
     db: SQLAlchemy session
 
     Returns:
-    result: A dictionary containing the total count and
-    data from both SplitDocTab and associated frtrigger_tab rows.
+    result: A dictionary containing the total count and data from SplitDocTab rows.
     """
-    try:
 
-        # Extract offset and limit for pagination
-        offset, limit = off_limit
-        off_val = (offset - 1) * limit
+    # Extract offset and limit for pagination
+    offset, limit = off_limit
+    off_val = (offset - 1) * limit
 
-        # Validate the offset value
-        if off_val < 0:
-            return Response(
-                status_code=403,
-                headers={"ClientError": "Please provide a valid offset value."},
-            )
-
-        # Get the total count of SplitDocTab rows
-        total_count = db.query(model.SplitDocTab).count()
-
-        # Create a query object for paginated SplitDocTab rows in descending order
-        data_query = (
-            db.query(model.SplitDocTab)
-            .order_by(model.SplitDocTab.splitdoc_id.desc())
-            .offset(off_val)
-            .limit(limit)
+    # Validate the offset value
+    if off_val < 0:
+        return Response(
+            status_code=403,
+            headers={"ClientError": "Please provide a valid offset value."},
         )
 
-        # Execute the query
-        data_results = data_query.all()
+    # Get the total count of SplitDocTab rows
+    total_count = db.query(model.SplitDocTab).count()
 
-        result = []
+    # Get the latest SplitDocTab rows in descending order and apply pagination
+    data_query = (
+        db.query(model.SplitDocTab)
+        .order_by(model.SplitDocTab.splitdoc_id.desc())
+        .offset(off_val)
+        .limit(limit)
+    )
 
-        # For each SplitDocTab, retrieve associated frtrigger_tab rows
-        # using the splitdoc_id
-        for splitdoc in data_results:
-            # Query frtrigger_tab for this splitdoc_id
-            fr_trigger_rows = (
-                db.query(model.frtrigger_tab)
-                .filter(model.frtrigger_tab.splitdoc_id == splitdoc.splitdoc_id)
-                .all()
-            )
+    # Execute the query
+    data_results = data_query.all()
 
-            # Build a combined dictionary for each splitdoc row and
-            # its associated frtrigger_tab rows
-            splitdoc_data = {
-                "splitdoc": {
-                    "splitdoc_id": splitdoc.splitdoc_id,
-                    "invoice_path": splitdoc.invoice_path,
-                    "emailbody_path": splitdoc.emailbody_path,
-                    "created_on": splitdoc.created_on,
-                    "totalpagecount": splitdoc.totalpagecount,
-                    "pages_processed": splitdoc.pages_processed,
-                    "vendortype": splitdoc.vendortype,
-                    "status": splitdoc.status,
-                    "email_subject": splitdoc.email_subject,
-                    "sender": splitdoc.sender,
-                    "updated_on": splitdoc.updated_on,
-                },
-                "fr_trigger_data": [],
-            }
+    result = []
 
-            # Append all the frtrigger_tab rows to the "fr_trigger_data"
-            # for this splitdoc
-            for frtrigger in fr_trigger_rows:
-                fr_trigger_data = {
-                    "frtrigger_id": frtrigger.frtrigger_id,
-                    "splitdoc_id": frtrigger.splitdoc_id,
-                    "pagecount": frtrigger.pagecount,
-                    "prebuilt_headerdata": frtrigger.prebuilt_headerdata,
-                    "prebuilt_linedata": frtrigger.prebuilt_linedata,
-                    "blobpath": frtrigger.blobpath,
-                    "vendorID": frtrigger.vendorID,
-                    "status": frtrigger.status,
-                    "created_on": frtrigger.created_on,
-                    "sender": frtrigger.sender,
-                    "page_number": frtrigger.page_number,
-                    "filesize": frtrigger.filesize,
-                    "documentid": frtrigger.documentid,
-                }
-                splitdoc_data["fr_trigger_data"].append(fr_trigger_data)
+    # For each SplitDocTab row, build a dictionary and add it to the result list
+    for splitdoc in data_results:
+        splitdoc_data = {
+            "splitdoc_id": splitdoc.splitdoc_id,
+            "invoice_path": splitdoc.invoice_path,
+            "emailbody_path": splitdoc.emailbody_path,
+            "created_on": splitdoc.created_on,
+            "totalpagecount": splitdoc.totalpagecount,
+            "pages_processed": splitdoc.pages_processed,
+            "vendortype": splitdoc.vendortype,
+            "status": splitdoc.status,
+            "email_subject": splitdoc.email_subject,
+            "sender": splitdoc.sender,
+            "updated_on": splitdoc.updated_on,
+            "mail_row_key": splitdoc.mail_row_key,
+        }
 
-            # Append the combined splitdoc + fr_trigger data to the result list
-            result.append(splitdoc_data)
+        # Append the SplitDocTab data to the result list
+        result.append(splitdoc_data)
 
-        return {"total_count": total_count, "data": result}
+    return {"total_count": total_count, "data": result}
 
-    except Exception:
-        # Log the error and return a 500 response in case of failure
-        logger.error(traceback.format_exc())
-        return Response(status_code=500)
+
+async def get_frtrigger_data_by_splitdoc_id(u_id, split_doc_id, db):
+    """Function to retrieve frtrigger_tab rows based on split_doc_id and
+    include an additional field 'Attachment count'.
+
+    Args:
+    split_doc_id: ID of the split document (splitdoc_id)
+    db: SQLAlchemy session
+
+    Returns:
+    result: A dictionary containing the frtrigger_tab rows and an 'Attachment count'.
+    """
+
+    # Retrieve all frtrigger_tab rows that match the given splitdoc_id
+    fr_trigger_rows = (
+        db.query(model.frtrigger_tab)
+        .filter(model.frtrigger_tab.splitdoc_id == split_doc_id)
+        .all()
+    )
+
+    # Calculate the total count of rows (attachment count)
+    total_count = len(fr_trigger_rows)
+
+    # Build the response with frtrigger_tab rows and the total count
+    result = {"Attachment count": total_count, "fr_trigger_data": []}
+
+    # For each frtrigger row, build a dictionary and add it to the result list
+    for frtrigger in fr_trigger_rows:
+        fr_trigger_data = {
+            "frtrigger_id": frtrigger.frtrigger_id,
+            "splitdoc_id": frtrigger.splitdoc_id,
+            "pagecount": frtrigger.pagecount,
+            "prebuilt_headerdata": frtrigger.prebuilt_headerdata,
+            "prebuilt_linedata": frtrigger.prebuilt_linedata,
+            "blobpath": frtrigger.blobpath,
+            "vendorID": frtrigger.vendorID,
+            "status": frtrigger.status,
+            "created_on": frtrigger.created_on,
+            "sender": frtrigger.sender,
+            "page_number": frtrigger.page_number,
+            "filesize": frtrigger.filesize,
+            "documentid": frtrigger.documentid,
+        }
+        result["fr_trigger_data"].append(fr_trigger_data)
+
+    # Return the result
+    return result
