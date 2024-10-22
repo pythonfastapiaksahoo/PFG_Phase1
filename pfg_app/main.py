@@ -1,3 +1,5 @@
+import random
+import string
 import tempfile
 import traceback
 
@@ -249,12 +251,20 @@ async def root(request: Request):
             endpoint=account_url, credential=credential
         )
 
-        # create a table client
-        table_name = "test-table"
-        table_client = table_service_client.get_table_client(table_name)
+        # Function to generate a random unique table name
+        def generate_unique_table_name(length=8):
+            return "".join(
+                random.choices(
+                    string.ascii_lowercase + string.digits, k=length
+                )  # nosec
+            )
 
+        # Create a random unique table name
+        table_name = generate_unique_table_name()
         # create a table
-        table_client.create_table()
+        table_service_client.create_table(table_name)
+
+        table_client = table_service_client.get_table_client(table_name)
 
         # delete the table
         table_client.delete_table()
