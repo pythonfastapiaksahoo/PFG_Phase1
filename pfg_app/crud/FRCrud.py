@@ -1215,95 +1215,129 @@ def copymodels(vendoraccountId, modelname, db):
             .scalar()
         )
 
-        # # Get all vendor codes associated with the vendor name as a list
+        # Get all vendor codes associated with the vendor name as a list
         vendorcodes = [
             vc[0]
             for vc in db.query(model.Vendor.VendorCode)
-            .filter(model.Vendor.VendorName == vendorname)
+            .filter(
+                model.Vendor.VendorName == vendorname,
+                func.jsonb_extract_path_text(
+                    model.Vendor.miscellaneous, "VENDOR_STATUS"
+                )
+                == "A",
+            )
             .all()
         ]
 
-        # Loop through each vendorcode in the list of vendorcodes
-        for vendorcode in vendorcodes:
-            # Get all VendorAccount IDs associated with the current vendorcode
-            vendors = (
-                db.query(model.VendorAccount.idVendorAccount)
-                .filter(model.VendorAccount.Account == vendorcode)
-                .all()
-            )
+        # Get all VendorAccount IDs associated with the current vendorcode
+        vendors = (
+            db.query(model.VendorAccount.idVendorAccount)
+            .filter(model.VendorAccount.Account.in_(vendorcodes))
+            .all()
+        )
+        # Flatten the result from list of tuples to a list of IDs
+        vendors = [vendor[0] for vendor in vendors]
 
-        docmodelqr = (
-            "SELECT * FROM "
-            + DB
-            + ".documentmodel WHERE idVendorAccount="
-            + str(vendoraccountId)
-            + " and modelName = '"
-            + modelname
-            + "';"
+        # Query for DocumentModel associated with the current vendor account
+        # and model name
+        docmodel = (
+            db.query(model.DocumentModel)
+            .filter(
+                model.DocumentModel.idVendorAccount == vendoraccountId,
+                model.DocumentModel.modelName == modelname,
+            )
+            .all()
         )
-        docmodel = pd.read_sql(docmodelqr, SQLALCHEMY_DATABASE_URL)
+
+        # Create an input model dictionary from the first row of results
         inputmodel = {}
-        for d in docmodel.head():
-            inputmodel[d] = docmodel[d][0]
-        model_id = inputmodel["idDocumentModel"]
-        frmetadataqr = (
-            "SELECT * FROM "
-            + DB
-            + ".frmetadata WHERE idInvoiceModel="
-            + str(model_id)
-            + ""
+        if docmodel:
+            first_row = docmodel[0]  # Use the first row
+            inputmodel = {"idDocumentModel": first_row.idDocumentModel}
+
+        model_id = inputmodel.get("idDocumentModel")
+
+        # Query for FRMetadata associated with the document model
+        frmetadatares = (
+            db.query(model.FRMetaData)
+            .filter(model.FRMetaData.idInvoiceModel == model_id)
+            .all()
         )
-        frmetadatares = pd.read_sql(frmetadataqr, SQLALCHEMY_DATABASE_URL)
+
+        # Prepare FRMetadata to copy
         frmetadata = {}
-        for f in frmetadatares.head():
-            frmetadata[f] = frmetadatares[f][0]
-        del frmetadata["idFrMetaData"]
+        if frmetadatares:
+            frmetadata_row = frmetadatares[
+                0
+            ]  # Assume you're only copying the first result
+            for key in frmetadata_row.__dict__.keys():
+                if key != "idFrMetaData":
+                    frmetadata[key] = getattr(frmetadata_row, key)
+
+        # del frmetadata["idFrMetaData"]
+        # Safely delete 'idFrMetaData' if it exists
+        frmetadata.pop(
+            "idFrMetaData", None
+        )  # Will not raise KeyError if key is missing
         del inputmodel["idDocumentModel"]
+
         allmodelid = []
         for v in vendors:
-            if v[0] != vendoraccountId:
+            if v != vendoraccountId:
+                # Check if a document model for this vendor account already exists
                 iddocqr = (
                     db.query(model.DocumentModel.idDocumentModel)
                     .filter(
-                        model.DocumentModel.idVendorAccount == v[0],
+                        model.DocumentModel.idVendorAccount == v,
                         model.DocumentModel.modelName == modelname,
                     )
                     .first()
                 )
+
                 if iddocqr is None:
-                    inputmodel["idVendorAccount"] = v[0]
+                    inputmodel["idVendorAccount"] = v
                     inputmodel["CreatedOn"] = datetime.utcnow().strftime(
                         "%Y-%m-%d %H:%M:%S"
                     )
                     inputmodel["UpdatedOn"] = inputmodel["CreatedOn"]
+
+                    # Insert new DocumentModel
                     invoiceModelDB = model.DocumentModel(**inputmodel)
                     db.add(invoiceModelDB)
                     db.commit()
-                    print(v[0])
                     allmodelid.append(invoiceModelDB.idDocumentModel)
-        print(f"frmetadata {allmodelid}")
+
+        # Copy FRMetadata for all new models
         for m in allmodelid:
             frmetadata["idInvoiceModel"] = m
-            frmetaDataDB = model.FRMetaData(**frmetadata)
+            # frmetaDataDB = model.FRMetaData(**frmetadata) # replaced with below
+            # Remove any non-column attributes (e.g., SQLAlchemy internal attributes)
+            valid_frmetadata = {
+                key: value
+                for key, value in frmetadata.items()
+                if key in model.FRMetaData.__table__.columns
+            }
+
+            frmetaDataDB = model.FRMetaData(**valid_frmetadata)
             db.add(frmetaDataDB)
             db.commit()
-            print(m)
-        documenttagdefqr = (
-            "SELECT * FROM "
-            + DB
-            + ".documenttagdef WHERE idDocumentModel="
-            + str(model_id)
-            + ""
+
+        # Query for DocumentTagDef associated with the original document model
+        documenttagdefres = (
+            db.query(model.DocumentTagDef)
+            .filter(model.DocumentTagDef.idDocumentModel == model_id)
+            .all()
         )
-        documenttagdefres = pd.read_sql(documenttagdefqr, SQLALCHEMY_DATABASE_URL)
+
         documenttagdef = []
-        for i in range(len(documenttagdefres)):
+        for tag_def in documenttagdefres:
             obj = {}
-            for f in documenttagdefres.head():
-                if f != "idDocumentTagDef":
-                    obj[f] = documenttagdefres[f][i]
+            for key in tag_def.__dict__.keys():
+                if key != "idDocumentTagDef":
+                    obj[key] = getattr(tag_def, key)
             documenttagdef.append(obj)
-        print(f"header tag {documenttagdef}")
+
+        # Copy DocumentTagDef for all new models
         for m in allmodelid:
             checktag = (
                 db.query(model.DocumentTagDef)
@@ -1313,25 +1347,35 @@ def copymodels(vendoraccountId, modelname, db):
             if checktag is None:
                 for d in documenttagdef:
                     d["idDocumentModel"] = m
-                    documenttagdefDB = model.DocumentTagDef(**d)
+                    # documenttagdefDB = model.DocumentTagDef(**d)  replace with below
+                    # Filter out non-model fields like '_sa_instance_state'
+                    valid_documenttagdef = {
+                        key: value
+                        for key, value in d.items()
+                        if key in model.DocumentTagDef.__table__.columns
+                    }
+
+                    # Create and add the new DocumentTagDef entry
+                    documenttagdefDB = model.DocumentTagDef(**valid_documenttagdef)
                     db.add(documenttagdefDB)
                     db.commit()
-        documentlinedefqr = (
-            "SELECT * FROM "
-            + DB
-            + ".documentlineitemtags WHERE idDocumentModel="
-            + str(model_id)
-            + ""
+
+        # Query for DocumentLineItemTags associated with the original document model
+        documentlinedefres = (
+            db.query(model.DocumentLineItemTags)
+            .filter(model.DocumentLineItemTags.idDocumentModel == model_id)
+            .all()
         )
-        documentlinedefres = pd.read_sql(documentlinedefqr, SQLALCHEMY_DATABASE_URL)
+
         documentlinedef = []
-        for i in range(len(documentlinedefres)):
+        for line_tag in documentlinedefres:
             obj = {}
-            for f in documentlinedefres.head():
-                if f != "idDocumentLineItemTags":
-                    obj[f] = documentlinedefres[f][i]
+            for key in line_tag.__dict__.keys():
+                if key != "idDocumentLineItemTags":
+                    obj[key] = getattr(line_tag, key)
             documentlinedef.append(obj)
-        print(f"line tag {documentlinedef}")
+
+        # Copy DocumentLineItemTags for all new models
         for m in allmodelid:
             checktag = (
                 db.query(model.DocumentLineItemTags)
@@ -1341,12 +1385,181 @@ def copymodels(vendoraccountId, modelname, db):
             if checktag is None:
                 for d in documentlinedef:
                     d["idDocumentModel"] = m
-                    documentlinedefDB = model.DocumentLineItemTags(**d)
+                    # documentlinedefDB = model.DocumentLineItemTags(**d)
+                    # Filter out any invalid keys, like '_sa_instance_state'
+                    # or any other non-model fields
+                    valid_documentlinedef = {
+                        key: value
+                        for key, value in d.items()
+                        if key in model.DocumentLineItemTags.__table__.columns
+                    }
+                    # Create a new instance of the DocumentLineItemTags
+                    # model with valid fields
+                    documentlinedefDB = model.DocumentLineItemTags(
+                        **valid_documentlinedef
+                    )
+                    # Add the new instance to the session
                     db.add(documentlinedefDB)
                     db.commit()
+
         return {"message": "success"}
+
     except Exception:
         logger.error(traceback.format_exc())
         return {"message": "exception"}
+
     finally:
         db.close()
+
+
+# def copymodels(vendoraccountId, modelname, db):
+#     try:
+#         # Get the account for the given vendoraccountId
+#         account = (
+#             db.query(model.VendorAccount.Account)
+#             .filter(model.VendorAccount.idVendorAccount == vendoraccountId)
+#             .scalar()
+#         )
+
+#         # Get the vendorname for the account
+#         vendorname = (
+#             db.query(model.Vendor.VendorName)
+#             .filter(model.Vendor.VendorCode == account)
+#             .scalar()
+#         )
+
+#         # # Get all vendor codes associated with the vendor name as a list
+#         vendorcodes = [
+#             vc[0]
+#             for vc in db.query(model.Vendor.VendorCode)
+#             .filter(model.Vendor.VendorName == vendorname)
+#             .all()
+#         ]
+
+#         # Loop through each vendorcode in the list of vendorcodes
+#         for vendorcode in vendorcodes:
+#             # Get all VendorAccount IDs associated with the current vendorcode
+#             vendors = (
+#                 db.query(model.VendorAccount.idVendorAccount)
+#                 .filter(model.VendorAccount.Account == vendorcode)
+#                 .all()
+#             )
+
+#         docmodelqr = (
+#             "SELECT * FROM "
+#             + DB
+#             + ".documentmodel WHERE idVendorAccount="
+#             + str(vendoraccountId)
+#             + " and modelName = '"
+#             + modelname
+#             + "';"
+#         )
+#         docmodel = pd.read_sql(docmodelqr, SQLALCHEMY_DATABASE_URL)
+#         inputmodel = {}
+#         for d in docmodel.head():
+#             inputmodel[d] = docmodel[d][0]
+#         model_id = inputmodel["idDocumentModel"]
+#         frmetadataqr = (
+#             "SELECT * FROM "
+#             + DB
+#             + ".frmetadata WHERE idInvoiceModel="
+#             + str(model_id)
+#             + ""
+#         )
+#         frmetadatares = pd.read_sql(frmetadataqr, SQLALCHEMY_DATABASE_URL)
+#         frmetadata = {}
+#         for f in frmetadatares.head():
+#             frmetadata[f] = frmetadatares[f][0]
+#         del frmetadata["idFrMetaData"]
+#         del inputmodel["idDocumentModel"]
+#         allmodelid = []
+#         for v in vendors:
+#             if v[0] != vendoraccountId:
+#                 iddocqr = (
+#                     db.query(model.DocumentModel.idDocumentModel)
+#                     .filter(
+#                         model.DocumentModel.idVendorAccount == v[0],
+#                         model.DocumentModel.modelName == modelname,
+#                     )
+#                     .first()
+#                 )
+#                 if iddocqr is None:
+#                     inputmodel["idVendorAccount"] = v[0]
+#                     inputmodel["CreatedOn"] = datetime.utcnow().strftime(
+#                         "%Y-%m-%d %H:%M:%S"
+#                     )
+#                     inputmodel["UpdatedOn"] = inputmodel["CreatedOn"]
+#                     invoiceModelDB = model.DocumentModel(**inputmodel)
+#                     db.add(invoiceModelDB)
+#                     db.commit()
+#                     print(v[0])
+#                     allmodelid.append(invoiceModelDB.idDocumentModel)
+#         print(f"frmetadata {allmodelid}")
+#         for m in allmodelid:
+#             frmetadata["idInvoiceModel"] = m
+#             frmetaDataDB = model.FRMetaData(**frmetadata)
+#             db.add(frmetaDataDB)
+#             db.commit()
+#             print(m)
+#         documenttagdefqr = (
+#             "SELECT * FROM "
+#             + DB
+#             + ".documenttagdef WHERE idDocumentModel="
+#             + str(model_id)
+#             + ""
+#         )
+#         documenttagdefres = pd.read_sql(documenttagdefqr, SQLALCHEMY_DATABASE_URL)
+#         documenttagdef = []
+#         for i in range(len(documenttagdefres)):
+#             obj = {}
+#             for f in documenttagdefres.head():
+#                 if f != "idDocumentTagDef":
+#                     obj[f] = documenttagdefres[f][i]
+#             documenttagdef.append(obj)
+#         print(f"header tag {documenttagdef}")
+#         for m in allmodelid:
+#             checktag = (
+#                 db.query(model.DocumentTagDef)
+#                 .filter(model.DocumentTagDef.idDocumentModel == m)
+#                 .first()
+#             )
+#             if checktag is None:
+#                 for d in documenttagdef:
+#                     d["idDocumentModel"] = m
+#                     documenttagdefDB = model.DocumentTagDef(**d)
+#                     db.add(documenttagdefDB)
+#                     db.commit()
+#         documentlinedefqr = (
+#             "SELECT * FROM "
+#             + DB
+#             + ".documentlineitemtags WHERE idDocumentModel="
+#             + str(model_id)
+#             + ""
+#         )
+#         documentlinedefres = pd.read_sql(documentlinedefqr, SQLALCHEMY_DATABASE_URL)
+#         documentlinedef = []
+#         for i in range(len(documentlinedefres)):
+#             obj = {}
+#             for f in documentlinedefres.head():
+#                 if f != "idDocumentLineItemTags":
+#                     obj[f] = documentlinedefres[f][i]
+#             documentlinedef.append(obj)
+#         print(f"line tag {documentlinedef}")
+#         for m in allmodelid:
+#             checktag = (
+#                 db.query(model.DocumentLineItemTags)
+#                 .filter(model.DocumentLineItemTags.idDocumentModel == m)
+#                 .first()
+#             )
+#             if checktag is None:
+#                 for d in documentlinedef:
+#                     d["idDocumentModel"] = m
+#                     documentlinedefDB = model.DocumentLineItemTags(**d)
+#                     db.add(documentlinedefDB)
+#                     db.commit()
+#         return {"message": "success"}
+#     except Exception:
+#         logger.error(traceback.format_exc())
+#         return {"message": "exception"}
+#     finally:
+#         db.close()
