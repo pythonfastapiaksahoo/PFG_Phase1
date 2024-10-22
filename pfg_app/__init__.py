@@ -16,6 +16,12 @@ if settings.build_type not in ["debug"]:
     credential = get_credential()
     key_vault_secrets = []
     key_vault_secrets_names = [
+        {"api_v1_prefix": "APPORTAL-API-V1-PREFIX"},
+        {"debug": "APPORTAL-DEBUG"},
+        {"project_name": "APPORTAL-PROJECT-NAME"},
+        {"version": "APPORTAL-VERSION"},
+        {"description": "APPORTAL-DESCRIPTION"},
+        {"build_type": "APPORTAL-BUILD-TYPE"},
         {"api_client_id": "APPORTAL-API-CLIENT-ID"},
         {"api_client_secret": "APPORTAL-API-CLIENT-SECRET"},
         {"swagger_ui_client_id": "APPORTAL-SWAGGER-UI-CLIENT-ID"},
@@ -37,10 +43,10 @@ if settings.build_type not in ["debug"]:
         {"open_ai_endpoint": "APPORTAL-OPEN-AI-ENDPOINT"},
         {"storage_account_name": "APPORTAL-STORAGE-ACCOUNT-NAME"},
         {
-            "application_insights_instrumentation_key": "APPORTAL-APPLICATION-INSIGHTS-INSTRUMENTATION-KEY"  # noqa: E501
+            "appinsights_instrumentation_key": "APPORTAL-APPINSIGHTS-INSTRUMENTATION-KEY"  # noqa: E501
         },
         {
-            "application_insights_connection_string": "APPORTAL-APPLICATION-INSIGHTS-CONNECTION-STRING"  # noqa: E501
+            "appinsights_connection_string": "APPORTAL-APPINSIGHTS-CONNECTION-STRING"  # noqa: E501
         },
         {"erp_url": "APPORTAL-ERP-URL"},
         {"erp_invoice_import_endpoint": "APPORTAL-ERP-INVOICE-IMPORT-ENDPOINT"},
