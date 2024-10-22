@@ -4,13 +4,13 @@ import traceback
 
 from azure.data.tables import TableServiceClient
 from azure.storage.blob import BlobServiceClient
-from core.stampData import stampDataFn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pypdf import PdfReader, PdfWriter
 from sqlalchemy import create_engine
 
 from pfg_app import settings
+from pfg_app.core.stampData import stampDataFn
 from pfg_app.core.utils import get_credential, get_secret_from_vault
 from pfg_app.logger_module import logger
 from pfg_app.routers import (  # maillistener,
