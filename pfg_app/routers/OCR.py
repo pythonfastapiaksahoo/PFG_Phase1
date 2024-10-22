@@ -1098,25 +1098,6 @@ def runStatus(
                     )
                     db.commit()
 
-                    # conn = psycopg2.connect(
-                    #     dbname=settings.db_name,
-                    #     user=settings.db_user,
-                    #     password=settings.db_password,
-                    #     host=settings.db_host,
-                    #     port=str(settings.db_port),  # Ensure port is a string
-                    # )
-
-                    # cur = conn.cursor()
-                    # sql_updateFR = """UPDATE pfg_schema.frtrigger_tab \
-                    #             SET "status" = %s, "sender" = %s, \
-                    #             "vendorID" = %s \
-                    #         WHERE "blobpath" = %s; """
-                    # FRvalues = ("PostProcessing Error", sender, vendorID,
-                    # spltFileName)
-                    # cur.execute(sql_updateFR, FRvalues)
-                    # conn.commit()
-                    # cursor.close()
-                    # conn.close()
                 except Exception:
                     # logger.info(f"ocr.py: {str(qw)}")
                     logger.error(f"{traceback.format_exc()}")
