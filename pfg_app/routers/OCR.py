@@ -523,7 +523,11 @@ def runStatus(
                             "UploadDocType": invoice_type,
                             "metaVendorAdd": metaVendorAdd,
                             "metaVendorName": metaVendorName,
+                            # "pre_data": "",
+                            # "pre_status": "",
+                            # "pre_model_msg": "",
                         }
+
                         try:
                             invoId = live_model_fn_1(generatorObj)
                             logger.info(f"DocumentID:{invoId}")
@@ -533,7 +537,6 @@ def runStatus(
                             logger.error(f"Exception in live_model_fn_1: {str(e)}")
 
                         try:
-
                             if len(str(invoId)) == 0:
                                 preBltFrdata, preBltFrdata_status = getFrData_MNF(
                                     rwOcrData
@@ -566,19 +569,7 @@ def runStatus(
                                 )
                                 status = "success"
                                 try:
-                                    # cur = conn.cursor()
-                                    # sql_updateFR="""UPDATE pfg_schema.frtrigger_tab \
-                                    #             SET "status" = %s, "sender" = %s, \
-                                    #             "vendorID" = %s \
-                                    #         WHERE "blobpath" = %s; """
-                                    # FRvalues = (
-                                    #     "PostProcessing Error",
-                                    #     sender,
-                                    #     vendorID,
-                                    #     spltFileName,
-                                    # )
-                                    # cur.execute(sql_updateFR, FRvalues)
-                                    # conn.commit()
+
                                     fr_trigger = db.query(model.frtrigger_tab).filter
                                     (model.frtrigger_tab.blobpath == spltFileName)
 
@@ -629,6 +620,15 @@ def runStatus(
                         except Exception:
                             logger.error(f"{traceback.format_exc()}")
 
+                        # if "StampFound" in StampDataList[splt_map[fl]]:
+                        #     smpFnd = 1
+                        #     stmpHdr = hdr
+                        # elif "StampFound" in StampDataList[splt_map[fl]]:
+                        #     smpFnd = 1
+                        #     stmpHdr = ltPg
+                        # else:
+                        #     smpFnd = 0
+                        # stmpHdr = ""
                         if "StampFound" in StampDataList[splt_map[fl]]:
                             # stm_dt_lt = []
                             confCk_isErr = 1
@@ -1263,7 +1263,6 @@ def live_model_fn_1(generatorObj):
     sender = generatorObj["sender"]
     db = generatorObj["db"]
     source = generatorObj["source"]
-    # pdf_data_bytes = generatorObj["pdf_stream"]  # TODO: Unused variable
     fr_data = {}
     spltFileName = generatorObj["spltFileName"]
     vendorAccountID = generatorObj["vendorAccountID"]
@@ -1272,6 +1271,10 @@ def live_model_fn_1(generatorObj):
     metaVendorAdd = generatorObj["metaVendorAdd"]
     metaVendorName = generatorObj["metaVendorName"]
     # OpenAI_client = generatorObj["OpenAI_client"]
+
+    # pre_data = generatorObj["pre_data"]
+    # pre_status = generatorObj["pre_status"]
+    # pre_model_msg = generatorObj["pre_model_msg"]
 
     accepted_file_type = "application/pdf"
     file_size_accepted = 100

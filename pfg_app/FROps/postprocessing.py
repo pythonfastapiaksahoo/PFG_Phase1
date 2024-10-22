@@ -433,11 +433,10 @@ def getFrData_MNF(input_data):
         "VendorAddress",
     ]
     req_lt_prBlt_ln = ["Description", "Quantity", "UnitPrice", "Tax", "Amount"]
+    preBltFrdata = {}
     # all_pg_data = {}  # TODO: Unused variable
     # def dataPrep_postprocess(input_data):
-    getData_headerPg = (
-        {}
-    )  # replace with pg_1['analyzeResult']['documents'][0]['fields']
+    getData_headerPg = {}
     try:
         for pg_data in input_data:
             # print(pg_data['analyzeResult']['documents'][0]['fields'].keys())
@@ -449,10 +448,13 @@ def getFrData_MNF(input_data):
                 if tgs not in ("Items"):
 
                     if tgs in getData_headerPg:
-                        if (getData_headerPg[tgs]["confidence"]) < (
-                            pre_pg_data[tgs]["confidence"]
-                        ):
-                            getData_headerPg.update({tgs: pre_pg_data[tgs]})
+                        try:
+                            if (getData_headerPg[tgs]["confidence"]) < (
+                                pre_pg_data[tgs]["confidence"]
+                            ):
+                                getData_headerPg.update({tgs: pre_pg_data[tgs]})
+                        except Exception:
+                            getData_headerPg[tgs] = pre_pg_data[tgs]
                     else:
                         getData_headerPg[tgs] = pre_pg_data[tgs]
         preBltFrdata = {}
@@ -1380,27 +1382,28 @@ def postpro(
         postprocess_msg = "success"
         # posted_status = 1  # TODO: Unused variable
         dt = fr_data
-        get_nm_trn_qry = (
-            'SELECT "TRNNumber","VendorName" FROM '
-            + SCHEMA
-            + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
-            + SCHEMA
-            + '.vendoraccount where "idVendorAccount" in '
-            + '(SELECT "idVendorAccount" FROM '
-            + SCHEMA
-            + '.documentmodel WHERE "idDocumentModel"='
-            + str(invo_model_id)
-            + "));"
-        )
-        vdr_nm_trn_df = pd.read_sql(get_nm_trn_qry, SQLALCHEMY_DATABASE_URL)
-        # vdr_trn_df = pd.DataFrame(vdr_nm_trn_df["TRNNumber"])
-        vdr_name_df = pd.DataFrame(vdr_nm_trn_df["VendorName"])
+        # get_nm_trn_qry = (
+        #     'SELECT "VendorName" FROM '
+        #     + SCHEMA
+        #     + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
+        #     + SCHEMA
+        #     + '.vendoraccount where "idVendorAccount" in '
+        #     + '(SELECT "idVendorAccount" FROM '
+        #     + SCHEMA
+        #     + '.documentmodel WHERE "idDocumentModel"='
+        #     + str(invo_model_id)
+        #     + "));"
+        # )
+        # vdr_nm_trn_df = pd.read_sql(get_nm_trn_qry, SQLALCHEMY_DATABASE_URL)
+        # # vdr_trn_df = pd.DataFrame(vdr_nm_trn_df["TRNNumber"])
+        # vdr_name_df = pd.DataFrame(vdr_nm_trn_df["VendorName"])
 
-        name_val = (
-            list(vdr_name_df["VendorName"])[0]
-            if "VendorName" in vdr_name_df and len(list(vdr_name_df["VendorName"])) > 0
-            else ""
-        )
+        # name_val = (
+        #     list(vdr_name_df["VendorName"])[0]
+        #     if "VendorName" in vdr_name_df and
+        # len(list(vdr_name_df["VendorName"])) > 0
+        #     else ""
+        # )
 
         for tg in range(len(dt["header"])):
             if dt["header"][tg]["tag"] == "InvoiceId":
@@ -1430,7 +1433,7 @@ def postpro(
                     .filter(
                         document.docheaderID == str(doc_invID),
                         document.idDocumentType == 3,
-                        vendor.VendorName == name_val,
+                        vendor.VendorName == metaVendorName,
                     )
                     .all()
                 )
@@ -1691,8 +1694,7 @@ def postpro(
                 dt["header"][tg]["data"]["value"] = cln_amt(
                     dt["header"][tg]["data"]["value"]
                 )
-                # InvoiceTotal_val = dt["header"][tg]["data"]["value"]
-                # # TODO: Unused variable
+
                 fr_data = dt
             if dt["header"][tg]["tag"] == "SubTotal":
                 dt["header"][tg]["data"]["value"] = cln_amt(
@@ -1730,6 +1732,14 @@ def postpro(
                 )
                 # TotalTax = dt["header"][tg]["data"]["value"]  # TODO: Unused variable
                 fr_data = dt
+            try:
+                if dt["header"][tg]["tag"] in ["GST", "HST", "PST", "LitterDeposit"]:
+                    dt["header"][tg]["data"]["value"] = cln_amt(
+                        dt["header"][tg]["data"]["value"]
+                    )
+                    fr_data = dt
+            except Exception:
+                logger.info("postpro GST cleanup exception")
 
         present_header = []
         missing_header = []
