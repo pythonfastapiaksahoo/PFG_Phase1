@@ -3,11 +3,11 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Base
-    api_v1_prefix: str
-    debug: bool
-    project_name: str
-    version: str
-    description: str
+    api_v1_prefix: str = ""
+    debug: bool = False
+    project_name: str = ""
+    version: str = ""
+    description: str = ""
     build_type: str = "debug"  # debug or release
 
     # Azure Auth
