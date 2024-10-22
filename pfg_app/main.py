@@ -1,4 +1,3 @@
-import os
 import tempfile
 import traceback
 
@@ -165,15 +164,26 @@ async def root(request: Request):
     domain = request.url.hostname
     logger.info(f"Root endpoint was accessed - {domain}")
 
+    # check if the key vault is accessible
+    try:
+        if settings.build_type not in ["debug"]:
+            credential = get_credential()
+            api_client_id = get_secret_from_vault(
+                credential, "APPORTAL-API-CLIENT-ID", "api_client_id"
+            )
+            logger.info(f"API Client ID: {api_client_id}")
+    except Exception:
+        logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
+        return {"message": "Error connecting to the key vault"}
+
     try:
         # connect to the database
 
-        # Replace these variables with your actual database credentials
-        username = os.getenv("DB_USER")
-        password = os.getenv("DB_PASSWORD")
-        host = os.getenv("DB_HOST")
-        port = os.getenv("DB_PORT")
-        database = os.getenv("DB_NAME")
+        username = settings.db_user
+        password = settings.db_password
+        host = settings.db_host
+        port = settings.db_port
+        database = settings.db_name
 
         # Create the connection string
         connection_string = (
@@ -190,18 +200,6 @@ async def root(request: Request):
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
         return {"message": "Error connecting to the database"}
-
-    # check if the key vault is accessible
-    try:
-        if settings.build_type not in ["debug"]:
-            credential = get_credential()
-            api_client_id = get_secret_from_vault(
-                credential, "APPORTAL-API-CLIENT-ID", "api_client_id"
-            )
-            logger.info(f"API Client ID: {api_client_id}")
-    except Exception:
-        logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
-        return {"message": "Error connecting to the key vault"}
 
     # check if blob is accessible
     try:
