@@ -107,7 +107,7 @@ def runStatus(
         invoId = ""
         customerID = 1
         userID = 1
-        logger.info(f"userID: {userID}")
+        # logger.info(f"userID: {userID}")
         """'file_path': blob_url, 'filename': blob_name, 'file_type':
         file_type, 'source': 'Azure Blob Storage', 'invoice_type':
         invoice_type."""
@@ -284,9 +284,8 @@ def runStatus(
                     db.add(fr_db_data)
                     db.commit()
 
-                except Exception as rt:
+                except Exception:
                     logger.error(f"{traceback.format_exc()}")
-                    logger.info(f"line 180: DB insertion error:{str(rt)} ")
 
                 if "VendorName" in prbtHeaders[splt_map[fl]]:
                     # logger.info(f"DI prbtHeaders: {prbtHeaders}")
@@ -400,13 +399,13 @@ def runStatus(
                                                     stop = True
                                                     break
 
-                    except Exception as rt:
+                    except Exception:
                         logger.error(f"{traceback.format_exc()}")
-                        logger.info(f"ocr.py line 220 {str(rt)}")
+
                         vdrFound = 0
 
-                except Exception as er:
-                    logger.info(f"ocr.py exception: {str(er)}")
+                except Exception:
+
                     logger.error(f"{traceback.format_exc()}")
                     vdrFound = 0
 
@@ -429,9 +428,9 @@ def runStatus(
                                 "VendorName"
                             ]
                         )[0]
-                    except Exception as err:
+                    except Exception:
                         logger.error(f"{traceback.format_exc()}")
-                        logger.error(f"metaVendorName exception:{str(err)}")
+
                         metaVendorName = ""
                     vendorAccountID = vendorID
                     poNumber = "nonPO"
@@ -472,11 +471,9 @@ def runStatus(
                             )
                             status = "success"
 
-                        except Exception as e:
+                        except Exception:
                             logger.error(f"{traceback.format_exc()}")
-                            logger.info(
-                                f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
-                            )
+
                             status = traceback.format_exc()
 
                         logger.info("Vendor Not Onboarded")
@@ -531,10 +528,9 @@ def runStatus(
                         try:
                             invoId = live_model_fn_1(generatorObj)
                             logger.info(f"DocumentID:{invoId}")
-                        except Exception as e:
+                        except Exception:
                             invoId = ""
                             logger.error(f"{traceback.format_exc()}")
-                            logger.error(f"Exception in live_model_fn_1: {str(e)}")
 
                         try:
                             if len(str(invoId)) == 0:
@@ -584,15 +580,11 @@ def runStatus(
                                     # Step 3: Commit the transaction
                                     db.commit()
 
-                                except Exception as qw:
+                                except Exception:
                                     logger.error(f"{traceback.format_exc()}")
-                                    logger.info(f"ocr.py line 475: {str(qw)}")
 
-                        except Exception as e:
+                        except Exception:
                             logger.error(f"{traceback.format_exc()}")
-                            logger.info(
-                                f"Postprocessing Exception line 446 orc.py: {str(e)}"
-                            )
                             status = traceback.format_exc()
 
                         try:
@@ -722,9 +714,9 @@ def runStatus(
 
                                         except Exception as e:
                                             logger.error(f"{traceback.format_exc()}")
-                                            logger.error(
-                                                f"Error executing query: {str(e)}"
-                                            )
+                                            # logger.error(
+                                            #     f"Error executing query: {str(e)}"
+                                            # )
 
                                             confCk_isErr = 0
                                             confCk_msg = "Error:" + str(e)
@@ -864,11 +856,9 @@ def runStatus(
                                                 StrTyp_IsErr = 0
                                                 StrTyp_msg = ""
                                                 store_type = "Integrated"
-                                        except Exception as e:
+                                        except Exception:
                                             logger.error(f"{traceback.format_exc()}")
-                                            logger.info(
-                                                f"Error fetching stores type: {str(e)}"
-                                            )
+
                                         if len(str_nm) > 0:
                                             if int(storenumber) == int(str_nm):
                                                 strCk_isErr = 0
@@ -928,19 +918,16 @@ def runStatus(
                                     )
                                     db.commit()
 
-                                except Exception as e:
+                                except Exception:
                                     logger.error(f"{traceback.format_exc()}")
-                                    logger.error(
-                                        f"stampdata insertion exception: {str(e)}"
-                                    )
 
                                 try:
                                     if store_type == "Integrated":
                                         IntegratedvoucherData(invoId, db)
                                     elif store_type == "Non-Integrated":
                                         nonIntegratedVoucherData(invoId, db)
-                                except Exception as er:
-                                    logger.info(f"VoucherDateException:{er}")
+                                except Exception:
+
                                     logger.error(f"{traceback.format_exc()}")
 
                         try:
@@ -955,8 +942,8 @@ def runStatus(
                             )
                             db.commit()
 
-                        except Exception as qw:
-                            logger.info(f"ocr.py  {str(qw)}")
+                        except Exception:
+                            # logger.info(f"ocr.py  {str(qw)}")
                             logger.error(f"{traceback.format_exc()}")
 
                         status = "success"
@@ -1051,11 +1038,11 @@ def runStatus(
 
                             # Commit the transaction
                             db.commit()
-                        except Exception as e:
-                            print("frtrigger_tab update exception: ", str(e))
+                        except Exception:
+
                             logger.error(f"{traceback.format_exc()}")
 
-                        logger.error(f"frtrigger_tab update exception: {str(et)}")
+                        # logger.error(f"frtrigger_tab update exception: {str(et)}")
 
                     status = traceback.format_exc()
                 fl = fl + 1
@@ -1130,24 +1117,22 @@ def runStatus(
                     # conn.commit()
                     # cursor.close()
                     # conn.close()
-                except Exception as qw:
-                    logger.info(f"ocr.py: {str(qw)}")
+                except Exception:
+                    # logger.info(f"ocr.py: {str(qw)}")
                     logger.error(f"{traceback.format_exc()}")
-        except Exception as err:
-            logger.error(f"ocr.py: {err}")
+        except Exception:
+            # logger.error(f"ocr.py: {err}")
             logger.error(f" ocr.py: {traceback.format_exc()}")
 
     except Exception as err:
 
         logger.error(f"API exception ocr.py: {traceback.format_exc()}")
-        logger.error(f"API exception ocr.py: {str(err)}")
         status = "error: " + str(err)
 
     try:
         pfg_sync(invoId, userID, db)
         logger.info("pfg_sync Done!")
-    except Exception as Er:
-        logger.info(f"Ocr.py SyncError: {Er}")
+    except Exception:
         logger.error(f"{traceback.format_exc()}")
 
     return status
@@ -1408,7 +1393,7 @@ def live_model_fn_1(generatorObj):
                     db,
                 )
                 # print("invoice_ID line 504: ",invoice_ID)
-                logger.info(f"ocr.py, line 571: InvoiceDocumentID: {invoice_ID}")
+                # logger.info(f"ocr.py, line 571: InvoiceDocumentID: {invoice_ID}")
                 try:
 
                     created_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -1426,9 +1411,9 @@ def live_model_fn_1(generatorObj):
 
                     db.add(data_switch_)
                     db.commit()
-                except Exception as ep:
+                except Exception:
                     logger.error(f"{traceback.format_exc()}")
-                    logger.error(f"ocr.py line 594: exception:{str(ep)}")
+                    # logger.error(f"ocr.py line 594: exception:{str(ep)}")
                     # {"DB error": "Error while inserting data"}
 
                 db.close()
@@ -1436,13 +1421,13 @@ def live_model_fn_1(generatorObj):
                 # live_model_msg = "Data extracted"  # TODO: Unused variable
                 current_status = {"percentage": 75, "status": "Post-Processing ⌛"}
                 # print("current_status: line 466: ",current_status)
-                logger.info(f"current_status: line 466: {current_status}")
+                # logger.info(f"current_status: line 466: {current_status}")
 
                 current_status = {"percentage": 100, "status": "OCR completed ✔"}
 
                 # print("current_status: line 479: ", current_status)
 
-                logger.info(f"current_status: line 479:{current_status}")
+                logger.info(f"current_status::{current_status}")
             else:
                 # live_model_status = 0  # TODO: Unused variable
                 # live_model_msg = postprocess_status  # TODO: Unused variable

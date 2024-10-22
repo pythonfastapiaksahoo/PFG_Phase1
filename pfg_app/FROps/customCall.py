@@ -12,7 +12,6 @@ from pfg_app.session.session import get_db
 # from sqlalchemy.dialects.postgresql import insert
 
 
-# from datetime
 def getMetaData(vendorAccountID, db):
     try:
         metadata = (
@@ -46,11 +45,9 @@ def getOcrParameters(customerID, db):
         )
 
 
-# from datetime import datetime
-
-
 def date_cnv(doc_date, date_format):
-    # correctDate = None
+    # clean date and convert to "yyyy-mm-dd"
+
     get_date = {
         "jan": "01",
         "feb": "02",
@@ -181,7 +178,7 @@ def getModelData(vendorAccountID, db):
 
 
 def customModelCall(docID):
-    # logger.info(f"customModelCall line 68")
+    # Custom Model Call for unidentified invoices:
     custcall_status = 1
     try:
         accepted_file_type = "application/pdf"
@@ -220,6 +217,7 @@ def customModelCall(docID):
         API_version = configs.ApiVersion
         model_type = "custom"
 
+        # preprocess the file and get binary data
         fr_preprocessing_status, fr_preprocessing_msg, input_data, ui_status = (
             fr_preprocessing(
                 vendorAccountID,
@@ -234,6 +232,7 @@ def customModelCall(docID):
             )
         )
 
+        # DI call with trained model
         cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
             get_fr_data(
                 input_data,
