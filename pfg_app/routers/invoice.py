@@ -467,7 +467,36 @@ async def read_splitdoc_data(
     List of invoice documents filtered and paginated according to the input parameters.
     """
 
-    docs = await crud.get_all_splitdoc_and_frtrigger_data(
-        user.idUser, (offset, limit), db
-    )
+    docs = await crud.get_all_splitdoc_data(user.idUser, (offset, limit), db)
+    return docs
+
+
+# Checked (new) - used in the frontend
+@router.get("/readFRtriggerTabData/{split_id}")
+async def get_frtrigger_data_by_splitdoc_id(
+    split_id: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """API route to retrieve a paginated list of invoice documents with line
+    item details as optional when filters is applied  .
+
+    Parameters:
+    ----------
+
+    offset : int
+        The page number for pagination (default is 1).
+
+    limit : int
+        Number of records per page (default is 10).
+
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of invoice documents filtered and paginated according to the input parameters.
+    """
+
+    docs = await crud.get_frtrigger_data_by_splitdoc_id(user.idUser, split_id, db)
     return docs

@@ -1455,3 +1455,4 @@ class SplitDocTab(Base):
     email_subject = Column(String, nullable=True)
     sender = Column(String, nullable=True)
     updated_on = Column(DateTime, nullable=True)
+    mail_row_key = Column(String, nullable=True)
