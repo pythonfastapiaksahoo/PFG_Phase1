@@ -301,8 +301,7 @@ def tb_cln_amt(amt):
         if "," in amt:
             if amt[-3] == ",":
                 amt = amt[:-3] + "." + amt[-2:]
-    except Exception as at:
-        logger.info(f"post pro line 247: {str(at)}")
+    except Exception:
         logger.error(f" {traceback.format_exc()}")
         amt = amt_cpy
     try:
@@ -323,11 +322,9 @@ def tb_cln_amt(amt):
         sb_amt = round(sb_amt, 2)
         # cln_amt_sts = 1
 
-    except Exception as e:
+    except Exception:
         logger.error(f" {traceback.format_exc()}")
-        sb_amt = amt
-
-        logger.info(f"postpro line 269: {str(e)}")
+        sb_amt = 0
         sb_amt = str(sb_amt)
 
     return sb_amt
@@ -358,17 +355,15 @@ def getBBox(data):
 
 
 def cln_amt(amt):
-    amt_cpy = amt
+    # amt_cpy = amt
     if amt is None:
         amt = "0"
-    # amt = str(amt).replace(',','.')
     try:
         if "," in amt:
             if amt[-3] == ",":
                 amt = amt[:-3] + "." + amt[-2:]
-    except Exception as er:
-        logger.error(f"Exception in cln_amt: {er}")
-        amt = amt_cpy
+    except Exception:
+        amt = "0"
 
     if len(amt) > 0 and (amt is not None):
         if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
@@ -388,7 +383,7 @@ def cln_amt(amt):
         cl_amt = round(cl_amt, 2)
     except Exception:
         logger.error(traceback.format_exc())
-        cl_amt = amt
+        cl_amt = "0"
     return cl_amt
 
 
@@ -433,11 +428,10 @@ def getFrData_MNF(input_data):
         "VendorAddress",
     ]
     req_lt_prBlt_ln = ["Description", "Quantity", "UnitPrice", "Tax", "Amount"]
+    preBltFrdata = {}
     # all_pg_data = {}  # TODO: Unused variable
     # def dataPrep_postprocess(input_data):
-    getData_headerPg = (
-        {}
-    )  # replace with pg_1['analyzeResult']['documents'][0]['fields']
+    getData_headerPg = {}
     try:
         for pg_data in input_data:
             # print(pg_data['analyzeResult']['documents'][0]['fields'].keys())
@@ -449,10 +443,13 @@ def getFrData_MNF(input_data):
                 if tgs not in ("Items"):
 
                     if tgs in getData_headerPg:
-                        if (getData_headerPg[tgs]["confidence"]) < (
-                            pre_pg_data[tgs]["confidence"]
-                        ):
-                            getData_headerPg.update({tgs: pre_pg_data[tgs]})
+                        try:
+                            if (getData_headerPg[tgs]["confidence"]) < (
+                                pre_pg_data[tgs]["confidence"]
+                            ):
+                                getData_headerPg.update({tgs: pre_pg_data[tgs]})
+                        except Exception:
+                            getData_headerPg[tgs] = pre_pg_data[tgs]
                     else:
                         getData_headerPg[tgs] = pre_pg_data[tgs]
         preBltFrdata = {}
@@ -1380,27 +1377,6 @@ def postpro(
         postprocess_msg = "success"
         # posted_status = 1  # TODO: Unused variable
         dt = fr_data
-        get_nm_trn_qry = (
-            'SELECT "TRNNumber","VendorName" FROM '
-            + SCHEMA
-            + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
-            + SCHEMA
-            + '.vendoraccount where "idVendorAccount" in '
-            + '(SELECT "idVendorAccount" FROM '
-            + SCHEMA
-            + '.documentmodel WHERE "idDocumentModel"='
-            + str(invo_model_id)
-            + "));"
-        )
-        vdr_nm_trn_df = pd.read_sql(get_nm_trn_qry, SQLALCHEMY_DATABASE_URL)
-        # vdr_trn_df = pd.DataFrame(vdr_nm_trn_df["TRNNumber"])
-        vdr_name_df = pd.DataFrame(vdr_nm_trn_df["VendorName"])
-
-        name_val = (
-            list(vdr_name_df["VendorName"])[0]
-            if "VendorName" in vdr_name_df and len(list(vdr_name_df["VendorName"])) > 0
-            else ""
-        )
 
         for tg in range(len(dt["header"])):
             if dt["header"][tg]["tag"] == "InvoiceId":
@@ -1430,7 +1406,7 @@ def postpro(
                     .filter(
                         document.docheaderID == str(doc_invID),
                         document.idDocumentType == 3,
-                        vendor.VendorName == name_val,
+                        vendor.VendorName == metaVendorName,
                     )
                     .all()
                 )
@@ -1454,106 +1430,6 @@ def postpro(
                     dt["header"][tg]["data"]["value"] = req_date
                     dt["header"][tg]["status"] = 0
                     dt["header"][tg]["status_message"] = "Invalid Date format"
-
-            # if dt["header"][tg]["tag"] == "TRN":
-            #     doc_trn = dt["header"][tg]["data"]["value"]
-            #     try:
-            #         doc_trn_nw = ""
-            #         for trn_sp in doc_trn.split(" "):
-            #             # print(trn_sp)
-            #             sb_tn = ""
-            #             for i_ in trn_sp:
-            #                 if i_.isdigit():
-            #                     sb_tn = sb_tn + i_
-            #             if len(sb_tn) > 0:
-            #                 doc_trn_nw = doc_trn_nw + " " + sb_tn
-
-            #         ocr_trn = max(
-            #             (re.findall(r"\b\d+\b", doc_trn_nw)), default=0, key=len
-            #         )
-            #         dt["header"][tg]["data"]["value"] = ocr_trn
-            #         # TRN Match:
-            #         get_trn_qry = (
-            #             'SELECT "TRNNumber" FROM '
-            #             + SCHEMA
-            #             + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
-            #             + SCHEMA
-            #             + '.vendoraccount where "idVendorAccount" in '
-            #             + '(SELECT "idVendorAccount" FROM '
-            #             + SCHEMA
-            #             + '.documentmodel WHERE "idDocumentModel"='
-            #             + str(invo_model_id)
-            #             + "));"
-            #         )
-            #         vdr_trn_df = pd.read_sql(get_trn_qry, SQLALCHEMY_DATABASE_URL)
-            #         trn_val = (
-            #             list(vdr_trn_df["TRNNumber"])[0]
-            #             if "TRNNumber" in vdr_trn_df
-            #             and len(list(vdr_trn_df["TRNNumber"])) > 0
-            #             else ""
-            #         )
-            #         if trn_val == "":
-            #             dt["header"][tg][
-            #                 "status_message"
-            #             ] = "TRN is missing from Vendor metadata."
-            #             dt["header"][tg]["status"] = 0
-            #             trn_match_metadata = 0
-
-            #         vdr_trn = re.findall(r"\d+", trn_val)[0]
-            #         if len(vdr_trn) > 12:
-            #             trn_val = vdr_trn
-            #         else:
-            #             trn_val = ""
-            #             dt["header"][tg][
-            #                 "status_message"
-            #             ] = "TRN is missing from Vendor metadata."
-            #             dt["header"][tg]["status"] = 0
-            #         # else:
-            #         #     trn_match_metadata = 1
-            #         if trn_val != "" and trn_val != ocr_trn:
-            #             dt["header"][tg]["status_message"] = (
-            #                 "TRN not matching with vendor metadata("
-            #                 + str(trn_val)
-            #                 + ")."
-            #             )
-            #             dt["header"][tg]["status"] = 0
-            #             trn_match_metadata = 0
-
-            #         else:
-
-            #             dt["header"][tg]["status"] = 0
-            #             dt["header"][tg][
-            #                 "status_message"
-            #             ] = "Low Confidence, Please Review."
-
-            #     except Exception as trn_exp:
-            #         logger.error(f"trn exception:{trn_exp} ")
-            #         # print(trn_exp)
-            #         dt["header"][tg]["status_message"] = (
-            #             "Low Confidence, Meta data trn:" + str(trn_val) + ")."
-            #         )
-            #         dt["header"][tg]["status"] = 0
-
-            # if dt["header"][tg]["tag"] == "PurchaseOrder":
-            #     doc_po = dt["header"][tg]["data"]["value"]
-
-            #     formatted_po, po_status = po_cvn(doc_po, entityID)
-            #     dt["header"][tg]["data"]["value"] = formatted_po
-
-            #     po_doc = (
-            #         db.query(model.Document)
-            #         .filter(
-            #             model.Document.PODocumentID == formatted_po,
-            #             model.Document.idDocumentType == 1,
-            #         )
-            #         .first()
-            #     )
-            #     if po_status == 1:
-            #         dt["header"][tg]["status_message"] = "Please Review PO number."
-            #         dt["header"][tg]["status"] = 0
-            #     if po_doc is None:
-            #         dt["header"][tg]["status_message"] = "PO not found in Serina!"
-            #         dt["header"][tg]["status"] = 0
 
             try:
                 # metaVendorName, metaVendorAdd match check
@@ -1618,8 +1494,6 @@ def postpro(
             for rw in range(len(dt["tab"][row_cnt])):
                 dt["tab"][row_cnt][rw]["row_count"] = row_cnt + 1
         SubTotal_data = ""
-        # InvoiceTotal_val = ""  # TODO: Unused variable
-        # TotalTax = ""  # TODO: Unused variable
         for tg in range(len(dt["header"])):
 
             if dt["header"][tg]["tag"] == "VendorName":
@@ -1665,8 +1539,7 @@ def postpro(
                                 ] = "Vendor Name Mismatch with Master Data"
                                 dt["header"][tg]["status"] = 0
 
-                    except Exception as qw:
-                        logger.error(f"vendor name exception: {str(qw)}")
+                    except Exception:
                         logger.error(f" {traceback.format_exc()}")
                         dt["header"][tg][
                             "status_message"
@@ -1691,8 +1564,7 @@ def postpro(
                 dt["header"][tg]["data"]["value"] = cln_amt(
                     dt["header"][tg]["data"]["value"]
                 )
-                # InvoiceTotal_val = dt["header"][tg]["data"]["value"]
-                # # TODO: Unused variable
+
                 fr_data = dt
             if dt["header"][tg]["tag"] == "SubTotal":
                 dt["header"][tg]["data"]["value"] = cln_amt(
@@ -1728,8 +1600,16 @@ def postpro(
                 dt["header"][tg]["data"]["value"] = cln_amt(
                     dt["header"][tg]["data"]["value"]
                 )
-                # TotalTax = dt["header"][tg]["data"]["value"]  # TODO: Unused variable
+
                 fr_data = dt
+            try:
+                if dt["header"][tg]["tag"] in ["GST", "HST", "PST", "LitterDeposit"]:
+                    dt["header"][tg]["data"]["value"] = cln_amt(
+                        dt["header"][tg]["data"]["value"]
+                    )
+                    fr_data = dt
+            except Exception:
+                logger.info("postpro GST cleanup exception")
 
         present_header = []
         missing_header = []
@@ -1741,7 +1621,7 @@ def postpro(
             if "InvoiceTotal" not in present_header:
                 if SubTotal_data != "":
                     tmp = {}
-                    # tmp['tag'] = 'InvoiceTotal'
+
                     tmp = {
                         "tag": "InvoiceTotal",
                         "data": {
@@ -1755,26 +1635,8 @@ def postpro(
                     }
                     present_header.append("InvoiceTotal")
                     fr_data["header"].append(tmp)
-            # if "SubTotal" not in present_header:
-            #     if InvoTotal_data != "":
-            #         tmp = {}
-            #         # tmp['tag'] = 'InvoiceTotal'
-            #         tmp = {
-            #             "tag": "SubTotal",
-            #             "data": {
-            #                 "value": str(InvoTotal_data),
-            #                 "prebuilt_confidence": "0.0",
-            #                 "custom_confidence": "0.0",
-            #             },
-            #             "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
-            #             "status": 1,
-            #             "status_message": "Calculated Value",
-            #         }
-            #         present_header.append("InvoiceTotal")
-            #         fr_data["header"].append(tmp)
 
-        except Exception as e:
-            logger.error(f"postpro line 1347: {str(e)}")
+        except Exception:
             logger.error(f" {traceback.format_exc()}")
             # (str(e))
         if not set(mandatory_header).issubset(set(present_header)):
@@ -1795,14 +1657,13 @@ def postpro(
             fr_data["header"].append(tp_tg)
 
         if len(missing_header) >= (len(mandatory_header)):
-            # reject invoice
             fr_data = {}
             postprocess_msg = "Please check the document uploaded! - Model not found."
             postprocess_status = 0
-            logger.error(
-                "Please check the document uploaded! - Model not found:"
-                + f"{postprocess_msg}"
-            )
+            # logger.error(
+            #     "Please check the document uploaded! - Model not found:"
+            #     + f"{postprocess_msg}"
+            # )
 
         else:
             labels_not_present = []
@@ -1828,7 +1689,6 @@ def postpro(
         postprocess_status = 0
         postprocess_msg = str(e)
         logger.error(f" {traceback.format_exc()}")
-        logger.error(f"postpro line 1833: {postprocess_msg}")
 
     try:
         sts_hdr_ck = 1
@@ -1850,15 +1710,14 @@ def postpro(
                             _s = fr_data["header"][0]["data"]["custom_confidence"]
                             _sPercent = float(_s) * 100
                             logger.info("confidence score:" + f"{_sPercent}")
-                    except Exception as tr:
-                        logger.error(f"postpro line 1856: {str(tr)} ")
-                        logger.error(f"postpro line 1856: {traceback.format_exc()}")
+                    except Exception:
+
+                        logger.error(f"postpro : {traceback.format_exc()}")
                         sts_hdr_ck = 0
         else:
             sts_hdr_ck = 0
 
-    except Exception as qw:
-        logger.error(f"postpro line 1431 exception: {qw} , {sts_hdr_ck}")
+    except Exception:
         logger.error(f" {traceback.format_exc()}")
         sts_hdr_ck = 0
     return fr_data, postprocess_msg, postprocess_status, duplicate_status, sts_hdr_ck

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 import pfg_app.model as model
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
 from pfg_app.crud.InvoiceCrud import update_docHistory
+from pfg_app.FROps.customCall import customModelCall
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
@@ -477,6 +478,11 @@ def pfg_sync(docID, userID, db: Session):
                 "status": duplicate_status_ck,
                 "response": [duplicate_status_ck_msg],
             }
+        try:
+            if isinstance(InvodocStatus, int) and InvodocStatus == 26:
+                customModelCall(docID)
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")
         # ----------
         DocDtHdr = (
             db.query(model.DocumentData, model.DocumentTagDef)
