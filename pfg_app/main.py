@@ -246,7 +246,7 @@ async def root(request: Request):
         account_url = f"https://{settings.storage_account_name}.table.core.windows.net"
         # Create a BlobServiceClient
         table_service_client = TableServiceClient(
-            account_url=account_url, credential=credential
+            endpoint=account_url, credential=credential
         )
 
         # create a table client
