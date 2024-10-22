@@ -1,5 +1,4 @@
 import logging
-import os
 
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 
@@ -35,10 +34,8 @@ from pfg_app import settings
 #         Worker PID: %(worker_pid)s - %(trace_id)s - %(message)s"
 # )
 if settings.build_type != "debug":
-    print(settings.application_insights_connection_string)
-    handler = AzureLogHandler(
-        connection_string=os.getenv("APPINSIGHTS_CONNECTION_STRING")
-    )
+    print(settings.appinsights_connection_string)
+    handler = AzureLogHandler(connection_string=settings.appinsights_connection_string)
 # handler.setFormatter(formatter)
 # handler.addFilter(trace_id_filter)
 

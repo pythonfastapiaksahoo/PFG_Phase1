@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     key_vault_url: str = ""
     open_ai_endpoint: str = ""
     storage_account_name: str = ""
-    application_insights_instrumentation_key: str = ""
-    application_insights_connection_string: str = ""
+    appinsights_instrumentation_key: str = ""
+    appinsights_connection_string: str = ""
 
     # ERP
     erp_url: str = ""
