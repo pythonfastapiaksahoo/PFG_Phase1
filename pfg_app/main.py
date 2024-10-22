@@ -1,10 +1,13 @@
 import os
+import tempfile
 import traceback
 
-from fastapi import FastAPI, Request  # , Request
-
-# from dependency.dependencies import get_query_token, get_token_header
+from azure.data.tables import TableServiceClient
+from azure.storage.blob import BlobServiceClient
+from core.stampData import stampDataFn
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from pypdf import PdfReader, PdfWriter
 from sqlalchemy import create_engine
 
 from pfg_app import settings
@@ -26,9 +29,6 @@ from pfg_app.routers import (  # maillistener,
 # from opencensus.trace.propagation.trace_context_http_header_format import (
 #     TraceContextPropagator,
 # )
-
-
-# , Request
 
 
 # dependencies=[Depends(get_query_token)])
@@ -191,6 +191,7 @@ async def root(request: Request):
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
         return {"message": "Error connecting to the database"}
 
+    # check if the key vault is accessible
     try:
         if settings.build_type not in ["debug"]:
             credential = get_credential()
@@ -201,5 +202,154 @@ async def root(request: Request):
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
         return {"message": "Error connecting to the key vault"}
+
+    # check if blob is accessible
+    try:
+        # try to create a container client and delete it
+        # Get the credential
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+
+        # create a container client
+        container_name = "test-container"
+        # create the container
+        blob_service_client.create_container(container_name)
+
+        container_client = blob_service_client.get_container_client(container_name)
+
+        # create a blob client
+        blob_path = "test-blob.txt"
+        blob_client = container_client.get_blob_client(blob_path)
+
+        # upload a blob
+        blob_client.upload_blob("test", overwrite=True)
+
+        # delete the blob
+        blob_client.delete_blob()
+
+        # delete the container
+        container_client.delete_container()
+
+    except Exception:
+        logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
+        return {"message": "Error accessing the blob storage"}
+
+    # check if table storage is accessible
+    try:
+        # try to create a table client and delete it
+        # Get the credential
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.table.core.windows.net"
+        # Create a BlobServiceClient
+        table_service_client = TableServiceClient(
+            account_url=account_url, credential=credential
+        )
+
+        # create a table client
+        table_name = "test-table"
+        table_client = table_service_client.get_table_client(table_name)
+
+        # create a table
+        table_client.create_table()
+
+        # delete the table
+        table_client.delete_table()
+
+    except Exception:
+        logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
+        return {"message": "Error accessing the table storage"}
+
+    # check if the Azure Document intelligence is accessible
+    try:
+
+        # Load the files as BytesIO from TestData
+        reader = PdfReader("TestData/Chuckleberry Community Farm.pdf")
+
+        page_writer = PdfWriter()
+        page_writer.add_page(reader.pages[0])
+        # append the page as BytesIO object
+        with tempfile.NamedTemporaryFile() as temp_file:
+            page_writer.write(temp_file)
+            temp_file.seek(0)
+
+        from core.azure_fr import call_form_recognizer
+
+        # call the call_form_recognizer function
+        result = call_form_recognizer(
+            input_file=temp_file.read(),
+            endpoint=settings.form_recognizer_endpoint,
+            api_version=settings.api_version,
+        )
+
+        logger.info(result)
+    except Exception:
+        logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
+        return {"message": "Error accessing the Azure Document Intelligence service"}
+
+    # call the Azure OpenAI service
+    try:
+        # Load the files as BytesIO from TestData
+        reader = PdfReader("TestData/Chuckleberry Community Farm.pdf")
+        page_writer = PdfWriter()
+        page_writer.add_page(reader.pages[0])
+        # append the page as BytesIO object
+        with tempfile.NamedTemporaryFile() as temp_file:
+            page_writer.write(temp_file)
+            temp_file.seek(0)
+
+        prompt = """This is an invoice document. It may contain a receiver's stamp and
+        might have inventory or supplies marked or circled with a pen, circled
+        is selected. It contains store number as "STR #".
+
+        InvoiceDocument: Yes/No
+        InvoiceID: [InvoiceID].
+        StampPresent: Yes/No.
+
+        If a stamp is present, identify any markings on the document related to
+        Inventory or Supplies, specifically if they are marked or circled with a pen.
+        If a stamp is present, extract the following handwritten details from the
+        stamp: ConfirmationNumber (the confirmation number labeled
+        as 'Confirmation' on the stamp), ReceivingDate
+        (the date when the goods were received), Receiver
+        (the name of the person or department who received the goods),
+        and Department (the handwritten department name or code,
+        or another specified department name),
+        MarkedDept (which may be either 'Inventory' or 'Supplies',
+        based on pen marking).
+        Extract the Invoice Number.
+        Extract the Currency from the invoice document by identifying the currency
+        symbol before the total amount. The currency can be CAD or USD.
+        If the invoice address is in Canada, set the currency to CAD,
+        otherwise set it to USD.
+
+        Provide all information in the following JSON format:
+        {
+            'StampFound': 'Yes/No',
+            'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
+            'Confirmation': 'Extracted data',
+            'ReceivingDate': 'Extracted data',
+            'Receiver': 'Extracted data',
+            'Department': 'Dept code',
+            'Store Number': 'Extracted data',
+            'VendorName': 'Extracted data',
+            'InvoiceID' : 'Extracted data'
+            'Currency': 'Extracted data'
+        }.
+
+        Output should always be in above defined JSON format only."""
+
+        # call the call_openai function
+        result = stampDataFn(blob_data=temp_file.read(), prompt=prompt)
+
+        logger.info(result)
+    except Exception:
+        logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
+        return {"message": "Error accessing the Azure OpenAI service"}
 
     return {"message": "Hello! This is IDP"}

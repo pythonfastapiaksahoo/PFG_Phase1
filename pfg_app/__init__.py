@@ -12,7 +12,7 @@ settings: Settings = Settings()
 from pfg_app.core.utils import get_credential, get_secret_from_vault  # noqa: E402
 from pfg_app.logger_module import logger  # noqa: E402
 
-if settings.build_type not in ["debug", "dev"]:
+if settings.build_type not in ["debug"]:
     credential = get_credential()
     key_vault_secrets = []
     key_vault_secrets_names = [
