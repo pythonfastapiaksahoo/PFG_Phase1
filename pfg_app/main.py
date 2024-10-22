@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
 
 from pfg_app import settings
+from pfg_app.core.utils import get_credential, get_secret_from_vault
 from pfg_app.logger_module import logger
 from pfg_app.routers import (  # maillistener,
     FR,
@@ -188,4 +189,17 @@ async def root(request: Request):
             logger.info(f"Result of DB Connection {result.fetchone()}")
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
+        return {"message": "Error connecting to the database"}
+
+    try:
+        if settings.build_type not in ["debug"]:
+            credential = get_credential()
+            api_client_id = get_secret_from_vault(
+                credential, "APPORTAL-API-CLIENT-ID", "api_client_id"
+            )
+            logger.info(f"API Client ID: {api_client_id}")
+    except Exception:
+        logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
+        return {"message": "Error connecting to the key vault"}
+
     return {"message": "Hello! This is IDP"}
