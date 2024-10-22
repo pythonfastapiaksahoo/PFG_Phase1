@@ -42,12 +42,6 @@ if settings.build_type not in ["debug"]:
         {"key_vault_url": "APPORTAL-KEY-VAULT-URL"},
         {"open_ai_endpoint": "APPORTAL-OPEN-AI-ENDPOINT"},
         {"storage_account_name": "APPORTAL-STORAGE-ACCOUNT-NAME"},
-        {
-            "appinsights_instrumentation_key": "APPORTAL-APPINSIGHTS-INSTRUMENTATION-KEY"  # noqa: E501
-        },
-        {
-            "appinsights_connection_string": "APPORTAL-APPINSIGHTS-CONNECTION-STRING"  # noqa: E501
-        },
         {"erp_url": "APPORTAL-ERP-URL"},
         {"erp_invoice_import_endpoint": "APPORTAL-ERP-INVOICE-IMPORT-ENDPOINT"},
         {"erp_invoice_status_endpoint": "APPORTAL-ERP-INVOICE-STATUS-ENDPOINT"},
