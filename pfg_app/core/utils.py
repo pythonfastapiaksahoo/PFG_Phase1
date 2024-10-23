@@ -44,12 +44,12 @@ def get_connection_string_with_access_token():
         db_name = params.get("dbname")
         db_host = params.get("host")
         db_user = params.get("user", "ase_api_serviceconnector")
-        # sslmode = params.get("sslmode")
+        ssl_mode = params.get("sslmode")
 
         db_uri = (
             "postgresql://"
             + f"{db_user}:{access_token}@{db_host}/{db_name}"
-            + "?options=-csearch_path=pfg_schema"
+            + f"?sslmode={ssl_mode}&options=-csearch_path=pfg_schema"
         )
 
         return db_uri
