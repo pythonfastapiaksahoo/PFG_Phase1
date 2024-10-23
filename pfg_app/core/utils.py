@@ -1,3 +1,4 @@
+import traceback
 from datetime import date, datetime, timedelta
 
 # from azure.core.credentials import AzureKeyCredential
@@ -18,6 +19,27 @@ from pfg_app import settings
 from pfg_app.logger_module import logger
 
 # from typing import Optional
+
+
+def get_connection_access_token():
+
+    try:
+        # Use passwordless authentication via DefaultAzureCredential.
+
+        credential = get_credential()
+
+        # Call get_token() to get a token from Microsft Entra ID and
+        # add it as the password in the URI.
+        # Note the requested scope parameter in the call to get_token,
+        # "https://ossrdbms-aad.database.windows.net/.default".
+        accessToken = credential.get_token(
+            "https://ossrdbms-aad.database.windows.net/.default"
+        ).token
+
+        return accessToken
+    except Exception:
+        logger.error(f"Error {traceback.format_exc()}")
+        raise
 
 
 # Shared function to get the correct credential based on the environment
