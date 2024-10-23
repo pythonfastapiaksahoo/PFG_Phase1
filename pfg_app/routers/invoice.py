@@ -40,6 +40,7 @@ async def read_paginate_doc_inv_list_with_ln_item(
     ] = None,
     offset: int = 1,
     limit: int = 10,
+    date_range: Optional[str] = None,  # New parameter for start date
     uni_search: Optional[str] = None,
     ven_status: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -73,7 +74,15 @@ async def read_paginate_doc_inv_list_with_ln_item(
     """
 
     docs = await crud.read_paginate_doc_inv_list_with_ln_items(
-        user.idUser, ven_id, "ven", status, (offset, limit), db, uni_search, ven_status
+        user.idUser,
+        ven_id,
+        "ven",
+        status,
+        (offset, limit),
+        db,
+        uni_search,
+        ven_status,
+        date_range,
     )
     return docs
 
