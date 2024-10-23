@@ -930,7 +930,7 @@ def pfg_sync(docID, userID, db: Session):
 
                                                     else:
                                                         confirmation_ck = 0
-                                                        confirmation_ck_msg = "Confirmation Number Not Found"  # noqa: E501s
+                                                        confirmation_ck_msg = "Confirmation number not found"  # noqa: E501s
 
                                                 except Exception as e:
                                                     logger.debug(
@@ -1014,7 +1014,7 @@ def pfg_sync(docID, userID, db: Session):
                                 else:
                                     VthChk = 0
                                     VthChk_msg = "No Voucher data Found."
-                                docStatusSync["VoucherCreation Data Validation"] = {
+                                docStatusSync["Voucher creation data validation"] = {
                                     "status": VthChk,
                                     "response": [VthChk_msg],
                                 }
@@ -1034,19 +1034,19 @@ def pfg_sync(docID, userID, db: Session):
                                         fileSize = fr_rw.filesize
                                     if len(fileSize) > 0:
                                         if float(fileSize) <= fileSizeThreshold:
-                                            docStatusSync["File Size Check"] = {
+                                            docStatusSync["File size check"] = {
                                                 "status": 1,
-                                                "response": ["File Size Check Passed"],
+                                                "response": ["Success"],
                                             }
                                         else:
-                                            docStatusSync["File Size Check"] = {
+                                            docStatusSync["File size check"] = {
                                                 "status": 1,
                                                 "response": [
                                                     "FileSize:" + str(fileSize) + "MB."
                                                 ],
                                             }
                                     else:
-                                        docStatusSync["File Size Check"] = {
+                                        docStatusSync["File size check"] = {
                                             "status": 0,
                                             "response": ["File Size not found."],
                                         }
@@ -1055,7 +1055,7 @@ def pfg_sync(docID, userID, db: Session):
                                     logger.debug(f"{traceback.format_exc()}")
 
                                 if (
-                                    docStatusSync["VoucherCreation Data Validation"][
+                                    docStatusSync["Voucher creation data validation"][
                                         "status"
                                     ]
                                     == 1
@@ -1366,6 +1366,7 @@ def pfg_sync(docID, userID, db: Session):
                     logger.error(f"pfg_sync line 886: {str(e)}")
                 overAllstatus_msg = "Failed"
         else:
+
             try:
                 docHrd_msg = "No Header Data found"
                 docHrd_status = 0
@@ -1374,10 +1375,16 @@ def pfg_sync(docID, userID, db: Session):
                 logger.debug(traceback)
             overAllstatus_msg = "Failed"
 
+        if (overAllstatus == 1) and ("Sent to PeopleSoft" in docStatusSync):
+            if docStatusSync["Sent to PeopleSoft"]["status"] == 0:
+                overAllstatus = 0
+                overAllstatus_msg = "Failed"
+
         docStatusSync["Status Overview"] = {
             "status": overAllstatus,
             "response": [overAllstatus_msg],
         }
+
         try:
             json_data = json.dumps(docStatusSync)
             db.query(model.Document).filter(model.Document.idDocument == docID).update(
