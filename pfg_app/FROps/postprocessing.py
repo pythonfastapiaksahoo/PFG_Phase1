@@ -357,7 +357,7 @@ def getBBox(data):
 def cln_amt(amt):
     try:
 
-        if amt is None:
+        if amt is None or len(amt) == 0:
             cl_amt = "0"
             return cl_amt
 
@@ -1581,14 +1581,25 @@ def postpro(
                 )
 
                 fr_data = dt
-            try:
-                if dt["header"][tg]["tag"] in ["GST", "HST", "PST", "LitterDeposit"]:
+
+            if dt["header"][tg]["tag"] in [
+                "GST",
+                "HST",
+                "PST",
+                "LitterDeposit",
+                "Fuel surcharge",
+                "ShipmentCharges",
+            ]:
+                try:
                     dt["header"][tg]["data"]["value"] = cln_amt(
                         dt["header"][tg]["data"]["value"]
                     )
-                    fr_data = dt
-            except Exception:
-                logger.debug(traceback.format_exc())
+
+                except Exception:
+                    logger.debug(traceback.format_exc())
+                    dt["header"][tg]["data"]["value"] = "0.00"
+
+                fr_data = dt
 
         present_header = []
         missing_header = []
