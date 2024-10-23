@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     db_name: str = ""
     db_schema: str = ""
 
+    azure_postgresql_connectionstring: str = ""
+
     # Azure
     form_recognizer_endpoint: str = ""
     api_version: str = ""

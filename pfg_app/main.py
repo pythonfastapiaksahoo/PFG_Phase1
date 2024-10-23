@@ -13,7 +13,11 @@ from sqlalchemy import create_engine
 from pfg_app import settings
 from pfg_app.core.azure_fr import call_form_recognizer
 from pfg_app.core.stampData import stampDataFn
-from pfg_app.core.utils import get_credential, get_secret_from_vault
+from pfg_app.core.utils import (
+    get_connection_access_token,
+    get_credential,
+    get_secret_from_vault,
+)
 from pfg_app.logger_module import logger
 from pfg_app.routers import (  # maillistener,
     FR,
@@ -181,28 +185,48 @@ async def root(request: Request):
         connectivity_details.append({"key-vault": traceback.format_exc()})
 
     try:
-        # connect to the database
+        # # connect to the database USERNAME+PASSWORD+HOST+PORT+DATABASE
 
-        username = settings.db_user
-        password = settings.db_password
-        host = settings.db_host
-        port = settings.db_port
-        database = settings.db_name
+        # username = settings.db_user
+        # password = settings.db_password
+        # host = settings.db_host
+        # port = settings.db_port
+        # database = settings.db_name
 
-        # Create the connection string
+        # # Create the connection string
+        # connection_string = (
+        #     f"postgresql://{username}:{password}@{host}:{port}/{database}"
+        # )
+
+        # # Create the engine
+        # engine = create_engine(connection_string)
+
+        # # Test the connection
+        # with engine.connect() as connection:
+        #     result = connection.execute("SELECT 1")
+        #     connectivity_details.append(
+        #         {"postgres": f"Result of DB Connection {result.fetchone()}"}
+        #     )
+
+        # connect to database using azure postgresql connection string (system identity)
+        access_token = get_connection_access_token()
+        logger.info(f"Access Token: {access_token}")
         connection_string = (
-            f"postgresql://{username}:{password}@{host}:{port}/{database}"
+            settings.azure_postgresql_connectionstring + " password=" + access_token
         )
-
-        # Create the engine
         engine = create_engine(connection_string)
 
         # Test the connection
         with engine.connect() as connection:
-            result = connection.execute("SELECT 1")
+            base_result = connection.execute("SELECT 1")
             connectivity_details.append(
-                {"postgres": f"Result of DB Connection {result.fetchone()}"}
+                {"postgres_base": f"Result of DB Connection {base_result.fetchone()}"}
             )
+            result = connection.execute("SELECT count(1) from pfg_schema.customer")
+            connectivity_details.append(
+                {"postgres_pfg_schema": f"Result of DB Connection {result.fetchone()}"}
+            )
+
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
         connectivity_details.append({"postgres": traceback.format_exc()})
