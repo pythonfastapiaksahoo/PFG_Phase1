@@ -215,15 +215,23 @@ async def root(request: Request):
             account_url=account_url, credential=credential
         )
 
+        # Function to generate a random unique table name
+        def generate_unique_storage_name(length=8):
+            return "".join(
+                random.choices(
+                    string.ascii_lowercase + string.digits, k=length
+                )  # nosec
+            )
+
         # create a container client
-        container_name = "test-container"
+        container_name = generate_unique_storage_name()
         # create the container
         blob_service_client.create_container(container_name)
 
         container_client = blob_service_client.get_container_client(container_name)
 
         # create a blob client
-        blob_path = "test-blob.txt"
+        blob_path = "test.txt"
         blob_client = container_client.get_blob_client(blob_path)
 
         # upload a blob
