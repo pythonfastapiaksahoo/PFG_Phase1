@@ -103,6 +103,7 @@ def runStatus(
         logger.error(f"{traceback.format_exc()}")
 
     try:
+        modelData = None
         IsUpdated = 0
         invoId = ""
         customerID = 1
@@ -123,73 +124,72 @@ def runStatus(
         destination_container_name = "apinvoice-container"  # TODO move to settings
         fr_API_version = "2023-07-31"  # TODO move to settings
 
-        # prompt = """This is an invoice document.Extract Invoice Number and
-        # Extract the Currency from the invoice document by identifying the currency
-        # symbol before the total amount. The currency can be CAD or USD.
-        # If the invoice address is in Canada, set the currency to CAD,
-        # otherwise set it to as per invoice address.
-        # It may contain a receiver's stamp and
-        # might have inventory or supplies marked or circled with a pen, circled is
-        # selected. It contains store number as "STR #"
-        # InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No.
-        # If a stamp is present, identify any markings on the document related to
-        # Inventory or Supplies, specifically if they are marked or circled with a pen.
-        # If a stamp is present, extract the following handwritten details
-        # from the stamp: ConfirmationNumber (the confirmation number labeled as
-        # 'Confirmation' on the stamp),
-        # ReceivingDate (the date when the goods were received),
-        # Receiver (the name of the person or department who received the goods), and
-        # Department (the handwritten department name or code,
-        # or another specified departmentname), MarkedDept (which may be either
-        # 'Inventory' or 'Supplies', based on pen marking).
-        # Provide all information in the following JSON format:
-        # {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'
-        # (which ever is circled more/marked only),
-        # 'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
-        # 'Receiver': 'Extracted data', 'Department': 'Dept code',
-        # 'Store Number':,'VendorName':,'InvoiceID':,'Currency':}.Output should be
-        # just json"""
+        prompt = """This is an invoice document. It may contain invoice ID, vendor name,
+          and a stamp with handwritten details as follows
+          (stamp may be of different variants):
 
-        prompt = """This is an invoice document. It may contain a receiver's stamp and
-        might have inventory or supplies marked or circled with a pen, circled
-        is selected. It contains store number as "STR #".
+        - store number (number either starting after keyword "STR #" or "ST")
+
+        - keyword - any one of Inventory/Supplies (select only circled or marked one)
+
+        - Department number or name - Starting after Department (else set it to
+        'Unclear')
+
+        - Receiving Date (the date when the goods were received)
+
+        - Confirmation number (Starting after 'Confirmation' only number)
+
+        - Receiver# or Receiver name (the name of the person or code who received
+        the goods)
+
 
         InvoiceDocument: Yes/No
+
         InvoiceID: [InvoiceID].
+
         StampPresent: Yes/No.
 
-        If a stamp is present, identify any markings on the document related to
-        Inventory or Supplies, specifically if they are marked or circled with a pen.
-        If a stamp is present, extract the following handwritten details from the
-        stamp: ConfirmationNumber (the confirmation number labeled
-        as 'Confirmation' on the stamp), ReceivingDate
-        (the date when the goods were received), Receiver
-        (the name of the person or department who received the goods),
-        and Department (the handwritten department name or code,
-        or another specified department name),
-        MarkedDept (which may be either 'Inventory' or 'Supplies',
-        based on pen marking).
-        Extract the Invoice Number.
-        Extract the Currency from the invoice document by identifying the currency
-        symbol before the total amount. The currency can be CAD or USD.
-        If the invoice address is in Canada, set the currency to CAD,
-        otherwise set it to USD.
+        If stamp is present:
+
+        - Extract the Invoice Number.
+
+        - Extract the valid Currency from the invoice document by identifying the
+        currency symbol before the total amount. The currency can be CAD or USD or any
+          other currency.If there is no symbol then check invoice address is in Canada
+          or USA or any other country and set the currency accordingly.
 
         Provide all information in the following JSON format:
+
         {
+
             'StampFound': 'Yes/No',
-            'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
+
+            'MarkedDept': 'Inventory/Supplies' (only if it's clearly circled or marked),
+
             'Confirmation': 'Extracted data',
+
             'ReceivingDate': 'Extracted data',
+
             'Receiver': 'Extracted data',
-            'Department': 'Dept code',
+
+            'Department': 'Extracted data',
+
             'Store Number': 'Extracted data',
+
             'VendorName': 'Extracted data',
-            'InvoiceID' : 'Extracted data'
+
+            'InvoiceID': 'Extracted data',
+
             'Currency': 'Extracted data'
+
         }.
 
-        Output should always be in above defined JSON format only."""
+        Extract the relevant information and return it only in the JSON format above.
+          Do not include any text outside the JSON object. No additional
+          explanations are needed.
+
+"""
+
         # TODO move to settings
 
         pdf_stream = PdfReader(file.file)
@@ -575,7 +575,6 @@ def runStatus(
                                             model.frtrigger_tab.status: "PostProcessing Error",  # noqa: E501
                                             model.frtrigger_tab.vendorID: vendorID,
                                             model.frtrigger_tab.documentid: spltFileName,  # noqa: E501
-                                            model.frtrigger_tab.documentid: invoId,
                                         }
                                     )
                                     # Step 3: Commit the transaction
@@ -611,344 +610,7 @@ def runStatus(
                                 print(f"mrkCurrencyCk_isErr: {mrkCurrencyCk_isErr}")
 
                         except Exception:
-                            logger.error(f"{traceback.format_exc()}")
-
-                        # if "StampFound" in StampDataList[splt_map[fl]]:
-                        #     smpFnd = 1
-                        #     stmpHdr = hdr
-                        # elif "StampFound" in StampDataList[splt_map[fl]]:
-                        #     smpFnd = 1
-                        #     stmpHdr = ltPg
-                        # else:
-                        #     smpFnd = 0
-                        # stmpHdr = ""
-                        if "StampFound" in StampDataList[splt_map[fl]]:
-                            # stm_dt_lt = []
-                            confCk_isErr = 1
-                            confCk_msg = "Confirmation Number Not Found"
-                            RevDateCk_isErr = 1
-                            RevDateCk_msg = "Receiving Date Not Found"
-                            mrkDeptCk_isErr = 1
-                            mrkDeptCk_msg = "Marked Department Not Found"
-                            RvrCk_isErr = 1
-                            RvrCk_msg = "Receiver Not Found"
-                            deptCk_isErr = 1
-                            deptCk_msg = "Department Not Found"
-                            strCk_isErr = 1
-                            strCk_msg = "Store Number Not Found"
-                            StrTyp_IsErr = 1
-                            StrTyp_msg = "Store Type Not Found"
-                            store_type = "NA"
-                            StampFound = StampDataList[splt_map[fl]]["StampFound"]
-                            stmp_created_on = datetime.now(timezone.utc).strftime(
-                                "%Y-%m-%d %H:%M:%S"
-                            )
-                            if StampFound == "Yes":
-                                if "MarkedDept" in StampDataList[splt_map[fl]]:
-                                    MarkedDept = StampDataList[splt_map[fl]][
-                                        "MarkedDept"
-                                    ]
-                                    if (
-                                        MarkedDept == "Inventory"
-                                        or MarkedDept == "Supplies"
-                                    ):
-                                        mrkDeptCk_isErr = 0
-                                        mrkDeptCk_msg = ""
-                                    else:
-                                        mrkDeptCk_isErr = 1
-                                        mrkDeptCk_msg = "Invalid. Please review."
-
-                                else:
-                                    mrkDeptCk_isErr = 1
-                                    mrkDeptCk_msg = "Not Found."
-                                    MarkedDept = "N/A"
-                                # ----------------------
-
-                                stampdata: dict[str, int | str] = {}
-                                stampdata["documentid"] = invoId
-                                stampdata["stamptagname"] = "SelectedDept"
-                                stampdata["stampvalue"] = MarkedDept
-                                stampdata["is_error"] = mrkDeptCk_isErr
-                                stampdata["errordesc"] = mrkDeptCk_msg
-                                stampdata["created_on"] = stmp_created_on
-                                stampdata["IsUpdated"] = IsUpdated
-                                db.add(model.StampDataValidation(**stampdata))
-                                db.commit()
-
-                                if "Confirmation" in StampDataList[splt_map[fl]]:
-                                    Confirmation_rw = StampDataList[splt_map[fl]][
-                                        "Confirmation"
-                                    ]
-                                    str_nm = ""
-                                    Confirmation = "".join(
-                                        re.findall(r"\d", Confirmation_rw)
-                                    )
-                                    if len(Confirmation) == 9:
-                                        try:
-
-                                            # query = 'SELECT * \
-                                            #     FROM pfg_schema.pfgreceipt \
-                                            #         WHERE "RECEIVER_ID" = %s'
-                                            # (
-                                            query = (
-                                                db.query(model.PFGReceipt)
-                                                .filter(
-                                                    model.PFGReceipt.RECEIVER_ID
-                                                    == Confirmation
-                                                )
-                                                .first()
-                                            )
-                                            # cursor.execute(query, (Confirmation,))
-                                            # row = cursor.fetchone()
-                                            if query:
-                                                # for invRpt in query:
-                                                str_nm = query.LOCATION
-                                                # VENDOR_SETID = invRpt.VENDOR_SETID
-                                                confCk_isErr = 0
-                                                confCk_msg = "Valid Confirmation Number"
-                                                # str_nm = row[15]
-                                            else:
-                                                confCk_isErr = 1
-                                                confCk_msg = (
-                                                    "Confirmation Number Not Found"
-                                                )
-
-                                        except Exception as e:
-                                            logger.error(f"{traceback.format_exc()}")
-                                            # logger.error(
-                                            #     f"Error executing query: {str(e)}"
-                                            # )
-
-                                            confCk_isErr = 0
-                                            confCk_msg = "Error:" + str(e)
-
-                                    else:
-                                        confCk_isErr = 1
-                                        confCk_msg = "Invalid Confirmation Number"
-
-                                else:
-                                    Confirmation = "N/A"
-                                    confCk_isErr = 1
-                                    confCk_msg = "Confirmation Number NotFound"
-
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
-                                stampdata["documentid"] = invoId
-                                stampdata["stamptagname"] = "ConfirmationNumber"
-                                stampdata["stampvalue"] = Confirmation
-                                stampdata["is_error"] = confCk_isErr
-                                stampdata["errordesc"] = confCk_msg
-                                stampdata["created_on"] = stmp_created_on
-                                stampdata["IsUpdated"] = IsUpdated
-                                db.add(model.StampDataValidation(**stampdata))
-                                db.commit()
-
-                                if "ReceivingDate" in StampDataList[splt_map[fl]]:
-                                    ReceivingDate = StampDataList[splt_map[fl]][
-                                        "ReceivingDate"
-                                    ]
-                                    if is_valid_date(ReceivingDate):
-                                        RevDateCk_isErr = 0
-                                        RevDateCk_msg = ""
-                                    else:
-                                        RevDateCk_isErr = 1
-                                        RevDateCk_msg = "Invalid Date Format"
-                                else:
-                                    ReceivingDate = "N/A"
-                                    RevDateCk_isErr = 1
-                                    RevDateCk_msg = "ReceivingDate Not Found."
-
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
-                                stampdata["documentid"] = invoId
-                                stampdata["stamptagname"] = "ReceivingDate"
-                                stampdata["stampvalue"] = ReceivingDate
-                                stampdata["is_error"] = RevDateCk_isErr
-                                stampdata["errordesc"] = RevDateCk_msg
-                                stampdata["created_on"] = stmp_created_on
-                                stampdata["IsUpdated"] = IsUpdated
-                                db.add(model.StampDataValidation(**stampdata))
-                                db.commit()
-
-                                if "Receiver" in StampDataList[splt_map[fl]]:
-                                    Receiver = StampDataList[splt_map[fl]]["Receiver"]
-                                    RvrCk_isErr = 0
-                                    RvrCk_msg = ""
-                                else:
-                                    Receiver = "N/A"
-                                    RvrCk_isErr = 1
-                                    RvrCk_msg = "Receiver Not Available"
-
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
-                                stampdata["documentid"] = invoId
-                                stampdata["stamptagname"] = "Receiver"
-                                stampdata["stampvalue"] = Receiver
-                                stampdata["is_error"] = RvrCk_isErr
-                                stampdata["errordesc"] = RvrCk_msg
-                                stampdata["created_on"] = stmp_created_on
-                                stampdata["IsUpdated"] = IsUpdated
-                                db.add(model.StampDataValidation(**stampdata))
-                                db.commit()
-
-                                if "Department" in StampDataList[splt_map[fl]]:
-                                    Department = StampDataList[splt_map[fl]][
-                                        "Department"
-                                    ]
-                                    deptCk_isErr = 0
-                                    deptCk_msg = ""
-                                else:
-                                    Department = "N/A"
-                                    deptCk_isErr = 1
-                                    deptCk_msg = "Department Not Found."
-
-                                # st/ampdata = {}
-                                # stampdata: dict[str, int | str] = {}
-                                stampdata["documentid"] = invoId
-                                stampdata["stamptagname"] = "Department"
-                                stampdata["stampvalue"] = Department
-                                stampdata["is_error"] = deptCk_isErr
-                                stampdata["errordesc"] = deptCk_msg
-                                stampdata["created_on"] = stmp_created_on
-                                stampdata["IsUpdated"] = IsUpdated
-                                db.add(model.StampDataValidation(**stampdata))
-                                db.commit()
-
-                                if "Store Number" in StampDataList[splt_map[fl]]:
-                                    storenumber = StampDataList[splt_map[fl]][
-                                        "Store Number"
-                                    ]
-                                    try:
-                                        try:
-                                            storenumber = str(
-                                                "".join(
-                                                    filter(
-                                                        str.isdigit, str(storenumber)
-                                                    )
-                                                )
-                                            )
-                                            # Fetch specific columns as a list
-                                            # of dictionaries using .values()
-                                            results = db.query(
-                                                model.NonintegratedStores
-                                            ).values(
-                                                model.NonintegratedStores.store_number
-                                            )
-                                            nonIntStr = [dict(row) for row in results]
-                                            nonIntStr_number = [
-                                                d["store_number"] for d in nonIntStr
-                                            ]
-                                            if (
-                                                int(
-                                                    "".join(
-                                                        filter(
-                                                            str.isdigit,
-                                                            str(storenumber),
-                                                        )
-                                                    )
-                                                )
-                                                in nonIntStr_number
-                                            ):
-                                                StrTyp_IsErr = 0
-                                                StrTyp_msg = ""
-                                                store_type = "Non-Integrated"
-
-                                            else:
-                                                StrTyp_IsErr = 0
-                                                StrTyp_msg = ""
-                                                store_type = "Integrated"
-                                        except Exception:
-                                            logger.error(f"{traceback.format_exc()}")
-
-                                        if len(str_nm) > 0:
-                                            if int(storenumber) == int(str_nm):
-                                                strCk_isErr = 0
-                                                strCk_msg = ""
-                                            else:
-                                                strCk_isErr = 0
-                                                strCk_msg = "Store Number Not Matching"
-
-                                        else:
-                                            strCk_isErr = 0
-                                            strCk_msg = "Store Number Not Matching"
-
-                                    except Exception as e:
-                                        logger.error(f"{traceback.format_exc()}")
-                                        strCk_isErr = 1
-                                        strCk_msg = "Error:" + str(e)
-                                else:
-                                    storenumber = "N/A"
-                                    strCk_isErr = 1
-                                    strCk_msg = ""
-
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
-                                stampdata["documentid"] = invoId
-                                stampdata["stamptagname"] = "StoreType"
-                                stampdata["stampvalue"] = store_type
-                                stampdata["is_error"] = StrTyp_IsErr
-                                stampdata["errordesc"] = StrTyp_msg
-                                stampdata["created_on"] = stmp_created_on
-                                stampdata["IsUpdated"] = IsUpdated
-                                db.add(model.StampDataValidation(**stampdata))
-                                db.commit()
-
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
-                                stampdata["documentid"] = invoId
-                                stampdata["stamptagname"] = "StoreNumber"
-                                stampdata["stampvalue"] = storenumber
-                                stampdata["is_error"] = strCk_isErr
-                                stampdata["errordesc"] = strCk_msg
-                                stampdata["created_on"] = str(stmp_created_on)
-                                stampdata["IsUpdated"] = IsUpdated
-                                db.add(model.StampDataValidation(**stampdata))
-                                db.commit()
-
-                                try:
-                                    db.query(model.Document).filter(
-                                        model.Document.idDocument == invoId
-                                    ).update(
-                                        {
-                                            model.Document.JournalNumber: str(
-                                                Confirmation
-                                            ),  # noqa: E501
-                                            model.Document.dept: str(Department),
-                                            model.Document.store: str(storenumber),
-                                        }
-                                    )
-                                    db.commit()
-
-                                except Exception:
-                                    logger.error(f"{traceback.format_exc()}")
-
-                                try:
-                                    if store_type == "Integrated":
-                                        IntegratedvoucherData(invoId, db)
-                                    elif store_type == "Non-Integrated":
-                                        nonIntegratedVoucherData(invoId, db)
-                                except Exception:
-
-                                    logger.error(f"{traceback.format_exc()}")
-
-                        try:
-
-                            db.query(model.frtrigger_tab).filter(
-                                model.frtrigger_tab.blobpath == spltFileName
-                            ).update(
-                                {
-                                    model.frtrigger_tab.status: "Processed",
-                                    model.frtrigger_tab.vendorID: vendorID,
-                                    model.frtrigger_tab.documentid: invoId,
-                                },
-                            )
-                            db.commit()
-
-                        except Exception:
-                            # logger.info(f"ocr.py  {str(qw)}")
-                            logger.error(f"{traceback.format_exc()}")
-
-                        status = "success"
+                            logger.debug(f"{traceback.format_exc()}")
 
                 else:
                     try:
@@ -979,81 +641,329 @@ def runStatus(
                         logger.info(f" VendorUnidentified: invoice_ID: {invoId}")
                         status = "success"
 
-                    except Exception as e:
-                        logger.info(
-                            f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
-                        )
+                    except Exception:
 
-                        logger.error(f"{traceback.format_exc()}")
+                        logger.debug(traceback.format_exc())
                         status = "fail"
 
                     logger.info("vendor not found!!")
                     try:
-                        # cur = conn.cursor()
-                        # sql_updateFR_1 = """
-                        #     UPDATE pfg_schema.frtrigger_tab
-                        #     SET "status" = %(status)s, sender = %(sender)s
-                        #     WHERE "blobpath" = %(blobpath)s;
-                        # """
-                        # FRvalues_1 = {
-                        #     "status": "VendorNotFound",
-                        #     "sender": sender,
-                        #     "blobpath": spltFileName,
-                        # }
 
-                        # cur.execute(sql_updateFR_1, FRvalues_1)
-                        # conn.commit()
                         db.query(model.frtrigger_tab).filter(
                             model.frtrigger_tab.blobpath == spltFileName
                         ).update(
                             {
                                 model.frtrigger_tab.status: "VendorNotFound",
-                                model.frtrigger_tab.documentid: invoId,
                             }
                         )
 
                         # Commit the transaction
                         db.commit()
                     except Exception as et:
-                        logger.error(f"{traceback.format_exc()}")
+                        logger.debug(traceback.format_exc())
                         try:
-                            # cur = conn.cursor()
-                            # sql_updateFR_2 = """
-                            #     UPDATE pfg_schema.frtrigger_tab
-                            #     SET "status" = %(status)s, "sender" = %(sender)s
-                            #     WHERE "blobpath" = %(blobpath)s;
-                            # """
-                            # FRvalues_2 = {
-                            #     "status": str(et),
-                            #     "sender": sender,
-                            #     "blobpath": spltFileName,
-                            # }
 
-                            # cur.execute(sql_updateFR_2, FRvalues_2)
-                            # conn.commit()
                             db.query(model.frtrigger_tab).filter(
                                 model.frtrigger_tab.blobpath == spltFileName
                             ).update(
                                 {
                                     model.frtrigger_tab.status: str(et),
-                                    model.frtrigger_tab.documentid: invoId,
                                 }
                             )
 
                             # Commit the transaction
                             db.commit()
                         except Exception:
-
                             logger.error(f"{traceback.format_exc()}")
 
-                        # logger.error(f"frtrigger_tab update exception: {str(et)}")
-
                     status = traceback.format_exc()
-                fl = fl + 1
-                # time.sleep(0.5)
+                if ("StampFound" in StampDataList[splt_map[fl]]) and (
+                    len(str(invoId)) > 0
+                ):
+                    # stm_dt_lt = []
+                    confCk_isErr = 1
+                    confCk_msg = "Confirmation Number Not Found"
+                    RevDateCk_isErr = 1
+                    RevDateCk_msg = "Receiving Date Not Found"
+                    mrkDeptCk_isErr = 1
+                    mrkDeptCk_msg = "Marked Department Not Found"
+                    RvrCk_isErr = 1
+                    RvrCk_msg = "Receiver Not Found"
+                    deptCk_isErr = 1
+                    deptCk_msg = "Department Not Found"
+                    strCk_isErr = 1
+                    strCk_msg = "Store Number Not Found"
+                    StrTyp_IsErr = 1
+                    StrTyp_msg = "Store Type Not Found"
+                    store_type = "NA"
+                    StampFound = StampDataList[splt_map[fl]]["StampFound"]
+                    stmp_created_on = datetime.now(timezone.utc).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                    if StampFound == "Yes":
+                        if "MarkedDept" in StampDataList[splt_map[fl]]:
+                            MarkedDept = StampDataList[splt_map[fl]]["MarkedDept"]
+                            if MarkedDept == "Inventory" or MarkedDept == "Supplies":
+                                mrkDeptCk_isErr = 0
+                                mrkDeptCk_msg = ""
+                            else:
+                                mrkDeptCk_isErr = 1
+                                mrkDeptCk_msg = "Invalid. Please review."
 
-            # cursor.close()
-            # conn.close()
+                        else:
+                            mrkDeptCk_isErr = 1
+                            mrkDeptCk_msg = "Not Found."
+                            MarkedDept = "N/A"
+                        # ----------------------
+
+                        stampdata: dict[str, int | str] = {}
+                        stampdata["documentid"] = invoId
+                        stampdata["stamptagname"] = "SelectedDept"
+                        stampdata["stampvalue"] = MarkedDept
+                        stampdata["is_error"] = mrkDeptCk_isErr
+                        stampdata["errordesc"] = mrkDeptCk_msg
+                        stampdata["created_on"] = stmp_created_on
+                        stampdata["IsUpdated"] = IsUpdated
+                        db.add(model.StampDataValidation(**stampdata))
+                        db.commit()
+
+                        if "Confirmation" in StampDataList[splt_map[fl]]:
+                            Confirmation_rw = StampDataList[splt_map[fl]][
+                                "Confirmation"
+                            ]
+                            str_nm = ""
+                            Confirmation = "".join(re.findall(r"\d", Confirmation_rw))
+                            if len(Confirmation) == 9:
+                                try:
+
+                                    query = (
+                                        db.query(model.PFGReceipt)
+                                        .filter(
+                                            model.PFGReceipt.RECEIVER_ID == Confirmation
+                                        )
+                                        .first()
+                                    )
+
+                                    if query:
+                                        # for invRpt in query:
+                                        str_nm = query.LOCATION
+                                        confCk_isErr = 0
+                                        confCk_msg = "Valid Confirmation Number"
+                                        # str_nm = row[15]
+                                    else:
+                                        confCk_isErr = 1
+                                        confCk_msg = "Confirmation Number Not Found"
+
+                                except Exception as e:
+                                    logger.debug(f"{traceback.format_exc()}")
+                                    confCk_isErr = 0
+                                    confCk_msg = "Error:" + str(e)
+
+                            else:
+                                confCk_isErr = 1
+                                confCk_msg = "Invalid Confirmation Number"
+
+                        else:
+                            Confirmation = "N/A"
+                            confCk_isErr = 1
+                            confCk_msg = "Confirmation Number NotFound"
+
+                        stampdata["documentid"] = invoId
+                        stampdata["stamptagname"] = "ConfirmationNumber"
+                        stampdata["stampvalue"] = Confirmation
+                        stampdata["is_error"] = confCk_isErr
+                        stampdata["errordesc"] = confCk_msg
+                        stampdata["created_on"] = stmp_created_on
+                        stampdata["IsUpdated"] = IsUpdated
+                        db.add(model.StampDataValidation(**stampdata))
+                        db.commit()
+
+                        if "ReceivingDate" in StampDataList[splt_map[fl]]:
+                            ReceivingDate = StampDataList[splt_map[fl]]["ReceivingDate"]
+                            if is_valid_date(ReceivingDate):
+                                RevDateCk_isErr = 0
+                                RevDateCk_msg = ""
+                            else:
+                                RevDateCk_isErr = 1
+                                RevDateCk_msg = "Invalid Date Format"
+                        else:
+                            ReceivingDate = "N/A"
+                            RevDateCk_isErr = 1
+                            RevDateCk_msg = "ReceivingDate Not Found."
+
+                        stampdata["documentid"] = invoId
+                        stampdata["stamptagname"] = "ReceivingDate"
+                        stampdata["stampvalue"] = ReceivingDate
+                        stampdata["is_error"] = RevDateCk_isErr
+                        stampdata["errordesc"] = RevDateCk_msg
+                        stampdata["created_on"] = stmp_created_on
+                        stampdata["IsUpdated"] = IsUpdated
+                        db.add(model.StampDataValidation(**stampdata))
+                        db.commit()
+
+                        if "Receiver" in StampDataList[splt_map[fl]]:
+                            Receiver = StampDataList[splt_map[fl]]["Receiver"]
+                            RvrCk_isErr = 0
+                            RvrCk_msg = ""
+                        else:
+                            Receiver = "N/A"
+                            RvrCk_isErr = 1
+                            RvrCk_msg = "Receiver Not Available"
+
+                        stampdata["documentid"] = invoId
+                        stampdata["stamptagname"] = "Receiver"
+                        stampdata["stampvalue"] = Receiver
+                        stampdata["is_error"] = RvrCk_isErr
+                        stampdata["errordesc"] = RvrCk_msg
+                        stampdata["created_on"] = stmp_created_on
+                        stampdata["IsUpdated"] = IsUpdated
+                        db.add(model.StampDataValidation(**stampdata))
+                        db.commit()
+
+                        if "Department" in StampDataList[splt_map[fl]]:
+                            Department = StampDataList[splt_map[fl]]["Department"]
+                            deptCk_isErr = 0
+                            deptCk_msg = ""
+                        else:
+                            Department = "N/A"
+                            deptCk_isErr = 1
+                            deptCk_msg = "Department Not Found."
+
+                        stampdata["documentid"] = invoId
+                        stampdata["stamptagname"] = "Department"
+                        stampdata["stampvalue"] = Department
+                        stampdata["is_error"] = deptCk_isErr
+                        stampdata["errordesc"] = deptCk_msg
+                        stampdata["created_on"] = stmp_created_on
+                        stampdata["IsUpdated"] = IsUpdated
+                        db.add(model.StampDataValidation(**stampdata))
+                        db.commit()
+
+                        if "Store Number" in StampDataList[splt_map[fl]]:
+                            storenumber = StampDataList[splt_map[fl]]["Store Number"]
+                            try:
+                                try:
+                                    storenumber = str(
+                                        "".join(filter(str.isdigit, str(storenumber)))
+                                    )
+                                    # Fetch specific columns as a list
+                                    # of dictionaries using .values()
+                                    results = db.query(
+                                        model.NonintegratedStores
+                                    ).values(model.NonintegratedStores.store_number)
+                                    nonIntStr = [dict(row) for row in results]
+                                    nonIntStr_number = [
+                                        d["store_number"] for d in nonIntStr
+                                    ]
+                                    if (
+                                        int(
+                                            "".join(
+                                                filter(
+                                                    str.isdigit,
+                                                    str(storenumber),
+                                                )
+                                            )
+                                        )
+                                        in nonIntStr_number
+                                    ):
+                                        StrTyp_IsErr = 0
+                                        StrTyp_msg = ""
+                                        store_type = "Non-Integrated"
+
+                                    else:
+                                        StrTyp_IsErr = 0
+                                        StrTyp_msg = ""
+                                        store_type = "Integrated"
+                                except Exception:
+                                    logger.debug(f"{traceback.format_exc()}")
+
+                                if len(str_nm) > 0:
+                                    if int(storenumber) == int(str_nm):
+                                        strCk_isErr = 0
+                                        strCk_msg = ""
+                                    else:
+                                        strCk_isErr = 0
+                                        strCk_msg = "Store Number Not Matching"
+
+                                else:
+                                    strCk_isErr = 0
+                                    strCk_msg = "Store Number Not Matching"
+
+                            except Exception as e:
+                                logger.debug(f"{traceback.format_exc()}")
+                                strCk_isErr = 1
+                                strCk_msg = "Error:" + str(e)
+                        else:
+                            storenumber = "N/A"
+                            strCk_isErr = 1
+                            strCk_msg = ""
+
+                        stampdata["documentid"] = invoId
+                        stampdata["stamptagname"] = "StoreType"
+                        stampdata["stampvalue"] = store_type
+                        stampdata["is_error"] = StrTyp_IsErr
+                        stampdata["errordesc"] = StrTyp_msg
+                        stampdata["created_on"] = stmp_created_on
+                        stampdata["IsUpdated"] = IsUpdated
+                        db.add(model.StampDataValidation(**stampdata))
+                        db.commit()
+
+                        # stampdata = {}
+                        # stampdata: dict[str, int | str] = {}
+                        stampdata["documentid"] = invoId
+                        stampdata["stamptagname"] = "StoreNumber"
+                        stampdata["stampvalue"] = storenumber
+                        stampdata["is_error"] = strCk_isErr
+                        stampdata["errordesc"] = strCk_msg
+                        stampdata["created_on"] = str(stmp_created_on)
+                        stampdata["IsUpdated"] = IsUpdated
+                        db.add(model.StampDataValidation(**stampdata))
+                        db.commit()
+
+                        try:
+                            db.query(model.Document).filter(
+                                model.Document.idDocument == invoId
+                            ).update(
+                                {
+                                    model.Document.JournalNumber: str(
+                                        Confirmation
+                                    ),  # noqa: E501
+                                    model.Document.dept: str(Department),
+                                    model.Document.store: str(storenumber),
+                                }
+                            )
+                            db.commit()
+
+                        except Exception:
+                            logger.debug(f"{traceback.format_exc()}")
+
+                        try:
+                            if store_type == "Integrated":
+                                IntegratedvoucherData(invoId, db)
+                            elif store_type == "Non-Integrated":
+                                nonIntegratedVoucherData(invoId, db)
+                        except Exception:
+                            logger.debug(f"{traceback.format_exc()}")
+
+                try:
+
+                    db.query(model.frtrigger_tab).filter(
+                        model.frtrigger_tab.blobpath == spltFileName
+                    ).update(
+                        {
+                            model.frtrigger_tab.status: "Processed",
+                            model.frtrigger_tab.vendorID: vendorID,
+                        },
+                    )
+                    db.commit()
+
+                except Exception:
+                    # logger.info(f"ocr.py  {str(qw)}")
+                    logger.debug(f"{traceback.format_exc()}")
+
+                status = "success"
+                fl = fl + 1
+
         else:
 
             logger.error(f"DI responed error: {fr_model_status, fr_model_msg}")
@@ -1098,7 +1008,6 @@ def runStatus(
                             model.frtrigger_tab.status: "PostProcessing Error",
                             model.frtrigger_tab.sender: sender,
                             model.frtrigger_tab.vendorID: vendorID,
-                            model.frtrigger_tab.documentid: invoId,
                         }
                     )
                     db.commit()
@@ -1116,10 +1025,11 @@ def runStatus(
         status = "error: " + str(err)
 
     try:
-        pfg_sync(invoId, userID, db)
-        logger.info("pfg_sync Done!")
+        if vdrFound == 1 and modelData is not None:
+            pfg_sync(invoId, userID, db)
+
     except Exception:
-        logger.error(f"{traceback.format_exc()}")
+        logger.debug(f"{traceback.format_exc()}")
 
     return status
 
@@ -1537,7 +1447,7 @@ def push_frdata(
         db.add(db_data)
         db.commit()
     except Exception as e:
-        logger.error(f"{traceback.format_exc()}")
+        logger.debug(f"{traceback.format_exc()}")
         db.rollback()
         if "Incorrect datetime value" in str(e):
             invoice_data["documentDate"] = None
@@ -1547,7 +1457,7 @@ def push_frdata(
             db.add(db_data)
             db.commit()
         except Exception as e:
-            logger.error(f"{traceback.format_exc()}")
+            logger.debug(f"{traceback.format_exc()}")
             db.rollback()
             if "for column 'docheaderID'" in str(e):
                 invoice_data["docheaderID"] = ""
@@ -1556,7 +1466,7 @@ def push_frdata(
                 db.add(db_data)
                 db.commit()
             except Exception as e:
-                logger.error(f"{traceback.format_exc()}")
+                logger.debug(f"{traceback.format_exc()}")
                 db.rollback()
                 if "for column 'PODocumentID'" in str(e):
                     invoice_data["PODocumentID"] = ""
@@ -1566,7 +1476,7 @@ def push_frdata(
                     db.add(db_data)
                     db.commit()
                 except Exception as e:
-                    logger.error(f"{traceback.format_exc()}")
+                    logger.debug(f"{traceback.format_exc()}")
                     db.rollback()
                     if "for column 'totalAmount'" in str(e):
                         invoice_data["totalAmount"] = None
@@ -1615,21 +1525,15 @@ def parse_labels(label_data, db, poNumber, modelID):
             else:
                 db_data["Value"] = label["data"]["value"]
             try:
-                if (
-                    "prebuilt_confidence" in label["data"]
-                    and label["data"]["prebuilt_confidence"] != ""
-                ):
-                    db_data["Fuzzy_scr"] = label["data"]["prebuilt_confidence"]
+                if "confidence" in label["data"]:
+                    if label["data"]["confidence"]:
+                        db_data["Fuzzy_scr"] = label["data"]["confidence"]
+                    else:
+                        db_data["Fuzzy_scr"] = "0.0"
                 else:
-                    db_data["Fuzzy_scr"] = "0.0"
-                if (
-                    "custom_confidence" in label["data"]
-                    and label["data"]["custom_confidence"] != ""
-                ):
-                    db_data["Fuzzy_scr"] = label["data"]["custom_confidence"]
-                else:
-                    db_data["Fuzzy_scr"] = "0.0"
+                    db_data["Fuzzy_scr"] = "0"
             except Exception:
+                logger.debug(traceback.format_exc())
                 db_data["Fuzzy_scr"] = "0.0"
             db_data["IsUpdated"] = 0
             if label["status"] == 1:
@@ -1660,21 +1564,15 @@ def parse_tabel(tabel_data, db, modelID):
             db_data = {}
             db_data["Value"] = col["data"]
             try:
-                if (
-                    "prebuilt_confidence" in col["data"]
-                    and col["data"]["prebuilt_confidence"] != ""
-                ):
-                    db_data["Fuzzy_scr"] = col["data"]["prebuilt_confidence"]
+                if "confidence" in col["data"]:
+                    if col["data"]["confidence"]:
+                        db_data["Fuzzy_scr"] = col["data"]["confidence"]
+                    else:
+                        db_data["Fuzzy_scr"] = "0"
                 else:
-                    db_data["Fuzzy_scr"] = "0.0"
-                if (
-                    "custom_confidence" in col["data"]
-                    and col["data"]["custom_confidence"] != ""
-                ):
-                    db_data["Fuzzy_scr"] = col["data"]["custom_confidence"]
-                else:
-                    db_data["Fuzzy_scr"] = "0.0"
+                    db_data["Fuzzy_scr"] = "0"
             except Exception:
+                logger.debug(traceback.format_exc())
                 db_data["Fuzzy_scr"] = "0"
             db_data["lineItemtagID"] = get_lineitemTagId(db, col["tag"], modelID)
             if "status" in col:
