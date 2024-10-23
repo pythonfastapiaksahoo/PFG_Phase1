@@ -14,7 +14,7 @@ from pfg_app import settings
 from pfg_app.core.azure_fr import call_form_recognizer
 from pfg_app.core.stampData import stampDataFn
 from pfg_app.core.utils import (
-    get_connection_access_token,
+    get_connection_string_with_access_token,
     get_credential,
     get_secret_from_vault,
 )
@@ -209,11 +209,9 @@ async def root(request: Request):
         #     )
 
         # connect to database using azure postgresql connection string (system identity)
-        access_token = get_connection_access_token()
-        logger.info(f"Access Token: {access_token}")
-        connection_string = (
-            settings.azure_postgresql_connectionstring + " password=" + access_token
-        )
+        connection_string = get_connection_string_with_access_token()
+        logger.info(f"connection_string: {connection_string}")
+
         engine = create_engine(connection_string)
 
         # Test the connection
