@@ -759,7 +759,46 @@ def pfg_sync(docID, userID, db: Session):
                                                         < 0.09
                                                     ):  # noqa: E501
                                                         invTotalMth = 1
+                                        if (invTotalMth == 0) and (
+                                            "Fuel surcharge" in docHdrDt
+                                        ):  # noqa: E501
+                                            surcharge = clean_amount(
+                                                docHdrDt["Fuel surcharge"]
+                                            )  # noqa: E501
+                                            if surcharge is not None:
+                                                surchargr_sm = clean_amount(
+                                                    surcharge + subTotal
+                                                )  # noqa: E501
+                                                if (
+                                                    round(
+                                                        abs(surchargr_sm - invoTotal),
+                                                        2,
+                                                    )
+                                                    < 0.09
+                                                ):  # noqa: E501
+                                                    invTotalMth = 1
 
+                                        if (invTotalMth == 0) and (
+                                            "ShipmentCharges" in docHdrDt
+                                        ):  # noqa: E501
+                                            ShipmentCharges = clean_amount(
+                                                docHdrDt["ShipmentCharges"]
+                                            )  # noqa: E501
+                                            if ShipmentCharges is not None:
+                                                ShipmentCharges_sm = clean_amount(
+                                                    ShipmentCharges + subTotal
+                                                )  # noqa: E501
+                                                if (
+                                                    round(
+                                                        abs(
+                                                            ShipmentCharges_sm
+                                                            - invoTotal
+                                                        ),
+                                                        2,
+                                                    )
+                                                    < 0.09
+                                                ):
+                                                    invTotalMth = 1
                             else:
                                 invTotalMth = 1
                                 invTotalMth_msg = "Skip total check: Subtotal Missing"
