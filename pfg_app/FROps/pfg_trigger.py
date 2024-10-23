@@ -18,6 +18,9 @@ from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 
 
 def clean_amount(amount_str):
+    # if type(amount_str) == float:
+    if isinstance(amount_str, float):
+        amount_str = str(amount_str)
     try:
         cleaned_amount = re.findall(r"[\d.]+", amount_str)
         if cleaned_amount:
@@ -614,46 +617,64 @@ def pfg_sync(docID, userID, db: Session):
                                         ):
                                             totlTax = clean_amount(docHdrDt["TotalTax"])
                                             if totlTax is not None:
-                                                if (subTotal + totlTax) == invoTotal:
-                                                    invTotalMth = 1
+                                                sm_tx = clean_amount(subTotal + totlTax)
+                                                if sm_tx is not None:
+                                                    if sm_tx == invoTotal:
+                                                        invTotalMth = 1
                                         if (invTotalMth == 0) and ("PST" in docHdrDt):
                                             pst = clean_amount(docHdrDt["PST"])
                                             if pst is not None:
-                                                if (subTotal + pst) == invoTotal:
-                                                    invTotalMth = 1
+                                                pst_sm = clean_amount(subTotal + pst)
+                                                if pst_sm is not None:
+                                                    if pst_sm == invoTotal:
+                                                        invTotalMth = 1
+
                                                 if (invTotalMth == 0) and (
                                                     "TotalTax" in docHdrDt
                                                 ):
-                                                    if (
+                                                    pstTTax_sm = clean_amount(
                                                         subTotal + pst + totlTax
-                                                    ) == invoTotal:
-                                                        invTotalMth = 1
+                                                    )
+                                                    if pstTTax_sm is not None:
+                                                        if pstTTax_sm == invoTotal:
+                                                            invTotalMth = 1
+
                                         if (invTotalMth == 0) and ("GST" in docHdrDt):
                                             gst = clean_amount(docHdrDt["GST"])
                                             if gst is not None:
-                                                if round((subTotal + gst), 2) == round(
-                                                    invoTotal, 2
-                                                ):
-                                                    invTotalMth = 1
+                                                gst_sm = clean_amount(subTotal + gst)
+                                                if gst_sm is not None:
+                                                    if gst_sm == invoTotal:
+                                                        invTotalMth = 1
+
                                                 if (invTotalMth == 0) and (
                                                     "PST" in docHdrDt
                                                 ):
-                                                    if (
+                                                    pst_gst_sm = clean_amount(
                                                         subTotal + gst + pst
-                                                    ) == invoTotal:
-                                                        invTotalMth = 1
+                                                    )
+                                                    if pst_gst_sm is not None:
+                                                        if pst_gst_sm == invoTotal:
+                                                            invTotalMth = 1
+
                                         if (invTotalMth == 0) and ("HST" in docHdrDt):
                                             hst = clean_amount(docHdrDt["HST"])
                                             if hst is not None:
-                                                if (subTotal + hst) == invoTotal:
-                                                    invTotalMth = 1
+                                                hst_sm = clean_amount(subTotal + hst)
+                                                if hst_sm is not None:
+                                                    if hst_sm == invoTotal:
+                                                        invTotalMth = 1
+
                                                 if (invTotalMth == 0) and (
                                                     "GST" in docHdrDt
                                                 ):
-                                                    if (
+                                                    hst_gst_sm = clean_amount(
                                                         subTotal + hst + gst
-                                                    ) == invoTotal:
-                                                        invTotalMth = 1
+                                                    )
+                                                    if hst_gst_sm is not None:
+                                                        if hst_gst_sm == invoTotal:
+                                                            invTotalMth = 1
+
                                         if (invTotalMth == 0) and (
                                             "LitterDeposit" in docHdrDt
                                         ):
@@ -661,10 +682,12 @@ def pfg_sync(docID, userID, db: Session):
                                                 docHdrDt["LitterDeposit"]
                                             )
                                             if litterDeposit is not None:
-                                                if (
+                                                litterDeposit_sm = clean_amount(
                                                     subTotal + litterDeposit
-                                                ) == invoTotal:
-                                                    invTotalMth = 1
+                                                )
+                                                if litterDeposit_sm is not None:
+                                                    if litterDeposit_sm == invoTotal:
+                                                        invTotalMth = 1
 
                             else:
                                 invTotalMth = 1
@@ -691,6 +714,14 @@ def pfg_sync(docID, userID, db: Session):
                                 dateCheck_msg = (
                                     "Invoice date is invalid, Please review."
                                 )
+                            if formatted_date != date_string:
+                                # updating formatted date string:
+                                try:
+                                    print(formatted_date)
+                                    print(date_string)
+
+                                except Exception:
+                                    logger.debug(traceback.format_exc())
 
                         except Exception as er:
                             logger.error(traceback.format_exc())
@@ -777,7 +808,7 @@ def pfg_sync(docID, userID, db: Session):
                                 strCk = 0
                                 strCk_msg.append(" Store Type Not Found")
 
-                            docStatusSync["StoreType Validation"] = {
+                            docStatusSync["Storetype validation"] = {
                                 "status": strCk,
                                 "response": strCk_msg,
                             }

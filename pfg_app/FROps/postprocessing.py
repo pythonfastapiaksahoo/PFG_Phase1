@@ -236,6 +236,7 @@ def date_cnv(doc_date, date_format):
         req_date = doc_date
     if date_status == 1:
         try:
+
             # newDate = datetime.datetime(int(yy), int(mm), int(dd))
             # # TODO: Unused variable
             correctDate = True
