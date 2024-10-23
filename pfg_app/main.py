@@ -11,6 +11,7 @@ from pypdf import PdfReader, PdfWriter
 from sqlalchemy import create_engine
 
 from pfg_app import settings
+from pfg_app.core.azure_fr import call_form_recognizer
 from pfg_app.core.stampData import stampDataFn
 from pfg_app.core.utils import get_credential, get_secret_from_vault
 from pfg_app.logger_module import logger
@@ -301,28 +302,69 @@ async def root(request: Request):
             page_writer.write(temp_file)
             temp_file.seek(0)
 
-        from core.azure_fr import call_form_recognizer
+            # call the call_form_recognizer function
+            result = call_form_recognizer(
+                input_file=temp_file.read(),
+                endpoint=settings.form_recognizer_endpoint,
+                api_version=settings.api_version,
+            )
 
-        # call the call_form_recognizer function
-        result = call_form_recognizer(
-            input_file=temp_file.read(),
-            endpoint=settings.form_recognizer_endpoint,
-            api_version=settings.api_version,
-        )
-
-        logger.info(result)
-        connectivity_details.append(
-            {
-                "document-intelligence": "Document Intelligence is accessible- "
-                + str(result)
-            }
-        )
+            logger.info(result)
+            connectivity_details.append(
+                {
+                    "document-intelligence": "Document Intelligence is accessible- "
+                    + str(result)
+                }
+            )
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
         connectivity_details.append({"document-intelligence": traceback.format_exc()})
 
+    prompt = """
+    This is an invoice document. It may contain a receiver's stamp and
+    might have inventory or supplies marked or circled with a pen, circled
+    is selected. It contains store number as "STR #".
+
+    InvoiceDocument: Yes/No
+    InvoiceID: [InvoiceID].
+    StampPresent: Yes/No.
+
+    If a stamp is present, identify any markings on the document related to
+    Inventory or Supplies, specifically if they are marked or circled with a pen.
+    If a stamp is present, extract the following handwritten details from the
+    stamp: ConfirmationNumber (the confirmation number labeled
+    as 'Confirmation' on the stamp), ReceivingDate
+    (the date when the goods were received), Receiver
+    (the name of the person or department who received the goods),
+    and Department (the handwritten department name or code,
+    or another specified department name),
+    MarkedDept (which may be either 'Inventory' or 'Supplies',
+    based on pen marking).
+    Extract the Invoice Number.
+    Extract the Currency from the invoice document by identifying the currency
+    symbol before the total amount. The currency can be CAD or USD.
+    If the invoice address is in Canada, set the currency to CAD,
+    otherwise set it to USD.
+
+    Provide all information in the following JSON format:
+    {
+        'StampFound': 'Yes/No',
+        'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
+        'Confirmation': 'Extracted data',
+        'ReceivingDate': 'Extracted data',
+        'Receiver': 'Extracted data',
+        'Department': 'Dept code',
+        'Store Number': 'Extracted data',
+        'VendorName': 'Extracted data',
+        'InvoiceID' : 'Extracted data'
+        'Currency': 'Extracted data'
+    }.
+
+    Output should always be in above defined JSON format only."""
+
     # call the Azure OpenAI service
     try:
+
         # Load the files as BytesIO from TestData
         reader = PdfReader("TestData/Chuckleberry Community Farm.pdf")
         page_writer = PdfWriter()
@@ -332,52 +374,13 @@ async def root(request: Request):
             page_writer.write(temp_file)
             temp_file.seek(0)
 
-        prompt = """This is an invoice document. It may contain a receiver's stamp and
-        might have inventory or supplies marked or circled with a pen, circled
-        is selected. It contains store number as "STR #".
+            # call the call_openai function
+            result = stampDataFn(blob_data=temp_file.read(), prompt=prompt)
 
-        InvoiceDocument: Yes/No
-        InvoiceID: [InvoiceID].
-        StampPresent: Yes/No.
-
-        If a stamp is present, identify any markings on the document related to
-        Inventory or Supplies, specifically if they are marked or circled with a pen.
-        If a stamp is present, extract the following handwritten details from the
-        stamp: ConfirmationNumber (the confirmation number labeled
-        as 'Confirmation' on the stamp), ReceivingDate
-        (the date when the goods were received), Receiver
-        (the name of the person or department who received the goods),
-        and Department (the handwritten department name or code,
-        or another specified department name),
-        MarkedDept (which may be either 'Inventory' or 'Supplies',
-        based on pen marking).
-        Extract the Invoice Number.
-        Extract the Currency from the invoice document by identifying the currency
-        symbol before the total amount. The currency can be CAD or USD.
-        If the invoice address is in Canada, set the currency to CAD,
-        otherwise set it to USD.
-
-        Provide all information in the following JSON format:
-        {
-            'StampFound': 'Yes/No',
-            'MarkedDept': 'Inventory/Supplies' (whichever is circled more/marked only),
-            'Confirmation': 'Extracted data',
-            'ReceivingDate': 'Extracted data',
-            'Receiver': 'Extracted data',
-            'Department': 'Dept code',
-            'Store Number': 'Extracted data',
-            'VendorName': 'Extracted data',
-            'InvoiceID' : 'Extracted data'
-            'Currency': 'Extracted data'
-        }.
-
-        Output should always be in above defined JSON format only."""
-
-        # call the call_openai function
-        result = stampDataFn(blob_data=temp_file.read(), prompt=prompt)
-
-        logger.info(result)
-        connectivity_details.append({"openai": "OpenAI is accessible- " + str(result)})
+            logger.info(result)
+            connectivity_details.append(
+                {"openai": "OpenAI is accessible- " + str(result)}
+            )
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
         connectivity_details.append({"openai": traceback.format_exc()})
