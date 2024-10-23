@@ -165,7 +165,7 @@ async def root(request: Request):
     # get the domain name
     domain = request.url.hostname
     logger.info(f"Root endpoint was accessed - {domain}")
-
+    connectivity_details = []
     # check if the key vault is accessible
     try:
         if settings.build_type not in ["debug"]:
@@ -174,9 +174,10 @@ async def root(request: Request):
                 credential, "APPORTAL-API-CLIENT-ID", "api_client_id"
             )
             logger.info(f"API Client ID: {api_client_id}")
+            connectivity_details.append({"key-vault": "Key Vault is accessible"})
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
-        return {"message": "Error connecting to the key vault"}
+        connectivity_details.append({"key-vault": traceback.format_exc()})
 
     try:
         # connect to the database
@@ -198,10 +199,12 @@ async def root(request: Request):
         # Test the connection
         with engine.connect() as connection:
             result = connection.execute("SELECT 1")
-            logger.info(f"Result of DB Connection {result.fetchone()}")
+            connectivity_details.append(
+                {"postgres": f"Result of DB Connection {result.fetchone()}"}
+            )
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
-        return {"message": "Error connecting to the database"}
+        connectivity_details.append({"postgres": traceback.format_exc()})
 
     # check if blob is accessible
     try:
@@ -243,9 +246,11 @@ async def root(request: Request):
         # delete the container
         container_client.delete_container()
 
+        connectivity_details.append({"blob": "Blob storage is accessible"})
+
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
-        return {"message": "Error accessing the blob storage"}
+        connectivity_details.append({"blob": traceback.format_exc()})
 
     # check if table storage is accessible
     try:
@@ -277,9 +282,11 @@ async def root(request: Request):
         # delete the table
         table_client.delete_table()
 
+        connectivity_details.append({"table": "Table storage is accessible"})
+
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
-        return {"message": "Error accessing the table storage"}
+        connectivity_details.append({"table": traceback.format_exc()})
 
     # check if the Azure Document intelligence is accessible
     try:
@@ -304,9 +311,15 @@ async def root(request: Request):
         )
 
         logger.info(result)
+        connectivity_details.append(
+            {
+                "document-intelligence": "Document Intelligence is accessible- "
+                + str(result)
+            }
+        )
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
-        return {"message": "Error accessing the Azure Document Intelligence service"}
+        connectivity_details.append({"document-intelligence": traceback.format_exc()})
 
     # call the Azure OpenAI service
     try:
@@ -364,8 +377,9 @@ async def root(request: Request):
         result = stampDataFn(blob_data=temp_file.read(), prompt=prompt)
 
         logger.info(result)
+        connectivity_details.append({"openai": "OpenAI is accessible- " + str(result)})
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
-        return {"message": "Error accessing the Azure OpenAI service"}
+        connectivity_details.append({"openai": traceback.format_exc()})
 
-    return {"message": "Hello! This is IDP"}
+    return {"message": "Hello! This is IDP", "connectivity": connectivity_details}
