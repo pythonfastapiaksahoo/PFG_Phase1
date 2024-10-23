@@ -511,31 +511,12 @@ def pfg_sync(docID, userID, db: Session):
                     update_docHistory(
                         docID, userID, InvodocStatus, duplicate_status_ck_msg, db
                     )
-                except Exception as e:
-                    logger.error(f"pfg_sync line 401: {str(e)}")
+                except Exception:
+                    logger.debug(traceback.format_exc())
                 try:
 
-                    # DocDtHdr = (
-                    #     db.query(model.DocumentData, model.DocumentTagDef)
-                    #     .join(
-                    #         model.DocumentTagDef,
-                    #         model.DocumentData.documentTagDefID
-                    #         == model.DocumentTagDef.idDocumentTagDef,
-                    #     )
-                    #     .filter(model.DocumentTagDef.idDocumentModel == docModel)
-                    #     .filter(model.DocumentData.documentID == docID)
-                    #     .all()
-                    # )
-
-                    # docHdrDt = {}
-                    # tagNames = {}
-
                     try:
-                        # for document_data, document_tag_def in DocDtHdr:
-                        #     docHdrDt[document_tag_def.TagLabel] = document_data.Value
-                        #     tagNames[document_tag_def.TagLabel] = (
-                        #         document_tag_def.idDocumentTagDef
-                        #     )
+
                         logger.info(f"docHdrDt: {docHdrDt}")
 
                         try:
@@ -559,7 +540,7 @@ def pfg_sync(docID, userID, db: Session):
                                 dmsg = "No currency found in the OpenAI result"
                             logger.info(f"dmsg: {dmsg}")
                         except Exception:
-                            logger.info(f"Error occurred: {traceback.format_exc()}")
+                            logger.debug(f"Error occurred: {traceback.format_exc()}")
                         # Invoice Total Approval Check
                         # try:
                         #     if float(docHdrDt["InvoiceTotal"]) < dsdApprovalCheck_msg:
@@ -612,6 +593,7 @@ def pfg_sync(docID, userID, db: Session):
                         #     "status": dsdApprovalCheck,
                         #     "response": [dmsg],
                         # }
+
                         # Invoice Total check
 
                         invTotalMth = 0
@@ -688,11 +670,11 @@ def pfg_sync(docID, userID, db: Session):
                                 invTotalMth = 1
                                 invTotalMth_msg = "Skip total check: Subtotal Missing"
                         except Exception as e:
-                            logger.error(f"Exception in pfg_sync line 387: {str(e)}")
+                            logger.debug(traceback.format_exc())
                             invTotalMth = 0
                             invTotalMth_msg = "Invoice total mismatch:" + str(e)
                     except Exception as e:
-                        logger.error(traceback.format_exc())
+                        logger.debug(traceback.format_exc())
                         invTotalMth = 0
                         invTotalMth_msg = "Invoice total mismatch:" + str(e)
 
@@ -759,8 +741,8 @@ def pfg_sync(docID, userID, db: Session):
                             update_docHistory(
                                 docID, userID, documentstatus, documentdesc, db
                             )
-                        except Exception as e:
-                            logger.error(f"pfg_sync line 314: {str(e)}")
+                        except Exception:
+                            logger.error(traceback.format_exc())
 
                         InvStmDt = (
                             db.query(model.StampDataValidation)
@@ -787,10 +769,8 @@ def pfg_sync(docID, userID, db: Session):
                                     else:
                                         strCk = 0
                                         strCk_msg.append("Invalid Store Type")
-                                except Exception as e:
-                                    logger.error(
-                                        f"Exception in pfg_sync-Store Type: {str(e)}"
-                                    )
+                                except Exception:
+                                    logger.debug(traceback.format_exc)
                                     strCk = 0
                                     strCk_msg.append("Invalid Store Type")
                             else:
@@ -810,8 +790,8 @@ def pfg_sync(docID, userID, db: Session):
                                     update_docHistory(
                                         docID, userID, documentstatus, documentdesc, db
                                     )
-                                except Exception as e:
-                                    logger.error(f"pfg_sync line 314: {str(e)}")
+                                except Exception:
+                                    logger.debug(traceback.format_exc)
 
                                 try:
                                     if (
@@ -851,7 +831,7 @@ def pfg_sync(docID, userID, db: Session):
                                                         confirmation_ck_msg = "Confirmation Number Not Found"  # noqa: E501s
 
                                                 except Exception as e:
-                                                    logger.error(
+                                                    logger.debug(
                                                         f"{traceback.format_exc()}"
                                                     )
 
@@ -888,9 +868,9 @@ def pfg_sync(docID, userID, db: Session):
                                         strCk = 1
                                         strCk_msg.append("Success")
 
-                                except Exception as er:
-                                    logger.info(f"VoucherCreationException:{er} ")
-                                    logger.info(f"{traceback.format_exc()}")
+                                except Exception:
+
+                                    logger.debug(f"{traceback.format_exc()}")
 
                                 if confirmation_ck == 1 or (
                                     list(stmpData["StoreType"].keys())[0]
@@ -968,9 +948,9 @@ def pfg_sync(docID, userID, db: Session):
                                             "status": 0,
                                             "response": ["File Size not found."],
                                         }
-                                except Exception as e:
-                                    logger.error(f"pfg_sync- file size check: {str(e)}")
-                                    logger.error(f"{traceback.format_exc()}")
+                                except Exception:
+
+                                    logger.debug(f"{traceback.format_exc()}")
 
                                 if (
                                     docStatusSync["VoucherCreation Data Validation"][
@@ -989,8 +969,8 @@ def pfg_sync(docID, userID, db: Session):
                                             documentdesc,
                                             db,  # noqa: E501
                                         )
-                                    except Exception as e:
-                                        logger.error(f"pfg_sync line 314: {str(e)}")
+                                    except Exception:
+                                        logger.debug(traceback.format_exc())
 
                                     overAllstatus_ck = 1
                                     for stCk in docStatusSync:
@@ -1093,8 +1073,8 @@ def pfg_sync(docID, userID, db: Session):
                                                     docStatus = 21
                                                     docSubStatus = 112
                                             except Exception as err:
-                                                logger.info(
-                                                    f"PopleSoftResponseError: {err}"
+                                                logger.debug(
+                                                    f"PopleSoftResponseError: {traceback.format_exc()}"  # noqa: E501
                                                 )
                                                 dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
                                                     err
@@ -1112,10 +1092,8 @@ def pfg_sync(docID, userID, db: Session):
                                                     }
                                                 )
                                                 db.commit()
-                                            except Exception as err:
-                                                logger.info(
-                                                    f"ErrorUpdatingPostingData: {err}"
-                                                )
+                                            except Exception:
+                                                logger.error(traceback.format_exc())
                                             try:
 
                                                 update_docHistory(
@@ -1125,14 +1103,11 @@ def pfg_sync(docID, userID, db: Session):
                                                     "status": SentToPeopleSoft,
                                                     "response": [dmsg],
                                                 }
-                                            except Exception as e:
-                                                logger.error(f"pfg_sync 501: {str(e)}")
+                                            except Exception:
+                                                logger.error(traceback.format_exc())
                                         except Exception as e:
-                                            print(
-                                                "Error in ProcessInvoiceVoucher fun(): ",  # noqa: E501
-                                                traceback.format_exc(),
-                                            )
-                                            logger.info(f"PopleSoftResponseError: {e}")
+
+                                            logger.debug(traceback.format_exc())
                                             dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
                                                 e
                                             )
@@ -1149,10 +1124,8 @@ def pfg_sync(docID, userID, db: Session):
                                                 }
                                             )
                                             db.commit()
-                                        except Exception as err:
-                                            logger.info(
-                                                f"ErrorUpdatingPostingData: {err}"
-                                            )
+                                        except Exception:
+                                            logger.debug(traceback.format_exc())
 
                                         try:
                                             documentstatus = 21
@@ -1164,7 +1137,7 @@ def pfg_sync(docID, userID, db: Session):
                                                 db,  # noqa: E501
                                             )
                                         except Exception:
-                                            logger.error(f"{traceback.format_exc()}")
+                                            logger.debug(f"{traceback.format_exc()}")
                                     else:
                                         overAllstatus_msg = "Validation Failed"
                                 else:
@@ -1182,7 +1155,7 @@ def pfg_sync(docID, userID, db: Session):
                                             db,  # noqa: E501
                                         )
                                     except Exception:
-                                        logger.error(f"{traceback.format_exc()}")
+                                        logger.debug(f"{traceback.format_exc()}")
                                     try:
                                         db.query(model.Document).filter(
                                             model.Document.idDocument == docID
@@ -1194,7 +1167,7 @@ def pfg_sync(docID, userID, db: Session):
                                         )
                                         db.commit()
                                     except Exception:
-                                        logger.error(f"{traceback.format_exc()}")
+                                        logger.debug(f"{traceback.format_exc()}")
                             else:
 
                                 # -------------update document history table
@@ -1206,7 +1179,7 @@ def pfg_sync(docID, userID, db: Session):
                                         docID, userID, documentstatus, documentdesc, db
                                     )
                                 except Exception:
-                                    logger.error(f"{traceback.format_exc()}")
+                                    logger.debug(f"{traceback.format_exc()}")
                                 try:
                                     db.query(model.Document).filter(
                                         model.Document.idDocument == docID
@@ -1218,7 +1191,7 @@ def pfg_sync(docID, userID, db: Session):
                                     )
                                     db.commit()
                                 except Exception:
-                                    logger.error(f"{traceback.format_exc()}")
+                                    logger.debug(f"{traceback.format_exc()}")
                         else:
                             docStatusSync["Stamp Data Validations"] = {
                                 "status": 0,
@@ -1231,9 +1204,8 @@ def pfg_sync(docID, userID, db: Session):
                                 update_docHistory(
                                     docID, userID, documentstatus, documentdesc, db
                                 )
-                            except Exception as e:
-                                logger.error(f"pfg_sync line 534: {str(e)}")
-                                logger.error(f"{traceback.format_exc()}")
+                            except Exception:
+                                logger.debug(f"{traceback.format_exc()}")
                                 overAllstatus_msg = "Failed"
 
                             try:
@@ -1247,7 +1219,7 @@ def pfg_sync(docID, userID, db: Session):
                                 )
                                 db.commit()
                             except Exception:
-                                logger.error(f"{traceback.format_exc()}")
+                                logger.debug(f"{traceback.format_exc()}")
 
                     else:
                         # -------------------------update document history table
@@ -1258,8 +1230,8 @@ def pfg_sync(docID, userID, db: Session):
                             update_docHistory(
                                 docID, userID, documentstatus, documentdesc, db
                             )
-                        except Exception as e:
-                            logger.error(f"pfg_sync line 534: {str(e)}")
+                        except Exception:
+
                             logger.error(f"{traceback.format_exc()}")
                             overAllstatus_msg = "Failed"
                     # try:
@@ -1276,7 +1248,6 @@ def pfg_sync(docID, userID, db: Session):
                     #     logger.info(f"ErrorUpdatingPostingData: {err}")
 
                 except Exception as err:
-                    logger.info(f"SyncException:{err}")
                     logger.error(f"{traceback.format_exc()}")
                     docStatusSync = {}
                     overAllstatus = 0
@@ -1294,8 +1265,8 @@ def pfg_sync(docID, userID, db: Session):
                 docHrd_msg = "No Header Data found"
                 docHrd_status = 0
                 update_docHistory(docID, userID, docHrd_status, docHrd_msg, db)
-            except Exception as e:
-                logger.error(f"pfg_sync line 886: {str(e)}")
+            except Exception:
+                logger.debug(traceback)
             overAllstatus_msg = "Failed"
 
         docStatusSync["Status Overview"] = {
@@ -1310,6 +1281,6 @@ def pfg_sync(docID, userID, db: Session):
 
             db.commit()
         except Exception as Err:
-            logger.info(f"updateDocDecError: {Err}")
-        logger.info(f"Status Overview: {docStatusSync}")
+            logger.debug(f"updateDocDecError: {Err}")
+        # logger.info(f"Status Overview: {docStatusSync}")
     return docStatusSync

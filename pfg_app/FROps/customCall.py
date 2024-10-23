@@ -136,6 +136,7 @@ def date_cnv(doc_date, date_format):
                 date_status = 1
 
     except Exception:
+        logger.debug(traceback.format_exc())
         date_status = 0
         req_date = doc_date
 
@@ -151,6 +152,7 @@ def clean_amount(amount_str):
             cleaned_amount_str = cleaned_amount[0].replace(",", "")
             return round(float(cleaned_amount_str), 2)
     except Exception:
+        logger.debug(traceback.format_exc())
         return None
     return 0.0
 
@@ -174,6 +176,7 @@ def getModelData(vendorAccountID, db):
                 )
         return reqModel, modelDetails
     except Exception:
+        logger.debug(traceback.format_exc())
         return None
 
 
@@ -313,6 +316,7 @@ def customModelCall(docID):
                                     2,
                                 )
                             except Exception:
+                                logger.debug(traceback.format_exc())
                                 cust_conf = 0.0
                         else:
                             cust_conf = 0.0
@@ -402,32 +406,18 @@ def customModelCall(docID):
             )
 
             if record_to_update:
-                # print(
-                #     f"Found record to update: {record_to_update.documentTagDefID}
-                # for documentID {record_to_update.documentID}"
-                # )
 
                 record_to_update.Value = entry["Value"]
                 record_to_update.IsUpdated = entry["IsUpdated"]
                 record_to_update.isError = entry["isError"]
                 record_to_update.ErrorDesc = entry["ErrorDesc"]
 
-                # print(
-                #     f"Updated record: {record_to_update.documentTagDefID},
-                #  new value: {record_to_update.Value}"
-                # )
-            # else:
-            #     logger.info(
-            #         f"No record found for documentTagDefID
-            # {entry['documentTagDefID']} and documentID {entry['documentID']}"
-            #     )
-
         try:
             db.commit()
             # print("Transaction committed successfully.")
         except Exception:
+            logger.error(traceback.format_exc())
             custcall_status = 0
-            # print(f"Error committing transaction: {e}")
             db.rollback()  # Roll back the transaction if there's an error
 
         for entry in custHdrDt_insert:
@@ -445,10 +435,9 @@ def customModelCall(docID):
 
         try:
             db.commit()
-            print("New records inserted successfully.")
-        except Exception as e:
+        except Exception:
+            logger.error(traceback.format_exc())
             custcall_status = 0
-            print(f"Error inserting records: {e}")
             db.rollback()
 
         rw = 1
@@ -510,13 +499,10 @@ def customModelCall(docID):
                 model.DocumentLineItems.documentID == docID,
             ).delete()
 
-            try:
-                db.commit()
-                print("Records deleted successfully.")
-            except Exception:
-                custcall_status = 0
-                db.rollback()  # Roll back if there is an error
+            db.commit()
+
         except Exception:
+            logger.error(traceback.format_exc())
             custcall_status = 0
             db.rollback()
 
@@ -555,13 +541,7 @@ def customModelCall(docID):
 
                     db.add(new_line)
 
-                try:
-                    db.commit()
-                    print("New records inserted successfully.")
-                except Exception as e:
-                    print(f"Error inserting records: {e}")
-                    db.rollback()
-
+                db.commit()
         except Exception:
             custcall_status = 0
             db.rollback()
@@ -586,5 +566,6 @@ def customModelCall(docID):
             }
         )
         db.commit()
+
     except Exception:
         logger.error(f"{traceback.format_exc()}")

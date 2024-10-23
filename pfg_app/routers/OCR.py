@@ -610,17 +610,8 @@ def runStatus(
                                 print(f"mrkCurrencyCk_isErr: {mrkCurrencyCk_isErr}")
 
                         except Exception:
-                            logger.error(f"{traceback.format_exc()}")
+                            logger.debug(f"{traceback.format_exc()}")
 
-                        # if "StampFound" in StampDataList[splt_map[fl]]:
-                        #     smpFnd = 1
-                        #     stmpHdr = hdr
-                        # elif "StampFound" in StampDataList[splt_map[fl]]:
-                        #     smpFnd = 1
-                        #     stmpHdr = ltPg
-                        # else:
-                        #     smpFnd = 0
-                        # stmpHdr = ""
                         if "StampFound" in StampDataList[splt_map[fl]]:
                             # stm_dt_lt = []
                             confCk_isErr = 1
@@ -685,10 +676,6 @@ def runStatus(
                                     if len(Confirmation) == 9:
                                         try:
 
-                                            # query = 'SELECT * \
-                                            #     FROM pfg_schema.pfgreceipt \
-                                            #         WHERE "RECEIVER_ID" = %s'
-                                            # (
                                             query = (
                                                 db.query(model.PFGReceipt)
                                                 .filter(
@@ -697,12 +684,10 @@ def runStatus(
                                                 )
                                                 .first()
                                             )
-                                            # cursor.execute(query, (Confirmation,))
-                                            # row = cursor.fetchone()
+
                                             if query:
                                                 # for invRpt in query:
                                                 str_nm = query.LOCATION
-                                                # VENDOR_SETID = invRpt.VENDOR_SETID
                                                 confCk_isErr = 0
                                                 confCk_msg = "Valid Confirmation Number"
                                                 # str_nm = row[15]
@@ -713,11 +698,7 @@ def runStatus(
                                                 )
 
                                         except Exception as e:
-                                            logger.error(f"{traceback.format_exc()}")
-                                            # logger.error(
-                                            #     f"Error executing query: {str(e)}"
-                                            # )
-
+                                            logger.debug(f"{traceback.format_exc()}")
                                             confCk_isErr = 0
                                             confCk_msg = "Error:" + str(e)
 
@@ -730,8 +711,6 @@ def runStatus(
                                     confCk_isErr = 1
                                     confCk_msg = "Confirmation Number NotFound"
 
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
                                 stampdata["documentid"] = invoId
                                 stampdata["stamptagname"] = "ConfirmationNumber"
                                 stampdata["stampvalue"] = Confirmation
@@ -757,8 +736,6 @@ def runStatus(
                                     RevDateCk_isErr = 1
                                     RevDateCk_msg = "ReceivingDate Not Found."
 
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
                                 stampdata["documentid"] = invoId
                                 stampdata["stamptagname"] = "ReceivingDate"
                                 stampdata["stampvalue"] = ReceivingDate
@@ -778,8 +755,6 @@ def runStatus(
                                     RvrCk_isErr = 1
                                     RvrCk_msg = "Receiver Not Available"
 
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
                                 stampdata["documentid"] = invoId
                                 stampdata["stamptagname"] = "Receiver"
                                 stampdata["stampvalue"] = Receiver
@@ -801,8 +776,6 @@ def runStatus(
                                     deptCk_isErr = 1
                                     deptCk_msg = "Department Not Found."
 
-                                # st/ampdata = {}
-                                # stampdata: dict[str, int | str] = {}
                                 stampdata["documentid"] = invoId
                                 stampdata["stamptagname"] = "Department"
                                 stampdata["stampvalue"] = Department
@@ -857,7 +830,7 @@ def runStatus(
                                                 StrTyp_msg = ""
                                                 store_type = "Integrated"
                                         except Exception:
-                                            logger.error(f"{traceback.format_exc()}")
+                                            logger.debug(f"{traceback.format_exc()}")
 
                                         if len(str_nm) > 0:
                                             if int(storenumber) == int(str_nm):
@@ -872,7 +845,7 @@ def runStatus(
                                             strCk_msg = "Store Number Not Matching"
 
                                     except Exception as e:
-                                        logger.error(f"{traceback.format_exc()}")
+                                        logger.debug(f"{traceback.format_exc()}")
                                         strCk_isErr = 1
                                         strCk_msg = "Error:" + str(e)
                                 else:
@@ -880,8 +853,6 @@ def runStatus(
                                     strCk_isErr = 1
                                     strCk_msg = ""
 
-                                # stampdata = {}
-                                # stampdata: dict[str, int | str] = {}
                                 stampdata["documentid"] = invoId
                                 stampdata["stamptagname"] = "StoreType"
                                 stampdata["stampvalue"] = store_type
@@ -919,7 +890,7 @@ def runStatus(
                                     db.commit()
 
                                 except Exception:
-                                    logger.error(f"{traceback.format_exc()}")
+                                    logger.debug(f"{traceback.format_exc()}")
 
                                 try:
                                     if store_type == "Integrated":
@@ -927,8 +898,7 @@ def runStatus(
                                     elif store_type == "Non-Integrated":
                                         nonIntegratedVoucherData(invoId, db)
                                 except Exception:
-
-                                    logger.error(f"{traceback.format_exc()}")
+                                    logger.debug(f"{traceback.format_exc()}")
 
                         try:
 
@@ -944,7 +914,7 @@ def runStatus(
 
                         except Exception:
                             # logger.info(f"ocr.py  {str(qw)}")
-                            logger.error(f"{traceback.format_exc()}")
+                            logger.debug(f"{traceback.format_exc()}")
 
                         status = "success"
 
@@ -977,30 +947,14 @@ def runStatus(
                         logger.info(f" VendorUnidentified: invoice_ID: {invoId}")
                         status = "success"
 
-                    except Exception as e:
-                        logger.info(
-                            f"getFrData_MNF Exception line 446 orc.py: {str(e)}"
-                        )
+                    except Exception:
 
-                        logger.error(f"{traceback.format_exc()}")
+                        logger.debug(traceback.format_exc())
                         status = "fail"
 
                     logger.info("vendor not found!!")
                     try:
-                        # cur = conn.cursor()
-                        # sql_updateFR_1 = """
-                        #     UPDATE pfg_schema.frtrigger_tab
-                        #     SET "status" = %(status)s, sender = %(sender)s
-                        #     WHERE "blobpath" = %(blobpath)s;
-                        # """
-                        # FRvalues_1 = {
-                        #     "status": "VendorNotFound",
-                        #     "sender": sender,
-                        #     "blobpath": spltFileName,
-                        # }
 
-                        # cur.execute(sql_updateFR_1, FRvalues_1)
-                        # conn.commit()
                         db.query(model.frtrigger_tab).filter(
                             model.frtrigger_tab.blobpath == spltFileName
                         ).update(
@@ -1012,22 +966,9 @@ def runStatus(
                         # Commit the transaction
                         db.commit()
                     except Exception as et:
-                        logger.error(f"{traceback.format_exc()}")
+                        logger.debug(traceback.format_exc())
                         try:
-                            # cur = conn.cursor()
-                            # sql_updateFR_2 = """
-                            #     UPDATE pfg_schema.frtrigger_tab
-                            #     SET "status" = %(status)s, "sender" = %(sender)s
-                            #     WHERE "blobpath" = %(blobpath)s;
-                            # """
-                            # FRvalues_2 = {
-                            #     "status": str(et),
-                            #     "sender": sender,
-                            #     "blobpath": spltFileName,
-                            # }
 
-                            # cur.execute(sql_updateFR_2, FRvalues_2)
-                            # conn.commit()
                             db.query(model.frtrigger_tab).filter(
                                 model.frtrigger_tab.blobpath == spltFileName
                             ).update(
@@ -1039,17 +980,11 @@ def runStatus(
                             # Commit the transaction
                             db.commit()
                         except Exception:
-
                             logger.error(f"{traceback.format_exc()}")
-
-                        # logger.error(f"frtrigger_tab update exception: {str(et)}")
 
                     status = traceback.format_exc()
                 fl = fl + 1
-                # time.sleep(0.5)
 
-            # cursor.close()
-            # conn.close()
         else:
 
             logger.error(f"DI responed error: {fr_model_status, fr_model_msg}")
@@ -1112,9 +1047,9 @@ def runStatus(
 
     try:
         pfg_sync(invoId, userID, db)
-        logger.info("pfg_sync Done!")
+
     except Exception:
-        logger.error(f"{traceback.format_exc()}")
+        logger.debug(f"{traceback.format_exc()}")
 
     return status
 
@@ -1532,7 +1467,7 @@ def push_frdata(
         db.add(db_data)
         db.commit()
     except Exception as e:
-        logger.error(f"{traceback.format_exc()}")
+        logger.debug(f"{traceback.format_exc()}")
         db.rollback()
         if "Incorrect datetime value" in str(e):
             invoice_data["documentDate"] = None
@@ -1542,7 +1477,7 @@ def push_frdata(
             db.add(db_data)
             db.commit()
         except Exception as e:
-            logger.error(f"{traceback.format_exc()}")
+            logger.debug(f"{traceback.format_exc()}")
             db.rollback()
             if "for column 'docheaderID'" in str(e):
                 invoice_data["docheaderID"] = ""
@@ -1551,7 +1486,7 @@ def push_frdata(
                 db.add(db_data)
                 db.commit()
             except Exception as e:
-                logger.error(f"{traceback.format_exc()}")
+                logger.debug(f"{traceback.format_exc()}")
                 db.rollback()
                 if "for column 'PODocumentID'" in str(e):
                     invoice_data["PODocumentID"] = ""
@@ -1561,7 +1496,7 @@ def push_frdata(
                     db.add(db_data)
                     db.commit()
                 except Exception as e:
-                    logger.error(f"{traceback.format_exc()}")
+                    logger.debug(f"{traceback.format_exc()}")
                     db.rollback()
                     if "for column 'totalAmount'" in str(e):
                         invoice_data["totalAmount"] = None
@@ -1618,6 +1553,7 @@ def parse_labels(label_data, db, poNumber, modelID):
                 else:
                     db_data["Fuzzy_scr"] = "0"
             except Exception:
+                logger.debug(traceback.format_exc())
                 db_data["Fuzzy_scr"] = "0.0"
             db_data["IsUpdated"] = 0
             if label["status"] == 1:
@@ -1656,6 +1592,7 @@ def parse_tabel(tabel_data, db, modelID):
                 else:
                     db_data["Fuzzy_scr"] = "0"
             except Exception:
+                logger.debug(traceback.format_exc())
                 db_data["Fuzzy_scr"] = "0"
             db_data["lineItemtagID"] = get_lineitemTagId(db, col["tag"], modelID)
             if "status" in col:
