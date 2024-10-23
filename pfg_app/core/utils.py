@@ -21,7 +21,7 @@ from pfg_app.logger_module import logger
 # from typing import Optional
 
 
-def get_connection_access_token():
+def get_connection_string_with_access_token():
 
     try:
         # Use passwordless authentication via DefaultAzureCredential.
@@ -32,11 +32,27 @@ def get_connection_access_token():
         # add it as the password in the URI.
         # Note the requested scope parameter in the call to get_token,
         # "https://ossrdbms-aad.database.windows.net/.default".
-        accessToken = credential.get_token(
+        access_token = credential.get_token(
             "https://ossrdbms-aad.database.windows.net/.default"
         ).token
 
-        return accessToken
+        params = dict(
+            param.split("=")
+            for param in settings.azure_postgresql_connectionstring.split()
+        )
+        # Assign the extracted values to respective variables
+        db_name = params.get("dbname")
+        db_host = params.get("host")
+        db_user = params.get("user", "ase_api_serviceconnector")
+        # sslmode = params.get("sslmode")
+
+        db_uri = (
+            "postgresql://"
+            + f"{db_user}:{access_token}@{db_host}/{db_name}"
+            + "?options=-csearch_path=pfg_schema"
+        )
+
+        return db_uri
     except Exception:
         logger.error(f"Error {traceback.format_exc()}")
         raise
