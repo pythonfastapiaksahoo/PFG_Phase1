@@ -210,10 +210,9 @@ async def root(request: Request):
 
         # connect to database using azure postgresql connection string (system identity)
         access_token = get_connection_access_token()
+        logger.info(f"Access Token: {access_token}")
         connection_string = (
-            settings.azure_postgresql_connectionstring
-            + " password="
-            + access_token.token
+            settings.azure_postgresql_connectionstring + " password=" + access_token
         )
         engine = create_engine(connection_string)
 
