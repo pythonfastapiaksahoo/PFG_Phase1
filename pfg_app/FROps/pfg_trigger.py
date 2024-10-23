@@ -18,7 +18,6 @@ from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 
 
 def clean_amount(amount_str):
-    # if type(amount_str) == float:
     if isinstance(amount_str, float):
         amount_str = str(amount_str)
     try:
@@ -32,7 +31,7 @@ def clean_amount(amount_str):
 
 # db = SCHEMA
 def IntegratedvoucherData(inv_id, db: Session):
-    # inv_id = 418
+
     invoice_type = (
         db.query(model.Document.UploadDocType)
         .filter(model.Document.idDocument == inv_id)
@@ -612,6 +611,8 @@ def pfg_sync(docID, userID, db: Session):
                                     if invoTotal is not None:
                                         if invoTotal == subTotal:
                                             invTotalMth = 1
+                                        elif round(abs(invoTotal - subTotal), 2) < 0.09:
+                                            invTotalMth = 1
                                         if (invTotalMth == 0) and (
                                             "TotalTax" in docHdrDt
                                         ):
@@ -621,12 +622,24 @@ def pfg_sync(docID, userID, db: Session):
                                                 if sm_tx is not None:
                                                     if sm_tx == invoTotal:
                                                         invTotalMth = 1
+                                                    elif (
+                                                        round(abs(sm_tx - invoTotal), 2)
+                                                        < 0.09
+                                                    ):  # noqa: E501
+                                                        invTotalMth = 1
                                         if (invTotalMth == 0) and ("PST" in docHdrDt):
                                             pst = clean_amount(docHdrDt["PST"])
                                             if pst is not None:
                                                 pst_sm = clean_amount(subTotal + pst)
                                                 if pst_sm is not None:
                                                     if pst_sm == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(
+                                                            abs(pst_sm - invoTotal), 2
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
                                                         invTotalMth = 1
 
                                                 if (invTotalMth == 0) and (
@@ -638,6 +651,17 @@ def pfg_sync(docID, userID, db: Session):
                                                     if pstTTax_sm is not None:
                                                         if pstTTax_sm == invoTotal:
                                                             invTotalMth = 1
+                                                        elif (
+                                                            round(
+                                                                abs(
+                                                                    pstTTax_sm
+                                                                    - invoTotal
+                                                                ),
+                                                                2,
+                                                            )
+                                                            < 0.09
+                                                        ):  # noqa: E501
+                                                            invTotalMth = 1
 
                                         if (invTotalMth == 0) and ("GST" in docHdrDt):
                                             gst = clean_amount(docHdrDt["GST"])
@@ -645,6 +669,13 @@ def pfg_sync(docID, userID, db: Session):
                                                 gst_sm = clean_amount(subTotal + gst)
                                                 if gst_sm is not None:
                                                     if gst_sm == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(
+                                                            abs(gst_sm - invoTotal), 2
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
                                                         invTotalMth = 1
 
                                                 if (invTotalMth == 0) and (
@@ -656,6 +687,17 @@ def pfg_sync(docID, userID, db: Session):
                                                     if pst_gst_sm is not None:
                                                         if pst_gst_sm == invoTotal:
                                                             invTotalMth = 1
+                                                        elif (
+                                                            round(
+                                                                abs(
+                                                                    pst_gst_sm
+                                                                    - invoTotal
+                                                                ),
+                                                                2,
+                                                            )
+                                                            < 0.09
+                                                        ):  # noqa: E501
+                                                            invTotalMth = 1
 
                                         if (invTotalMth == 0) and ("HST" in docHdrDt):
                                             hst = clean_amount(docHdrDt["HST"])
@@ -663,6 +705,13 @@ def pfg_sync(docID, userID, db: Session):
                                                 hst_sm = clean_amount(subTotal + hst)
                                                 if hst_sm is not None:
                                                     if hst_sm == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(
+                                                            abs(hst_sm - invoTotal), 2
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
                                                         invTotalMth = 1
 
                                                 if (invTotalMth == 0) and (
@@ -673,6 +722,17 @@ def pfg_sync(docID, userID, db: Session):
                                                     )
                                                     if hst_gst_sm is not None:
                                                         if hst_gst_sm == invoTotal:
+                                                            invTotalMth = 1
+                                                        elif (
+                                                            round(
+                                                                abs(
+                                                                    hst_gst_sm
+                                                                    - invoTotal
+                                                                ),
+                                                                2,
+                                                            )
+                                                            < 0.09
+                                                        ):  # noqa: E501
                                                             invTotalMth = 1
 
                                         if (invTotalMth == 0) and (
@@ -687,6 +747,17 @@ def pfg_sync(docID, userID, db: Session):
                                                 )
                                                 if litterDeposit_sm is not None:
                                                     if litterDeposit_sm == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(
+                                                            abs(
+                                                                litterDeposit_sm
+                                                                - invoTotal
+                                                            ),
+                                                            2,
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
                                                         invTotalMth = 1
 
                             else:
@@ -808,7 +879,7 @@ def pfg_sync(docID, userID, db: Session):
                                 strCk = 0
                                 strCk_msg.append(" Store Type Not Found")
 
-                            docStatusSync["Storetype validation"] = {
+                            docStatusSync["StoreType Validation"] = {
                                 "status": strCk,
                                 "response": strCk_msg,
                             }
@@ -1024,8 +1095,9 @@ def pfg_sync(docID, userID, db: Session):
                                         overAllstatus = 1
 
                                         # send to ppl soft:
+                                        SentToPeopleSoft = 0
+                                        dmsg = ""
                                         try:
-                                            SentToPeopleSoft = 0
                                             resp = processInvoiceVoucher(docID, db)
                                             try:
                                                 if "data" in resp:
@@ -1130,10 +1202,7 @@ def pfg_sync(docID, userID, db: Session):
                                                 update_docHistory(
                                                     docID, userID, docStatus, dmsg, db
                                                 )
-                                                docStatusSync["Sent to PeopleSoft"] = {
-                                                    "status": SentToPeopleSoft,
-                                                    "response": [dmsg],
-                                                }
+
                                             except Exception:
                                                 logger.error(traceback.format_exc())
                                         except Exception as e:
@@ -1144,6 +1213,11 @@ def pfg_sync(docID, userID, db: Session):
                                             )
                                             docStatus = 21
                                             docSubStatus = 112
+
+                                        docStatusSync["Sent to PeopleSoft"] = {
+                                            "status": SentToPeopleSoft,
+                                            "response": [dmsg],
+                                        }
 
                                         try:
                                             db.query(model.Document).filter(
