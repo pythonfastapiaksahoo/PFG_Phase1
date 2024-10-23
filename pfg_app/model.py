@@ -66,6 +66,11 @@ class DocumentModel(Base):
     userID = Column(Integer, nullable=True)
     update_by = Column(Integer, nullable=True)
 
+    def to_dict(self):
+        return {
+            column.name: getattr(self, column.name) for column in self.__table__.columns
+        }  # noqa: E501
+
     # document_model = relationship("DocumentModel", back_populates="document_tags")
 
 
@@ -183,6 +188,11 @@ class DocumentTagDef(Base):
     isdelete = Column(JSON, nullable=True)
     datatype = Column(JSON, nullable=True)
 
+    def to_dict(self):
+        return {
+            column.name: getattr(self, column.name) for column in self.__table__.columns
+        }  # noqa: E501
+
     # # Relationship
     # document_model = relationship("DocumentModel", back_populates="document_tags")
 
@@ -295,6 +305,11 @@ class DocumentLineItemTags(Base):
     isdelete = Column(JSON, nullable=True)
     datatype = Column(String(45), nullable=True)
     fillers = Column(String(45), nullable=True)
+
+    def to_dict(self):
+        return {
+            column.name: getattr(self, column.name) for column in self.__table__.columns
+        }  # noqa: E501
 
     # document_model = relationship('DocumentModel', back_populates='line_item_tags')
 
@@ -894,6 +909,11 @@ class FRMetaData(Base):
     temp_language = Column(String(50), nullable=True)
     InvoiceNumberFormat = Column(String(50), nullable=True)
 
+    def to_dict(self):
+        return {
+            column.name: getattr(self, column.name) for column in self.__table__.columns
+        }  # noqa: E501
+
 
 #     __mapper_args__ = {"eager_defaults": True}
 # OCR Log Table
@@ -1455,3 +1475,4 @@ class SplitDocTab(Base):
     email_subject = Column(String, nullable=True)
     sender = Column(String, nullable=True)
     updated_on = Column(DateTime, nullable=True)
+    mail_row_key = Column(String, nullable=True)
