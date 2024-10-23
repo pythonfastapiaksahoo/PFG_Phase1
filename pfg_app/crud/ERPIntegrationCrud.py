@@ -1186,6 +1186,7 @@ def read_invoice_file_voucher(inv_id, db):
 
 def newbulkupdateInvoiceStatus(db):
     try:
+        userID = 1
         # db = next(get_db())
         # Batch size for processing
         batch_size = 100  # Define a reasonable batch size
@@ -1256,12 +1257,20 @@ def newbulkupdateInvoiceStatus(db):
                             continue
                         elif entry_status == "QCK":
                             documentstatusid = 27
+                            docsubstatusid = 114
+                            dmsg = InvoiceVoucherSchema.QUICK_INVOICE
                         elif entry_status == "R":
                             documentstatusid = 28
+                            docsubstatusid = 115
+                            dmsg = InvoiceVoucherSchema.RECYCLED_INVOICE
                         elif entry_status == "P":
                             documentstatusid = 29
+                            docsubstatusid = 116
+                            dmsg = InvoiceVoucherSchema.VOUCHER_CREATED
                         elif entry_status == "NF":
                             documentstatusid = 30
+                            docsubstatusid = 117
+                            dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
 
                         # If there's a valid document status update,
                         # add it to the bulk update list
@@ -1270,6 +1279,7 @@ def newbulkupdateInvoiceStatus(db):
                                 {
                                     "idDocument": doc_id[0],
                                     "documentStatusID": documentstatusid,
+                                    "documentsubstatusID": docsubstatusid,
                                 }
                             )
 
@@ -1277,20 +1287,28 @@ def newbulkupdateInvoiceStatus(db):
                     # Log the error and skip this document,
                     # but don't interrupt the batch
                     logger.error(f"Error for doc_id {doc_id[0]}: {str(e)}")
+            try:
+                # Perform bulk database update for the batch
+                if updates:
+                    db.bulk_update_mappings(model.Document, updates)
+                    db.commit()  # Commit the changes for this batch
 
-            # Perform bulk database update for the batch
-            if updates:
-                db.bulk_update_mappings(model.Document, updates)
-                db.commit()  # Commit the changes for this batch
+                logger.info(f"Processed batch {start} to {start + batch_size}")
+            except Exception:
+                logger.error(f"Error: {traceback.format_exc()}")
 
-            logger.info(f"Processed batch {start} to {start + batch_size}")
+            try:
+
+                update_docHistory(doc_id[0], userID, documentstatusid, dmsg, db)
+            except Exception:
+                logger.error(f"Error while update dochistlog: {traceback.format_exc()}")
 
         return {"message": "Bulk update completed successfully"}
 
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
         raise HTTPException(
-            status_code=500, detail=f"Error processing invoice voucher: {str(e)}"
+            status_code=500, detail=f"Error updating invoice status: {str(e)}"
         )
 
 
