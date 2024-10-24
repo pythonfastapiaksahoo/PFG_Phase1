@@ -216,7 +216,7 @@ async def root(request: Request):
 
         # Test the connection
         with engine.connect() as connection:
-            base_result = connection.execute("SELECT * from table_name;")
+            base_result = connection.execute("SELECT * from public.table_name;")
             connectivity_details.append(
                 {"postgres_base": f"Result of DB Connection {base_result.fetchone()}"}
             )
