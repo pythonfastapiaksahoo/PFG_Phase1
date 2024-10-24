@@ -464,6 +464,15 @@ async def getduplicates(
     return status
 
 
+@router.get("/copymodels/{vendoraccountID}/{modelname}")
+async def copyallmodels(
+    vendoraccountID: int, modelname: str, db: Session = Depends(get_db)
+):
+    """This API will copy the same model for a vendor."""
+    status = crud.copymodels(vendoraccountID, modelname, db)
+    return status
+
+
 # Checked - used in the frontend
 @router.post("/updatemodel/{modelID}", status_code=status.HTTP_200_OK)
 async def update_invoicemodel(
