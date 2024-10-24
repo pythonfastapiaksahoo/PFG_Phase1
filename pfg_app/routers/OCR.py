@@ -1520,18 +1520,28 @@ def parse_labels(label_data, db, poNumber, modelID):
         for label in label_data:
             db_data = {}
             db_data["documentTagDefID"] = get_labelId(db, label["tag"], modelID)
+            db_data["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             if label["tag"] == "PurchaseOrder":
                 db_data["Value"] = poNumber
             else:
                 db_data["Value"] = label["data"]["value"]
             try:
-                if "confidence" in label["data"]:
-                    if label["data"]["confidence"]:
-                        db_data["Fuzzy_scr"] = label["data"]["confidence"]
-                    else:
-                        db_data["Fuzzy_scr"] = "0.0"
+                if (
+                    "prebuilt_confidence" in label["data"]
+                    and label["data"]["prebuilt_confidence"] != ""
+                ):
+                    confidence = round(float(label["data"]["prebuilt_confidence"])/100, 2) if float(label["data"]["prebuilt_confidence"]) > 1 else label["data"]["prebuilt_confidence"]
+                    db_data["Fuzzy_scr"] = str(confidence)
                 else:
-                    db_data["Fuzzy_scr"] = "0"
+                    db_data["Fuzzy_scr"] = "0.0"
+                if (
+                    "custom_confidence" in label["data"]
+                    and label["data"]["custom_confidence"] != ""
+                ):
+                    confidence = round(float(label["data"]["custom_confidence"])/100, 2) if float(label["data"]["custom_confidence"]) > 1 else label["data"]["custom_confidence"]
+                    db_data["Fuzzy_scr"] = str(confidence)
+                else:
+                    db_data["Fuzzy_scr"] = "0.0"
             except Exception:
                 logger.debug(traceback.format_exc())
                 db_data["Fuzzy_scr"] = "0.0"
@@ -1563,14 +1573,24 @@ def parse_tabel(tabel_data, db, modelID):
         for col in row:
             db_data = {}
             db_data["Value"] = col["data"]
+            db_data["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             try:
-                if "confidence" in col["data"]:
-                    if col["data"]["confidence"]:
-                        db_data["Fuzzy_scr"] = col["data"]["confidence"]
-                    else:
-                        db_data["Fuzzy_scr"] = "0"
+                if (
+                    "prebuilt_confidence" in col["data"]
+                    and col["data"]["prebuilt_confidence"] != ""
+                ):
+                    confidence = round(float(col["data"]["prebuilt_confidence"])/100, 2) if float(col["data"]["prebuilt_confidence"]) > 1 else col["data"]["prebuilt_confidence"]
+                    db_data["Fuzzy_scr"] = str(confidence)
                 else:
-                    db_data["Fuzzy_scr"] = "0"
+                    db_data["Fuzzy_scr"] = "0.0"
+                if (
+                    "custom_confidence" in col["data"]
+                    and col["data"]["custom_confidence"] != ""
+                ):
+                    confidence = round(float(col["data"]["custom_confidence"])/100, 2) if float(col["data"]["custom_confidence"]) > 1 else col["data"]["custom_confidence"]
+                    db_data["Fuzzy_scr"] = str(confidence)
+                else:
+                    db_data["Fuzzy_scr"] = "0.0"
             except Exception:
                 logger.debug(traceback.format_exc())
                 db_data["Fuzzy_scr"] = "0"
