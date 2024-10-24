@@ -278,7 +278,7 @@ class DocumentLineItems(Base):
     CK_status = Column(
         BigInteger, ForeignKey("documentrulecode.iddocumentrulecode"), nullable=True
     )
-    CreatedDate = Column(DateTime(timezone=True), nullable=True)
+    CreatedOn = Column(DateTime(timezone=True), nullable=True)
 
     # document = relationship("Document", back_populates="line_items")
     # line_item_tag = relationship("DocumentLineItemTags", back_populates="line_items")
