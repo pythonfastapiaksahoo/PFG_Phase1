@@ -131,6 +131,7 @@ class Document(Base):
     # last_rule_run = Column(JSON, nullable=True)
     store = Column(TEXT, nullable=True)
     dept = Column(TEXT, nullable=True)
+    voucher_id = Column(String, nullable=True)
     # __mapper_args__ = {"eager_defaults": True}
 
 
