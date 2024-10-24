@@ -290,7 +290,7 @@ async def root(request: Request):
 
         # Function to generate a random unique table name
         def generate_unique_table_name(length=8):
-            return "".join(
+            return "a".join(
                 random.choices(
                     string.ascii_lowercase + string.digits, k=length
                 )  # nosec
