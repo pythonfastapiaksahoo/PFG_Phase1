@@ -1929,7 +1929,7 @@ async def read_all_doc_inv_list(
         db.close()
 
 
-async def get_all_splitdoc_data(u_id, off_limit, db):
+async def get_all_splitdoc_data(u_id, off_limit, uni_api_filter, column_filter, db):
     """Function to retrieve paginated SplitDocTab data.
 
     Args:
@@ -1940,6 +1940,93 @@ async def get_all_splitdoc_data(u_id, off_limit, db):
     Returns:
     result: A dictionary containing the total count and data from SplitDocTab rows.
     """
+    data_query = db.query(model.SplitDocTab)
+
+    # Function to normalize strings by removing non-alphanumeric
+    # characters and converting to lowercase
+    def normalize_string(input_str):
+        return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
+    # Apply universal API filter if provided, including line items
+    if uni_api_filter:
+        uni_search_param_list = uni_api_filter.split(":")
+        for param in uni_search_param_list:
+            # Normalize the user input filter
+            normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
+
+            # Create a pattern for the search with wildcards
+            pattern = f"%{normalized_filter}%"
+
+            filter_condition = or_(
+                normalize_string(model.SplitDocTab.emailbody_path).ilike(pattern),
+                normalize_string(model.SplitDocTab.sender).ilike(pattern),
+                cast(model.SplitDocTab.totalpagecount, String).ilike(
+                    f"%{uni_api_filter}%"
+                ),
+                func.to_char(
+                    model.SplitDocTab.updated_on, "Mon DD, YYYY, HH12:MI:SS PM"
+                ).ilike(f"%{uni_api_filter}%"),
+                normalize_string(model.SplitDocTab.mail_row_key).ilike(pattern),
+                # normalize_string(model.SplitDocTab.invoice_path).ilike(pattern),
+                normalize_string(model.SplitDocTab.status).ilike(pattern),
+                normalize_string(model.SplitDocTab.email_subject).ilike(pattern),
+            )
+            data_query = data_query.filter(filter_condition)
+
+    # Parse column-specific filter
+    if column_filter:
+        # Split the column_filter string by the colon
+        if ":" in column_filter:
+            column_name, search_value = column_filter.split(":", 1)
+
+            # Strip and normalize column_name and search_value
+            column_name = column_name.strip().lower()
+            search_value = search_value.strip()
+
+            # Normalize and handle specific column names (e.g., 'Total page count')
+            if column_name in ["total page count", "totalpagecount"]:
+                column_name = "totalpagecount"
+                data_query = data_query.filter(
+                    cast(model.SplitDocTab.totalpagecount, String).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "sender":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.sender).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "emailbody_path":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.emailbody_path).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "updated_on":
+                data_query = data_query.filter(
+                    func.to_char(
+                        model.SplitDocTab.updated_on, "Mon DD, YYYY, HH12:MI:SS PM"
+                    ).ilike(f"%{search_value}%")
+                )
+            elif column_name == "mail_row_key":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.mail_row_key).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "status":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.status).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "email_subject":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.email_subject).ilike(
+                        f"%{search_value}%"
+                    )
+                )
 
     # Extract offset and limit for pagination
     offset, limit = off_limit
@@ -1953,12 +2040,11 @@ async def get_all_splitdoc_data(u_id, off_limit, db):
         )
 
     # Get the total count of SplitDocTab rows
-    total_count = db.query(model.SplitDocTab).count()
+    total_count = data_query.distinct(model.SplitDocTab.splitdoc_id).count()
 
     # Get the latest SplitDocTab rows in descending order and apply pagination
     data_query = (
-        db.query(model.SplitDocTab)
-        .order_by(model.SplitDocTab.splitdoc_id.desc())
+        data_query.order_by(model.SplitDocTab.splitdoc_id.desc())
         .offset(off_val)
         .limit(limit)
     )

@@ -1530,7 +1530,11 @@ def parse_labels(label_data, db, poNumber, modelID):
                     "prebuilt_confidence" in label["data"]
                     and label["data"]["prebuilt_confidence"] != ""
                 ):
-                    confidence = round(float(label["data"]["prebuilt_confidence"])/100, 2) if float(label["data"]["prebuilt_confidence"]) > 1 else label["data"]["prebuilt_confidence"]
+                    confidence = (
+                        round(float(label["data"]["prebuilt_confidence"]) / 100, 2)
+                        if float(label["data"]["prebuilt_confidence"]) > 1
+                        else label["data"]["prebuilt_confidence"]
+                    )
                     db_data["Fuzzy_scr"] = str(confidence)
                 else:
                     db_data["Fuzzy_scr"] = "0.0"
@@ -1538,7 +1542,11 @@ def parse_labels(label_data, db, poNumber, modelID):
                     "custom_confidence" in label["data"]
                     and label["data"]["custom_confidence"] != ""
                 ):
-                    confidence = round(float(label["data"]["custom_confidence"])/100, 2) if float(label["data"]["custom_confidence"]) > 1 else label["data"]["custom_confidence"]
+                    confidence = (
+                        round(float(label["data"]["custom_confidence"]) / 100, 2)
+                        if float(label["data"]["custom_confidence"]) > 1
+                        else label["data"]["custom_confidence"]
+                    )
                     db_data["Fuzzy_scr"] = str(confidence)
                 else:
                     db_data["Fuzzy_scr"] = "0.0"
@@ -1579,7 +1587,11 @@ def parse_tabel(tabel_data, db, modelID):
                     "prebuilt_confidence" in col["data"]
                     and col["data"]["prebuilt_confidence"] != ""
                 ):
-                    confidence = round(float(col["data"]["prebuilt_confidence"])/100, 2) if float(col["data"]["prebuilt_confidence"]) > 1 else col["data"]["prebuilt_confidence"]
+                    confidence = (
+                        round(float(col["data"]["prebuilt_confidence"]) / 100, 2)
+                        if float(col["data"]["prebuilt_confidence"]) > 1
+                        else col["data"]["prebuilt_confidence"]
+                    )
                     db_data["Fuzzy_scr"] = str(confidence)
                 else:
                     db_data["Fuzzy_scr"] = "0.0"
@@ -1587,7 +1599,11 @@ def parse_tabel(tabel_data, db, modelID):
                     "custom_confidence" in col["data"]
                     and col["data"]["custom_confidence"] != ""
                 ):
-                    confidence = round(float(col["data"]["custom_confidence"])/100, 2) if float(col["data"]["custom_confidence"]) > 1 else col["data"]["custom_confidence"]
+                    confidence = (
+                        round(float(col["data"]["custom_confidence"]) / 100, 2)
+                        if float(col["data"]["custom_confidence"]) > 1
+                        else col["data"]["custom_confidence"]
+                    )
                     db_data["Fuzzy_scr"] = str(confidence)
                 else:
                     db_data["Fuzzy_scr"] = "0.0"
