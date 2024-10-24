@@ -49,7 +49,8 @@ def get_connection_string_with_access_token():
         db_uri = (
             "postgresql://"
             + f"{db_user}:{access_token}@{db_host}/{db_name}"
-            + f"?sslmode={ssl_mode}&options=-csearch_path=pfg_schema"
+            + f"?sslmode={ssl_mode}"
+            # + f"?sslmode={ssl_mode}&options=-csearch_path=pfg_schema"
         )
 
         return db_uri
