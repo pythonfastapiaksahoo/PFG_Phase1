@@ -424,7 +424,7 @@ def pfg_sync(docID, userID, db: Session):
     # dsdApprovalCheck_msg = 5000
     duplicate_status_ck = 0
     duplicate_status_ck_msg = ""
-    InvodocStatus = ""
+    InvodocStatus = 0
     fileSizeThreshold = 10
     confirmation_ck = 0
     confirmation_ck_msg = ""
@@ -439,8 +439,45 @@ def pfg_sync(docID, userID, db: Session):
         for dtb_rw in docTb:
             InvodocStatus = dtb_rw.documentStatusID
             filePath = dtb_rw.docPath
+            invID_docTab = dtb_rw.docheaderID
+            vdrAccID = dtb_rw.vendorAccountID
     except Exception as e:
-        logger.error(f"Exception in pfg_sync line 294: {str(e)}")
+        logger.error(f"{str(e)}")
+
+    try:
+        docTb_docHdr_count = (
+            db.query(model.Document)
+            .filter(
+                model.Document.docheaderID == invID_docTab,
+                model.Document.documentStatusID != 10,
+                model.Document.vendorAccountID == vdrAccID,
+            )
+            .count()
+        )
+
+        if docTb_docHdr_count > 1:
+            InvodocStatus = 10
+            invoSubstatus = 12
+            try:
+                db.query(model.Document).filter(
+                    model.Document.idDocument == docID
+                ).update(
+                    {
+                        model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                        model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                    }
+                )
+                db.commit()
+            except Exception as err:
+                logger.debug(f"ErrorUpdatingPostingData: {err}")
+
+            # logger.error(f"Duplicate Document Header ID: {invID_docTab}")
+        else:
+            InvodocStatus = 4
+
+        print(f"Count of rows: {docTb_docHdr_count}")
+    except Exception as e:
+        logger.debug(f" {str(e)}")
 
     sentToPPlSft = {
         7: "Sent to PeopleSoft",
@@ -466,7 +503,7 @@ def pfg_sync(docID, userID, db: Session):
                 "status": duplicate_status_ck,
                 "response": [duplicate_status_ck_msg],
             }
-        elif InvodocStatus == "":
+        elif InvodocStatus == 0:
             duplicate_status_ck = 0
             duplicate_status_ck_msg = "InvoiceId not found"
             docStatusSync["Invoice Duplicate Check"] = {
@@ -1080,9 +1117,7 @@ def pfg_sync(docID, userID, db: Session):
                                         else:
                                             docStatusSync["File Size Check"] = {
                                                 "status": 1,
-                                                "response": [
-                                                    "FileSize:" + str(fileSize) + "MB."
-                                                ],
+                                                "response": [],
                                             }
                                     else:
                                         docStatusSync["File Size Check"] = {
