@@ -1327,7 +1327,7 @@ def bulkProcessVoucherData(db):
         batch_size = 100  # Define a reasonable batch size
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
         doc_query = db.query(model.Document.idDocument).filter(
-            model.Document.documentStatusID == 7
+            model.Document.documentStatusID == 21
         )
 
         total_docs = doc_query.count()  # Total number of documents to process
