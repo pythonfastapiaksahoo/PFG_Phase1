@@ -453,6 +453,8 @@ async def update_rejected_invoice_status(
 async def read_splitdoc_data(
     offset: int = 1,
     limit: int = 10,
+    uni_search: Optional[str] = None,
+    column_filters: Optional[str] = None,
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
 ):
@@ -476,7 +478,9 @@ async def read_splitdoc_data(
     List of invoice documents filtered and paginated according to the input parameters.
     """
 
-    docs = await crud.get_all_splitdoc_data(user.idUser, (offset, limit), db)
+    docs = await crud.get_all_splitdoc_data(
+        user.idUser, (offset, limit), uni_search, column_filters, db
+    )
     return docs
 
 
