@@ -13,8 +13,7 @@ from sqlalchemy import create_engine
 from pfg_app import settings
 from pfg_app.core.azure_fr import call_form_recognizer
 from pfg_app.core.stampData import stampDataFn
-from pfg_app.core.utils import (
-    get_connection_string_with_access_token,
+from pfg_app.core.utils import (  # get_connection_string_with_access_token,
     get_credential,
     get_secret_from_vault,
 )
@@ -187,43 +186,45 @@ async def root(request: Request):
     try:
         # # connect to the database USERNAME+PASSWORD+HOST+PORT+DATABASE
 
-        # username = settings.db_user
-        # password = settings.db_password
-        # host = settings.db_host
-        # port = settings.db_port
-        # database = settings.db_name
+        username = settings.db_user
+        password = settings.db_password
+        host = settings.db_host
+        port = settings.db_port
+        database = settings.db_name
 
-        # # Create the connection string
-        # connection_string = (
-        #     f"postgresql://{username}:{password}@{host}:{port}/{database}"
-        # )
+        # Create the connection string
+        connection_string = (
+            f"postgresql://{username}:{password}@{host}:{port}/{database}"
+        )
 
-        # # Create the engine
-        # engine = create_engine(connection_string)
-
-        # # Test the connection
-        # with engine.connect() as connection:
-        #     result = connection.execute("SELECT 1")
-        #     connectivity_details.append(
-        #         {"postgres": f"Result of DB Connection {result.fetchone()}"}
-        #     )
-
-        # connect to database using azure postgresql connection string (system identity)
-        connection_string = get_connection_string_with_access_token()
-        logger.info(f"connection_string: {connection_string}")
-
+        # Create the engine
         engine = create_engine(connection_string)
 
         # Test the connection
         with engine.connect() as connection:
-            base_result = connection.execute("SELECT * from public.table_name;")
-            connectivity_details.append(
-                {"postgres_base": f"Result of DB Connection {base_result.fetchone()}"}
-            )
             result = connection.execute("SELECT count(1) from pfg_schema.customer")
             connectivity_details.append(
-                {"postgres_pfg_schema": f"Result of DB Connection {result.fetchone()}"}
+                {"postgres": f"Result of DB Connection {result.fetchone()}"}
             )
+
+        # # connect to database using azure postgresql connection string (
+        # system identity)
+        # connection_string = get_connection_string_with_access_token()
+        # logger.info(f"connection_string: {connection_string}")
+
+        # engine = create_engine(connection_string)
+
+        # # Test the connection
+        # with engine.connect() as connection:
+        #     base_result = connection.execute("SELECT * from public.table_name;")
+        #     connectivity_details.append(
+        #         {"postgres_base": f"Result of DB Connection {base_result.fetchone()}"}
+        #     )
+        #     result = connection.execute("SELECT count(1) from pfg_schema.customer")
+        #     connectivity_details.append(
+        #         {"postgres_pfg_schema": f"Result of DB Connection
+        # {result.fetchone()}"}
+        #     )
 
     except Exception:
         logger.error(f"Main.py-ROOT error: {traceback.format_exc()}")
@@ -289,7 +290,7 @@ async def root(request: Request):
 
         # Function to generate a random unique table name
         def generate_unique_table_name(length=8):
-            return "".join(
+            return "a".join(
                 random.choices(
                     string.ascii_lowercase + string.digits, k=length
                 )  # nosec
