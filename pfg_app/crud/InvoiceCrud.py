@@ -94,7 +94,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "ven": (
                 model.Vendor,
                 model.VendorAccount,
-                Load(model.Vendor).load_only("VendorName", "Address"),
+                Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
                 Load(model.VendorAccount).load_only("Account"),
             ),
         }
