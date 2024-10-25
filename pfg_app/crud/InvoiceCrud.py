@@ -3,6 +3,7 @@ import base64
 import os
 import re
 import traceback
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 from azure.storage.blob import BlobServiceClient
@@ -2123,3 +2124,137 @@ async def get_frtrigger_data_by_splitdoc_id(u_id, split_doc_id, db):
 
     # Return the result
     return result
+
+
+async def get_email_row_associated_files(u_id, db, splitdoc_id):
+    """Function to retrieve SplitDocTab data for a specific splitdoc_id.
+
+    Args:
+        u_id: User ID
+        db: SQLAlchemy session
+        splitdoc_id: The specific SplitDocTab ID to filter by.
+
+    Returns:
+        result: A dictionary containing the data from SplitDocTab rows.
+    """
+    # Query the SplitDocTab table for the specific splitdoc_id
+    data_query = db.query(model.SplitDocTab).filter_by(splitdoc_id=splitdoc_id)
+
+    # Execute the query
+    data_results = data_query.all()
+
+    # Organize data into a nested structure
+    organized_data = defaultdict(lambda: {"sub_file_path": []})
+
+    for splitdoc in data_results:
+        mail_row_key = splitdoc.mail_row_key
+
+        if not organized_data[mail_row_key].get("mail_number"):
+            organized_data[mail_row_key]["mail_number"] = mail_row_key
+            organized_data[mail_row_key]["file_path"] = splitdoc.invoice_path
+
+        file_info = {
+            "file_path": splitdoc.invoice_path,
+            "type": "pdf" if splitdoc.invoice_path.endswith(".pdf") else "eml",
+            "associated_invoice_file": None,
+        }
+
+        organized_data[mail_row_key]["sub_file_path"].append(file_info)
+
+    # Convert organized data to the desired format
+    result = [
+        {
+            "mail_number": key,
+            "file_path": value["file_path"],
+            "sub_file_path": [
+                {
+                    "file_path": file["file_path"],
+                    "type": file["type"],
+                    "associated_invoice_file": file["associated_invoice_file"],
+                }
+                for file in value["sub_file_path"]
+            ],
+        }
+        for key, value in organized_data.items()
+    ]
+
+    return {"data": result}
+
+
+# Need to test this function
+
+# async def get_all_splitdoc_data2(u_id, db, splitdoc_id):
+#     """
+#     Function to retrieve SplitDocTab data for a specific splitdoc_id.
+
+#     Args:
+#         u_id: User ID
+#         db: SQLAlchemy session
+#         splitdoc_id: The specific SplitDocTab ID to filter by.
+
+#     Returns:
+#         result: A dictionary containing the data from SplitDocTab rows.
+#     """
+#     # Query the SplitDocTab table for the specific splitdoc_id
+#     data_query = db.query(model.SplitDocTab).filter_by(splitdoc_id=splitdoc_id)
+
+#     # Execute the query
+#     data_results = data_query.all()
+
+#     # Organize data into a nested structure
+#     organized_data = defaultdict(lambda: {"children": []})
+
+#     for splitdoc in data_results:
+#         mail_row_key = splitdoc.mail_row_key
+
+#         if not organized_data[mail_row_key].get("mail_number"):
+#             organized_data[mail_row_key]["mail_number"] = mail_row_key
+#             organized_data[mail_row_key]["file_path"] = splitdoc.invoice_path
+
+#         # Check if the file is an eml file and extract attachments
+#         if splitdoc.invoice_path.endswith(".eml"):
+#             attachment_paths = extract_attachments(splitdoc.invoice_path)
+
+#             for attachment in attachment_paths:
+#                 file_info = {
+#                     "file_path": attachment,
+#                     "type": "pdf" if attachment.endswith(".pdf") else "eml",
+#                     "associated_invoice_file": None,
+#                 }
+#                 organized_data[mail_row_key]["children"].append(file_info)
+#         else:
+#             file_info = {
+#                 "file_path": splitdoc.invoice_path,
+#                 "type": "pdf" if splitdoc.invoice_path.endswith(".pdf") else "eml",
+#                 "associated_invoice_file": None,
+#             }
+#             organized_data[mail_row_key]["children"].append(file_info)
+
+#     # Convert organized data to the desired format
+#     result = [
+#         {
+#             "mail_number": key,
+#             "file_path": value["file_path"],
+#             "children": [
+#                 {
+#                     "file_path": file["file_path"],
+#                     "type": file["type"],
+#                     "associated_invoice_file": file["associated_invoice_file"],
+#                 }
+#                 for file in value["children"]
+#             ]
+#         }
+#         for key, value in organized_data.items()
+#     ]
+
+#     return {"data": result}
+
+# def extract_attachments(eml_path):
+#     # Placeholder function to extract attachments from an eml file
+#     # Implement your own logic to extract attachments
+#     # For this example, it returns a list of dummy paths
+#     attachments = [
+#         os.path.join(eml_path, "attachment1.pdf"),
+#         os.path.join(eml_path, "attachment2.pdf"),
+#     ]
+#     return attachments
