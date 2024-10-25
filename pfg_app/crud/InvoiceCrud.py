@@ -3,7 +3,6 @@ import base64
 import os
 import re
 import traceback
-from collections import defaultdict
 from datetime import datetime, timedelta
 
 from azure.storage.blob import BlobServiceClient
@@ -2126,135 +2125,95 @@ async def get_frtrigger_data_by_splitdoc_id(u_id, split_doc_id, db):
     return result
 
 
-async def get_email_row_associated_files(u_id, db, splitdoc_id):
+async def get_email_row_associated_files(u_id, off_limit, mail_number, subject, db):
     """Function to retrieve SplitDocTab data for a specific splitdoc_id.
 
     Args:
         u_id: User ID
         db: SQLAlchemy session
-        splitdoc_id: The specific SplitDocTab ID to filter by.
+        off_limit: Tuple of offset and limit values for pagination.
+        mail_number: Mail row key to filter results.
+        subject: Subject to filter results.
 
     Returns:
         result: A dictionary containing the data from SplitDocTab rows.
     """
-    # Query the SplitDocTab table for the specific splitdoc_id
-    data_query = db.query(model.SplitDocTab).filter_by(splitdoc_id=splitdoc_id)
+    base_query = db.query(model.SplitDocTab)
 
-    # Execute the query
-    data_results = data_query.all()
+    if mail_number:
+        data_query = base_query.filter(model.SplitDocTab.mail_row_key == mail_number)
 
-    # Organize data into a nested structure
-    organized_data = defaultdict(lambda: {"sub_file_path": []})
+    if subject:
+        data_query = data_query.filter(model.SplitDocTab.subject.ilike(f"%{subject}%"))
 
-    for splitdoc in data_results:
-        mail_row_key = splitdoc.mail_row_key
+    total_items = data_query.count()
 
-        if not organized_data[mail_row_key].get("mail_number"):
-            organized_data[mail_row_key]["mail_number"] = mail_row_key
-            organized_data[mail_row_key]["file_path"] = splitdoc.invoice_path
+    # Extract offset and limit for pagination
+    offset, limit = off_limit
+    off_val = (offset - 1) * limit
 
+    # Get the latest SplitDocTab rows in descending order and apply pagination
+    split_docs = data_query.offset(off_val).limit(limit).all()
+
+    # Organize data by mail number
+    organized_data = []
+
+    # Use a set to track unique eml file paths to avoid duplicates
+    eml_file_paths = set()
+
+    for split_doc in split_docs:
+        mail_row_key = split_doc.mail_row_key
+
+        # If the path contains "EML", designate it as an eml entry
+        if "EML" in split_doc.invoice_path:
+            # Set up the main eml entry if not already done
+            base_eml_path = split_doc.invoice_path.rsplit("/", 1)[0] + ".eml"
+            if base_eml_path not in eml_file_paths:
+                eml_file_paths.add(base_eml_path)
+                organized_data.append(
+                    {
+                        "mail_number": mail_row_key,
+                        "file_path": base_eml_path,
+                        "type": "eml",
+                        "children": [],
+                    }
+                )
+
+        # Query to get all rows from fr_trigger_tab associated with the splitdoc_id
+        fr_trigger_tab = (
+            db.query(model.frtrigger_tab)
+            .filter(model.frtrigger_tab.splitdoc_id == split_doc.splitdoc_id)
+            .all()
+        )
+
+        # Prepare associated_invoice_file structure with details from fr_trigger_tab
+        associated_invoice_files = [
+            {
+                "filepath": fr.blobpath,
+                "type": "pdf",
+                "associated_invoice_file": None,
+                "document_id": fr.documentid,
+                "status": fr.status,
+                "file_size": fr.filesize,
+            }
+            for fr in fr_trigger_tab
+        ]
+
+        # Create file info for each SplitDocTab entry
         file_info = {
-            "file_path": splitdoc.invoice_path,
-            "type": "pdf" if splitdoc.invoice_path.endswith(".pdf") else "eml",
-            "associated_invoice_file": None,
+            "file_path": split_doc.invoice_path,
+            "type": "pdf" if split_doc.invoice_path.endswith(".pdf") else "eml",
+            "associated_invoice_file": (
+                associated_invoice_files if associated_invoice_files else None
+            ),
         }
 
-        organized_data[mail_row_key]["sub_file_path"].append(file_info)
+        # Append each child `pdf` file under the respective parent `eml`
+        for eml_entry in organized_data:
+            if eml_entry["file_path"] == base_eml_path:
+                eml_entry["children"].append(file_info)
 
-    # Convert organized data to the desired format
-    result = [
-        {
-            "mail_number": key,
-            "file_path": value["file_path"],
-            "sub_file_path": [
-                {
-                    "file_path": file["file_path"],
-                    "type": file["type"],
-                    "associated_invoice_file": file["associated_invoice_file"],
-                }
-                for file in value["sub_file_path"]
-            ],
-        }
-        for key, value in organized_data.items()
-    ]
+    # Convert organized data to the desired output format
+    result = {"Number of Attachments": total_items, "data": organized_data}
 
-    return {"data": result}
-
-
-# Need to test this function
-
-# async def get_all_splitdoc_data2(u_id, db, splitdoc_id):
-#     """
-#     Function to retrieve SplitDocTab data for a specific splitdoc_id.
-
-#     Args:
-#         u_id: User ID
-#         db: SQLAlchemy session
-#         splitdoc_id: The specific SplitDocTab ID to filter by.
-
-#     Returns:
-#         result: A dictionary containing the data from SplitDocTab rows.
-#     """
-#     # Query the SplitDocTab table for the specific splitdoc_id
-#     data_query = db.query(model.SplitDocTab).filter_by(splitdoc_id=splitdoc_id)
-
-#     # Execute the query
-#     data_results = data_query.all()
-
-#     # Organize data into a nested structure
-#     organized_data = defaultdict(lambda: {"children": []})
-
-#     for splitdoc in data_results:
-#         mail_row_key = splitdoc.mail_row_key
-
-#         if not organized_data[mail_row_key].get("mail_number"):
-#             organized_data[mail_row_key]["mail_number"] = mail_row_key
-#             organized_data[mail_row_key]["file_path"] = splitdoc.invoice_path
-
-#         # Check if the file is an eml file and extract attachments
-#         if splitdoc.invoice_path.endswith(".eml"):
-#             attachment_paths = extract_attachments(splitdoc.invoice_path)
-
-#             for attachment in attachment_paths:
-#                 file_info = {
-#                     "file_path": attachment,
-#                     "type": "pdf" if attachment.endswith(".pdf") else "eml",
-#                     "associated_invoice_file": None,
-#                 }
-#                 organized_data[mail_row_key]["children"].append(file_info)
-#         else:
-#             file_info = {
-#                 "file_path": splitdoc.invoice_path,
-#                 "type": "pdf" if splitdoc.invoice_path.endswith(".pdf") else "eml",
-#                 "associated_invoice_file": None,
-#             }
-#             organized_data[mail_row_key]["children"].append(file_info)
-
-#     # Convert organized data to the desired format
-#     result = [
-#         {
-#             "mail_number": key,
-#             "file_path": value["file_path"],
-#             "children": [
-#                 {
-#                     "file_path": file["file_path"],
-#                     "type": file["type"],
-#                     "associated_invoice_file": file["associated_invoice_file"],
-#                 }
-#                 for file in value["children"]
-#             ]
-#         }
-#         for key, value in organized_data.items()
-#     ]
-
-#     return {"data": result}
-
-# def extract_attachments(eml_path):
-#     # Placeholder function to extract attachments from an eml file
-#     # Implement your own logic to extract attachments
-#     # For this example, it returns a list of dummy paths
-#     attachments = [
-#         os.path.join(eml_path, "attachment1.pdf"),
-#         os.path.join(eml_path, "attachment2.pdf"),
-#     ]
-#     return attachments
+    return result
