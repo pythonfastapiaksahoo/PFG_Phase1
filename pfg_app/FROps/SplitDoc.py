@@ -1,5 +1,6 @@
 import concurrent.futures
-import json
+
+# import json
 import time
 import traceback
 from datetime import date, datetime
@@ -199,9 +200,9 @@ def splitDoc(
                 logger.error(f"{traceback.format_exc()}")
 
     pageInvoDate = {}
-    data_serialized = serialize_dates(output_data)
-    with open("data.json", "w") as f:
-        json.dump(data_serialized, f, indent=4)
+    # data_serialized = serialize_dates(output_data)
+    # with open("data.json", "w") as f:
+    #     json.dump(data_serialized, f, indent=4)
 
     try:
 
@@ -220,10 +221,19 @@ def splitDoc(
         grouped_dict[value].append(key)
 
     input_list = list(grouped_dict.values())
-    output_list = [
-        (item[0], item[1]) if len(item) == 2 else (item[0], item[0])
-        for item in input_list
-    ]
+    output_list = []
+
+    for itm in input_list:
+        if len(itm) == 1:
+            # break
+            output_list.append((itm[0], itm[0]))
+        if len(itm) > 1:
+            output_list.append((itm[0], itm[-1]))
+
+    # output_list = [
+    #     (item[0], item[1]) if len(item) == 2 else (item[0], item[0])
+    #     for item in input_list
+    # ]
     logger.info(f"input_list:  {output_list}")
 
     pgVal = []

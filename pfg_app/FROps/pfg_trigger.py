@@ -11,12 +11,15 @@ from sqlalchemy.orm import Session
 import pfg_app.model as model
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
 from pfg_app.crud.InvoiceCrud import update_docHistory
+from pfg_app.FROps.customCall import customModelCall
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 
 
 def clean_amount(amount_str):
+    if isinstance(amount_str, float):
+        amount_str = str(amount_str)
     try:
         cleaned_amount = re.findall(r"[\d.]+", amount_str)
         if cleaned_amount:
@@ -28,7 +31,7 @@ def clean_amount(amount_str):
 
 # db = SCHEMA
 def IntegratedvoucherData(inv_id, db: Session):
-    # inv_id = 418
+
     invoice_type = (
         db.query(model.Document.UploadDocType)
         .filter(model.Document.idDocument == inv_id)
@@ -421,7 +424,7 @@ def pfg_sync(docID, userID, db: Session):
     # dsdApprovalCheck_msg = 5000
     duplicate_status_ck = 0
     duplicate_status_ck_msg = ""
-    InvodocStatus = ""
+    InvodocStatus = 0
     fileSizeThreshold = 10
     confirmation_ck = 0
     confirmation_ck_msg = ""
@@ -436,8 +439,45 @@ def pfg_sync(docID, userID, db: Session):
         for dtb_rw in docTb:
             InvodocStatus = dtb_rw.documentStatusID
             filePath = dtb_rw.docPath
+            invID_docTab = dtb_rw.docheaderID
+            vdrAccID = dtb_rw.vendorAccountID
     except Exception as e:
-        logger.error(f"Exception in pfg_sync line 294: {str(e)}")
+        logger.error(f"{str(e)}")
+
+    try:
+        docTb_docHdr_count = (
+            db.query(model.Document)
+            .filter(
+                model.Document.docheaderID == invID_docTab,
+                model.Document.documentStatusID != 10,
+                model.Document.vendorAccountID == vdrAccID,
+            )
+            .count()
+        )
+
+        if docTb_docHdr_count > 1:
+            InvodocStatus = 10
+            invoSubstatus = 12
+            try:
+                db.query(model.Document).filter(
+                    model.Document.idDocument == docID
+                ).update(
+                    {
+                        model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                        model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                    }
+                )
+                db.commit()
+            except Exception as err:
+                logger.debug(f"ErrorUpdatingPostingData: {err}")
+
+            # logger.error(f"Duplicate Document Header ID: {invID_docTab}")
+        else:
+            InvodocStatus = 4
+
+        print(f"Count of rows: {docTb_docHdr_count}")
+    except Exception as e:
+        logger.debug(f" {str(e)}")
 
     sentToPPlSft = {
         7: "Sent to PeopleSoft",
@@ -463,7 +503,7 @@ def pfg_sync(docID, userID, db: Session):
                 "status": duplicate_status_ck,
                 "response": [duplicate_status_ck_msg],
             }
-        elif InvodocStatus == "":
+        elif InvodocStatus == 0:
             duplicate_status_ck = 0
             duplicate_status_ck_msg = "InvoiceId not found"
             docStatusSync["Invoice Duplicate Check"] = {
@@ -477,6 +517,11 @@ def pfg_sync(docID, userID, db: Session):
                 "status": duplicate_status_ck,
                 "response": [duplicate_status_ck_msg],
             }
+        try:
+            if isinstance(InvodocStatus, int) and InvodocStatus == 26:
+                customModelCall(docID)
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")
         # ----------
         DocDtHdr = (
             db.query(model.DocumentData, model.DocumentTagDef)
@@ -505,31 +550,12 @@ def pfg_sync(docID, userID, db: Session):
                     update_docHistory(
                         docID, userID, InvodocStatus, duplicate_status_ck_msg, db
                     )
-                except Exception as e:
-                    logger.error(f"pfg_sync line 401: {str(e)}")
+                except Exception:
+                    logger.debug(traceback.format_exc())
                 try:
 
-                    # DocDtHdr = (
-                    #     db.query(model.DocumentData, model.DocumentTagDef)
-                    #     .join(
-                    #         model.DocumentTagDef,
-                    #         model.DocumentData.documentTagDefID
-                    #         == model.DocumentTagDef.idDocumentTagDef,
-                    #     )
-                    #     .filter(model.DocumentTagDef.idDocumentModel == docModel)
-                    #     .filter(model.DocumentData.documentID == docID)
-                    #     .all()
-                    # )
-
-                    # docHdrDt = {}
-                    # tagNames = {}
-
                     try:
-                        # for document_data, document_tag_def in DocDtHdr:
-                        #     docHdrDt[document_tag_def.TagLabel] = document_data.Value
-                        #     tagNames[document_tag_def.TagLabel] = (
-                        #         document_tag_def.idDocumentTagDef
-                        #     )
+
                         logger.info(f"docHdrDt: {docHdrDt}")
 
                         try:
@@ -553,7 +579,7 @@ def pfg_sync(docID, userID, db: Session):
                                 dmsg = "No currency found in the OpenAI result"
                             logger.info(f"dmsg: {dmsg}")
                         except Exception:
-                            logger.info(f"Error occurred: {traceback.format_exc()}")
+                            logger.debug(f"Error occurred: {traceback.format_exc()}")
                         # Invoice Total Approval Check
                         # try:
                         #     if float(docHdrDt["InvoiceTotal"]) < dsdApprovalCheck_msg:
@@ -606,6 +632,7 @@ def pfg_sync(docID, userID, db: Session):
                         #     "status": dsdApprovalCheck,
                         #     "response": [dmsg],
                         # }
+
                         # Invoice Total check
 
                         invTotalMth = 0
@@ -621,51 +648,130 @@ def pfg_sync(docID, userID, db: Session):
                                     if invoTotal is not None:
                                         if invoTotal == subTotal:
                                             invTotalMth = 1
+                                        elif round(abs(invoTotal - subTotal), 2) < 0.09:
+                                            invTotalMth = 1
                                         if (invTotalMth == 0) and (
                                             "TotalTax" in docHdrDt
                                         ):
                                             totlTax = clean_amount(docHdrDt["TotalTax"])
                                             if totlTax is not None:
-                                                if (subTotal + totlTax) == invoTotal:
-                                                    invTotalMth = 1
+                                                sm_tx = clean_amount(subTotal + totlTax)
+                                                if sm_tx is not None:
+                                                    if sm_tx == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(abs(sm_tx - invoTotal), 2)
+                                                        < 0.09
+                                                    ):  # noqa: E501
+                                                        invTotalMth = 1
                                         if (invTotalMth == 0) and ("PST" in docHdrDt):
                                             pst = clean_amount(docHdrDt["PST"])
                                             if pst is not None:
-                                                if (subTotal + pst) == invoTotal:
-                                                    invTotalMth = 1
+                                                pst_sm = clean_amount(subTotal + pst)
+                                                if pst_sm is not None:
+                                                    if pst_sm == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(
+                                                            abs(pst_sm - invoTotal), 2
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
+                                                        invTotalMth = 1
+
                                                 if (invTotalMth == 0) and (
                                                     "TotalTax" in docHdrDt
                                                 ):
-                                                    if (
+                                                    pstTTax_sm = clean_amount(
                                                         subTotal + pst + totlTax
-                                                    ) == invoTotal:
-                                                        invTotalMth = 1
+                                                    )
+                                                    if pstTTax_sm is not None:
+                                                        if pstTTax_sm == invoTotal:
+                                                            invTotalMth = 1
+                                                        elif (
+                                                            round(
+                                                                abs(
+                                                                    pstTTax_sm
+                                                                    - invoTotal
+                                                                ),
+                                                                2,
+                                                            )
+                                                            < 0.09
+                                                        ):  # noqa: E501
+                                                            invTotalMth = 1
+
                                         if (invTotalMth == 0) and ("GST" in docHdrDt):
                                             gst = clean_amount(docHdrDt["GST"])
                                             if gst is not None:
-                                                if round((subTotal + gst), 2) == round(
-                                                    invoTotal, 2
-                                                ):
-                                                    invTotalMth = 1
+                                                gst_sm = clean_amount(subTotal + gst)
+                                                if gst_sm is not None:
+                                                    if gst_sm == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(
+                                                            abs(gst_sm - invoTotal), 2
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
+                                                        invTotalMth = 1
+
                                                 if (invTotalMth == 0) and (
                                                     "PST" in docHdrDt
                                                 ):
-                                                    if (
+                                                    pst_gst_sm = clean_amount(
                                                         subTotal + gst + pst
-                                                    ) == invoTotal:
-                                                        invTotalMth = 1
+                                                    )
+                                                    if pst_gst_sm is not None:
+                                                        if pst_gst_sm == invoTotal:
+                                                            invTotalMth = 1
+                                                        elif (
+                                                            round(
+                                                                abs(
+                                                                    pst_gst_sm
+                                                                    - invoTotal
+                                                                ),
+                                                                2,
+                                                            )
+                                                            < 0.09
+                                                        ):  # noqa: E501
+                                                            invTotalMth = 1
+
                                         if (invTotalMth == 0) and ("HST" in docHdrDt):
                                             hst = clean_amount(docHdrDt["HST"])
                                             if hst is not None:
-                                                if (subTotal + hst) == invoTotal:
-                                                    invTotalMth = 1
+                                                hst_sm = clean_amount(subTotal + hst)
+                                                if hst_sm is not None:
+                                                    if hst_sm == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(
+                                                            abs(hst_sm - invoTotal), 2
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
+                                                        invTotalMth = 1
+
                                                 if (invTotalMth == 0) and (
                                                     "GST" in docHdrDt
                                                 ):
-                                                    if (
+                                                    hst_gst_sm = clean_amount(
                                                         subTotal + hst + gst
-                                                    ) == invoTotal:
-                                                        invTotalMth = 1
+                                                    )
+                                                    if hst_gst_sm is not None:
+                                                        if hst_gst_sm == invoTotal:
+                                                            invTotalMth = 1
+                                                        elif (
+                                                            round(
+                                                                abs(
+                                                                    hst_gst_sm
+                                                                    - invoTotal
+                                                                ),
+                                                                2,
+                                                            )
+                                                            < 0.09
+                                                        ):  # noqa: E501
+                                                            invTotalMth = 1
+
                                         if (invTotalMth == 0) and (
                                             "LitterDeposit" in docHdrDt
                                         ):
@@ -673,20 +779,72 @@ def pfg_sync(docID, userID, db: Session):
                                                 docHdrDt["LitterDeposit"]
                                             )
                                             if litterDeposit is not None:
-                                                if (
+                                                litterDeposit_sm = clean_amount(
                                                     subTotal + litterDeposit
-                                                ) == invoTotal:
+                                                )
+                                                if litterDeposit_sm is not None:
+                                                    if litterDeposit_sm == invoTotal:
+                                                        invTotalMth = 1
+                                                    elif (
+                                                        round(
+                                                            abs(
+                                                                litterDeposit_sm
+                                                                - invoTotal
+                                                            ),
+                                                            2,
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
+                                                        invTotalMth = 1
+                                        if (invTotalMth == 0) and (
+                                            "Fuel surcharge" in docHdrDt
+                                        ):  # noqa: E501
+                                            surcharge = clean_amount(
+                                                docHdrDt["Fuel surcharge"]
+                                            )  # noqa: E501
+                                            if surcharge is not None:
+                                                surchargr_sm = clean_amount(
+                                                    surcharge + subTotal
+                                                )  # noqa: E501
+                                                if (
+                                                    round(
+                                                        abs(surchargr_sm - invoTotal),
+                                                        2,
+                                                    )
+                                                    < 0.09
+                                                ):  # noqa: E501
                                                     invTotalMth = 1
 
+                                        if (invTotalMth == 0) and (
+                                            "ShipmentCharges" in docHdrDt
+                                        ):  # noqa: E501
+                                            ShipmentCharges = clean_amount(
+                                                docHdrDt["ShipmentCharges"]
+                                            )  # noqa: E501
+                                            if ShipmentCharges is not None:
+                                                ShipmentCharges_sm = clean_amount(
+                                                    ShipmentCharges + subTotal
+                                                )  # noqa: E501
+                                                if (
+                                                    round(
+                                                        abs(
+                                                            ShipmentCharges_sm
+                                                            - invoTotal
+                                                        ),
+                                                        2,
+                                                    )
+                                                    < 0.09
+                                                ):
+                                                    invTotalMth = 1
                             else:
                                 invTotalMth = 1
                                 invTotalMth_msg = "Skip total check: Subtotal Missing"
                         except Exception as e:
-                            logger.error(f"Exception in pfg_sync line 387: {str(e)}")
+                            logger.debug(traceback.format_exc())
                             invTotalMth = 0
                             invTotalMth_msg = "Invoice total mismatch:" + str(e)
                     except Exception as e:
-                        logger.error(traceback.format_exc())
+                        logger.debug(traceback.format_exc())
                         invTotalMth = 0
                         invTotalMth_msg = "Invoice total mismatch:" + str(e)
 
@@ -703,6 +861,28 @@ def pfg_sync(docID, userID, db: Session):
                                 dateCheck_msg = (
                                     "Invoice date is invalid, Please review."
                                 )
+                            if (dateValCk == 1) and (formatted_date != date_string):
+                                # updating formatted date string:
+                                docDateTag = tagNames["InvoiceDate"]
+                                try:
+                                    db.query(model.DocumentData).filter(
+                                        model.DocumentData.documentID == docID,
+                                        model.DocumentData.documentTagDefID
+                                        == docDateTag,
+                                    ).update({model.DocumentData.Value: formatted_date})
+                                    db.commit()
+
+                                    db.query(model.Document).filter(
+                                        model.Document.idDocument == docID,
+                                    ).update(
+                                        {model.Document.documentDate: formatted_date}
+                                    )
+                                    db.commit()
+                                    # print(formatted_date)
+                                    # print(date_string)
+
+                                except Exception:
+                                    logger.debug(traceback.format_exc())
 
                         except Exception as er:
                             logger.error(traceback.format_exc())
@@ -753,8 +933,8 @@ def pfg_sync(docID, userID, db: Session):
                             update_docHistory(
                                 docID, userID, documentstatus, documentdesc, db
                             )
-                        except Exception as e:
-                            logger.error(f"pfg_sync line 314: {str(e)}")
+                        except Exception:
+                            logger.error(traceback.format_exc())
 
                         InvStmDt = (
                             db.query(model.StampDataValidation)
@@ -781,10 +961,8 @@ def pfg_sync(docID, userID, db: Session):
                                     else:
                                         strCk = 0
                                         strCk_msg.append("Invalid Store Type")
-                                except Exception as e:
-                                    logger.error(
-                                        f"Exception in pfg_sync-Store Type: {str(e)}"
-                                    )
+                                except Exception:
+                                    logger.debug(traceback.format_exc)
                                     strCk = 0
                                     strCk_msg.append("Invalid Store Type")
                             else:
@@ -804,8 +982,8 @@ def pfg_sync(docID, userID, db: Session):
                                     update_docHistory(
                                         docID, userID, documentstatus, documentdesc, db
                                     )
-                                except Exception as e:
-                                    logger.error(f"pfg_sync line 314: {str(e)}")
+                                except Exception:
+                                    logger.debug(traceback.format_exc)
 
                                 try:
                                     if (
@@ -842,10 +1020,10 @@ def pfg_sync(docID, userID, db: Session):
 
                                                     else:
                                                         confirmation_ck = 0
-                                                        confirmation_ck_msg = "Confirmation Number Not Found"  # noqa: E501s
+                                                        confirmation_ck_msg = "Confirmation number not found"  # noqa: E501s
 
                                                 except Exception as e:
-                                                    logger.error(
+                                                    logger.debug(
                                                         f"{traceback.format_exc()}"
                                                     )
 
@@ -882,9 +1060,9 @@ def pfg_sync(docID, userID, db: Session):
                                         strCk = 1
                                         strCk_msg.append("Success")
 
-                                except Exception as er:
-                                    logger.info(f"VoucherCreationException:{er} ")
-                                    logger.info(f"{traceback.format_exc()}")
+                                except Exception:
+
+                                    logger.debug(f"{traceback.format_exc()}")
 
                                 if confirmation_ck == 1 or (
                                     list(stmpData["StoreType"].keys())[0]
@@ -926,7 +1104,7 @@ def pfg_sync(docID, userID, db: Session):
                                 else:
                                     VthChk = 0
                                     VthChk_msg = "No Voucher data Found."
-                                docStatusSync["VoucherCreation Data Validation"] = {
+                                docStatusSync["Voucher creation data validation"] = {
                                     "status": VthChk,
                                     "response": [VthChk_msg],
                                 }
@@ -946,28 +1124,26 @@ def pfg_sync(docID, userID, db: Session):
                                         fileSize = fr_rw.filesize
                                     if len(fileSize) > 0:
                                         if float(fileSize) <= fileSizeThreshold:
-                                            docStatusSync["File Size Check"] = {
+                                            docStatusSync["File size check"] = {
                                                 "status": 1,
-                                                "response": ["File Size Check Passed"],
+                                                "response": ["Success"],
                                             }
                                         else:
-                                            docStatusSync["File Size Check"] = {
+                                            docStatusSync["File size check"] = {
                                                 "status": 1,
-                                                "response": [
-                                                    "FileSize:" + str(fileSize) + "MB."
-                                                ],
+                                                "response": [],
                                             }
                                     else:
-                                        docStatusSync["File Size Check"] = {
+                                        docStatusSync["File size check"] = {
                                             "status": 0,
                                             "response": ["File Size not found."],
                                         }
-                                except Exception as e:
-                                    logger.error(f"pfg_sync- file size check: {str(e)}")
-                                    logger.error(f"{traceback.format_exc()}")
+                                except Exception:
+
+                                    logger.debug(f"{traceback.format_exc()}")
 
                                 if (
-                                    docStatusSync["VoucherCreation Data Validation"][
+                                    docStatusSync["Voucher creation data validation"][
                                         "status"
                                     ]
                                     == 1
@@ -983,8 +1159,8 @@ def pfg_sync(docID, userID, db: Session):
                                             documentdesc,
                                             db,  # noqa: E501
                                         )
-                                    except Exception as e:
-                                        logger.error(f"pfg_sync line 314: {str(e)}")
+                                    except Exception:
+                                        logger.debug(traceback.format_exc())
 
                                     overAllstatus_ck = 1
                                     for stCk in docStatusSync:
@@ -1007,8 +1183,9 @@ def pfg_sync(docID, userID, db: Session):
                                         overAllstatus = 1
 
                                         # send to ppl soft:
+                                        SentToPeopleSoft = 0
+                                        dmsg = ""
                                         try:
-                                            SentToPeopleSoft = 0
                                             resp = processInvoiceVoucher(docID, db)
                                             try:
                                                 if "data" in resp:
@@ -1087,8 +1264,8 @@ def pfg_sync(docID, userID, db: Session):
                                                     docStatus = 21
                                                     docSubStatus = 112
                                             except Exception as err:
-                                                logger.info(
-                                                    f"PopleSoftResponseError: {err}"
+                                                logger.debug(
+                                                    f"PopleSoftResponseError: {traceback.format_exc()}"  # noqa: E501
                                                 )
                                                 dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
                                                     err
@@ -1106,32 +1283,29 @@ def pfg_sync(docID, userID, db: Session):
                                                     }
                                                 )
                                                 db.commit()
-                                            except Exception as err:
-                                                logger.info(
-                                                    f"ErrorUpdatingPostingData: {err}"
-                                                )
+                                            except Exception:
+                                                logger.error(traceback.format_exc())
                                             try:
 
                                                 update_docHistory(
                                                     docID, userID, docStatus, dmsg, db
                                                 )
-                                                docStatusSync["Sent to PeopleSoft"] = {
-                                                    "status": SentToPeopleSoft,
-                                                    "response": [dmsg],
-                                                }
-                                            except Exception as e:
-                                                logger.error(f"pfg_sync 501: {str(e)}")
+
+                                            except Exception:
+                                                logger.error(traceback.format_exc())
                                         except Exception as e:
-                                            print(
-                                                "Error in ProcessInvoiceVoucher fun(): ",  # noqa: E501
-                                                traceback.format_exc(),
-                                            )
-                                            logger.info(f"PopleSoftResponseError: {e}")
+
+                                            logger.debug(traceback.format_exc())
                                             dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
                                                 e
                                             )
                                             docStatus = 21
                                             docSubStatus = 112
+
+                                        docStatusSync["Sent to PeopleSoft"] = {
+                                            "status": SentToPeopleSoft,
+                                            "response": [dmsg],
+                                        }
 
                                         try:
                                             db.query(model.Document).filter(
@@ -1143,10 +1317,8 @@ def pfg_sync(docID, userID, db: Session):
                                                 }
                                             )
                                             db.commit()
-                                        except Exception as err:
-                                            logger.info(
-                                                f"ErrorUpdatingPostingData: {err}"
-                                            )
+                                        except Exception:
+                                            logger.debug(traceback.format_exc())
 
                                         try:
                                             documentstatus = 21
@@ -1158,7 +1330,7 @@ def pfg_sync(docID, userID, db: Session):
                                                 db,  # noqa: E501
                                             )
                                         except Exception:
-                                            logger.error(f"{traceback.format_exc()}")
+                                            logger.debug(f"{traceback.format_exc()}")
                                     else:
                                         overAllstatus_msg = "Validation Failed"
                                 else:
@@ -1176,7 +1348,7 @@ def pfg_sync(docID, userID, db: Session):
                                             db,  # noqa: E501
                                         )
                                     except Exception:
-                                        logger.error(f"{traceback.format_exc()}")
+                                        logger.debug(f"{traceback.format_exc()}")
                                     try:
                                         db.query(model.Document).filter(
                                             model.Document.idDocument == docID
@@ -1188,7 +1360,7 @@ def pfg_sync(docID, userID, db: Session):
                                         )
                                         db.commit()
                                     except Exception:
-                                        logger.error(f"{traceback.format_exc()}")
+                                        logger.debug(f"{traceback.format_exc()}")
                             else:
 
                                 # -------------update document history table
@@ -1200,7 +1372,7 @@ def pfg_sync(docID, userID, db: Session):
                                         docID, userID, documentstatus, documentdesc, db
                                     )
                                 except Exception:
-                                    logger.error(f"{traceback.format_exc()}")
+                                    logger.debug(f"{traceback.format_exc()}")
                                 try:
                                     db.query(model.Document).filter(
                                         model.Document.idDocument == docID
@@ -1212,7 +1384,7 @@ def pfg_sync(docID, userID, db: Session):
                                     )
                                     db.commit()
                                 except Exception:
-                                    logger.error(f"{traceback.format_exc()}")
+                                    logger.debug(f"{traceback.format_exc()}")
                         else:
                             docStatusSync["Stamp Data Validations"] = {
                                 "status": 0,
@@ -1225,9 +1397,8 @@ def pfg_sync(docID, userID, db: Session):
                                 update_docHistory(
                                     docID, userID, documentstatus, documentdesc, db
                                 )
-                            except Exception as e:
-                                logger.error(f"pfg_sync line 534: {str(e)}")
-                                logger.error(f"{traceback.format_exc()}")
+                            except Exception:
+                                logger.debug(f"{traceback.format_exc()}")
                                 overAllstatus_msg = "Failed"
 
                             try:
@@ -1241,7 +1412,7 @@ def pfg_sync(docID, userID, db: Session):
                                 )
                                 db.commit()
                             except Exception:
-                                logger.error(f"{traceback.format_exc()}")
+                                logger.debug(f"{traceback.format_exc()}")
 
                     else:
                         # -------------------------update document history table
@@ -1252,8 +1423,8 @@ def pfg_sync(docID, userID, db: Session):
                             update_docHistory(
                                 docID, userID, documentstatus, documentdesc, db
                             )
-                        except Exception as e:
-                            logger.error(f"pfg_sync line 534: {str(e)}")
+                        except Exception:
+
                             logger.error(f"{traceback.format_exc()}")
                             overAllstatus_msg = "Failed"
                     # try:
@@ -1270,7 +1441,6 @@ def pfg_sync(docID, userID, db: Session):
                     #     logger.info(f"ErrorUpdatingPostingData: {err}")
 
                 except Exception as err:
-                    logger.info(f"SyncException:{err}")
                     logger.error(f"{traceback.format_exc()}")
                     docStatusSync = {}
                     overAllstatus = 0
@@ -1284,18 +1454,25 @@ def pfg_sync(docID, userID, db: Session):
                     logger.error(f"pfg_sync line 886: {str(e)}")
                 overAllstatus_msg = "Failed"
         else:
+
             try:
                 docHrd_msg = "No Header Data found"
                 docHrd_status = 0
                 update_docHistory(docID, userID, docHrd_status, docHrd_msg, db)
-            except Exception as e:
-                logger.error(f"pfg_sync line 886: {str(e)}")
+            except Exception:
+                logger.debug(traceback)
             overAllstatus_msg = "Failed"
+
+        if (overAllstatus == 1) and ("Sent to PeopleSoft" in docStatusSync):
+            if docStatusSync["Sent to PeopleSoft"]["status"] == 0:
+                overAllstatus = 0
+                overAllstatus_msg = "Failed"
 
         docStatusSync["Status Overview"] = {
             "status": overAllstatus,
             "response": [overAllstatus_msg],
         }
+
         try:
             json_data = json.dumps(docStatusSync)
             db.query(model.Document).filter(model.Document.idDocument == docID).update(
@@ -1304,6 +1481,6 @@ def pfg_sync(docID, userID, db: Session):
 
             db.commit()
         except Exception as Err:
-            logger.info(f"updateDocDecError: {Err}")
-        logger.info(f"Status Overview: {docStatusSync}")
+            logger.debug(f"updateDocDecError: {Err}")
+        # logger.info(f"Status Overview: {docStatusSync}")
     return docStatusSync
