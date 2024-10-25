@@ -1,4 +1,5 @@
 # import logging
+import io
 import json
 import os
 import re
@@ -10,6 +11,7 @@ import pandas as pd
 # import psycopg2
 import pytz as tz
 from fastapi import APIRouter, File, Form, Response, UploadFile
+from PIL import Image
 
 # from psycopg2 import extras
 from pypdf import PdfReader
@@ -103,6 +105,42 @@ def runStatus(
         logger.error(f"{traceback.format_exc()}")
 
     try:
+        fl_type = filename.split(".")[-1]
+        # -------------------------
+
+        if fl_type in ["png", "jpg", "jpeg", "jpgx"]:
+            image = Image.open(file.file)
+
+            # Convert the image to RGB if it's not in RGB mode
+            # (important for saving as PDF)
+            if image.mode in ("RGBA", "P", "L"):
+                image = image.convert("RGB")
+
+            pdf_bytes = io.BytesIO()
+
+            image.save(pdf_bytes, format="PDF")
+            pdf_bytes.seek(0)
+
+            # Read the PDF using PyPDF2 (or any PDF reader you prefer)
+            pdf_stream = PdfReader(pdf_bytes)
+        elif fl_type in ["pdf"]:
+            pdf_stream = PdfReader(file.file)
+        else:
+            splitdoc_id = new_split_doc.splitdoc_id
+            split_doc = (
+                db.query(model.SplitDocTab)
+                .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                .first()
+            )
+
+            if split_doc:
+                split_doc.status = "Unsupported File Format: " + fl_type
+                split_doc.updated_on = datetime.now()  # Update the timestamp
+
+                # Commit the update
+                db.commit()
+            return f"Unsupported File Format: {fl_type}"
+
         modelData = None
         IsUpdated = 0
         invoId = ""
@@ -189,10 +227,6 @@ def runStatus(
           explanations are needed.
 
 """
-
-        # TODO move to settings
-
-        pdf_stream = PdfReader(file.file)
 
         (
             prbtHeaders,
