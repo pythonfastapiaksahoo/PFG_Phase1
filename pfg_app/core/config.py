@@ -3,19 +3,19 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Base
-    api_v1_prefix: str = ""
+    api_v1_prefix: str = "/api/v1"
     debug: bool = False
-    project_name: str = ""
-    version: str = ""
-    description: str = ""
-    build_type: str = "debug"  # debug or release
+    project_name: str = "FIA App"
+    version: str = "0.0.1"
+    description: str = "The API for FIA app. "
+    build_type: str = "debug"  # dev or qa or prod
 
     # Azure Auth
     api_client_id: str = ""
     api_client_secret: str = ""
     swagger_ui_client_id: str = ""
     aad_tenant_id: str = ""
-    aad_instance: str = ""
+    aad_instance: str = "https://login.microsoftonline.com/"
     api_audience: str = ""
 
     # DB (TODO - Change to use system identity)
