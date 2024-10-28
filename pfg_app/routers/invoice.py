@@ -513,3 +513,39 @@ async def get_frtrigger_data_by_splitdoc_id(
 
     docs = await crud.get_frtrigger_data_by_splitdoc_id(user.idUser, split_id, db)
     return docs
+
+
+# Checked (new) - used in the frontend
+@router.get("/getEmailRowAssociatedFiles")
+async def get_email_row_associated_files(
+    offset: int = 1,
+    limit: int = 10,
+    uni_api_filter: Optional[str] = None,
+    column_filter: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """API route to retrieve a paginated list of invoice documents with line
+    item details as optional when filters is applied  .
+
+    Parameters:
+    ----------
+
+    offset : int
+        The page number for pagination (default is 1).
+
+    limit : int
+        Number of records per page (default is 10).
+
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of invoice documents filtered and paginated according to the input parameters.
+    """
+
+    docs = await crud.get_email_row_associated_files(
+        user.idUser, (offset, limit), uni_api_filter, column_filter, db
+    )
+    return docs

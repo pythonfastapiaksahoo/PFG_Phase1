@@ -916,11 +916,11 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
             items = dict(items)
             items["UpdatedOn"] = UpdatedOn
             items["documentColumnPos"] = items.pop("ColumnPos")
-            result = (
-                db.query(model.DocumentColumnPos)
-                .filter_by(idDocumentColumn=items.pop("idtabColumn"))
-                .update(items)
-            )  # TODO: Unused variable
+
+            db.query(model.DocumentColumnPos).filter_by(
+                idDocumentColumn=items.pop("idtabColumn")
+            ).update(items)
+
         db.commit()
         return {"result": "updated"}
     except Exception:
@@ -2122,3 +2122,164 @@ async def get_frtrigger_data_by_splitdoc_id(u_id, split_doc_id, db):
 
     # Return the result
     return result
+
+
+async def get_email_row_associated_files(
+    u_id, off_limit, uni_api_filter, column_filter, db
+):
+    """Function to retrieve SplitDocTab data for a specific splitdoc_id.
+
+    Args:
+        u_id: User ID
+        db: SQLAlchemy session
+        off_limit: Tuple of offset and limit values for pagination.
+        mail_number: Mail row key to filter results.
+        subject: Subject to filter results.
+
+    Returns:
+        result: A dictionary containing the data from SplitDocTab rows.
+    """
+    base_query = db.query(model.SplitDocTab)
+    data_query = base_query
+
+    # Function to normalize strings by removing non-alphanumeric
+    # characters and converting to lowercase
+    def normalize_string(input_str):
+        return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
+    # Apply universal API filter if provided, including line items
+    if uni_api_filter:
+        uni_search_param_list = uni_api_filter.split(":")
+        for param in uni_search_param_list:
+            # Normalize the user input filter
+            normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
+
+            # Create a pattern for the search with wildcards
+            pattern = f"%{normalized_filter}%"
+
+            filter_condition = or_(
+                normalize_string(model.SplitDocTab.emailbody_path).ilike(pattern),
+                normalize_string(model.SplitDocTab.sender).ilike(pattern),
+                cast(model.SplitDocTab.totalpagecount, String).ilike(
+                    f"%{uni_api_filter}%"
+                ),
+                func.to_char(
+                    model.SplitDocTab.updated_on, "Mon DD, YYYY, HH12:MI:SS PM"
+                ).ilike(f"%{uni_api_filter}%"),
+                normalize_string(model.SplitDocTab.mail_row_key).ilike(pattern),
+                # normalize_string(model.SplitDocTab.invoice_path).ilike(pattern),
+                normalize_string(model.SplitDocTab.status).ilike(pattern),
+                normalize_string(model.SplitDocTab.email_subject).ilike(pattern),
+                normalize_string(model.SplitDocTab.mail_row_key).ilike(pattern),
+            )
+            data_query = data_query.filter(filter_condition)
+
+    # Parse column-specific filter
+    if column_filter:
+        # Split the column_filter string by the colon
+        if ":" in column_filter:
+            column_name, search_value = column_filter.split(":", 1)
+
+            # Strip and normalize column_name and search_value
+            column_name = column_name.strip().lower()
+            search_value = search_value.strip()
+
+            # Normalize and handle specific column names (e.g., 'Total page count')
+            if column_name in ["total page count", "totalpagecount"]:
+                column_name = "totalpagecount"
+                data_query = data_query.filter(
+                    cast(model.SplitDocTab.totalpagecount, String).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "sender":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.sender).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "emailbody_path":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.emailbody_path).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "updated_on":
+                data_query = data_query.filter(
+                    func.to_char(
+                        model.SplitDocTab.updated_on, "Mon DD, YYYY, HH12:MI:SS PM"
+                    ).ilike(f"%{search_value}%")
+                )
+            elif column_name == "mail_row_key":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.mail_row_key).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "status":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.status).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "email_subject":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.email_subject).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+
+    total_items = data_query.count()
+
+    # Extract offset and limit for pagination
+    offset, limit = off_limit
+    off_val = (offset - 1) * limit
+
+    # Get the latest SplitDocTab rows in descending order and apply pagination
+    split_docs = (
+        data_query.order_by(model.SplitDocTab.splitdoc_id.desc())
+        .offset(off_val)
+        .limit(limit)
+        .all()
+    )
+
+    # Response data structure
+    mail_data_list = []
+    for split_doc in split_docs:
+        base_eml_path = split_doc.invoice_path.rsplit("/", 1)[0] + ".eml"
+
+        mail_data = {
+            "mail_number": split_doc.mail_row_key,
+            "splitdoc_id": split_doc.splitdoc_id,
+            "total_page_count": split_doc.totalpagecount,
+            "sender": split_doc.sender,
+            "email_path": base_eml_path,
+            "attachment": [],
+        }
+
+        # Query to get all rows from fr_trigger_tab associated with the splitdoc_id
+        fr_trigger_tab = (
+            db.query(model.frtrigger_tab)
+            .filter(model.frtrigger_tab.splitdoc_id == split_doc.splitdoc_id)
+            .all()
+        )
+        for fr in fr_trigger_tab:
+            child = {
+                "file_path": split_doc.invoice_path,
+                "type": "pdf" if split_doc.invoice_path.endswith(".pdf") else "eml",
+                "associated_invoice_file": [],
+            }
+            # Prepare associated_invoice_file structure with details from fr_trigger_tab
+            associated_invoice_files = {
+                "filepath": fr.blobpath,
+                "type": "pdf",
+                "document_id": fr.documentid,
+                "status": fr.status,
+                "file_size": fr.filesize,
+            }
+            child["associated_invoice_file"].append(associated_invoice_files)
+
+        mail_data["attachment"].append(child)
+        mail_data_list.append(mail_data)
+
+    return {"total_items": total_items, "data": mail_data_list}
