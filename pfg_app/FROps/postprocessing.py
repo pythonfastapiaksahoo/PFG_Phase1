@@ -331,20 +331,23 @@ def tb_cln_amt(amt):
 
 def getBBox(data):
     try:
-        if isinstance(data, list):
-            data = data[0]
-            # # Extract x, y, width, height
-        polygon = data["polygon"]
-        x_values = [point["x"] for point in polygon]
-        y_values = [point["y"] for point in polygon]
-        x = round(min(x_values), 2)
-        y = round(min(y_values), 2)
-        w = str(round(max(x_values) - x, 2))
-        h = str(round(max(y_values) - y, 2))
-        x = str(x)
-        y = str(y)
-
-        logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
+        if len(data) == 0:
+            return {"x": "", "y": "", "w": "", "h": ""}
+        else:
+            if isinstance(data, list):
+                data = data[0]
+                # # Extract x, y, width, height
+            polygon = data["polygon"]
+            x_values = [point["x"] for point in polygon]
+            y_values = [point["y"] for point in polygon]
+            x = round(min(x_values), 2)
+            y = round(min(y_values), 2)
+            w = str(round(max(x_values) - x, 2))
+            h = str(round(max(y_values) - y, 2))
+            x = str(x)
+            y = str(y)
+            logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
+            return {"x": x, "y": y, "w": w, "h": h}
     except Exception:
         logger.debug(f" {traceback.format_exc()}")
         x = ""
@@ -887,6 +890,7 @@ def postpro(
                     }
 
                     if bounding_bx != "":
+
                         bx = getBBox(bounding_bx)
                         tmp_fr_headers["bounding_regions"] = bx
                         tmp_fr_headers["status"] = tag_status
@@ -936,6 +940,7 @@ def postpro(
                                         ]["bounding_regions"]
                                     else:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
+
                                     bx = getBBox(bo_bx)
 
                                     tmp_dict["bounding_regions"] = bx
