@@ -907,7 +907,8 @@ def processInvoiceVoucher(doc_id, db):
                                             "UNIT_PRICE": 0,
                                             "VAT_APPLICABILITY": "",
                                             "BUSINESS_UNIT_RECV": "OFGDS",
-                                            "RECEIVER_ID": "",
+                                            "RECEIVER_ID": voucherdata.receiver_id
+                                            or "",
                                             "RECV_LN_NBR": 1,
                                             "SHIPTO_ID": "",
                                             "VCHR_DIST_STG": [
@@ -927,7 +928,8 @@ def processInvoiceVoucher(doc_id, db):
                                                     "ACCOUNT": voucherdata.Account
                                                     or "",
                                                     "DEPTID": voucherdata.Deptid or "",
-                                                    "OPERATING_UNIT": "",
+                                                    "OPERATING_UNIT": voucherdata.storenumber  # noqa: E501
+                                                    or "",
                                                     "MERCHANDISE_AMT": (
                                                         voucherdata.Merchandise_Amt
                                                         if voucherdata.Merchandise_Amt
