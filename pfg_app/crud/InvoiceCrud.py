@@ -916,13 +916,11 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
             items = dict(items)
             items["UpdatedOn"] = UpdatedOn
             items["documentColumnPos"] = items.pop("ColumnPos")
-            # result = (
-            #     db.query(model.DocumentColumnPos)
-            #     .filter_by(idDocumentColumn=items.pop("idtabColumn"))
-            #     .filter_by(uid=u_id)
-            #     .filter_by(tabtype=tabtype)
-            #     .update(items)
-            # )  # TODO: Unused variable
+            result = (
+                db.query(model.DocumentColumnPos)
+                .filter_by(idDocumentColumn=items.pop("idtabColumn"))
+                .update(items)
+            )  # TODO: Unused variable
         db.commit()
         return {"result": "updated"}
     except Exception:
