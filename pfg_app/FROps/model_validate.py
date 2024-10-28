@@ -80,7 +80,8 @@ def model_validate(
                         tag_list.append(fld)
                         # check for field accuracy:
                         if (
-                            (data["doc_types"][fr_modelid]["field_confidence"][fld]) * 100
+                            (data["doc_types"][fr_modelid]["field_confidence"][fld])
+                            * 100
                         ) >= req_fields_accuracy:
                             field_acc_status = field_acc_status * 1
                         else:

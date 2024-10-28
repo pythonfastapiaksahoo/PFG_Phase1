@@ -916,11 +916,11 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
             items = dict(items)
             items["UpdatedOn"] = UpdatedOn
             items["documentColumnPos"] = items.pop("ColumnPos")
-            result = (
-                db.query(model.DocumentColumnPos)
-                .filter_by(idDocumentColumn=items.pop("idtabColumn"))
-                .update(items)
-            )  # TODO: Unused variable
+
+            db.query(model.DocumentColumnPos).filter_by(
+                idDocumentColumn=items.pop("idtabColumn")
+            ).update(items)
+
         db.commit()
         return {"result": "updated"}
     except Exception:
@@ -2254,7 +2254,7 @@ async def get_email_row_associated_files(
             "total_page_count": split_doc.totalpagecount,
             "sender": split_doc.sender,
             "email_path": base_eml_path,
-            "children": [],
+            "attachment": [],
         }
 
         # Query to get all rows from fr_trigger_tab associated with the splitdoc_id
@@ -2279,7 +2279,7 @@ async def get_email_row_associated_files(
             }
             child["associated_invoice_file"].append(associated_invoice_files)
 
-        mail_data["children"].append(child)
+        mail_data["attachment"].append(child)
         mail_data_list.append(mail_data)
 
     return {"total_items": total_items, "data": mail_data_list}
