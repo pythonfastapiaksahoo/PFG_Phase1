@@ -32,6 +32,8 @@ def clean_amount(amount_str):
 # db = SCHEMA
 def IntegratedvoucherData(inv_id, db: Session):
     voucher_data_status = 1
+    intStatus = 0
+    intStatusMsg = ""
 
     stmp_dt = (
         db.query(model.StampDataValidation)
@@ -69,113 +71,123 @@ def IntegratedvoucherData(inv_id, db: Session):
         VENDOR_ID = invRpt.VENDOR_ID
         ACCOUNT = invRpt.ACCOUNT
         DEPTID = invRpt.DEPTID
-
-    # ---------------------------------------------
-    docTabData = (
-        db.query(model.Document).filter(model.Document.idDocument == inv_id).first()
-    )
-
-    if docTabData:
-        docPath = docTabData.docPath
-        docModel = docTabData.documentModelID
-        invoice_type = docTabData.UploadDocType
+        location = invRpt.LOCATION
+    if location == storeNumber:
+        intStatus = 1
+        intStatusMsg = "Success"
     else:
-        voucher_data_status = 0
+        intStatus = 0
+        intStatusMsg = "Incorrect store number"
 
-    DocDtHdr = (
-        db.query(model.DocumentData, model.DocumentTagDef)
-        .join(
-            model.DocumentTagDef,
-            model.DocumentData.documentTagDefID
-            == model.DocumentTagDef.idDocumentTagDef,
-        )
-        .filter(model.DocumentTagDef.idDocumentModel == docModel)
-        .filter(model.DocumentData.documentID == inv_id)
-        .all()
-    )
+    if intStatus == 1:
 
-    docHdrDt = {}
-    tagNames = {}
-
-    for document_data, document_tag_def in DocDtHdr:
-        docHdrDt[document_tag_def.TagLabel] = document_data.Value
-        tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
-
-    if "InvoiceTotal" in docHdrDt:
-        invo_total = clean_amount(docHdrDt["InvoiceTotal"])
-        if "SubTotal" in docHdrDt:
-            invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
-        else:
-            invo_SubTotal = invo_total
-    else:
-        voucher_data_status = 0
-    if "InvoiceDate" in docHdrDt:
-        invo_Date = docHdrDt["InvoiceDate"]
-    else:
-        voucher_data_status = 0
-    if "InvoiceId" in docHdrDt:
-        invo_ID = docHdrDt["InvoiceId"]
-    else:
-        voucher_data_status = 0
-
-    if voucher_data_status == 1:
-
-        existing_record = (
-            db.query(model.VoucherData).filter_by(documentID=inv_id).first()
+        # ---------------------------------------------
+        docTabData = (
+            db.query(model.Document).filter(model.Document.idDocument == inv_id).first()
         )
 
-        if existing_record:
-            # If record exists, update the existing record with new data
-            existing_record.Business_unit = BUSINESS_UNIT
-            existing_record.Invoice_Id = invo_ID
-            existing_record.Invoice_Dt = invo_Date
-            existing_record.Vendor_Setid = VENDOR_SETID
-            existing_record.Vendor_ID = VENDOR_ID
-            existing_record.Deptid = DEPTID
-            existing_record.Account = ACCOUNT
-            existing_record.Gross_Amt = invo_SubTotal
-            existing_record.Merchandise_Amt = invo_total
-            existing_record.File_Name = docPath.split("/")[-1]
-            existing_record.Distrib_Line_num = 1
-            existing_record.Voucher_Line_num = 1
-            existing_record.Image_Nbr = 1
-            existing_record.Origin = invoice_type
-            existing_record.storenumber = storeNumber
-            existing_record.storetype = storeType
-            existing_record.receiver_id = str(confNumber)
-            existing_record.status = voucher_data_status
+        if docTabData:
+            docPath = docTabData.docPath
+            docModel = docTabData.documentModelID
+            invoice_type = docTabData.UploadDocType
         else:
-            # If no record exists, create a new one
-            VoucherData_insert_data = {
-                "documentID": inv_id,
-                "Business_unit": BUSINESS_UNIT,
-                "Invoice_Id": invo_ID,
-                "Invoice_Dt": invo_Date,
-                "Vendor_Setid": VENDOR_SETID,
-                "Vendor_ID": VENDOR_ID,
-                "Deptid": DEPTID,
-                "Account": ACCOUNT,
-                "Gross_Amt": invo_SubTotal,
-                "Merchandise_Amt": invo_total,
-                "File_Name": docPath.split("/")[-1],
-                "Distrib_Line_num": 1,
-                "Voucher_Line_num": 1,
-                "Image_Nbr": 1,
-                "Origin": invoice_type,
-                "storenumber": storeNumber,
-                "storetype": storeType,
-                "receiver_id": str(confNumber),
-                "status": voucher_data_status,
-            }
-            VD_db_data = model.VoucherData(**VoucherData_insert_data)
-            db.add(VD_db_data)
+            voucher_data_status = 0
 
-        # Commit the changes to the database
-        db.commit()
+        DocDtHdr = (
+            db.query(model.DocumentData, model.DocumentTagDef)
+            .join(
+                model.DocumentTagDef,
+                model.DocumentData.documentTagDefID
+                == model.DocumentTagDef.idDocumentTagDef,
+            )
+            .filter(model.DocumentTagDef.idDocumentModel == docModel)
+            .filter(model.DocumentData.documentID == inv_id)
+            .all()
+        )
+
+        docHdrDt = {}
+        tagNames = {}
+
+        for document_data, document_tag_def in DocDtHdr:
+            docHdrDt[document_tag_def.TagLabel] = document_data.Value
+            tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+
+        if "InvoiceTotal" in docHdrDt:
+            invo_total = clean_amount(docHdrDt["InvoiceTotal"])
+            if "SubTotal" in docHdrDt:
+                invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
+            else:
+                invo_SubTotal = invo_total
+        else:
+            voucher_data_status = 0
+        if "InvoiceDate" in docHdrDt:
+            invo_Date = docHdrDt["InvoiceDate"]
+        else:
+            voucher_data_status = 0
+        if "InvoiceId" in docHdrDt:
+            invo_ID = docHdrDt["InvoiceId"]
+        else:
+            voucher_data_status = 0
+
+        if voucher_data_status == 1:
+
+            existing_record = (
+                db.query(model.VoucherData).filter_by(documentID=inv_id).first()
+            )
+
+            if existing_record:
+                # If record exists, update the existing record with new data
+                existing_record.Business_unit = BUSINESS_UNIT
+                existing_record.Invoice_Id = invo_ID
+                existing_record.Invoice_Dt = invo_Date
+                existing_record.Vendor_Setid = VENDOR_SETID
+                existing_record.Vendor_ID = VENDOR_ID
+                existing_record.Deptid = DEPTID
+                existing_record.Account = ACCOUNT
+                existing_record.Gross_Amt = invo_SubTotal
+                existing_record.Merchandise_Amt = invo_total
+                existing_record.File_Name = docPath.split("/")[-1]
+                existing_record.Distrib_Line_num = 1
+                existing_record.Voucher_Line_num = 1
+                existing_record.Image_Nbr = 1
+                existing_record.Origin = invoice_type
+                existing_record.storenumber = storeNumber
+                existing_record.storetype = storeType
+                existing_record.receiver_id = str(confNumber)
+                existing_record.status = voucher_data_status
+            else:
+                # If no record exists, create a new one
+                VoucherData_insert_data = {
+                    "documentID": inv_id,
+                    "Business_unit": BUSINESS_UNIT,
+                    "Invoice_Id": invo_ID,
+                    "Invoice_Dt": invo_Date,
+                    "Vendor_Setid": VENDOR_SETID,
+                    "Vendor_ID": VENDOR_ID,
+                    "Deptid": DEPTID,
+                    "Account": ACCOUNT,
+                    "Gross_Amt": invo_SubTotal,
+                    "Merchandise_Amt": invo_total,
+                    "File_Name": docPath.split("/")[-1],
+                    "Distrib_Line_num": 1,
+                    "Voucher_Line_num": 1,
+                    "Image_Nbr": 1,
+                    "Origin": invoice_type,
+                    "storenumber": storeNumber,
+                    "storetype": storeType,
+                    "receiver_id": str(confNumber),
+                    "status": voucher_data_status,
+                }
+                VD_db_data = model.VoucherData(**VoucherData_insert_data)
+                db.add(VD_db_data)
+
+            # Commit the changes to the database
+            db.commit()
+    return intStatus, intStatusMsg
 
 
 def nonIntegratedVoucherData(inv_id, db: Session):
-    nonIntStatus = 0
+    nonIntStatus = 1
     nonIntStatusMsg = ""
     voucher_data_status = 1
     docTabData = (
@@ -373,7 +385,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
                 existing_record.Origin = invoice_type
                 existing_record.storenumber = storeNumber
                 existing_record.storetype = storeType
-                existing_record.confnumber = "NA"
+                existing_record.receiver_id = "NA"
                 existing_record.status = voucher_data_status
             else:
                 # If no record exists, create a new one
@@ -403,6 +415,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
 
             # Commit the changes to the database
             db.commit()
+
     return nonIntStatus, nonIntStatusMsg
 
 
@@ -520,21 +533,21 @@ def pfg_sync(docID, userID, db: Session):
         if InvodocStatus == 10:
             duplicate_status_ck = 0
             duplicate_status_ck_msg = "Invoice already exists"
-            docStatusSync["Invoice Duplicate Check"] = {
+            docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
                 "response": [duplicate_status_ck_msg],
             }
         elif InvodocStatus == 0:
             duplicate_status_ck = 0
             duplicate_status_ck_msg = "InvoiceId not found"
-            docStatusSync["Invoice Duplicate Check"] = {
+            docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
                 "response": [duplicate_status_ck_msg],
             }
         elif isinstance(InvodocStatus, int) and InvodocStatus != 10:
             duplicate_status_ck = 1
             duplicate_status_ck_msg = "Success"
-            docStatusSync["Invoice Duplicate Check"] = {
+            docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
                 "response": [duplicate_status_ck_msg],
             }
@@ -948,24 +961,24 @@ def pfg_sync(docID, userID, db: Session):
                         except Exception:
                             logger.debug(traceback.format_exc())
 
-                    docStatusSync["OCR Validations"] = {
+                    docStatusSync["OCR validations"] = {
                         "status": ocrCheck,
                         "response": ocrCheck_msg,
                     }
 
-                    docStatusSync["Invoice Total Validation"] = {
+                    docStatusSync["Invoice total validation"] = {
                         "status": totalCheck,
                         "response": totalCheck_msg,
                     }
 
                     if (
-                        docStatusSync["OCR Validations"]["status"] == 1
-                        and docStatusSync["Invoice Total Validation"]["status"] == 1
+                        docStatusSync["OCR validations"]["status"] == 1
+                        and docStatusSync["Invoice total validation"]["status"] == 1
                     ):
 
                         # -----------------------update document history table
                         documentstatus = 4
-                        documentdesc = "OCR Validations Success"
+                        documentdesc = "OCR validations success"
                         try:
                             update_docHistory(
                                 docID, userID, documentstatus, documentdesc, db
@@ -1041,10 +1054,10 @@ def pfg_sync(docID, userID, db: Session):
                                     )
                                     db.commit()
                                     strCk = 1
-                                    strCk_msg.append("Success")
+                                    strCk_msg = ["Success"]
                                 else:
                                     strCk = 0
-                                    strCk_msg.append("Invalid Store Type")
+                                    strCk_msg = ["Invalid Store Type"]
 
                                 # #---------------------
                                 # try:
@@ -1065,15 +1078,15 @@ def pfg_sync(docID, userID, db: Session):
                                 strCk = 0
                                 strCk_msg.append(" Store Type Not Found")
 
-                            docStatusSync["StoreType Validation"] = {
+                            docStatusSync["Storetype validation"] = {
                                 "status": strCk,
                                 "response": strCk_msg,
                             }
 
-                            if docStatusSync["StoreType Validation"]["status"] == 1:
+                            if docStatusSync["Storetype validation"]["status"] == 1:
 
                                 documentstatus = 4
-                                documentdesc = "StoreType Validation Success"
+                                documentdesc = "Storetype validation Success"
                                 try:
                                     update_docHistory(
                                         docID, userID, documentstatus, documentdesc, db
@@ -1144,9 +1157,18 @@ def pfg_sync(docID, userID, db: Session):
                                         # -----------------------------------
 
                                         strCk = 1
-                                        strCk_msg.append("Success")
+                                        strCk_msg = ["Success"]
                                         if confirmation_ck == 1:
-                                            IntegratedvoucherData(docID, db)
+                                            intStatus, intStatusMsg = (
+                                                IntegratedvoucherData(docID, db)
+                                            )
+                                            if intStatus == 0:
+                                                docStatusSync[
+                                                    "Storetype validation"
+                                                ] = {
+                                                    "status": 0,
+                                                    "response": [intStatusMsg],
+                                                }
 
                                     if (
                                         list(stmpData["StoreType"].keys())[0]
@@ -1157,12 +1179,16 @@ def pfg_sync(docID, userID, db: Session):
                                             nonIntegratedVoucherData(docID, db)
                                         )
                                         if nonIntStatus == 1:
-                                            strCk = 1
-                                            strCk_msg.append("Success")
+                                            DeptCk = 1
+                                            DeptCk_msg = ["Success"]
                                         else:
-                                            strCk = 0
-                                            strCk_msg.append(nonIntStatusMsg)
+                                            DeptCk = 0
+                                            DeptCk_msg = [nonIntStatusMsg]
 
+                                            docStatusSync["Storetype validation"] = {
+                                                "status": DeptCk,
+                                                "response": DeptCk_msg,
+                                            }
                                 except Exception:
 
                                     logger.debug(f"{traceback.format_exc()}")
@@ -1178,7 +1204,39 @@ def pfg_sync(docID, userID, db: Session):
                                     NullVal = []
                                     VthChk = 0
                                     VthChk_msg = ""
-                                if row_count == 1:
+                                if docStatusSync["Storetype validation"]["status"] == 0:
+                                    VthChk = 0
+                                    if isinstance(
+                                        docStatusSync["Storetype validation"][
+                                            "response"
+                                        ],
+                                        list,
+                                    ):
+                                        respMsg = docStatusSync["Storetype validation"][
+                                            "response"
+                                        ][
+                                            0
+                                        ]  # Safely access the first element
+                                    elif isinstance(
+                                        docStatusSync["Storetype validation"][
+                                            "response"
+                                        ],
+                                        int,
+                                    ):
+                                        # Handle the case where response is an int
+                                        respMsg = str(
+                                            docStatusSync["Storetype validation"][
+                                                "response"
+                                            ]
+                                        )
+                                    else:
+                                        respMsg = docStatusSync["Storetype validation"][
+                                            "response"
+                                        ]
+
+                                    VthChk_msg = respMsg
+
+                                elif row_count == 1:
 
                                     voucher_row = voucher_query.first()
                                     has_null_or_empty = False
@@ -1207,6 +1265,7 @@ def pfg_sync(docID, userID, db: Session):
                                 else:
                                     VthChk = 0
                                     VthChk_msg = "No Voucher data Found."
+
                                 docStatusSync["Voucher creation data validation"] = {
                                     "status": VthChk,
                                     "response": [VthChk_msg],
@@ -1521,7 +1580,7 @@ def pfg_sync(docID, userID, db: Session):
                         # -------------------------update document history table
                         documentSubstatus = 33
                         documentstatus = 4
-                        documentdesc = "OCR Validations Failed"
+                        documentdesc = "OCR validations failed"
                         try:
                             update_docHistory(
                                 docID, userID, documentstatus, documentdesc, db
@@ -1571,7 +1630,7 @@ def pfg_sync(docID, userID, db: Session):
                 overAllstatus = 0
                 overAllstatus_msg = "Failed"
 
-        docStatusSync["Status Overview"] = {
+        docStatusSync["Status overview"] = {
             "status": overAllstatus,
             "response": [overAllstatus_msg],
         }
