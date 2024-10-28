@@ -201,25 +201,16 @@ def runStatus(
         {
 
             'StampFound': 'Yes/No',
-
+            'NumberOfPages : Number of pages in the document',
             'MarkedDept': 'Inventory/Supplies' (only if it's clearly circled or marked),
-
             'Confirmation': 'Extracted data',
-
             'ReceivingDate': 'Extracted data',
-
             'Receiver': 'Extracted data',
-
             'Department': 'Extracted data',
-
             'Store Number': 'Extracted data',
-
             'VendorName': 'Extracted data',
-
             'InvoiceID': 'Extracted data',
-
             'Currency': 'Extracted data'
-
         }.
 
         Extract the relevant information and return it only in the JSON format above.
