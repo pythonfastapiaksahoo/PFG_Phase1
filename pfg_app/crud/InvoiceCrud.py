@@ -2250,10 +2250,13 @@ async def get_email_row_associated_files(
 
         mail_data = {
             "mail_number": split_doc.mail_row_key,
-            "splitdoc_id": split_doc.splitdoc_id,
-            "total_page_count": split_doc.totalpagecount,
-            "sender": split_doc.sender,
             "email_path": base_eml_path,
+            "total_page_count": split_doc.totalpagecount,
+            "pages_processed": split_doc.pages_processed,
+            "sender": split_doc.sender,
+            "email_subject": split_doc.email_subject,
+            "email_body_path": split_doc.emailbody_path,
+            "created_on": split_doc.updated_on,
             "attachment": [],
         }
 
@@ -2263,19 +2266,35 @@ async def get_email_row_associated_files(
             .filter(model.frtrigger_tab.splitdoc_id == split_doc.splitdoc_id)
             .all()
         )
+        total_count = len(fr_trigger_tab)
+        print(f"Total count : {total_count}")
+        file_extension = split_doc.invoice_path.split(".")[-1].lower()
+        file_type = (
+            file_extension
+            if file_extension in ["pdf", "jpg", "png", "eml"]
+            else "unknown"
+        )
+        child = {
+            "file_path": split_doc.invoice_path,
+            "type": file_type,
+            "attachment_count": total_count,
+            "associated_invoice_file": [],
+        }
+
         for fr in fr_trigger_tab:
-            child = {
-                "file_path": split_doc.invoice_path,
-                "type": "pdf" if split_doc.invoice_path.endswith(".pdf") else "eml",
-                "associated_invoice_file": [],
-            }
+            file_extension = fr.blobpath.split(".")[-1].lower()
+            file_type = (
+                file_extension if file_extension in ["pdf", "jpg", "png"] else "unknown"
+            )
             # Prepare associated_invoice_file structure with details from fr_trigger_tab
             associated_invoice_files = {
                 "filepath": fr.blobpath,
-                "type": "pdf",
+                "type": file_type,
                 "document_id": fr.documentid,
                 "status": fr.status,
                 "file_size": fr.filesize,
+                "vendor_id": fr.vendorID,
+                "page_number": fr.page_number,
             }
             child["associated_invoice_file"].append(associated_invoice_files)
 
