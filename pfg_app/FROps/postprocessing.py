@@ -167,7 +167,7 @@ def date_cnv(doc_date, date_format):
             else:
                 date_status = 0
                 req_date = doc_date
-        elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd"]:
+        elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd", "yyyy-mm-dd"]:
             doc_dt_slt = re.findall(r"\d+", doc_date)
             if len(doc_dt_slt) == 3:
                 yy = doc_dt_slt[0]
@@ -228,14 +228,15 @@ def date_cnv(doc_date, date_format):
             else:
                 date_status = 0
                 req_date = doc_date
-    except Exception as dt_ck_:
-        logger.error(f" {traceback.format_exc()}")
-        logger.error(f"line 185 postprocessing: {str(dt_ck_)}")
+    except Exception:
+        logger.debug(f" {traceback.format_exc()}")
+
         # print(str(dt_ck_))
         date_status = 0
         req_date = doc_date
     if date_status == 1:
         try:
+
             # newDate = datetime.datetime(int(yy), int(mm), int(dd))
             # # TODO: Unused variable
             correctDate = True
@@ -282,10 +283,8 @@ def po_cvn(po_extracted, entityID):
             formatted_po = po_extracted
             po_status = 1
 
-    except Exception as po:
-        # print("Purchase Order EXCEPTION: ",str(po))
-        logger.error(f"Purchase Order EXCEPTION: {str(po)}")
-        logger.error(f" {traceback.format_exc()}")
+    except Exception:
+        logger.debug(f" {traceback.format_exc()}")
 
     return formatted_po, po_status
 
@@ -301,9 +300,8 @@ def tb_cln_amt(amt):
         if "," in amt:
             if amt[-3] == ",":
                 amt = amt[:-3] + "." + amt[-2:]
-    except Exception as at:
-        logger.info(f"post pro line 247: {str(at)}")
-        logger.error(f" {traceback.format_exc()}")
+    except Exception:
+        logger.debug(f" {traceback.format_exc()}")
         amt = amt_cpy
     try:
         inl = 1
@@ -323,11 +321,9 @@ def tb_cln_amt(amt):
         sb_amt = round(sb_amt, 2)
         # cln_amt_sts = 1
 
-    except Exception as e:
-        logger.error(f" {traceback.format_exc()}")
-        sb_amt = amt
-
-        logger.info(f"postpro line 269: {str(e)}")
+    except Exception:
+        logger.debug(f" {traceback.format_exc()}")
+        sb_amt = 0
         sb_amt = str(sb_amt)
 
     return sb_amt
@@ -335,21 +331,25 @@ def tb_cln_amt(amt):
 
 def getBBox(data):
     try:
-        if isinstance(data, list):
-            data = data[0]
-            # # Extract x, y, width, height
-        polygon = data["polygon"]
-        x_values = [point["x"] for point in polygon]
-        y_values = [point["y"] for point in polygon]
-        x = round(min(x_values), 2)
-        y = round(min(y_values), 2)
-        w = str(round(max(x_values) - x, 2))
-        h = str(round(max(y_values) - y, 2))
-        x = str(x)
-        y = str(y)
-
-        logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
+        if len(data) == 0:
+            return {"x": "", "y": "", "w": "", "h": ""}
+        else:
+            if isinstance(data, list):
+                data = data[0]
+                # # Extract x, y, width, height
+            polygon = data["polygon"]
+            x_values = [point["x"] for point in polygon]
+            y_values = [point["y"] for point in polygon]
+            x = round(min(x_values), 2)
+            y = round(min(y_values), 2)
+            w = str(round(max(x_values) - x, 2))
+            h = str(round(max(y_values) - y, 2))
+            x = str(x)
+            y = str(y)
+            logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
+            return {"x": x, "y": y, "w": w, "h": h}
     except Exception:
+        logger.debug(f" {traceback.format_exc()}")
         x = ""
         y = ""
         w = ""
@@ -358,37 +358,36 @@ def getBBox(data):
 
 
 def cln_amt(amt):
-    amt_cpy = amt
-    if amt is None:
-        amt = "0"
-    # amt = str(amt).replace(',','.')
     try:
+
+        if amt is None or len(amt) == 0:
+            cl_amt = "0"
+            return cl_amt
+
         if "," in amt:
             if amt[-3] == ",":
                 amt = amt[:-3] + "." + amt[-2:]
-    except Exception as er:
-        logger.error(f"Exception in cln_amt: {er}")
-        amt = amt_cpy
 
-    if len(amt) > 0 and (amt is not None):
-        if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
-            cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
-            cl_amt = float(cl_amt.replace(",", ""))
-        elif len(re.findall(r"\d+\.\d+", amt)) > 0:
-            cl_amt = re.findall(r"\d+\.\d+", amt)[0]
-            cl_amt = float(cl_amt)
-        elif len(re.findall(r"\d+", amt)) > 0:
-            cl_amt = re.findall(r"\d+", amt)[0]
-            cl_amt = float(cl_amt)
+        if len(amt) > 0:
+            if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
+                cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
+                cl_amt = float(cl_amt.replace(",", ""))
+            elif len(re.findall(r"\d+\.\d+", amt)) > 0:
+                cl_amt = re.findall(r"\d+\.\d+", amt)[0]
+                cl_amt = float(cl_amt)
+            elif len(re.findall(r"\d+", amt)) > 0:
+                cl_amt = re.findall(r"\d+", amt)[0]
+                cl_amt = float(cl_amt)
+            else:
+                cl_amt = amt
         else:
             cl_amt = amt
-    else:
-        cl_amt = amt
-    try:
+
         cl_amt = round(cl_amt, 2)
+
     except Exception:
-        logger.error(traceback.format_exc())
-        cl_amt = amt
+        logger.debug(traceback.format_exc())
+        cl_amt = "0"
     return cl_amt
 
 
@@ -433,11 +432,10 @@ def getFrData_MNF(input_data):
         "VendorAddress",
     ]
     req_lt_prBlt_ln = ["Description", "Quantity", "UnitPrice", "Tax", "Amount"]
+    preBltFrdata = {}
     # all_pg_data = {}  # TODO: Unused variable
     # def dataPrep_postprocess(input_data):
-    getData_headerPg = (
-        {}
-    )  # replace with pg_1['analyzeResult']['documents'][0]['fields']
+    getData_headerPg = {}
     try:
         for pg_data in input_data:
             # print(pg_data['analyzeResult']['documents'][0]['fields'].keys())
@@ -449,10 +447,14 @@ def getFrData_MNF(input_data):
                 if tgs not in ("Items"):
 
                     if tgs in getData_headerPg:
-                        if (getData_headerPg[tgs]["confidence"]) < (
-                            pre_pg_data[tgs]["confidence"]
-                        ):
-                            getData_headerPg.update({tgs: pre_pg_data[tgs]})
+                        try:
+                            if (getData_headerPg[tgs]["confidence"]) < (
+                                pre_pg_data[tgs]["confidence"]
+                            ):
+                                getData_headerPg.update({tgs: pre_pg_data[tgs]})
+                        except Exception:
+                            logger.debug(traceback.format_exc())
+                            getData_headerPg[tgs] = pre_pg_data[tgs]
                     else:
                         getData_headerPg[tgs] = pre_pg_data[tgs]
         preBltFrdata = {}
@@ -542,9 +544,8 @@ def getFrData_MNF(input_data):
         preBltFrdata["overall_status"] = 0
         preBltFrdata["prebuilt_header"] = getData_headerPg
         preBltFrdata_status = 1
-    except Exception as e:
-        logger.info(f"preBltFrdat Exception line 432: {str(e)}")
-        logger.error(f" {traceback.format_exc()}")
+    except Exception:
+        logger.debug(f" {traceback.format_exc()}")
         preBltFrdata_status = 0
 
     return preBltFrdata, preBltFrdata_status
@@ -609,9 +610,6 @@ def dataPrep_postprocess_cust(input_data):
 
     all_pg_data = input_data[0].copy()
     all_pg_data["documents"][0]["fields"] = getData_headerPg
-    # tb_dict = {'tab_1': {'type': 'array', 'value': getData_TabPg}}
-    # all_pg_data['documents'][0]['fields']['tab_1'] =}
-    # all_pg_data['documents'][0]['fields']
     all_pg_data["documents"][0]["fields"]["tab_1"] = {
         "type": "array",
         "value": getData_TabPg,
@@ -668,11 +666,6 @@ def postpro(
             .filter(model.FRMetaData.idInvoiceModel == invo_model_id)
             .scalar()
         )
-        # DateFormat = (
-        #     db.query(model.FRMetaData.DateFormat)
-        #     .filter(model.FRMetaData.idInvoiceModel == invo_model_id)
-        #     .scalar()
-        # )  # TODO: Unused variable
 
         mandatory_header = mandatoryheadertags.split(",")
 
@@ -696,7 +689,7 @@ def postpro(
                         )
 
                     except Exception:
-                        logger.error(traceback.format_exc())
+                        logger.debug(traceback.format_exc())
                         bx = {}
 
                         bx["x"] = ""
@@ -791,11 +784,8 @@ def postpro(
                     status_message = (
                         "Low confidence: " + str(max(cst_conf, pre_conf) * 100) + "%."
                     )
-                except Exception as et:
-                    logger.error(
-                        "Exception in postprocessing:"
-                        + f"(Low confidence,Please review.) {str(et)}"
-                    )
+                except Exception:
+                    logger.debug(traceback.format_exc())
                     status_message = "Low confidence,Please review."
 
             if cust_oly == 1:
@@ -852,7 +842,7 @@ def postpro(
             try:
                 bx = getBBox(bounding_bx)
             except Exception:
-                logger.error(traceback.format_exc())
+                logger.debug(traceback.format_exc())
                 bx = {"x": "", "y": "", "w": "", "h": ""}
             tmp_fr_headers["bounding_regions"] = bx
 
@@ -900,6 +890,7 @@ def postpro(
                     }
 
                     if bounding_bx != "":
+
                         bx = getBBox(bounding_bx)
                         tmp_fr_headers["bounding_regions"] = bx
                         tmp_fr_headers["status"] = tag_status
@@ -921,9 +912,8 @@ def postpro(
             for tb in list(cst_data["documents"][0]["fields"].keys())
             if tb.startswith("tab_")
         ]
-        # print("tabs: ", tabs)
+
         itm_list = []
-        # fields = cst_data['analyzeResult']['documents'][0]['fields']
         ignore_tags = ["SerialNo", "Item"]
         for tbs in tabs:
             if "value" in fields[tbs]:
@@ -950,6 +940,7 @@ def postpro(
                                         ]["bounding_regions"]
                                     else:
                                         bo_bx = [0, 0, 0, 0, 0, 0]
+
                                     bx = getBBox(bo_bx)
 
                                     tmp_dict["bounding_regions"] = bx
@@ -992,7 +983,7 @@ def postpro(
                                             bx = {"x": "", "y": "", "w": "", "h": ""}
 
                                     except Exception:
-                                        logger.error(traceback.format_exc())
+                                        logger.debug(traceback.format_exc())
                                         bo_bx = [0, 0, 0, 0, 0, 0]
                                         bx = {"x": "", "y": "", "w": "", "h": ""}
 
@@ -1111,12 +1102,12 @@ def postpro(
                                     "status_message"
                                 ] = "Low Confidence Detected"
 
-                        except Exception as qt:
+                        except Exception:
                             itm_list[rw_ck_1][ech_tg]["status"] = 0
                             itm_list[rw_ck_1][ech_tg][
                                 "status_message"
                             ] = "Low Confidence Detected"
-                            logger.error(f"exception in postprocess cln: { str(qt)}")
+                            logger.debug(traceback.format_exc())
 
                     if itm_list[rw_ck_1][ech_tg]["tag"] in mandatory_tab_col:
                         if itm_list[rw_ck_1][ech_tg]["data"] == "":
@@ -1213,23 +1204,15 @@ def postpro(
                             amt_excTax_cal = amt_withTax_rw - vatAmt_rw
                             try:
                                 cal_utprice_rw = utprice_rw - (discount_rw / qty_rw)
-                            except Exception as cl:
-                                logger.error(
-                                    "exception in postprocess cln for "
-                                    + "(cal_utprice_rw = "
-                                    + "utprice_rw - "
-                                    + f"(discount_rw / qty_rw)): { str(cl)}"
-                                )
+                            except Exception:
+
+                                logger.debug(traceback.format_exc())
                                 cal_utprice_rw = ""
 
                             try:
                                 cal_amtExTx_PE = amt_excTax_cal / qty_rw
-                            except Exception as cl:
-                                logger.error(
-                                    "exception in postprocess cln for "
-                                    + "(cal_amtExTx_PE = "
-                                    + f" amt_excTax_cal / qty_rw): { str(cl)}"
-                                )
+                            except Exception:
+                                logger.debug(traceback.format_exc())
                                 cal_amtExTx_PE = ""
 
                             if cal_utprice_rw == (cal_amtExTx_PE):
@@ -1314,14 +1297,14 @@ def postpro(
                         discount_rw = cln_amt(discount_rw)
                         try:
                             cal_utprice_rw = utprice_rw - (discount_rw / qty_rw)
-                        except Exception as cl_vl:
-                            logger.error(f"exception in postprocess cln: { str(cl_vl)}")
+                        except Exception:
+                            logger.debug(traceback.format_exc())
                             cal_utprice_rw = ""
 
                         try:
                             cal_amtExTx_PE = amxExtx_rw / qty_rw
-                        except Exception as cl_vl:
-                            logger.error(f"exception in postprocess cln: { str(cl_vl)}")
+                        except Exception:
+                            logger.debug(traceback.format_exc())
                             cal_amtExTx_PE = ""
 
                         if (
@@ -1365,9 +1348,8 @@ def postpro(
                             "w": "",
                             "h": "",
                         }
-        except Exception as E:
-            msg_line = str(E)
-            logger.error(f"exception frm new upate on postprocessing: {msg_line}")
+        except Exception:
+            logger.debug(traceback.format_exc())
 
         fr_data = {
             "header": fr_headers,
@@ -1380,27 +1362,6 @@ def postpro(
         postprocess_msg = "success"
         # posted_status = 1  # TODO: Unused variable
         dt = fr_data
-        get_nm_trn_qry = (
-            'SELECT "TRNNumber","VendorName" FROM '
-            + SCHEMA
-            + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
-            + SCHEMA
-            + '.vendoraccount where "idVendorAccount" in '
-            + '(SELECT "idVendorAccount" FROM '
-            + SCHEMA
-            + '.documentmodel WHERE "idDocumentModel"='
-            + str(invo_model_id)
-            + "));"
-        )
-        vdr_nm_trn_df = pd.read_sql(get_nm_trn_qry, SQLALCHEMY_DATABASE_URL)
-        # vdr_trn_df = pd.DataFrame(vdr_nm_trn_df["TRNNumber"])
-        vdr_name_df = pd.DataFrame(vdr_nm_trn_df["VendorName"])
-
-        name_val = (
-            list(vdr_name_df["VendorName"])[0]
-            if "VendorName" in vdr_name_df and len(list(vdr_name_df["VendorName"])) > 0
-            else ""
-        )
 
         for tg in range(len(dt["header"])):
             if dt["header"][tg]["tag"] == "InvoiceId":
@@ -1430,7 +1391,7 @@ def postpro(
                     .filter(
                         document.docheaderID == str(doc_invID),
                         document.idDocumentType == 3,
-                        vendor.VendorName == name_val,
+                        vendor.VendorName == metaVendorName,
                     )
                     .all()
                 )
@@ -1455,106 +1416,6 @@ def postpro(
                     dt["header"][tg]["status"] = 0
                     dt["header"][tg]["status_message"] = "Invalid Date format"
 
-            # if dt["header"][tg]["tag"] == "TRN":
-            #     doc_trn = dt["header"][tg]["data"]["value"]
-            #     try:
-            #         doc_trn_nw = ""
-            #         for trn_sp in doc_trn.split(" "):
-            #             # print(trn_sp)
-            #             sb_tn = ""
-            #             for i_ in trn_sp:
-            #                 if i_.isdigit():
-            #                     sb_tn = sb_tn + i_
-            #             if len(sb_tn) > 0:
-            #                 doc_trn_nw = doc_trn_nw + " " + sb_tn
-
-            #         ocr_trn = max(
-            #             (re.findall(r"\b\d+\b", doc_trn_nw)), default=0, key=len
-            #         )
-            #         dt["header"][tg]["data"]["value"] = ocr_trn
-            #         # TRN Match:
-            #         get_trn_qry = (
-            #             'SELECT "TRNNumber" FROM '
-            #             + SCHEMA
-            #             + '.vendor where "idVendor" in(SELECT "vendorID" FROM '
-            #             + SCHEMA
-            #             + '.vendoraccount where "idVendorAccount" in '
-            #             + '(SELECT "idVendorAccount" FROM '
-            #             + SCHEMA
-            #             + '.documentmodel WHERE "idDocumentModel"='
-            #             + str(invo_model_id)
-            #             + "));"
-            #         )
-            #         vdr_trn_df = pd.read_sql(get_trn_qry, SQLALCHEMY_DATABASE_URL)
-            #         trn_val = (
-            #             list(vdr_trn_df["TRNNumber"])[0]
-            #             if "TRNNumber" in vdr_trn_df
-            #             and len(list(vdr_trn_df["TRNNumber"])) > 0
-            #             else ""
-            #         )
-            #         if trn_val == "":
-            #             dt["header"][tg][
-            #                 "status_message"
-            #             ] = "TRN is missing from Vendor metadata."
-            #             dt["header"][tg]["status"] = 0
-            #             trn_match_metadata = 0
-
-            #         vdr_trn = re.findall(r"\d+", trn_val)[0]
-            #         if len(vdr_trn) > 12:
-            #             trn_val = vdr_trn
-            #         else:
-            #             trn_val = ""
-            #             dt["header"][tg][
-            #                 "status_message"
-            #             ] = "TRN is missing from Vendor metadata."
-            #             dt["header"][tg]["status"] = 0
-            #         # else:
-            #         #     trn_match_metadata = 1
-            #         if trn_val != "" and trn_val != ocr_trn:
-            #             dt["header"][tg]["status_message"] = (
-            #                 "TRN not matching with vendor metadata("
-            #                 + str(trn_val)
-            #                 + ")."
-            #             )
-            #             dt["header"][tg]["status"] = 0
-            #             trn_match_metadata = 0
-
-            #         else:
-
-            #             dt["header"][tg]["status"] = 0
-            #             dt["header"][tg][
-            #                 "status_message"
-            #             ] = "Low Confidence, Please Review."
-
-            #     except Exception as trn_exp:
-            #         logger.error(f"trn exception:{trn_exp} ")
-            #         # print(trn_exp)
-            #         dt["header"][tg]["status_message"] = (
-            #             "Low Confidence, Meta data trn:" + str(trn_val) + ")."
-            #         )
-            #         dt["header"][tg]["status"] = 0
-
-            # if dt["header"][tg]["tag"] == "PurchaseOrder":
-            #     doc_po = dt["header"][tg]["data"]["value"]
-
-            #     formatted_po, po_status = po_cvn(doc_po, entityID)
-            #     dt["header"][tg]["data"]["value"] = formatted_po
-
-            #     po_doc = (
-            #         db.query(model.Document)
-            #         .filter(
-            #             model.Document.PODocumentID == formatted_po,
-            #             model.Document.idDocumentType == 1,
-            #         )
-            #         .first()
-            #     )
-            #     if po_status == 1:
-            #         dt["header"][tg]["status_message"] = "Please Review PO number."
-            #         dt["header"][tg]["status"] = 0
-            #     if po_doc is None:
-            #         dt["header"][tg]["status_message"] = "PO not found in Serina!"
-            #         dt["header"][tg]["status"] = 0
-
             try:
                 # metaVendorName, metaVendorAdd match check
                 if dt["header"][tg]["tag"] == "VendorName":
@@ -1563,9 +1424,8 @@ def postpro(
                 if dt["header"][tg]["tag"] == "VendorAddress":
                     doc_VendorAddress = dt["header"][tg]["data"]["value"]
 
-            except Exception as e:
-                print(f"Except in vendor name and address: {str(e)}")
-
+            except Exception:
+                logger.debug(traceback.format_exc())
             if subtotal_Cal == 1:
                 if dt["header"][tg]["tag"] == "InvoiceTotal":
                     invoiceTotal_rw = tb_cln_amt(dt["header"][tg]["data"]["value"])
@@ -1610,7 +1470,7 @@ def postpro(
             )
             logger.info(f"vndMth_ck: {vndMth_ck}")
         except Exception:
-            logger.error(traceback.format_exc())
+            logger.debug(traceback.format_exc())
             vndMth_ck = 0
             vndMth_address_ck = 0
 
@@ -1618,8 +1478,6 @@ def postpro(
             for rw in range(len(dt["tab"][row_cnt])):
                 dt["tab"][row_cnt][rw]["row_count"] = row_cnt + 1
         SubTotal_data = ""
-        # InvoiceTotal_val = ""  # TODO: Unused variable
-        # TotalTax = ""  # TODO: Unused variable
         for tg in range(len(dt["header"])):
 
             if dt["header"][tg]["tag"] == "VendorName":
@@ -1665,9 +1523,8 @@ def postpro(
                                 ] = "Vendor Name Mismatch with Master Data"
                                 dt["header"][tg]["status"] = 0
 
-                    except Exception as qw:
-                        logger.error(f"vendor name exception: {str(qw)}")
-                        logger.error(f" {traceback.format_exc()}")
+                    except Exception:
+                        logger.debug(f" {traceback.format_exc()}")
                         dt["header"][tg][
                             "status_message"
                         ] = "Vendor Name Mismatch with Master Data"
@@ -1691,8 +1548,7 @@ def postpro(
                 dt["header"][tg]["data"]["value"] = cln_amt(
                     dt["header"][tg]["data"]["value"]
                 )
-                # InvoiceTotal_val = dt["header"][tg]["data"]["value"]
-                # # TODO: Unused variable
+
                 fr_data = dt
             if dt["header"][tg]["tag"] == "SubTotal":
                 dt["header"][tg]["data"]["value"] = cln_amt(
@@ -1728,7 +1584,26 @@ def postpro(
                 dt["header"][tg]["data"]["value"] = cln_amt(
                     dt["header"][tg]["data"]["value"]
                 )
-                # TotalTax = dt["header"][tg]["data"]["value"]  # TODO: Unused variable
+
+                fr_data = dt
+
+            if dt["header"][tg]["tag"] in [
+                "GST",
+                "HST",
+                "PST",
+                "LitterDeposit",
+                "Fuel surcharge",
+                "ShipmentCharges",
+            ]:
+                try:
+                    dt["header"][tg]["data"]["value"] = cln_amt(
+                        dt["header"][tg]["data"]["value"]
+                    )
+
+                except Exception:
+                    logger.debug(traceback.format_exc())
+                    dt["header"][tg]["data"]["value"] = "0.00"
+
                 fr_data = dt
 
         present_header = []
@@ -1741,7 +1616,7 @@ def postpro(
             if "InvoiceTotal" not in present_header:
                 if SubTotal_data != "":
                     tmp = {}
-                    # tmp['tag'] = 'InvoiceTotal'
+
                     tmp = {
                         "tag": "InvoiceTotal",
                         "data": {
@@ -1755,27 +1630,9 @@ def postpro(
                     }
                     present_header.append("InvoiceTotal")
                     fr_data["header"].append(tmp)
-            # if "SubTotal" not in present_header:
-            #     if InvoTotal_data != "":
-            #         tmp = {}
-            #         # tmp['tag'] = 'InvoiceTotal'
-            #         tmp = {
-            #             "tag": "SubTotal",
-            #             "data": {
-            #                 "value": str(InvoTotal_data),
-            #                 "prebuilt_confidence": "0.0",
-            #                 "custom_confidence": "0.0",
-            #             },
-            #             "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
-            #             "status": 1,
-            #             "status_message": "Calculated Value",
-            #         }
-            #         present_header.append("InvoiceTotal")
-            #         fr_data["header"].append(tmp)
 
-        except Exception as e:
-            logger.error(f"postpro line 1347: {str(e)}")
-            logger.error(f" {traceback.format_exc()}")
+        except Exception:
+            logger.debug(f" {traceback.format_exc()}")
             # (str(e))
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
@@ -1795,14 +1652,13 @@ def postpro(
             fr_data["header"].append(tp_tg)
 
         if len(missing_header) >= (len(mandatory_header)):
-            # reject invoice
             fr_data = {}
             postprocess_msg = "Please check the document uploaded! - Model not found."
             postprocess_status = 0
-            logger.error(
-                "Please check the document uploaded! - Model not found:"
-                + f"{postprocess_msg}"
-            )
+            # logger.error(
+            #     "Please check the document uploaded! - Model not found:"
+            #     + f"{postprocess_msg}"
+            # )
 
         else:
             labels_not_present = []
@@ -1827,8 +1683,7 @@ def postpro(
         fr_data = {}
         postprocess_status = 0
         postprocess_msg = str(e)
-        logger.error(f" {traceback.format_exc()}")
-        logger.error(f"postpro line 1833: {postprocess_msg}")
+        logger.debug(f" {traceback.format_exc()}")
 
     try:
         sts_hdr_ck = 1
@@ -1850,15 +1705,14 @@ def postpro(
                             _s = fr_data["header"][0]["data"]["custom_confidence"]
                             _sPercent = float(_s) * 100
                             logger.info("confidence score:" + f"{_sPercent}")
-                    except Exception as tr:
-                        logger.error(f"postpro line 1856: {str(tr)} ")
-                        logger.error(f"postpro line 1856: {traceback.format_exc()}")
+                    except Exception:
+
+                        logger.debug(f"postpro : {traceback.format_exc()}")
                         sts_hdr_ck = 0
         else:
             sts_hdr_ck = 0
 
-    except Exception as qw:
-        logger.error(f"postpro line 1431 exception: {qw} , {sts_hdr_ck}")
+    except Exception:
         logger.error(f" {traceback.format_exc()}")
         sts_hdr_ck = 0
     return fr_data, postprocess_msg, postprocess_status, duplicate_status, sts_hdr_ck

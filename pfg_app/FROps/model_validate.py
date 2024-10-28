@@ -75,15 +75,22 @@ def model_validate(
                 model_accuracy = 100
                 model_id = data["modelInfo"]["modelId"]
                 trin_doc_path = ""
-                for fld in data["doc_types"][fr_modelid]["field_confidence"].keys():
-                    tag_list.append(fld)
-                    # check for field accuracy:
-                    if (
-                        (data["doc_types"][fr_modelid]["field_confidence"][fld]) * 100
-                    ) >= req_fields_accuracy:
-                        field_acc_status = field_acc_status * 1
-                    else:
-                        field_acc_status = field_acc_status * 0
+                if fr_modelid in data["doc_types"]:
+                    for fld in data["doc_types"][fr_modelid]["field_confidence"].keys():
+                        tag_list.append(fld)
+                        # check for field accuracy:
+                        if (
+                            (data["doc_types"][fr_modelid]["field_confidence"][fld])
+                            * 100
+                        ) >= req_fields_accuracy:
+                            field_acc_status = field_acc_status * 1
+                        else:
+                            field_acc_status = field_acc_status * 0
+                else:
+                    model_accuracy = 100
+                    model_id = data["modelInfo"]["modelId"]
+                    trin_doc_path = ""
+                    field_acc_status = 1
 
         if (model_accuracy) * 100 >= req_model_accuracy:
             model_accuracy_status = 1
