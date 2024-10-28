@@ -80,6 +80,14 @@ def runStatus(
     # user: AzureUser = Depends(get_user),
 ):
     try:
+        try:
+            # Regular expression pattern to find "DSD-" followed by digits
+            match = re.search(r"/DSD-\d+/", file_path)
+
+            # Extract mail_row_key if pattern is found, else assign None
+            mail_row_key = match.group(0).strip("/") if match else None
+        except Exception:
+            logger.error(f"Error in file path: {str(traceback.format_exc())}")
         # email_path = ""
         # subject = ""
         vendorAccountID = 0
@@ -91,6 +99,7 @@ def runStatus(
             emailbody_path=email_path,
             email_subject=subject,
             sender=sender,
+            mail_row_key=mail_row_key,
         )
 
         # Add the new entry to the session
