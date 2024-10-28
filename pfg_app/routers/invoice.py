@@ -551,8 +551,8 @@ async def get_frtrigger_data_by_splitdoc_id(
 async def get_email_row_associated_files(
     offset: int = 1,
     limit: int = 10,
-    mail_number: Optional[str] = None,
-    subject: Optional[str] = None,
+    uni_api_filter: Optional[str] = None,
+    column_filter: Optional[str] = None,
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
 ):
@@ -577,6 +577,6 @@ async def get_email_row_associated_files(
     """
 
     docs = await crud.get_email_row_associated_files(
-        user.idUser, (offset, limit), mail_number, subject, db
+        user.idUser, (offset, limit), uni_api_filter, column_filter, db
     )
     return docs

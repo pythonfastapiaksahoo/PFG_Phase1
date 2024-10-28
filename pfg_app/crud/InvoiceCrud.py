@@ -2125,7 +2125,9 @@ async def get_frtrigger_data_by_splitdoc_id(u_id, split_doc_id, db):
     return result
 
 
-async def get_email_row_associated_files(u_id, off_limit, mail_number, subject, db):
+async def get_email_row_associated_files(
+    u_id, off_limit, uni_api_filter, column_filter, db
+):
     """Function to retrieve SplitDocTab data for a specific splitdoc_id.
 
     Args:
@@ -2139,12 +2141,94 @@ async def get_email_row_associated_files(u_id, off_limit, mail_number, subject, 
         result: A dictionary containing the data from SplitDocTab rows.
     """
     base_query = db.query(model.SplitDocTab)
+    data_query = base_query
 
-    if mail_number:
-        data_query = base_query.filter(model.SplitDocTab.mail_row_key == mail_number)
+    # Function to normalize strings by removing non-alphanumeric
+    # characters and converting to lowercase
+    def normalize_string(input_str):
+        return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
 
-    if subject:
-        data_query = data_query.filter(model.SplitDocTab.subject.ilike(f"%{subject}%"))
+    # Apply universal API filter if provided, including line items
+    if uni_api_filter:
+        uni_search_param_list = uni_api_filter.split(":")
+        for param in uni_search_param_list:
+            # Normalize the user input filter
+            normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
+
+            # Create a pattern for the search with wildcards
+            pattern = f"%{normalized_filter}%"
+
+            filter_condition = or_(
+                normalize_string(model.SplitDocTab.emailbody_path).ilike(pattern),
+                normalize_string(model.SplitDocTab.sender).ilike(pattern),
+                cast(model.SplitDocTab.totalpagecount, String).ilike(
+                    f"%{uni_api_filter}%"
+                ),
+                func.to_char(
+                    model.SplitDocTab.updated_on, "Mon DD, YYYY, HH12:MI:SS PM"
+                ).ilike(f"%{uni_api_filter}%"),
+                normalize_string(model.SplitDocTab.mail_row_key).ilike(pattern),
+                # normalize_string(model.SplitDocTab.invoice_path).ilike(pattern),
+                normalize_string(model.SplitDocTab.status).ilike(pattern),
+                normalize_string(model.SplitDocTab.email_subject).ilike(pattern),
+                normalize_string(model.SplitDocTab.mail_row_key).ilike(pattern),
+            )
+            data_query = data_query.filter(filter_condition)
+
+    # Parse column-specific filter
+    if column_filter:
+        # Split the column_filter string by the colon
+        if ":" in column_filter:
+            column_name, search_value = column_filter.split(":", 1)
+
+            # Strip and normalize column_name and search_value
+            column_name = column_name.strip().lower()
+            search_value = search_value.strip()
+
+            # Normalize and handle specific column names (e.g., 'Total page count')
+            if column_name in ["total page count", "totalpagecount"]:
+                column_name = "totalpagecount"
+                data_query = data_query.filter(
+                    cast(model.SplitDocTab.totalpagecount, String).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "sender":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.sender).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "emailbody_path":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.emailbody_path).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "updated_on":
+                data_query = data_query.filter(
+                    func.to_char(
+                        model.SplitDocTab.updated_on, "Mon DD, YYYY, HH12:MI:SS PM"
+                    ).ilike(f"%{search_value}%")
+                )
+            elif column_name == "mail_row_key":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.mail_row_key).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "status":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.status).ilike(
+                        f"%{search_value}%"
+                    )
+                )
+            elif column_name == "email_subject":
+                data_query = data_query.filter(
+                    normalize_string(model.SplitDocTab.email_subject).ilike(
+                        f"%{search_value}%"
+                    )
+                )
 
     total_items = data_query.count()
 
@@ -2153,31 +2237,53 @@ async def get_email_row_associated_files(u_id, off_limit, mail_number, subject, 
     off_val = (offset - 1) * limit
 
     # Get the latest SplitDocTab rows in descending order and apply pagination
-    split_docs = data_query.offset(off_val).limit(limit).all()
+    split_docs = (
+        data_query.order_by(model.SplitDocTab.splitdoc_id.desc())
+        .offset(off_val)
+        .limit(limit)
+        .all()
+    )
 
     # Organize data by mail number
     organized_data = []
 
-    # Use a set to track unique eml file paths to avoid duplicates
-    eml_file_paths = set()
+    # Use a set to track unique base paths for each main entry
+    processed_base_paths = set()
 
     for split_doc in split_docs:
         mail_row_key = split_doc.mail_row_key
-
-        # If the path contains "EML", designate it as an eml entry
+        # Determine the base eml path
         if "EML" in split_doc.invoice_path:
-            # Set up the main eml entry if not already done
             base_eml_path = split_doc.invoice_path.rsplit("/", 1)[0] + ".eml"
-            if base_eml_path not in eml_file_paths:
-                eml_file_paths.add(base_eml_path)
-                organized_data.append(
-                    {
-                        "mail_number": mail_row_key,
-                        "file_path": base_eml_path,
-                        "type": "eml",
-                        "children": [],
-                    }
-                )
+        else:
+            base_eml_path = split_doc.invoice_path
+        # Add the base entry only if it hasn't been processed yet
+        if base_eml_path not in processed_base_paths:
+            processed_base_paths.add(base_eml_path)
+
+            # Set type based on path content
+            if "EML" in split_doc.invoice_path:
+                file_type = "eml"
+            elif split_doc.invoice_path.endswith(".pdf"):
+                file_type = "pdf"
+            elif split_doc.invoice_path.endswith(".jpg"):
+                file_type = "jpg"
+            elif split_doc.invoice_path.endswith(".png"):
+                file_type = "png"
+            else:
+                file_type = "unknown"  # Default case if neither condition is met
+
+            organized_data.append(
+                {
+                    "mail_number": mail_row_key,
+                    "splitdoc_id": split_doc.splitdoc_id,
+                    "total_page_count": split_doc.totalpagecount,
+                    "sender": split_doc.sender,
+                    "file_path": base_eml_path,
+                    "type": file_type,
+                    "children": [],
+                }
+            )
 
         # Query to get all rows from fr_trigger_tab associated with the splitdoc_id
         fr_trigger_tab = (
@@ -2191,7 +2297,6 @@ async def get_email_row_associated_files(u_id, off_limit, mail_number, subject, 
             {
                 "filepath": fr.blobpath,
                 "type": "pdf",
-                "associated_invoice_file": None,
                 "document_id": fr.documentid,
                 "status": fr.status,
                 "file_size": fr.filesize,
@@ -2208,12 +2313,12 @@ async def get_email_row_associated_files(u_id, off_limit, mail_number, subject, 
             ),
         }
 
-        # Append each child `pdf` file under the respective parent `eml`
+        # Append each child under the respective main parent
         for eml_entry in organized_data:
             if eml_entry["file_path"] == base_eml_path:
                 eml_entry["children"].append(file_info)
 
     # Convert organized data to the desired output format
-    result = {"Number of Attachments": total_items, "data": organized_data}
+    result = {"Total Count": total_items, "data": organized_data}
 
     return result
