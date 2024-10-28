@@ -916,10 +916,10 @@ def runStatus(
                                     strCk_isErr = 0
                                     strCk_msg = "Store Number Not Matching"
 
-                            except Exception as e:
+                            except Exception:
                                 logger.debug(f"{traceback.format_exc()}")
                                 strCk_isErr = 1
-                                strCk_msg = "Error:" + str(e)
+                                strCk_msg = "Invalid store number"
                         else:
                             storenumber = "N/A"
                             strCk_isErr = 1
