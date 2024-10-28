@@ -2244,46 +2244,19 @@ async def get_email_row_associated_files(
         .all()
     )
 
-    # Organize data by mail number
-    organized_data = []
-
-    # Use a set to track unique base paths for each main entry
-    processed_base_paths = set()
-
+    # Response data structure
+    mail_data_list = []
     for split_doc in split_docs:
-        mail_row_key = split_doc.mail_row_key
-        # Determine the base eml path
-        if "EML" in split_doc.invoice_path:
-            base_eml_path = split_doc.invoice_path.rsplit("/", 1)[0] + ".eml"
-        else:
-            base_eml_path = split_doc.invoice_path
-        # Add the base entry only if it hasn't been processed yet
-        if base_eml_path not in processed_base_paths:
-            processed_base_paths.add(base_eml_path)
+        base_eml_path = split_doc.invoice_path.rsplit("/", 1)[0] + ".eml"
 
-            # Set type based on path content
-            if "EML" in split_doc.invoice_path:
-                file_type = "eml"
-            elif split_doc.invoice_path.endswith(".pdf"):
-                file_type = "pdf"
-            elif split_doc.invoice_path.endswith(".jpg"):
-                file_type = "jpg"
-            elif split_doc.invoice_path.endswith(".png"):
-                file_type = "png"
-            else:
-                file_type = "unknown"  # Default case if neither condition is met
-
-            organized_data.append(
-                {
-                    "mail_number": mail_row_key,
-                    "splitdoc_id": split_doc.splitdoc_id,
-                    "total_page_count": split_doc.totalpagecount,
-                    "sender": split_doc.sender,
-                    "file_path": base_eml_path,
-                    "type": file_type,
-                    "children": [],
-                }
-            )
+        mail_data = {
+            "mail_number": split_doc.mail_row_key,
+            "splitdoc_id": split_doc.splitdoc_id,
+            "total_page_count": split_doc.totalpagecount,
+            "sender": split_doc.sender,
+            "email_path": base_eml_path,
+            "children": [],
+        }
 
         # Query to get all rows from fr_trigger_tab associated with the splitdoc_id
         fr_trigger_tab = (
@@ -2291,34 +2264,23 @@ async def get_email_row_associated_files(
             .filter(model.frtrigger_tab.splitdoc_id == split_doc.splitdoc_id)
             .all()
         )
-
-        # Prepare associated_invoice_file structure with details from fr_trigger_tab
-        associated_invoice_files = [
-            {
+        for fr in fr_trigger_tab:
+            child = {
+                "file_path": split_doc.invoice_path,
+                "type": "pdf" if split_doc.invoice_path.endswith(".pdf") else "eml",
+                "associated_invoice_file": [],
+            }
+            # Prepare associated_invoice_file structure with details from fr_trigger_tab
+            associated_invoice_files = {
                 "filepath": fr.blobpath,
                 "type": "pdf",
                 "document_id": fr.documentid,
                 "status": fr.status,
                 "file_size": fr.filesize,
             }
-            for fr in fr_trigger_tab
-        ]
+            child["associated_invoice_file"].append(associated_invoice_files)
 
-        # Create file info for each SplitDocTab entry
-        file_info = {
-            "file_path": split_doc.invoice_path,
-            "type": "pdf" if split_doc.invoice_path.endswith(".pdf") else "eml",
-            "associated_invoice_file": (
-                associated_invoice_files if associated_invoice_files else None
-            ),
-        }
+        mail_data["children"].append(child)
+        mail_data_list.append(mail_data)
 
-        # Append each child under the respective main parent
-        for eml_entry in organized_data:
-            if eml_entry["file_path"] == base_eml_path:
-                eml_entry["children"].append(file_info)
-
-    # Convert organized data to the desired output format
-    result = {"Total Count": total_items, "data": organized_data}
-
-    return result
+    return {"total_items": total_items, "data": mail_data_list}
