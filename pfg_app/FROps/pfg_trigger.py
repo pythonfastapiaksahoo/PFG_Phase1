@@ -911,6 +911,22 @@ def pfg_sync(docID, userID, db: Session):
                         totalCheck_msg.append(invTotalMth_msg)
                         totalCheck = 0
 
+                        try:
+                            docInvoTotalTag = tagNames["InvoiceTotal"]
+                            db.query(model.DocumentData).filter(
+                                model.DocumentData.documentID == docID,
+                                model.DocumentData.documentTagDefID == docInvoTotalTag,
+                            ).update(
+                                {
+                                    model.DocumentData.isError: 1,
+                                    model.DocumentData.ErrorDesc: invTotalMth_msg,
+                                }
+                            )
+                            db.commit()
+
+                        except Exception:
+                            logger.debug(traceback.format_exc())
+
                     docStatusSync["OCR Validations"] = {
                         "status": ocrCheck,
                         "response": ocrCheck_msg,

@@ -18,23 +18,29 @@ def get_open_ai_token():
 
 
 def stampDataFn(blob_data, prompt):
+    image_content = []
     pdf_img = convert_from_bytes(blob_data)
     # pdf_img = convert_from_bytes(
     #     blob_data, poppler_path=r"C:\\poppler-24.07.0\\Library\\bin"
     # )
-    buffered = BytesIO()
-    pdf_img[0].save(buffered, format="JPEG")
-    encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
+    for page in pdf_img:
+
+        buffered = BytesIO()
+        page.save(buffered, format="JPEG")
+        encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
+        image_content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
+            }
+        )
     data = {
         "messages": [
             {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
-                    },
+                    *image_content,
                 ],
             }
         ],
@@ -52,6 +58,7 @@ def stampDataFn(blob_data, prompt):
     )
 
     # Check and process the response
+
     if response.status_code == 200:
         result = response.json()
         for choice in result["choices"]:
@@ -74,7 +81,7 @@ def stampDataFn(blob_data, prompt):
             stampData = json.loads(cl_data_corrected)
         except BaseException:
             stampData = cl_data
-    # print(stampData)
+
     return stampData
 
 
