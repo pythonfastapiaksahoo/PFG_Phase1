@@ -131,6 +131,7 @@ class Document(Base):
     # last_rule_run = Column(JSON, nullable=True)
     store = Column(TEXT, nullable=True)
     dept = Column(TEXT, nullable=True)
+    voucher_id = Column(String, nullable=True)
     # __mapper_args__ = {"eager_defaults": True}
 
 
@@ -1448,6 +1449,10 @@ class VoucherData(Base):
     Deptid = Column(String(10), nullable=True)
     Image_Nbr = Column(Integer, nullable=True)
     File_Name = Column(String, nullable=True)
+    storenumber = Column(Integer, nullable=True)
+    storetype = Column(String, nullable=True)
+    receiver_id = Column(String, nullable=True)
+    status = Column(String, nullable=True)
 
 
 class NonintegratedStores(Base):

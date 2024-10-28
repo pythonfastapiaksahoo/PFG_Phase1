@@ -94,7 +94,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "ven": (
                 model.Vendor,
                 model.VendorAccount,
-                Load(model.Vendor).load_only("VendorName", "Address"),
+                Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
                 Load(model.VendorAccount).load_only("Account"),
             ),
         }
@@ -121,7 +121,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     "store",
                     "dept",
                     "documentDate",
-                    "documentDescription",
+                    "voucher_id",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
@@ -242,6 +242,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     normalize_string(model.Document.UploadDocType).ilike(pattern),
                     normalize_string(model.Document.store).ilike(pattern),
                     normalize_string(model.Document.dept).ilike(pattern),
+                    normalize_string(model.Document.voucher_id).ilike(pattern),
                     normalize_string(model.Vendor.VendorName).ilike(pattern),
                     normalize_string(model.Vendor.Address).ilike(pattern),
                     normalize_string(model.DocumentSubStatus.status).ilike(pattern),
@@ -915,13 +916,11 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
             items = dict(items)
             items["UpdatedOn"] = UpdatedOn
             items["documentColumnPos"] = items.pop("ColumnPos")
-            # result = (
-            #     db.query(model.DocumentColumnPos)
-            #     .filter_by(idDocumentColumn=items.pop("idtabColumn"))
-            #     .filter_by(uid=u_id)
-            #     .filter_by(tabtype=tabtype)
-            #     .update(items)
-            # )  # TODO: Unused variable
+            result = (
+                db.query(model.DocumentColumnPos)
+                .filter_by(idDocumentColumn=items.pop("idtabColumn"))
+                .update(items)
+            )  # TODO: Unused variable
         db.commit()
         return {"result": "updated"}
     except Exception:

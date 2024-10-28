@@ -861,11 +861,25 @@ def pfg_sync(docID, userID, db: Session):
                                 dateCheck_msg = (
                                     "Invoice date is invalid, Please review."
                                 )
-                            if formatted_date != date_string:
+                            if (dateValCk == 1) and (formatted_date != date_string):
                                 # updating formatted date string:
+                                docDateTag = tagNames["InvoiceDate"]
                                 try:
-                                    print(formatted_date)
-                                    print(date_string)
+                                    db.query(model.DocumentData).filter(
+                                        model.DocumentData.documentID == docID,
+                                        model.DocumentData.documentTagDefID
+                                        == docDateTag,
+                                    ).update({model.DocumentData.Value: formatted_date})
+                                    db.commit()
+
+                                    db.query(model.Document).filter(
+                                        model.Document.idDocument == docID,
+                                    ).update(
+                                        {model.Document.documentDate: formatted_date}
+                                    )
+                                    db.commit()
+                                    # print(formatted_date)
+                                    # print(date_string)
 
                                 except Exception:
                                     logger.debug(traceback.format_exc())
@@ -896,6 +910,22 @@ def pfg_sync(docID, userID, db: Session):
                     else:
                         totalCheck_msg.append(invTotalMth_msg)
                         totalCheck = 0
+
+                        try:
+                            docInvoTotalTag = tagNames["InvoiceTotal"]
+                            db.query(model.DocumentData).filter(
+                                model.DocumentData.documentID == docID,
+                                model.DocumentData.documentTagDefID == docInvoTotalTag,
+                            ).update(
+                                {
+                                    model.DocumentData.isError: 1,
+                                    model.DocumentData.ErrorDesc: invTotalMth_msg,
+                                }
+                            )
+                            db.commit()
+
+                        except Exception:
+                            logger.debug(traceback.format_exc())
 
                     docStatusSync["OCR Validations"] = {
                         "status": ocrCheck,
