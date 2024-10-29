@@ -2113,7 +2113,7 @@ async def get_email_row_associated_files(
 
             # Build attachment data
             mail_data["attachment_count"] += 1
-            mail_data["total_page_count"] += split_doc.totalpagecount
+            mail_data["total_page_count"] += split_doc.totalpagecount or 0
 
             # Build attachment data
             file_extension = split_doc.invoice_path.split(".")[-1].lower()
@@ -2125,7 +2125,7 @@ async def get_email_row_associated_files(
             child = {
                 "file_path": split_doc.invoice_path,
                 "type": file_type,
-                "total_page_count": split_doc.totalpagecount,
+                "total_page_count": split_doc.totalpagecount or 0,
                 "pages_processed": split_doc.pages_processed,
                 "created_on": split_doc.updated_on,
                 "file_status": split_doc.status,
