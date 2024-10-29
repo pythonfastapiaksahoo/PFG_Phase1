@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import Depends, HTTPException, status
 
-# from pfg_app.azuread.AzureADAuthorization import authorize
+from pfg_app.azuread.AzureADAuthorization import authorize
 from pfg_app.azuread.schemas import AzureUser
 from pfg_app.model import User
 from pfg_app.session.session import Session, get_db
@@ -18,7 +18,7 @@ class ForbiddenAccess(HTTPException):
 
 
 def get_user(
-    # user: AzureUser = Depends(authorize),
+    user: AzureUser = Depends(authorize),
     db: Session = Depends(get_db),
 ) -> AzureUser:
 
@@ -46,9 +46,7 @@ def get_user(
     return user_in_db
 
 
-def get_admin_user(
-    # user: AzureUser = Depends(authorize)
-) -> AzureUser:
+def get_admin_user(user: AzureUser = Depends(authorize)) -> AzureUser:
     user = AzureUser(
         id="generic_id",
         name="Test User",
