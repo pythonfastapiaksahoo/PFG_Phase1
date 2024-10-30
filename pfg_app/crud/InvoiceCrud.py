@@ -2057,6 +2057,7 @@ async def get_email_row_associated_files(
         # Step 1: Get unique mail_row_keys with pagination
         unique_mail_keys_query = (
             data_query.with_entities(model.SplitDocTab.mail_row_key)
+            .order_by(model.SplitDocTab.splitdoc_id.desc())
             .distinct()
             .offset(off_val)
             .limit(limit)
