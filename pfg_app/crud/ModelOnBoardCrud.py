@@ -71,6 +71,9 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
             .filter(model.DocumentModel.folderPath == folderpath)
             .all()
         )
+        idVendorAccount = db.query(model.DocumentModel.idVendorAccount).filter(model.DocumentModel.idDocumentModel == modelID).scalar()
+        db.query(model.DocumentModel).filter(model.DocumentModel.idVendorAccount == idVendorAccount,model.DocumentModel.idDocumentModel != modelID).update({"is_active": 0})
+        db.commit()
         configs = getOcrParameters(1, db)
         containerName = configs.ContainerName
         account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
