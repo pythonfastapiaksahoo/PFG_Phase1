@@ -1088,6 +1088,7 @@ def getModelData(vendorAccountID, db):
         modelData = (
             db.query(model.DocumentModel)
             .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
+            .filter(model.DocumentModel.is_active == 1)
             .order_by(model.DocumentModel.UpdatedOn)
             .all()
         )
