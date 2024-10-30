@@ -383,6 +383,7 @@ async def download_documents(
             {
                 "Invoice Number": doc.Document.docheaderID,
                 "Vendor Name": doc.Vendor.VendorName if doc.Vendor else None,
+                "Vendor Code": doc.Vendor.VendorCode if doc.Vendor else None,
                 "Vendor Address": doc.Vendor.Address if doc.Vendor else None,
                 "Amount": doc.Document.totalAmount,
                 "Confirmation Number": doc.Document.JournalNumber,
@@ -396,6 +397,7 @@ async def download_documents(
                 "Store": doc.Document.store,
                 "Department": doc.Document.dept,
                 "Upload Date": created_on,
+                "Voucher ID": doc.Document.voucher_id,
             }
         )
 
@@ -448,74 +450,6 @@ async def update_rejected_invoice_status(
     return await crud.reject_invoice(user.idUser, inv_id, reason, db)
 
 
-# Checked (new) - used in the frontend
-@router.get("/readSplitDocdata")
-async def read_splitdoc_data(
-    offset: int = 1,
-    limit: int = 10,
-    uni_search: Optional[str] = None,
-    column_filters: Optional[str] = None,
-    db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
-):
-    """API route to retrieve a paginated list of invoice documents with line
-    item details as optional when filters is applied  .
-
-    Parameters:
-    ----------
-
-    offset : int
-        The page number for pagination (default is 1).
-
-    limit : int
-        Number of records per page (default is 10).
-
-    db : Session
-        Database session object, used to interact with the database.
-
-    Returns:
-    -------
-    List of invoice documents filtered and paginated according to the input parameters.
-    """
-
-    docs = await crud.get_all_splitdoc_data(
-        user.idUser, (offset, limit), uni_search, column_filters, db
-    )
-    return docs
-
-
-# Checked (new) - used in the frontend
-@router.get("/readFRtriggerTabData/{split_id}")
-async def get_frtrigger_data_by_splitdoc_id(
-    split_id: int,
-    db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
-):
-    """API route to retrieve a paginated list of invoice documents with line
-    item details as optional when filters is applied  .
-
-    Parameters:
-    ----------
-
-    offset : int
-        The page number for pagination (default is 1).
-
-    limit : int
-        Number of records per page (default is 10).
-
-    db : Session
-        Database session object, used to interact with the database.
-
-    Returns:
-    -------
-    List of invoice documents filtered and paginated according to the input parameters.
-    """
-
-    docs = await crud.get_frtrigger_data_by_splitdoc_id(user.idUser, split_id, db)
-    return docs
-
-
-# Checked (new) - used in the frontend
 @router.get("/getEmailRowAssociatedFiles")
 async def get_email_row_associated_files(
     offset: int = 1,

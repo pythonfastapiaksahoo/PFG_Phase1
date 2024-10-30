@@ -41,7 +41,7 @@ if settings.build_type not in ["debug"]:
         {"client_secret": "APPORTAL-CLIENT-SECRET"},
         # {"key_vault_url": "APPORTAL-KEY-VAULT-URL"},
         # {"open_ai_endpoint": "APPORTAL-OPEN-AI-ENDPOINT"},
-        # {"storage_account_name": "APPORTAL-STORAGE-ACCOUNT-NAME"},
+        {"storage_account_name": "AZURE-STORAGE-ACCOUNT-NAME"},
         {"erp_url": "APPORTAL-ERP-URL"},
         {"erp_invoice_import_endpoint": "APPORTAL-ERP-INVOICE-IMPORT-ENDPOINT"},
         {"erp_invoice_status_endpoint": "APPORTAL-ERP-INVOICE-STATUS-ENDPOINT"},
