@@ -138,23 +138,28 @@ async def get_tagging_details(
     finally:
         db.close()
 
+
 @router.get("/get_model_status/{idDocumentModel}")
-async def get_model_status(idDocumentModel: int,db: Session = Depends(get_db)):
-    """
-    This route returns the status of the model.
+async def get_model_status(idDocumentModel: int, db: Session = Depends(get_db)):
+    """This route returns the status of the model.
+
     0 - Inactive
     1 - Active
     """
-    return crud.get_model_status(idDocumentModel,db)
+    return crud.get_model_status(idDocumentModel, db)
+
 
 @router.post("/update_model_status/{idDocumentModel}/{is_active}")
-async def update_model_status(idDocumentModel: int,is_active: int,db: Session = Depends(get_db)):
-    """
-    This route updates the status of the model.
+async def update_model_status(
+    idDocumentModel: int, is_active: int, db: Session = Depends(get_db)
+):
+    """This route updates the status of the model.
+
     success - if the status is updated successfully
     exception - if there is an exception
     """
-    return crud.update_model_status(idDocumentModel,is_active,db)
+    return crud.update_model_status(idDocumentModel, is_active, db)
+
 
 # Checked - used in the frontend
 @router.get("/get_labels_info/{filename}")
