@@ -1943,22 +1943,22 @@ async def get_email_row_associated_files(
         result: A dictionary containing grouped data from SplitDocTab rows.
     """
     try:
-        base_query = db.query(model.SplitDocTab)
+        base_query = db.query(model.SplitDocTab).filter(
+            model.SplitDocTab.mail_row_key != "NULL"
+        )
         data_query = base_query
 
-        # Function to normalize strings by removing non-alphanumeric characters
-        # and converting to lowercase
+        # Helper function for case-insensitive, alphanumeric normalization
         def normalize_string(input_str):
             return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
 
-        # Apply universal API filter if provided, including line items
+        # Apply universal API filter if provided
         if uni_api_filter:
             try:
                 uni_search_param_list = uni_api_filter.split(":")
                 for param in uni_search_param_list:
                     normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
                     pattern = f"%{normalized_filter}%"
-
                     filter_condition = or_(
                         normalize_string(model.SplitDocTab.emailbody_path).ilike(
                             pattern
@@ -1975,7 +1975,6 @@ async def get_email_row_associated_files(
                         normalize_string(model.SplitDocTab.email_subject).ilike(
                             pattern
                         ),
-                        normalize_string(model.SplitDocTab.mail_row_key).ilike(pattern),
                     )
                     data_query = data_query.filter(filter_condition)
             except (AttributeError, TypeError, ValueError):
@@ -1983,7 +1982,7 @@ async def get_email_row_associated_files(
                     f"Error processing universal API filter: {str(traceback.format_exc())}"  # noqa: E501
                 )
 
-        # Parse column-specific filter
+        # Apply column-specific filter if provided
         if column_filter:
             try:
                 if ":" in column_filter:
@@ -1992,7 +1991,6 @@ async def get_email_row_associated_files(
                     search_value = search_value.strip()
 
                     if column_name in ["total page count", "totalpagecount"]:
-                        column_name = "totalpagecount"
                         data_query = data_query.filter(
                             cast(model.SplitDocTab.totalpagecount, String).ilike(
                                 f"%{search_value}%"
@@ -2039,14 +2037,6 @@ async def get_email_row_associated_files(
                 logger.error(
                     f"Error processing column filter: {str(traceback.format_exc())}"
                 )
-        # Try to get total items count
-        try:
-            total_items = data_query.count()
-        except SQLAlchemyError:
-            logger.error(
-                f"Database error while counting items: {str(traceback.format_exc())}"
-            )
-            total_items = 0  # Default to zero if there's an error
 
         # Extract offset and limit for pagination
         try:
@@ -2057,32 +2047,47 @@ async def get_email_row_associated_files(
                 f"Invalid pagination parameters: {str(traceback.format_exc())}"
             )
             off_val = 0
-            limit = 10  # Default values in case of error
+            limit = 10
 
-        # Retrieve split docs with pagination
-        try:
-            split_docs = (
-                data_query.order_by(model.SplitDocTab.splitdoc_id.desc())
-                .offset(off_val)
-                .limit(limit)
-                .all()
-            )
-        except SQLAlchemyError:
-            logger.error(
-                f"Database error while retrieving data: {str(traceback.format_exc())}"
-            )
-            split_docs = []  # Return an empty list if there's an error
+        # Main query to retrieve all records with the applied filters and pagination
+        # Count total unique mail_row_keys
+        total_items = (
+            data_query.with_entities(model.SplitDocTab.mail_row_key).distinct().count()
+        )
+        # Step 1: Get unique mail_row_keys with pagination
+        unique_mail_keys_query = (
+            data_query.with_entities(model.SplitDocTab.mail_row_key)
+            .distinct()
+            .offset(off_val)
+            .limit(limit)
+        )
 
-        # Dictionary to hold grouped mail data
+        unique_mail_keys = unique_mail_keys_query.all()
+
+        # Step 2: Retrieve all splitdoc_ids for the selected unique mail_row_keys
+        if unique_mail_keys:
+            unique_mail_keys_list = [key[0] for key in unique_mail_keys]
+
+            all_split_docs_query = (
+                db.query(model.SplitDocTab)
+                .filter(model.SplitDocTab.mail_row_key.in_(unique_mail_keys_list))
+                .order_by(model.SplitDocTab.splitdoc_id.desc())
+            )
+
+            unique_split_docs = all_split_docs_query.all()
+
+        else:
+            unique_split_docs = []
+
         grouped_mail_data = {}
 
         # Process each split_doc entry
-        for split_doc in split_docs:
+        for split_doc in unique_split_docs:
             base_eml_path = split_doc.invoice_path.rsplit("/", 1)[0] + ".eml"
             mail_number = split_doc.mail_row_key
 
-            # Define a new mail data structure if mail_number is not
-            # in grouped_mail_data
+            # Define a new mail data structure if mail_number is
+            # not in grouped_mail_data
             if mail_number not in grouped_mail_data:
                 mail_data = {
                     "mail_number": mail_number,
@@ -2090,12 +2095,11 @@ async def get_email_row_associated_files(
                     "sender": split_doc.sender,
                     "email_subject": split_doc.email_subject,
                     "attachment_count": 0,
-                    "total_page_count": 0,
+                    "overall_page_count": 0,
                     "attachment": [],
                 }
                 grouped_mail_data[mail_number] = mail_data
             else:
-                # If entry already exists, retrieve it
                 mail_data = grouped_mail_data[mail_number]
 
             # Retrieve fr_trigger_tab entries for each split_doc
@@ -2111,9 +2115,8 @@ async def get_email_row_associated_files(
                 )
                 fr_trigger_tab = []
 
-            # Build attachment data
             mail_data["attachment_count"] += 1
-            mail_data["total_page_count"] += split_doc.totalpagecount or 0
+            mail_data["overall_page_count"] += split_doc.totalpagecount or 0
 
             # Build attachment data
             file_extension = split_doc.invoice_path.split(".")[-1].lower()
@@ -2128,32 +2131,25 @@ async def get_email_row_associated_files(
                 "total_page_count": split_doc.totalpagecount or 0,
                 "pages_processed": split_doc.pages_processed,
                 "created_on": split_doc.updated_on,
-                "file_status": split_doc.status,
+                "status": split_doc.status,
                 "associated_invoice_file": [],
             }
 
             for fr in fr_trigger_tab:
-                file_extension = fr.blobpath.split(".")[-1].lower()
-                file_type = (
-                    file_extension
-                    if file_extension in ["pdf", "jpg", "png"]
-                    else "unknown"
-                )
                 associated_invoice_files = {
                     "filepath": fr.blobpath,
-                    "type": file_type,
+                    "type": file_extension,
                     "document_id": fr.documentid,
-                    "invoice_status": fr.status,
+                    "status": fr.status,
                     "file_size": fr.filesize,
                     "vendor_id": fr.vendorID,
                     "page_number": fr.page_number,
                 }
                 child["associated_invoice_file"].append(associated_invoice_files)
 
-            # Append the new attachment to the mail data
+            # Append each distinct attachment as a separate entry
             mail_data["attachment"].append(child)
 
-        # Prepare final data structure
         return {"total_items": total_items, "data": list(grouped_mail_data.values())}
 
     except Exception:
