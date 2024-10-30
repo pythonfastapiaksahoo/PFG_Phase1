@@ -44,6 +44,9 @@ def stampDataFn(blob_data, prompt):
                 ],
             }
         ],
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "max_tokens": 800,
     }
 
     # Make the API call to Azure OpenAI
