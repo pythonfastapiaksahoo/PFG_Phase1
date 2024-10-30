@@ -53,6 +53,7 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
                 model.DocumentModel.folderPath == folderpath
             ).update(
                 {
+                    "is_active": 1,
                     "modelID": invoiceData["ModelID"],
                     "training_result": trainingresut,
                     "test_result": json.dumps(invoiceData["TestResult"]),
@@ -62,7 +63,7 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
             db.query(model.DocumentModel).filter(
                 model.DocumentModel.folderPath == folderpath
             ).update(
-                {"modelID": invoiceData["ModelID"], "training_result": trainingresut}
+                {"is_active": 1, "modelID": invoiceData["ModelID"], "training_result": trainingresut}
             )
         db.commit()
         all_models = (
@@ -70,6 +71,9 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
             .filter(model.DocumentModel.folderPath == folderpath)
             .all()
         )
+        idVendorAccount = db.query(model.DocumentModel.idVendorAccount).filter(model.DocumentModel.idDocumentModel == modelID).scalar()
+        db.query(model.DocumentModel).filter(model.DocumentModel.idVendorAccount == idVendorAccount,model.DocumentModel.idDocumentModel != modelID).update({"is_active": 0})
+        db.commit()
         configs = getOcrParameters(1, db)
         containerName = configs.ContainerName
         account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
@@ -105,6 +109,17 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
     finally:
         db.close()
 
+def get_model_status(idDocumentModel,db):
+    return db.query(model.DocumentModel.is_active).filter(model.DocumentModel.idDocumentModel == idDocumentModel).scalar()
+
+def update_model_status(idDocumentModel,is_active,db):
+    try:
+        db.query(model.DocumentModel).filter(model.DocumentModel.idDocumentModel == idDocumentModel).update({"is_active": is_active})
+        db.commit()
+        return "success"
+    except Exception:
+        logger.error(traceback.format_exc())
+        return "exception"
 
 def cleanupTags(modelID, db):
     # delete any exisiting tag definitions
