@@ -320,9 +320,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
                             or_(
                                 model.PFGDepartment.DESCR.in_([stmpDept]),
                                 model.PFGDepartment.DESCRSHORT == stmpDept,
-                                model.PFGDepartment.DESCRSHORT.like(
-                                    "%" + stmpDept + "%"
-                                ),
+                                model.PFGDepartment.DESCRSHORT.ilike(f"%{stmpDept}%"),
                             )
                         )
                         .all()

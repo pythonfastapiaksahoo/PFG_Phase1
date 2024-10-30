@@ -199,53 +199,107 @@ def splitDoc(
                 logger.error(f"Error processing a page: {e}")
                 logger.error(f"{traceback.format_exc()}")
 
-    pageInvoDate = {}
+    pageInvoData = {}
     # data_serialized = serialize_dates(output_data)
     # with open("data.json", "w") as f:
     #     json.dump(data_serialized, f, indent=4)
 
     try:
-
+        pageInvoVendorData = {}
         for i in output_data_dt.keys():
-            pageInvoDate[i] = output_data_dt[i]["documents"][0]["fields"]["InvoiceId"][
+            if "InvoiceId" in output_data_dt[i]["documents"][0]["fields"]:
+                if (
+                    "content"
+                    in output_data_dt[i]["documents"][0]["fields"]["InvoiceId"]
+                ):
+                    invoId = output_data_dt[i]["documents"][0]["fields"]["InvoiceId"][
+                        "content"
+                    ]
+                    if (
+                        "confidence"
+                        in output_data_dt[i]["documents"][0]["fields"]["InvoiceId"]
+                    ):
+                        invoConf = output_data_dt[i]["documents"][0]["fields"][
+                            "InvoiceId"
+                        ]["confidence"]
+                    else:
+                        invoConf = 0.0
+                else:
+                    invoId = ""
+                    invoConf = 0.0
+            else:
+                invoId = ""
+                invoConf = 0.0
+
+            if "VendorName" in output_data_dt[i]["documents"][0]["fields"]:
+                if (
+                    "content"
+                    in output_data_dt[i]["documents"][0]["fields"]["VendorName"]
+                ):
+                    vndrName = output_data_dt[i]["documents"][0]["fields"][
+                        "VendorName"
+                    ]["content"]
+                    if (
+                        "confidence"
+                        in output_data_dt[i]["documents"][0]["fields"]["InvoiceId"]
+                    ):
+                        VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
+                            "InvoiceId"
+                        ]["confidence"]
+                    else:
+                        VndrNmConf = 0.0
+                else:
+                    VndrNmConf = 0.0
+                    vndrName = ""
+            else:
+                VndrNmConf = 0.0
+                vndrName = ""
+
+            pageInvoVendorData[i] = {
+                "InvoiceId": [invoId, invoConf],
+                "VendorName": [vndrName, VndrNmConf],
+            }
+
+            pageInvoData[i] = output_data_dt[i]["documents"][0]["fields"]["InvoiceId"][
                 "content"
             ]
     except Exception as er:
         logger.error(f"{traceback.format_exc()}")
         logger.info(f"Exception splitDoc line 261: {er}")
-    grouped_dict = {}
-    sndChk = 0
-    for key, value in pageInvoDate.items():
-        if value not in grouped_dict:
-            grouped_dict[value] = []
-        grouped_dict[value].append(key)
 
-    input_list = list(grouped_dict.values())
-    output_list = []
+    # grouped_dict = {}
+    # sndChk = 0
+    # for key, value in pageInvoData.items():
+    #     if value not in grouped_dict:
+    #         grouped_dict[value] = []
+    #     grouped_dict[value].append(key)
 
-    for itm in input_list:
-        if len(itm) == 1:
-            # break
-            output_list.append((itm[0], itm[0]))
-        if len(itm) > 1:
-            output_list.append((itm[0], itm[-1]))
+    # input_list = list(grouped_dict.values())
+    # output_list = []
 
-    # output_list = [
-    #     (item[0], item[1]) if len(item) == 2 else (item[0], item[0])
-    #     for item in input_list
-    # ]
-    logger.info(f"input_list:  {output_list}")
+    # for itm in input_list:
+    #     if len(itm) == 1:
+    #         # break
+    #         output_list.append((itm[0], itm[0]))
+    #     if len(itm) > 1:
+    #         output_list.append((itm[0], itm[-1]))
 
-    pgVal = []
-    for pgvl in grouped_dict:
-        pgVal.append(grouped_dict[pgvl][0])
-        # print(grouped_dict[pgvl])
-    if "" in grouped_dict:
-        # print(grouped_dict[''])
-        pgVal = list(set(pgVal + grouped_dict[""]))
-    if len(pgVal) == len(output_data):
-        sndChk = 1
-    # if sndChk == 1:
+    # # output_list = [
+    # #     (item[0], item[1]) if len(item) == 2 else (item[0], item[0])
+    # #     for item in input_list
+    # # ]
+    # logger.info(f"input_list:  {output_list}")
+
+    # pgVal = []
+    # for pgvl in grouped_dict:
+    #     pgVal.append(grouped_dict[pgvl][0])
+    #     # print(grouped_dict[pgvl])
+    # if "" in grouped_dict:
+    #     # print(grouped_dict[''])
+    #     pgVal = list(set(pgVal + grouped_dict[""]))
+    # if len(pgVal) == len(output_data):
+    #     sndChk = 1
+    # # if sndChk == 1:
     prbtHeaders = {}
     rwOcrData = []
     # print(len(output_data))
@@ -280,59 +334,40 @@ def splitDoc(
                     logger.error(f"{traceback.format_exc()}")
         prbtHeaders[docPg] = prbtHeaderspg
 
-    if sndChk == 1:
-        grouped_pages = group_pages(prbtHeaders)
-
-        splitpgsDt = [
-            (x[0] + 1, x[0] + 1) if len(x) == 1 else tuple(y + 1 for y in x)
-            for x in grouped_pages
-        ]
-        if len(splitpgsDt) == 1:
-            if splitpgsDt[0][0] != splitpgsDt[0][1]:
-                if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
-                    #     # Unpack the tuple and create a list of tuples (n, n)
-                    grp_pages = [(i, i) for i in splitpgsDt[0]]
-                else:
-                    grp_pages = splitpgsDt
+    grouped_invoices = {}
+    previous_invoice = ""
+    for k, v in pageInvoVendorData.items():
+        current_invoice = v["InvoiceId"][0]
+        if v["InvoiceId"][1] > 0.89 and v["VendorName"][1] > 0.80:
+            if current_invoice not in grouped_invoices:
+                grouped_invoices[current_invoice] = [k]
             else:
-                grp_pages = splitpgsDt
-        elif all(isinstance(i, tuple) for i in splitpgsDt):
-            # If the input is already a list of tuples, return it as-is
-            grp_pages = splitpgsDt
+                grouped_invoices[current_invoice].append(k)
+            previous_invoice = current_invoice
         else:
-            grp_pages = splitpgsDt
+            if previous_invoice not in grouped_invoices:
+                continue
+            grouped_invoices[previous_invoice].append(k)
+    split_list = []
+    for pg0, pg1 in grouped_invoices.items():
+        split_list.append((min(pg1), max(pg1)))
 
-        # grp_pages = splitpgsDt
-        splitfileNames, stampData, fileSize = split_pdf_and_upload(
-            pdf,
-            grp_pages,
-            destination_container_name,
-            subfolder_name,
-            prompt,
-            # deployment_name,
-            # OpenAI_api_base,
-            # OpenAI_api_key,
-            # openAI_api_version,
-        )
-
-    else:
-
-        grp_pages = output_list
-        splitfileNames, stampData, fileSize = split_pdf_and_upload(
-            pdf,
-            output_list,
-            destination_container_name,
-            subfolder_name,
-            prompt,
-            # deployment_name,
-            # OpenAI_api_base,
-            # OpenAI_api_key,
-            # openAI_api_version,
-        )
+    logger.info(f"split_list: {split_list}")
+    splitfileNames, stampData, fileSize = split_pdf_and_upload(
+        pdf,
+        split_list,
+        destination_container_name,
+        subfolder_name,
+        prompt,
+        # deployment_name,
+        # OpenAI_api_base,
+        # OpenAI_api_key,
+        # openAI_api_version,
+    )
 
     return (
         prbtHeaders,
-        grp_pages,
+        split_list,
         splitfileNames,
         len(pdf.pages),
         stampData,
