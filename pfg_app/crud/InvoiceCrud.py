@@ -9,7 +9,7 @@ from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
 from sqlalchemy import String, and_, case, cast, exists, func, or_
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Load, load_only
+from sqlalchemy.orm import Load, aliased, load_only
 
 import pfg_app.model as model
 from pfg_app import settings
@@ -1955,33 +1955,57 @@ async def get_email_row_associated_files(
         # Apply universal API filter if provided
         if uni_api_filter:
             try:
-                uni_search_param_list = uni_api_filter.split(":")
-                for param in uni_search_param_list:
-                    normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
-                    pattern = f"%{normalized_filter}%"
-                    filter_condition = or_(
-                        normalize_string(model.SplitDocTab.emailbody_path).ilike(
-                            pattern
-                        ),
-                        normalize_string(model.SplitDocTab.sender).ilike(pattern),
-                        cast(model.SplitDocTab.totalpagecount, String).ilike(
-                            f"%{uni_api_filter}%"
-                        ),
-                        func.to_char(
-                            model.SplitDocTab.updated_on, "Mon DD, YYYY, HH12:MI:SS PM"
-                        ).ilike(f"%{uni_api_filter}%"),
-                        normalize_string(model.SplitDocTab.mail_row_key).ilike(pattern),
-                        normalize_string(model.SplitDocTab.status).ilike(pattern),
-                        normalize_string(model.SplitDocTab.email_subject).ilike(
-                            pattern
-                        ),
-                    )
-                    data_query = data_query.filter(filter_condition)
+                # Split terms in the filter
+                uni_search_param_list = [
+                    param.strip() for param in uni_api_filter.split(":")
+                ]
+
+                # Define separate lists for date and non-date terms
+                date_filters = []
+                text_filters = []
+
+                for term in uni_search_param_list:
+                    # Clean term by removing unwanted characters
+                    term = re.sub(r"[^a-zA-Z0-9 ,]", "", term)
+
+                    # Attempt to parse the term as a date (e.g., "Oct 30, 2024")
+                    try:
+                        date_obj = datetime.strptime(term, "%b %d, %Y")
+                        # Create date filter to match any time within that day
+                        start_date = date_obj.strftime("%Y-%m-%d 00:00:00")
+                        end_date = date_obj.strftime("%Y-%m-%d 23:59:59")
+                        date_filters.append(
+                            model.SplitDocTab.updated_on.between(start_date, end_date)
+                        )
+                    except ValueError:
+                        # If not a date, treat it as a general search term
+                        pattern = f"%{term}%"
+                        text_filter = or_(
+                            normalize_string(model.SplitDocTab.emailbody_path).ilike(
+                                pattern
+                            ),
+                            normalize_string(model.SplitDocTab.sender).ilike(pattern),
+                            cast(model.SplitDocTab.totalpagecount, String).ilike(
+                                pattern
+                            ),
+                            normalize_string(model.SplitDocTab.mail_row_key).ilike(
+                                pattern
+                            ),
+                            normalize_string(model.SplitDocTab.status).ilike(pattern),
+                            normalize_string(model.SplitDocTab.email_subject).ilike(
+                                pattern
+                            ),
+                        )
+                        text_filters.append(text_filter)
+
+                # Combine text and date filters with AND condition
+                if date_filters or text_filters:
+                    data_query = data_query.filter(and_(*date_filters, *text_filters))
+
             except (AttributeError, TypeError, ValueError):
                 logger.error(
                     f"Error processing universal API filter: {str(traceback.format_exc())}"  # noqa: E501
                 )
-
         # Apply column-specific filter if provided
         if column_filter:
             try:
@@ -1989,6 +2013,11 @@ async def get_email_row_associated_files(
                     column_name, search_value = column_filter.split(":", 1)
                     column_name = column_name.strip().lower()
                     search_value = search_value.strip()
+
+                    # Prepare normalized search value for use in ilike
+                    normalized_search_value = re.sub(
+                        r"[^a-zA-Z0-9]", "", search_value.lower()
+                    )
 
                     if column_name in ["total page count", "totalpagecount"]:
                         data_query = data_query.filter(
@@ -2002,23 +2031,31 @@ async def get_email_row_associated_files(
                                 f"%{search_value}%"
                             )
                         )
-                    elif column_name == "emailbody_path":
-                        data_query = data_query.filter(
-                            normalize_string(model.SplitDocTab.emailbody_path).ilike(
-                                f"%{search_value}%"
+                    elif column_name == "created on":
+                        # Convert input date to the appropriate format
+                        try:
+                            # Parse the input date
+                            parsed_date = datetime.strptime(search_value, "%b %d, %Y")
+                            # Format the parsed date to match the DB format
+                            formatted_date = parsed_date.strftime("%Y-%m-%d")
+
+                            data_query = data_query.filter(
+                                func.to_char(
+                                    model.SplitDocTab.updated_on, "YYYY-MM-DD"
+                                ).ilike(f"%{formatted_date}%")
                             )
-                        )
-                    elif column_name == "updated_on":
+                        except ValueError as ve:
+                            logger.error(f"Date parsing error: {str(ve)}")
+                    elif column_name == "mail row key":
+                        # Adjust filter to match with or without hyphens
                         data_query = data_query.filter(
-                            func.to_char(
-                                model.SplitDocTab.updated_on,
-                                "Mon DD, YYYY, HH12:MI:SS PM",
-                            ).ilike(f"%{search_value}%")
-                        )
-                    elif column_name == "mail_row_key":
-                        data_query = data_query.filter(
-                            normalize_string(model.SplitDocTab.mail_row_key).ilike(
-                                f"%{search_value}%"
+                            or_(
+                                normalize_string(model.SplitDocTab.mail_row_key).ilike(
+                                    f"%{normalized_search_value}%"
+                                ),
+                                model.SplitDocTab.mail_row_key.ilike(
+                                    f"%{search_value}%"
+                                ),
                             )
                         )
                     elif column_name == "status":
@@ -2027,11 +2064,10 @@ async def get_email_row_associated_files(
                                 f"%{search_value}%"
                             )
                         )
-                    elif column_name == "email_subject":
+                    elif column_name == "email subject":
+                        # Normalize and use ilike for email_subject filtering
                         data_query = data_query.filter(
-                            normalize_string(model.SplitDocTab.email_subject).ilike(
-                                f"%{search_value}%"
-                            )
+                            model.SplitDocTab.email_subject.ilike(f"%{search_value}%")
                         )
             except (AttributeError, TypeError, ValueError):
                 logger.error(
@@ -2054,26 +2090,41 @@ async def get_email_row_associated_files(
         total_items = (
             data_query.with_entities(model.SplitDocTab.mail_row_key).distinct().count()
         )
-        # Step 1: Get unique mail_row_keys with pagination
+
+        # Alias for the SplitDocTab model
+        SplitDocTabAlias = aliased(model.SplitDocTab)
+
+        # Subquery to get the latest splitdoc_id per mail_row_key, with filters applied
+        latest_splitdoc_subquery = (
+            data_query.with_entities(  # Start with the filtered base query
+                model.SplitDocTab.mail_row_key,
+                func.max(model.SplitDocTab.splitdoc_id).label("latest_splitdoc_id"),
+            )
+            .group_by(model.SplitDocTab.mail_row_key)
+            .subquery()
+        )
+
+        # Main query to get latest unique mail_row_keys with pagination
         unique_mail_keys_query = (
-            data_query.with_entities(model.SplitDocTab.mail_row_key)
-            .order_by(model.SplitDocTab.splitdoc_id.desc())
-            .distinct()
+            db.query(SplitDocTabAlias.mail_row_key)
+            .join(
+                latest_splitdoc_subquery,
+                latest_splitdoc_subquery.c.latest_splitdoc_id
+                == SplitDocTabAlias.splitdoc_id,
+            )
+            .order_by(SplitDocTabAlias.splitdoc_id.desc())
             .offset(off_val)
             .limit(limit)
         )
 
         unique_mail_keys = unique_mail_keys_query.all()
-
         # Step 2: Retrieve all splitdoc_ids for the selected unique mail_row_keys
         if unique_mail_keys:
             unique_mail_keys_list = [key[0] for key in unique_mail_keys]
 
-            all_split_docs_query = (
-                db.query(model.SplitDocTab)
-                .filter(model.SplitDocTab.mail_row_key.in_(unique_mail_keys_list))
-                .order_by(model.SplitDocTab.splitdoc_id.desc())
-            )
+            all_split_docs_query = data_query.filter(
+                model.SplitDocTab.mail_row_key.in_(unique_mail_keys_list)
+            ).order_by(model.SplitDocTab.splitdoc_id.desc())
 
             unique_split_docs = all_split_docs_query.all()
 
