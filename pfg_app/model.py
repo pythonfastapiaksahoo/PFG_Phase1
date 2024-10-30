@@ -65,7 +65,7 @@ class DocumentModel(Base):
     pagepreference = Column(JSON, nullable=True)
     userID = Column(Integer, nullable=True)
     update_by = Column(Integer, nullable=True)
-
+    is_active = Column(Integer, nullable=True, default=1)
     def to_dict(self):
         return {
             column.name: getattr(self, column.name) for column in self.__table__.columns
