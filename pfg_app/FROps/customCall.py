@@ -4,6 +4,7 @@ import traceback
 from fastapi import Response
 
 import pfg_app.model as model
+from pfg_app import settings
 from pfg_app.core.azure_fr import get_fr_data
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.logger_module import logger
@@ -207,7 +208,7 @@ def customModelCall(docID):
         file_size_accepted = 100
         accepted_file_type = metadata.InvoiceFormat.split(",")
         # date_format = metadata.DateFormat
-        endpoint = configs.Endpoint
+        endpoint = settings.form_recognizer_endpoint
         DateFormat = metadata.DateFormat
         # mandatoryheadertags = configs.mandatoryheadertags
         # mandatorylinetags = configs.mandatorylinetags
