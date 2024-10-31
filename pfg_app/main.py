@@ -227,11 +227,7 @@ async def root(request: Request):
 
         # Function to generate a random unique table name
         def generate_unique_table_name(length=8):
-            return "".join(
-                random.choices(
-                    string.ascii_lowercase + string.digits, k=length
-                )  # nosec
-            )
+            return "".join(random.choices(string.ascii_lowercase, k=length))  # nosec
 
         # Create a random unique table name
         table_name = generate_unique_table_name()
