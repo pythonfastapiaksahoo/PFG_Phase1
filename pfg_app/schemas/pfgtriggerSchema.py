@@ -9,6 +9,7 @@ class InvoiceVoucherSchema(str, Enum):
     RECYCLED_INVOICE = "Success: Recycled Invoice"
     VOUCHER_CREATED = "Success: Voucher Created"
     VOUCHER_NOT_FOUND = "Failure: Voucher Not Found"
+    VOUCHER_CANCELLED = "Voucher Deleted"
     FAILURE_IICS = "Failure: Data Error - IICS could not process the message"
     FAILURE_INVOICE = "Failure: Data Error - Invoice could not be staged"
     FAILURE_PEOPLESOFT = "Failure: PeopleSoft could not parse the json message"

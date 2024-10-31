@@ -840,7 +840,7 @@ def processInvoiceVoucher(doc_id, db):
             .scalar()
         )
         if not voucherdata:
-            raise HTTPException(status_code=404, detail="Voucherdata not found")
+            return {"message": "Voucherdata not found for document ID: {doc_id}"}
 
         # Call the function to get the base64 file and content type
         try:
@@ -905,7 +905,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "QTY_VCHR": 1,
                                             "UNIT_OF_MEASURE": "",
                                             "UNIT_PRICE": 0,
-                                            "VAT_APPLICABILITY": "",
+                                            "VAT_APPLICABILITY": "O",
                                             "BUSINESS_UNIT_RECV": "OFGDS",
                                             "RECEIVER_ID": voucherdata.receiver_id
                                             or "",
@@ -1010,105 +1010,127 @@ def processInvoiceVoucher(doc_id, db):
 
 def updateInvoiceStatus(doc_id, db):
     try:
-        voucherdata = (
+        userID = 1
+
+        # Fetch document with status ID 7 (Sent to Peoplesoft)
+        document = (
+            db.query(model.Document)
+            .filter(
+                model.Document.idDocument == doc_id,
+                model.Document.documentStatusID == 7,
+            )
+            .first()
+        )
+
+        if not document:
+            logger.error(f"Document with ID {doc_id} and status ID 7 not found.")
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found or status is not 'Sent to Peoplesoft'",
+            )
+
+        # Fetch associated voucher data
+        voucher_data = (
             db.query(model.VoucherData)
             .filter(model.VoucherData.documentID == doc_id)
-            .scalar()
+            .first()
         )
-        if not voucherdata:
-            raise HTTPException(status_code=404, detail="Voucherdata not found")
+
+        if not voucher_data:
+            logger.error(f"Voucher data for document ID {doc_id} not found.")
+            raise HTTPException(
+                status_code=404, detail="Voucher data not found for document"
+            )
+
+        # API credentials
+        api_url = settings.erp_invoice_status_endpoint
+        headers = {"Content-Type": "application/json"}
+        auth = (settings.erp_user, settings.erp_password)
+
+        # Prepare the payload for the API request
         invoice_status_payload = {
             "RequestBody": {
                 "INV_STAT_RQST": {
-                    "BUSINESS_UNIT": voucherdata.Business_unit,
-                    "INVOICE_ID": voucherdata.Invoice_Id,
-                    "INVOICE_DT": voucherdata.Invoice_Dt,
-                    "VENDOR_SETID": voucherdata.Vendor_Setid,
-                    "VENDOR_ID": voucherdata.Vendor_ID,
+                    "BUSINESS_UNIT": "MERCH",
+                    "INVOICE_ID": voucher_data.Invoice_Id,
+                    "INVOICE_DT": voucher_data.Invoice_Dt,
+                    "VENDOR_SETID": voucher_data.Vendor_Setid,
+                    "VENDOR_ID": voucher_data.Vendor_ID,
                 }
             }
         }
-        # Make a POST request to the external API endpoint
-        api_url = settings.erp_invoice_status_endpoint
-        headers = {"Content-Type": "application/json"}
-        username = settings.erp_user
-        password = settings.erp_password
-
-        response = (
-            None  # Initialize response to avoid 'referenced before assignment' error
-        )
 
         try:
-            # Make the POST request with basic authentication
+            # Make a POST request to the external API
             response = requests.post(
                 api_url,
                 json=invoice_status_payload,
                 headers=headers,
-                auth=(username, password),
+                auth=auth,
                 timeout=60,  # Set a timeout of 60 seconds
             )
-            response.raise_for_status()
-            # Raises an HTTPError if the response was unsuccessful
-            print("Response Status: ", response.status_code)
-            # Check for success
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            logger.info(response.json())
+
+            # Process the response if the status code is 200
             if response.status_code == 200:
+                invoice_data = response.json()
+                entry_status = invoice_data.get("ENTRY_STATUS")
+                voucher_id = invoice_data.get("VOUCHER_ID")
 
-                invoice_data = response.json()  # Parse the response JSON data
-                entry_status = invoice_data.get(
-                    "ENTRY_STATUS"
-                )  # Get the ENTRY_STATUS field
-                # voucher_id = invoice_data.get("VOUCHER_ID")  # TODO: Unused variable
-                # Set the documentstatusid based on the ENTRY_STATUS value
-
-                if entry_status == "NF":
-                    documentstatusid = 30
+                # Determine the new document status based on ENTRY_STATUS
+                documentstatusid = None
+                docsubstatusid = None
+                dmsg = None
+                if entry_status == "STG":
+                    documentstatusid = 7
+                    docsubstatusid = 43
                 elif entry_status == "QCK":
                     documentstatusid = 27
-                elif entry_status == "P":
-                    documentstatusid = 29
+                    docsubstatusid = 114
+                    dmsg = InvoiceVoucherSchema.QUICK_INVOICE
                 elif entry_status == "R":
                     documentstatusid = 28
-                else:
-                    documentstatusid = None  # Default if ENTRY_STATUS is not recognized
+                    docsubstatusid = 115
+                    dmsg = InvoiceVoucherSchema.RECYCLED_INVOICE
+                elif entry_status == "P":
+                    documentstatusid = 29
+                    docsubstatusid = 116
+                    dmsg = InvoiceVoucherSchema.VOUCHER_CREATED
+                elif entry_status == "NF":
+                    documentstatusid = 30
+                    docsubstatusid = 117
+                    dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
+                elif entry_status == "X":
+                    documentstatusid = 31
+                    docsubstatusid = 119
+                    dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
 
-                # Now update the documentstatusid in the document table
-                if documentstatusid is not None:
-                    # # Assuming 'doc_id'
-                    # is the identifier of the document you want to update
-                    db.query(model.Document).filter(
-                        model.Document.documentStatusID == doc_id
-                    ).update({model.Document.documentStatusID: documentstatusid})
-                    db.commit()  # Commit the transaction to save the changes
-                    print("DocumentStatusID: ", documentstatusid)
-                invoice_status = {"message": "Success", "data": response.json()}
-            else:
-                # Return a meaningful message if the status code is not 200
-                invoice_status = {
-                    "message": "Failed",
-                    "status_code": response.status_code,
-                    "details": response.content.decode(),
-                }
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP error occurred: {traceback.format_exc()}")
-            if response:
-                return {
-                    "message": "HTTP error occurred",
-                    "status_code": response.status_code,
-                    "details": response.content.decode(),
-                }
-            else:
-                return {
-                    "message": "HTTP error occurred, no response",
-                    "details": str(e),
-                }
+                # Update document status and commit the change if valid
+                if documentstatusid:
+                    document.documentStatusID = documentstatusid
+                    document.documentsubstatusID = docsubstatusid
+                    document.voucher_id = voucher_id
+                    db.commit()
 
-    except Exception:
+                    # Update document history
+                    update_docHistory(doc_id, userID, documentstatusid, dmsg, db)
+
+                return {
+                    "response": response.json(),
+                    "message": "Invoice status updated successfully",
+                }
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error for doc_id {doc_id}: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error making API request: {str(e)}"
+            )
+
+    except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
+            status_code=500, detail=f"Error updating invoice status: {str(e)}"
         )
-    return invoice_status
 
 
 def read_invoice_file_voucher(inv_id, db):
@@ -1277,6 +1299,10 @@ def newbulkupdateInvoiceStatus(db):
                             documentstatusid = 30
                             docsubstatusid = 117
                             dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
+                        elif entry_status == "X":
+                            documentstatusid = 31
+                            docsubstatusid = 119
+                            dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
 
                         # If there's a valid document status update,
                         # add it to the bulk update list
@@ -1334,6 +1360,11 @@ def bulkProcessVoucherData(db):
 
         total_docs = doc_query.count()  # Total number of documents to process
         logger.info(f"Total documents to process: {total_docs}")
+
+        # If no documents to process, log and return
+        if total_docs == 0:
+            logger.info("No documents to send to Peoplesoft.")
+            return {"message": "No documents to send to Peoplesoft."}
         # Process in batches
         for start in range(0, total_docs, batch_size):
             doc_ids = doc_query.offset(start).limit(batch_size).all()
