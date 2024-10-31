@@ -7,6 +7,8 @@ from azure.data.tables import TableServiceClient
 from azure.storage.blob import BlobServiceClient
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry.propagate import extract
+from opentelemetry.trace import SpanKind
 from pypdf import PdfReader, PdfWriter
 from sqlalchemy import create_engine
 
@@ -17,8 +19,8 @@ from pfg_app.core.utils import (  # get_connection_string_with_access_token,
     get_credential,
     get_secret_from_vault,
 )
-from pfg_app.logger_module import logger
-from pfg_app.routers import (  # maillistener,
+from pfg_app.logger_module import logger, set_operation_id, tracer
+from pfg_app.routers import (
     FR,
     OCR,
     ERPIntegrationapi,
@@ -56,32 +58,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# # Set up tracing
-# exporter = AzureExporter(
-#     connection_string=settings.appinsights_connection_string
-# )
-# propagator = TraceContextPropagator()
 
+# Middleware to set Operation ID from request headers
+@app.middleware("http")
+async def add_operation_id(request: Request, call_next):
+    if settings.build_type != "debug":
+        operation_id = request.headers.get("x-operation-id")
+        if operation_id:
+            set_operation_id(operation_id)
 
-# @app.middleware("http")
-# async def add_tracing(request: Request, call_next):
-#     context = propagator.from_headers(request.headers)
+        logger.info(
+            "Received request in FastAPI"
+        )  # Automatically includes Operation ID
 
-#     # Set the trace context for the current request
-#     tracer = execution_context.get_opencensus_tracer()
-#     trace_id = context.trace_id or "00000000000000000000000000000000"
-#     tracer.span_context.trace_id = trace_id
-#     tracer.span_context.span_id = context.span_id
-#     tracer.exporter = exporter
+        with tracer.start_as_current_span(
+            "FastAPIRequest", context=extract(request.headers), kind=SpanKind.SERVER
+        ) as span:
+            span.set_attribute("operation_id", operation_id or "unknown")
 
-#     # Process the request and get the response
-#     with tracer.span(name=request.url.path):
-#         response = await call_next(request)
+            response = await call_next(request)
+            response.headers["x-operation-id"] = operation_id or "unknown"
 
-#     # Add the trace_id to the response headers
-#     response.headers["X-Trace-Id"] = trace_id
-
-#     return response
+            logger.info(
+                "Sending response from FastAPI"
+            )  # Automatically includes Operation ID
+            return response
+    else:
+        return await call_next(request)
 
 
 # Define routers in the main
@@ -100,68 +103,6 @@ async def app_startup():
     logger.warning(
         "App Startup is called",
     )
-    # # Load the files as BytesIO from TestData
-    # import os, tempfile
-    # from io import BytesIO
-    # from pypdf import PdfReader, PdfWriter
-
-    # for pdf in os.listdir("TestData"):
-    #     data_list = []
-    #     # if the pdf startes with 12 set the model_type as custom else prebuilt
-    #     if pdf.startswith("12"):
-    #         model_type = "custom"
-    #     else:
-    #         model_type = "prebuilt"
-    #     reader = PdfReader("TestData/"+pdf)
-    #     number_of_pages = len(reader.pages)
-    #     for i in range(number_of_pages):
-    #         page = reader.pages[i]
-    #         page_writer = PdfWriter()
-    #         page_writer.add_page(page)
-    #         # append the page as BytesIO object
-    #         with tempfile.NamedTemporaryFile() as temp_file:
-    #             page_writer.write(temp_file)
-    #             temp_file.seek(0)
-
-    #             data_list.append(temp_file.read())
-    #         # call azure fr
-    #     from core.azure_fr import get_fr_data
-    #     from pfg_app import settings
-    #     result = get_fr_data(
-    #         inputdata_list=data_list,
-    #         API_version=settings.api_version,
-    #         endpoint=settings.form_recognizer_endpoint,
-    #         model_type=model_type,
-    #         inv_model_id="Chuckleberry_Community_Farm_Temp_2"
-    #     )
-    #     # logger.info(result)
-    #     logger.info('completed')
-
-    #     # call stampData only if the model_type is custom with the
-    #     # first page as blob_data
-    #     if model_type == "custom" and len(data_list) > 0:
-    #         from core.stampData import stampDataFn
-    #         prompt = '''This is an invoice document. It may contain a receiver's
-    # stamp and might have inventory or supplies marked or circled with a pen,
-    # circled is selected. It contains store number as "STR #"
-    #     InvoiceDocument: Yes/No InvoiceID: [InvoiceID]. StampPresent: Yes/No.
-    # If a stamp is present, identify any markings on the document related to
-    #     Inventory or Supplies, specifically if they are marked or circled with a pen.
-    # If a stamp is present, extract the following handwritten details
-    #     from the stamp: ConfirmationNumber (the confirmation number labeled as
-    # 'Confirmation' on the stamp), ReceivingDate
-    # (the date when the goods were received),
-    #     Receiver (the name of the person or department who received the goods),
-    # and Department (the department name or code, which may be either 'Inventory'
-    # or 'Supplies',
-    #     or another specified department). Provide all information in the following
-    # JSON format: {'StampFound': 'Yes/No', 'MarkedDept': 'Inventory/Supplies'
-    # (which ever is circled more/marked only),
-    #     'Confirmation': 'Extracted data', 'ReceivingDate': 'Extracted data',
-    # 'Receiver': 'Extracted data', 'Department': 'Dept code','Store Number':,
-    # 'VendorName':}.Output should be just json'''
-    #         result = stampDataFn(data_list[0], prompt)
-    #         logger.info(result)
 
 
 @app.get("/")
@@ -328,7 +269,7 @@ async def root(request: Request):
                 api_version=settings.api_version,
             )
 
-            logger.info(result)
+            # logger.info(result) # uncomment to see the result
             connectivity_details.append(
                 {
                     "document-intelligence": "Document Intelligence is accessible- "
