@@ -39,3 +39,4 @@ types-requests==2.32.0.20240914
 openpyxl==3.0.9
 reportlab==4.2.2
 Pillow==10.4.0
+rsa
