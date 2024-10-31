@@ -522,7 +522,7 @@ def runStatus(
                         file_size_accepted = 100
                         accepted_file_type = metadata.InvoiceFormat.split(",")
                         date_format = metadata.DateFormat
-                        endpoint = configs.Endpoint
+                        endpoint = settings.form_recognizer_endpoint
                         inv_model_id = modelData.modelID
                         API_version = configs.ApiVersion
 
@@ -1167,7 +1167,7 @@ def live_model_fn_1(generatorObj):
     file_path = generatorObj["file_path"]
     # container = generatorObj["containername"]  # TODO: Unused variable
     API_version = generatorObj["API_version"]
-    endpoint = generatorObj["endpoint"]
+    endpoint = settings.form_recognizer_endpoint
     inv_model_id = generatorObj["inv_model_id"]
     entityID = 1
     entityBodyID = generatorObj["entityBodyID"]
