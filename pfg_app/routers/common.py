@@ -108,7 +108,7 @@ def move_azure_di_models(source_di_name, target_di_name):
         source_document_model_admin_client.get_document_model(
             model_id="prebuilt-invoice"
         )
-    except ClientAuthenticationError:
+    except Exception:
         # Check if source is accessible with Service Principal
         try:
             source_credential = ClientSecretCredential(
@@ -125,8 +125,6 @@ def move_azure_di_models(source_di_name, target_di_name):
             return {"error": f"Error accessing source DI: {str(e)}"}
         except Exception as e:
             return {"error": f"Error accessing source DI: {str(e)}"}
-    except Exception as e:
-        return {"error": f"Error accessing source DI: {str(e)}"}
 
     try:
         # check if target is accessible with System Identity
@@ -138,7 +136,7 @@ def move_azure_di_models(source_di_name, target_di_name):
         target_document_model_admin_client.get_document_model(
             model_id="prebuilt-invoice"
         )
-    except ClientAuthenticationError:
+    except Exception:
         # Check if target is accessible with Service Principal
         try:
             target_credential = ClientSecretCredential(
@@ -155,8 +153,6 @@ def move_azure_di_models(source_di_name, target_di_name):
             return {"error": f"Error accessing target DI: {str(e)}"}
         except Exception as e:
             return {"error": f"Error accessing target DI: {str(e)}"}
-    except Exception as e:
-        return {"error": f"Error accessing target DI: {str(e)}"}
 
     try:
         # Get all models from Source
