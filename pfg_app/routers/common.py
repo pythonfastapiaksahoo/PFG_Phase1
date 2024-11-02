@@ -122,9 +122,19 @@ def move_azure_di_models(source_di_name, target_di_name):
                 model_id="prebuilt-invoice"
             )
         except ClientAuthenticationError as e:
-            return {"error": f"Error accessing source DI: {str(e)}"}
+            return {
+                "error": f"ClientAuthenticationError:accessing source DI: {str(e)}",
+                "tenant_id": settings.tenant_id,
+                "client_id": settings.client_id,
+                "client_secret": settings.client_secret,
+            }
         except Exception as e:
-            return {"error": f"Error accessing source DI: {str(e)}"}
+            return {
+                "error": f"Error accessing source DI: {str(e)}",
+                "tenant_id": settings.tenant_id,
+                "client_id": settings.client_id,
+                "client_secret": settings.client_secret,
+            }
 
     try:
         # check if target is accessible with System Identity
@@ -150,9 +160,19 @@ def move_azure_di_models(source_di_name, target_di_name):
                 model_id="prebuilt-invoice"
             )
         except ClientAuthenticationError as e:
-            return {"error": f"Error accessing target DI: {str(e)}"}
+            return {
+                "error": f"ClientAuthenticationError:accessing target DI: {str(e)}",
+                "tenant_id": settings.tenant_id,
+                "client_id": settings.client_id,
+                "client_secret": settings.client_secret,
+            }
         except Exception as e:
-            return {"error": f"Error accessing target DI: {str(e)}"}
+            return {
+                "error": f"Error accessing target DI: {str(e)}",
+                "tenant_id": settings.tenant_id,
+                "client_id": settings.client_id,
+                "client_secret": settings.client_secret,
+            }
 
     try:
         # Get all models from Source
