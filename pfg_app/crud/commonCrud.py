@@ -1,5 +1,6 @@
 import json
 import time
+import traceback
 
 from azure.ai.formrecognizer import DocumentModelAdministrationClient
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -226,11 +227,13 @@ def copy_models_in_background(
                             )
 
                     except Exception as e:
-                        logger.error(
-                            f"Error copying model {source_model['model_id']}: {str(e)}"
-                        )
+                        logger.error(traceback.format_exc())
                         copy_process_info.append(
-                            {"model_id": source_model["model_id"], "status": "failed"}
+                            {
+                                "model_id": source_model["model_id"],
+                                "status": "failed",
+                                "error": str(e),
+                            }  # noqa: E501
                         )
 
                         continue
@@ -267,12 +270,14 @@ def copy_models_in_background(
 
             return True
         except Exception as e:
+            logger.error(traceback.format_exc())
             set_task_status(
                 container_client, task_id, "failed", f"Error copying models: {str(e)}"
             )
             return False
 
     except Exception as e:
+        logger.error(traceback.format_exc())
         set_task_status(container_client, task_id, "failed", f"Error: {str(e)}")
         return False
     finally:
