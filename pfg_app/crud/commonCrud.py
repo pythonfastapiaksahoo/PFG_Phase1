@@ -45,6 +45,17 @@ def get_task_status(container_client, task_id):
         return {"status": "not found"}
 
 
+def check_stop_signal(container_client, STOP_SIGNAL_BLOB_NAME):
+    stop_blob_client = container_client.get_blob_client(STOP_SIGNAL_BLOB_NAME)
+    return stop_blob_client.exists()
+
+
+def clear_stop_signal(container_client, STOP_SIGNAL_BLOB_NAME):
+    stop_blob_client = container_client.get_blob_client(STOP_SIGNAL_BLOB_NAME)
+    if stop_blob_client.exists():
+        stop_blob_client.delete_blob()
+
+
 def copy_models_in_background(
     container_client, task_id, source_di_name, target_di_name
 ):
@@ -149,7 +160,11 @@ def copy_models_in_background(
             ]
             target_model_id_list = [model["model_id"] for model in target_model_list]
             copy_process_info = []
+            user_stopped = False
             for source_model in source_model_list:
+                if check_stop_signal():
+                    user_stopped = True
+                    break
                 set_task_status(
                     container_client,
                     task_id,
@@ -260,26 +275,30 @@ def copy_models_in_background(
             set_task_status(
                 container_client,
                 task_id,
-                "completed",
+                "completed" if not user_stopped else "stopped",
                 {
                     "source_models": source_model_list,
                     "target_models": target_model_list,
                     "copy_process_info": copy_process_info,
+                    "message": (
+                        "Model copy process completed"
+                        if not user_stopped
+                        else "Model copy process stopped by user"
+                    ),
                 },
             )
 
             return True
-        except Exception as e:
+        except Exception:
             logger.error(traceback.format_exc())
-            set_task_status(
-                container_client, task_id, "failed", f"Error copying models: {str(e)}"
-            )
+            set_task_status(container_client, task_id, "failed", traceback.format_exc())
             return False
 
-    except Exception as e:
+    except Exception:
         logger.error(traceback.format_exc())
-        set_task_status(container_client, task_id, "failed", f"Error: {str(e)}")
+        set_task_status(container_client, task_id, "failed", traceback.format_exc())
         return False
     finally:
         # Release the lock once done
         release_lock(container_client, "copy-process-lock")
+        clear_stop_signal(container_client, "stop-signal")
