@@ -1454,6 +1454,7 @@ class VoucherData(Base):
     storetype = Column(String, nullable=True)
     receiver_id = Column(String, nullable=True)
     status = Column(String, nullable=True)
+    recv_ln_nbr = Column(Integer, nullable=True)
 
 
 class NonintegratedStores(Base):

@@ -305,7 +305,7 @@ async def updateVendorMaster(vendordata, db):
                 existing_vendor_loc = (
                     existing_vendor.VENDOR_LOC if existing_vendor.VENDOR_LOC else []
                 )
-                print(f"Initial existing_vendor_loc: {existing_vendor_loc}")
+                logger.info(f"Initial existing_vendor_loc: {existing_vendor_loc}")
 
                 for loc in vendor_loc_data:
                     existing_loc = next(
@@ -320,7 +320,9 @@ async def updateVendorMaster(vendordata, db):
 
                     if existing_loc:
                         # Update the existing location
-                        print(f"Updating existing location: {existing_loc} with {loc}")
+                        logger.info(
+                            f"Updating existing location: {existing_loc} with {loc}"
+                        )
                         for key, value in loc.items():
                             existing_loc[key] = value
                     else:
@@ -876,7 +878,7 @@ def processInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": voucherdata.Vendor_ID or "",
                                     "ORIGIN": "IDP",
                                     "ACCOUNTING_DT": "",
-                                    "VOUCHER_ID_RELATED": " ",
+                                    "VOUCHER_ID_RELATED": "",
                                     "GROSS_AMT": (
                                         voucherdata.Gross_Amt
                                         if voucherdata.Gross_Amt
@@ -896,7 +898,7 @@ def processInvoiceVoucher(doc_id, db):
                                                 if voucherdata.Voucher_Line_num
                                                 else 1
                                             ),
-                                            "DESCR": " ",
+                                            "DESCR": "",
                                             "MERCHANDISE_AMT": (
                                                 voucherdata.Merchandise_Amt
                                                 if voucherdata.Merchandise_Amt
@@ -906,10 +908,21 @@ def processInvoiceVoucher(doc_id, db):
                                             "UNIT_OF_MEASURE": "",
                                             "UNIT_PRICE": 0,
                                             "VAT_APPLICABILITY": "O",
-                                            "BUSINESS_UNIT_RECV": "OFGDS",
-                                            "RECEIVER_ID": voucherdata.receiver_id
-                                            or "",
-                                            "RECV_LN_NBR": 1,
+                                            "BUSINESS_UNIT_RECV": (
+                                                voucherdata.Business_unit
+                                                if voucherdata.Business_unit
+                                                else ""
+                                            ),
+                                            "RECEIVER_ID": (
+                                                voucherdata.receiver_id
+                                                if voucherdata.receiver_id
+                                                else ""
+                                            ),
+                                            "RECV_LN_NBR": (
+                                                voucherdata.recv_ln_nbr
+                                                if voucherdata.recv_ln_nbr
+                                                else 0
+                                            ),
                                             "SHIPTO_ID": "",
                                             "VCHR_DIST_STG": [
                                                 {
@@ -928,8 +941,11 @@ def processInvoiceVoucher(doc_id, db):
                                                     "ACCOUNT": voucherdata.Account
                                                     or "",
                                                     "DEPTID": voucherdata.Deptid or "",
-                                                    "OPERATING_UNIT": voucherdata.storenumber  # noqa: E501
-                                                    or "",
+                                                    "OPERATING_UNIT": (
+                                                        voucherdata.storenumber
+                                                        if voucherdata.storenumber
+                                                        else ""
+                                                    ),
                                                     "MERCHANDISE_AMT": (
                                                         voucherdata.Merchandise_Amt
                                                         if voucherdata.Merchandise_Amt
@@ -980,9 +996,9 @@ def processInvoiceVoucher(doc_id, db):
             response.raise_for_status()
             # Raises an HTTPError if the response was unsuccessful
             # Log full response details
-            print("Response Status: ", response.status_code)
-            print("Response Headers: ", response.headers)
-            print("Response Content: ", response.content.decode())  # Full content
+            logger.info(f"Response Status: {response.status_code}")
+            logger.info(f"Response Headers: {response.headers}")
+            # print("Response Content: ", response.content.decode())  # Full content
 
             # Check for success
             if response.status_code == 200:
@@ -990,8 +1006,8 @@ def processInvoiceVoucher(doc_id, db):
                 responsedata = {"message": "Success", "data": response.json()}
 
         except requests.exceptions.HTTPError as e:
-            print(f"HTTP error occurred: {traceback.format_exc()}")
-            print("Response content:", response.content.decode())
+            logger.info(f"HTTP error occurred: {traceback.format_exc()}")
+            logger.info(f"Response content: {response.content.decode()}")
             responsedata = {"message": str(e), "data": response.json()}
 
     except Exception:
@@ -1086,23 +1102,23 @@ def updateInvoiceStatus(doc_id, db):
                     documentstatusid = 7
                     docsubstatusid = 43
                 elif entry_status == "QCK":
-                    documentstatusid = 27
+                    documentstatusid = 14
                     docsubstatusid = 114
                     dmsg = InvoiceVoucherSchema.QUICK_INVOICE
                 elif entry_status == "R":
-                    documentstatusid = 28
+                    documentstatusid = 14
                     docsubstatusid = 115
                     dmsg = InvoiceVoucherSchema.RECYCLED_INVOICE
                 elif entry_status == "P":
-                    documentstatusid = 29
+                    documentstatusid = 14
                     docsubstatusid = 116
                     dmsg = InvoiceVoucherSchema.VOUCHER_CREATED
                 elif entry_status == "NF":
-                    documentstatusid = 30
+                    documentstatusid = 14
                     docsubstatusid = 117
                     dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
                 elif entry_status == "X":
-                    documentstatusid = 31
+                    documentstatusid = 14
                     docsubstatusid = 119
                     dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
 
@@ -1245,6 +1261,8 @@ def newbulkupdateInvoiceStatus(db):
             updates = []
             for voucherdata, doc_id in zip(voucher_data_list, doc_ids):
                 dmsg = None  # Initialize dmsg to ensure it's defined
+                documentstatusid = 7
+                docsubstatusid = 43
                 # Prepare the payload for the API request
                 invoice_status_payload = {
                     "RequestBody": {
@@ -1268,7 +1286,8 @@ def newbulkupdateInvoiceStatus(db):
                         timeout=60,  # Set a timeout of 60 seconds
                     )
                     response.raise_for_status()  # Raise an exception for HTTP errors
-                    logger.info(response.json())
+                    logger.info(f"fetching status for document id: {doc_id}")
+                    logger.info(f"Response: {response.json()}")
                     # Process the response if the status code is 200
                     if response.status_code == 200:
                         invoice_data = response.json()
@@ -1276,7 +1295,6 @@ def newbulkupdateInvoiceStatus(db):
                         voucher_id = invoice_data.get("VOUCHER_ID")
 
                         # Determine the new document status based on ENTRY_STATUS
-                        documentstatusid = None
                         if entry_status == "STG":
                             documentstatusid = 7
                             docsubstatusid = 43
@@ -1284,23 +1302,23 @@ def newbulkupdateInvoiceStatus(db):
                             # because the status is already 7
                             # continue
                         elif entry_status == "QCK":
-                            documentstatusid = 27
+                            documentstatusid = 14
                             docsubstatusid = 114
                             dmsg = InvoiceVoucherSchema.QUICK_INVOICE
                         elif entry_status == "R":
-                            documentstatusid = 28
+                            documentstatusid = 14
                             docsubstatusid = 115
                             dmsg = InvoiceVoucherSchema.RECYCLED_INVOICE
                         elif entry_status == "P":
-                            documentstatusid = 29
+                            documentstatusid = 14
                             docsubstatusid = 116
                             dmsg = InvoiceVoucherSchema.VOUCHER_CREATED
                         elif entry_status == "NF":
-                            documentstatusid = 30
+                            documentstatusid = 14
                             docsubstatusid = 117
                             dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
                         elif entry_status == "X":
-                            documentstatusid = 31
+                            documentstatusid = 14
                             docsubstatusid = 119
                             dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
 
