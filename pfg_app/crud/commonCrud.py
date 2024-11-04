@@ -162,7 +162,7 @@ def copy_models_in_background(
             copy_process_info = []
             user_stopped = False
             for source_model in source_model_list:
-                if check_stop_signal():
+                if check_stop_signal(container_client, "stop-signal"):
                     user_stopped = True
                     break
                 set_task_status(
