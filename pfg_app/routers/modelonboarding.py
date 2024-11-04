@@ -17,7 +17,7 @@ from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_admin_user
 from pfg_app.core import azure_fr as core_fr
-from pfg_app.core.utils import convert_dates, get_container_sas, get_credential
+from pfg_app.core.utils import convert_dates, get_credential  # , get_container_sas
 from pfg_app.crud import ModelOnBoardCrud as crud
 from pfg_app.FROps import util as ut
 from pfg_app.logger_module import logger
@@ -623,8 +623,8 @@ async def train_model(data: ModelTrainSchema, db: Session = Depends(get_db)):
             f"https://{settings.storage_account_name}.blob.core.windows.net/{container}"
         )
         # Get the SAS token for the container
-        sas_token = get_container_sas(container)
-        container_url += "?" + sas_token
+        # sas_token = get_container_sas(container)
+        # container_url += "?" + sas_token #TODO: Check if this is needed
 
         json_resp = core_fr.get_model(
             settings.form_recognizer_endpoint, model_id=model_id
