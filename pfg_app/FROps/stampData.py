@@ -11,54 +11,72 @@ from pfg_app.logger_module import logger
 
 
 def stamnpDataFn(blob_data, prompt, deployment_name, api_base, api_key, api_version):
-
-    client = AzureOpenAI(
-        api_key=api_key,
-        api_version=api_version,
-        base_url=f"{api_base}openai/deployments/{deployment_name}",
-    )
-    pdf_img = convert_from_bytes(blob_data)
-    buffered = io.BytesIO()
-    pdf_img[0].save(buffered, format="PNG")
-    encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
-                },
-            ],
-        }
-    ]
-
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages,
-        # max_tokens=1000,
-    )
-
-    content = completion.choices[0].message.content
-    cl_data = (
-        content.replace("json", "")
-        .replace("\n", "")
-        .replace("'''", "")
-        .replace("```", "")
-    )
     try:
-        stampData = json.loads(cl_data)
-    except Exception:
-        logger.error(traceback.format_exc())
+
+        client = AzureOpenAI(
+            api_key=api_key,
+            api_version=api_version,
+            base_url=f"{api_base}openai/deployments/{deployment_name}",
+        )
+        pdf_img = convert_from_bytes(blob_data)
+        buffered = io.BytesIO()
+        pdf_img[0].save(buffered, format="PNG")
+        encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
+                    },
+                ],
+            }
+        ]
+
+        completion = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            # max_tokens=1000,
+        )
+
+        content = completion.choices[0].message.content
+        cl_data = (
+            content.replace("json", "")
+            .replace("\n", "")
+            .replace("'''", "")
+            .replace("```", "")
+        )
         try:
-            cl_data_corrected = cl_data.replace("'", '"')
-            stampData = json.loads(cl_data_corrected)
+            stampData = json.loads(cl_data)
         except Exception:
             logger.error(traceback.format_exc())
-            stampData = cl_data
-            pass
-    # print(stampData)
+            try:
+                cl_data_corrected = cl_data.replace("'", '"')
+                stampData = json.loads(cl_data_corrected)
+            except Exception:
+                logger.error(traceback.format_exc())
+                stampData = cl_data
+                pass
+    except Exception:
+        logger.error(traceback.format_exc())
+        stampData = {
+            "StampFound": "Response not found",
+            "NumberOfPages": "Response not found",
+            "MarkedDept": "Response not found",
+            "MarkedStore": "Response not found",
+            "MarkedInvoice": "Response not found",
+            "Confirmation": "Response not found",
+            "ReceivingDate": "Response not found",
+            "Receiver": "Response not found",
+            "Department": "Response not found",
+            "Store Number": "Response not found",
+            "VendorName": "Response not found",
+            "InvoiceID": "Response not found",
+            "Currency": "Response not found",
+        }
+
     return stampData
 
 
