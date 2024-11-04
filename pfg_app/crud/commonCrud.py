@@ -141,7 +141,7 @@ def copy_models_in_background(
                 {
                     "model_id": model.model_id,
                     "description": model.description,
-                    "created_on": model.created_on,
+                    "created_on": str(model.created_on),
                 }
                 for model in source_models
             ]
@@ -154,7 +154,7 @@ def copy_models_in_background(
                 {
                     "model_id": model.model_id,
                     "description": model.description,
-                    "created_on": model.created_on,
+                    "created_on": str(model.created_on),
                 }
                 for model in target_models
             ]
@@ -268,7 +268,7 @@ def copy_models_in_background(
                 {
                     "model_id": model.model_id,
                     "description": model.description,
-                    "created_on": model.created_on,
+                    "created_on": str(model.created_on),
                 }
                 for model in target_models
             ]
