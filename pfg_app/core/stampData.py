@@ -1,5 +1,6 @@
 import base64
 import json
+import time
 import traceback
 from io import BytesIO
 
@@ -21,6 +22,7 @@ def get_open_ai_token():
 
 def stampDataFn(blob_data, prompt):
     try:
+        time.sleep(0.3)
         image_content = []
         pdf_img = convert_from_bytes(blob_data)
         # pdf_img = convert_from_bytes(
