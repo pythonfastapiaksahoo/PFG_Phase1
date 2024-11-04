@@ -4,6 +4,7 @@ import traceback
 from io import BytesIO
 
 import requests
+from dateutil import parser
 from pdf2image import convert_from_bytes
 
 from pfg_app import settings
@@ -198,3 +199,11 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
         vndMth_address_ck = 0
 
     return vndMth_ck, vndMth_address_ck
+
+
+def is_valid_date(date_string):
+    try:
+        parser.parse(date_string)
+        return True
+    except (ValueError, OverflowError):
+        return False

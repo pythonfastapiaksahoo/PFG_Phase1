@@ -27,6 +27,7 @@ from pfg_app.auth import AuthHandler
 # from pfg_app.azuread.auth import get_user
 # from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.azure_fr import get_fr_data
+from pfg_app.core.stampData import is_valid_date
 from pfg_app.FROps.pfg_trigger import (
     IntegratedvoucherData,
     nonIntegratedVoucherData,
@@ -35,7 +36,6 @@ from pfg_app.FROps.pfg_trigger import (
 from pfg_app.FROps.postprocessing import getFrData_MNF, postpro
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.FROps.SplitDoc import splitDoc
-from pfg_app.FROps.stampData import is_valid_date
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 
