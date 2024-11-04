@@ -33,6 +33,7 @@ def clean_amount(amount_str):
 def IntegratedvoucherData(inv_id, db: Session):
     voucher_data_status = 1
     intStatus = 0
+    recvLineNum = 0
     intStatusMsg = ""
 
     stmp_dt = (
@@ -72,6 +73,11 @@ def IntegratedvoucherData(inv_id, db: Session):
         ACCOUNT = invRpt.ACCOUNT
         DEPTID = invRpt.DEPTID
         location = invRpt.LOCATION
+        recvLineNum = invRpt.RECV_LN_NBR
+    # check data type of recvLineNum and if its not int make it to 0
+    if type(recvLineNum) is not int:
+        recvLineNum = 0
+
     if location == storeNumber:
         intStatus = 1
         intStatusMsg = "Success"
@@ -155,6 +161,7 @@ def IntegratedvoucherData(inv_id, db: Session):
                 existing_record.storetype = storeType
                 existing_record.receiver_id = str(confNumber)
                 existing_record.status = voucher_data_status
+                existing_record.recv_ln_nbr = recvLineNum
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -177,6 +184,7 @@ def IntegratedvoucherData(inv_id, db: Session):
                     "storetype": storeType,
                     "receiver_id": str(confNumber),
                     "status": voucher_data_status,
+                    "recv_ln_nbr": recvLineNum,
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
@@ -190,6 +198,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
     nonIntStatus = 1
     nonIntStatusMsg = ""
     voucher_data_status = 1
+    recvLineNum = 0
     docTabData = (
         db.query(model.Document).filter(model.Document.idDocument == inv_id).first()
     )
@@ -305,7 +314,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
                     for department in dpt_cd_dt:
                         DEPTID = department.DEPTID
                         VENDOR_SETID = department.SETID
-                        BUSINESS_UNIT = "OFGDS"
+                        BUSINESS_UNIT = ""
                         # ACCOUNT = "71999"
                 else:
                     nonIntStatusMsg = "Department not found"
@@ -329,7 +338,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
                         for department in dpt_cd_dt:
                             DEPTID = department.DEPTID
                             VENDOR_SETID = department.SETID
-                            BUSINESS_UNIT = "OFGDS"
+                            BUSINESS_UNIT = ""
                             # ACCOUNT = "71999"
                     else:
                         nonIntStatusMsg = "Department not found"
@@ -407,6 +416,7 @@ def nonIntegratedVoucherData(inv_id, db: Session):
                     "storetype": storeType,
                     "receiver_id": "NA",
                     "status": voucher_data_status,
+                    "recv_ln_nbr": recvLineNum,
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
