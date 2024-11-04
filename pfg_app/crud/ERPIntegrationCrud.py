@@ -1006,7 +1006,7 @@ def processInvoiceVoucher(doc_id, db):
                 responsedata = {"message": "Success", "data": response.json()}
 
         except requests.exceptions.HTTPError as e:
-            logger(f"HTTP error occurred: {traceback.format_exc()}")
+            logger.info(f"HTTP error occurred: {traceback.format_exc()}")
             logger.info(f"Response content: {response.content.decode()}")
             responsedata = {"message": str(e), "data": response.json()}
 
