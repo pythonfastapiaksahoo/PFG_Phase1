@@ -322,9 +322,9 @@ def runStatus(
 
                 if "VendorName" in prbtHeaders[splt_map[fl]]:
                     # logger.info(f"DI prbtHeaders: {prbtHeaders}")
-                    inv_vendorName = prbtHeaders[splt_map[fl]]["VendorName"][0]
-                    di_inv_vendorName = inv_vendorName
-                    logger.info(f" DI inv_vendorName: {inv_vendorName}")
+                    di_inv_vendorName = prbtHeaders[splt_map[fl]]["VendorName"][0]
+                    # di_inv_vendorName = inv_vendorName
+                    logger.info(f" DI inv_vendorName: {di_inv_vendorName}")
                 else:
                     di_inv_vendorName = ""
 
