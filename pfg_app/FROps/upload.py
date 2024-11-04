@@ -2,7 +2,7 @@ import math
 import os
 import traceback
 
-from azure.storage.blob import BlobClient, BlobServiceClient, PartialBatchErrorException
+from azure.storage.blob import BlobServiceClient, PartialBatchErrorException
 
 from pfg_app import settings
 from pfg_app.core.utils import get_credential
@@ -154,10 +154,8 @@ def upload_blobs(cnt_str, cnt_nm, local_path, old_fld_name):
         #       container_client.create_container()
         for file in blob_list:
             file_path_on_azure = os.path.join(old_fld_name, file.name.split("/")[-1])
-            # BlobClient.create_blob_from_path(container_name,file_path_on_azure,file_path_on_local)
-            blob = BlobClient.from_connection_string(
-                conn_str=cnt_str, container_name=cnt_nm, blob_name=file.name
-            )
+            # Create a BlobClient
+            blob = blob_service_client.get_blob_client(container=cnt_nm, blob=file.name)
             data = blob.download_blob().readall()
             container_client.upload_blob(name=file_path_on_azure, data=data)
             upld_cnt = upld_cnt + 1
