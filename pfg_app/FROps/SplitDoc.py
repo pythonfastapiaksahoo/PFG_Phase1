@@ -241,10 +241,10 @@ def splitDoc(
                     ]["content"]
                     if (
                         "confidence"
-                        in output_data_dt[i]["documents"][0]["fields"]["InvoiceId"]
+                        in output_data_dt[i]["documents"][0]["fields"]["VendorName"]
                     ):
                         VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
-                            "InvoiceId"
+                            "VendorName"
                         ]["confidence"]
                     else:
                         VndrNmConf = 0.0
@@ -260,7 +260,7 @@ def splitDoc(
                 "VendorName": [vndrName, VndrNmConf],
             }
 
-            pageInvoData[i] = output_data_dt[i]["documents"][0]["fields"]["InvoiceId"][
+            pageInvoData[i] = output_data_dt[i]["documents"][0]["fields"]["VendorName"][
                 "content"
             ]
     except Exception as er:
