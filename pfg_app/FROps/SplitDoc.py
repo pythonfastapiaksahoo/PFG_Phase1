@@ -199,7 +199,7 @@ def splitDoc(
                 logger.error(f"Error processing a page: {e}")
                 logger.error(f"{traceback.format_exc()}")
 
-    pageInvoData = {}
+    # pageInvoData = {}
     # data_serialized = serialize_dates(output_data)
     # with open("data.json", "w") as f:
     #     json.dump(data_serialized, f, indent=4)
@@ -241,10 +241,10 @@ def splitDoc(
                     ]["content"]
                     if (
                         "confidence"
-                        in output_data_dt[i]["documents"][0]["fields"]["InvoiceId"]
+                        in output_data_dt[i]["documents"][0]["fields"]["VendorName"]
                     ):
                         VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
-                            "InvoiceId"
+                            "VendorName"
                         ]["confidence"]
                     else:
                         VndrNmConf = 0.0
@@ -260,9 +260,10 @@ def splitDoc(
                 "VendorName": [vndrName, VndrNmConf],
             }
 
-            pageInvoData[i] = output_data_dt[i]["documents"][0]["fields"]["InvoiceId"][
-                "content"
-            ]
+            # pageInvoData[i] = output_data_dt[i]["documents"][0]["fields"]
+            # ["VendorName"][
+            #     "content"
+            # ]
     except Exception as er:
         logger.error(f"{traceback.format_exc()}")
         logger.info(f"Exception splitDoc line 261: {er}")
