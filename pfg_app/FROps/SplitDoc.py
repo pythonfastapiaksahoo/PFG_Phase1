@@ -260,47 +260,10 @@ def splitDoc(
                 "VendorName": [vndrName, VndrNmConf],
             }
 
-            # pageInvoData[i] = output_data_dt[i]["documents"][0]["fields"]
-            # ["VendorName"][
-            #     "content"
-            # ]
     except Exception as er:
         logger.error(f"{traceback.format_exc()}")
         logger.info(f"Exception splitDoc line 261: {er}")
 
-    # grouped_dict = {}
-    # sndChk = 0
-    # for key, value in pageInvoData.items():
-    #     if value not in grouped_dict:
-    #         grouped_dict[value] = []
-    #     grouped_dict[value].append(key)
-
-    # input_list = list(grouped_dict.values())
-    # output_list = []
-
-    # for itm in input_list:
-    #     if len(itm) == 1:
-    #         # break
-    #         output_list.append((itm[0], itm[0]))
-    #     if len(itm) > 1:
-    #         output_list.append((itm[0], itm[-1]))
-
-    # # output_list = [
-    # #     (item[0], item[1]) if len(item) == 2 else (item[0], item[0])
-    # #     for item in input_list
-    # # ]
-    # logger.info(f"input_list:  {output_list}")
-
-    # pgVal = []
-    # for pgvl in grouped_dict:
-    #     pgVal.append(grouped_dict[pgvl][0])
-    #     # print(grouped_dict[pgvl])
-    # if "" in grouped_dict:
-    #     # print(grouped_dict[''])
-    #     pgVal = list(set(pgVal + grouped_dict[""]))
-    # if len(pgVal) == len(output_data):
-    #     sndChk = 1
-    # # if sndChk == 1:
     prbtHeaders = {}
     rwOcrData = []
     # print(len(output_data))
@@ -335,23 +298,69 @@ def splitDoc(
                     logger.error(f"{traceback.format_exc()}")
         prbtHeaders[docPg] = prbtHeaderspg
 
-    grouped_invoices = {}
-    previous_invoice = ""
-    for k, v in pageInvoVendorData.items():
-        current_invoice = v["InvoiceId"][0]
-        if v["InvoiceId"][1] > 0.89 and v["VendorName"][1] > 0.80:
-            if current_invoice not in grouped_invoices:
-                grouped_invoices[current_invoice] = [k]
-            else:
-                grouped_invoices[current_invoice].append(k)
-            previous_invoice = current_invoice
+    #
+    groupInvo = {}
+    tmp = ()
+    for inv in pageInvoVendorData:
+        if (
+            pageInvoVendorData[inv]["InvoiceId"][1] > 0.89
+            and pageInvoVendorData[inv]["VendorName"][1] > 0.80
+        ):
+            nwPg = 1
         else:
-            if previous_invoice not in grouped_invoices:
-                continue
-            grouped_invoices[previous_invoice].append(k)
-    split_list = []
-    for pg0, pg1 in grouped_invoices.items():
-        split_list.append((min(pg1), max(pg1)))
+            nwPg = 0
+        groupInvo[inv] = nwPg
+    lt = []
+    prv = 0
+    for i in groupInvo:
+        if groupInvo[i] == 1:
+            prv = i
+            tmp = i
+        else:
+            if i == 1:
+                tmp = i
+            else:
+                tmp = (prv, i)
+        lt.append(tmp)
+
+    output = []
+    for item in lt:
+        if isinstance(item, int):
+            prVal = item
+            output.append((item, item))
+
+        elif isinstance(item, tuple):
+
+            if item[0] == prVal:
+                if (prVal, prVal) in output:
+                    output.remove((prVal, prVal))
+            output.append(item)
+
+    finalInvoGrp = output.copy()
+    for op in range(0, len(output)):
+        if op < len(output) - 1:
+            if output[op][0] == output[op + 1][0]:
+                finalInvoGrp.remove(output[op])
+
+    split_list = [tup for tup in finalInvoGrp if 0 not in tup]
+
+    # grouped_invoices = {}
+    # previous_invoice = ""
+    # for k, v in pageInvoVendorData.items():
+    #     current_invoice = v["InvoiceId"][0]
+    #     if v["InvoiceId"][1] > 0.89 and v["VendorName"][1] > 0.80:
+    #         if current_invoice not in grouped_invoices:
+    #             grouped_invoices[current_invoice] = [k]
+    #         else:
+    #             grouped_invoices[current_invoice].append(k)
+    #         previous_invoice = current_invoice
+    #     else:
+    #         if previous_invoice not in grouped_invoices:
+    #             continue
+    #         grouped_invoices[previous_invoice].append(k)
+    # split_list = []
+    # for pg0, pg1 in grouped_invoices.items():
+    #     split_list.append((min(pg1), max(pg1)))
 
     logger.info(f"split_list: {split_list}")
     splitfileNames, stampData, fileSize = split_pdf_and_upload(
