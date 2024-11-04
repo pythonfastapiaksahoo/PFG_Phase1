@@ -157,3 +157,26 @@ def get_task_status_route(task_id: str):
         return HTTPException(status_code=400, detail="No task status container found")
     status = get_task_status(container_client, task_id)
     return status
+
+
+@router.delete("/task-status/{task_id}")
+def delete_task_status_route(task_id: str):
+    # Get the credential
+    credential = get_credential()
+
+    account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+    # Create a BlobServiceClient
+    blob_service_client = BlobServiceClient(
+        account_url=account_url, credential=credential
+    )
+    container_name = "task-status-container"
+    container_client = blob_service_client.get_container_client(container_name)
+
+    # Ensure the container exists
+    if not container_client.exists():
+        return HTTPException(status_code=400, detail="No task status container found")
+
+    STOP_SIGNAL_BLOB_NAME = "stop-signal"
+    stop_blob_client = container_client.get_blob_client(STOP_SIGNAL_BLOB_NAME)
+    stop_blob_client.upload_blob("stop", overwrite=True)  # Set the stop signal
+    return {"message": "Stop signal sent to the copy process"}
