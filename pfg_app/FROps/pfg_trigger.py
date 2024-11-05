@@ -158,8 +158,8 @@ def IntegratedvoucherData(inv_id, db: Session):
                 existing_record.Vendor_ID = VENDOR_ID
                 existing_record.Deptid = DEPTID
                 existing_record.Account = ACCOUNT
-                existing_record.Gross_Amt = invo_SubTotal
-                existing_record.Merchandise_Amt = invo_total
+                existing_record.Gross_Amt = invo_total
+                existing_record.Merchandise_Amt = invo_SubTotal
                 existing_record.File_Name = docPath.split("/")[-1]
                 existing_record.Distrib_Line_num = 1
                 existing_record.Voucher_Line_num = 1
@@ -181,8 +181,8 @@ def IntegratedvoucherData(inv_id, db: Session):
                     "Vendor_ID": VENDOR_ID,
                     "Deptid": DEPTID,
                     "Account": ACCOUNT,
-                    "Gross_Amt": invo_SubTotal,
-                    "Merchandise_Amt": invo_total,
+                    "Gross_Amt": invo_total,
+                    "Merchandise_Amt": invo_SubTotal,
                     "File_Name": docPath.split("/")[-1],
                     "Distrib_Line_num": 1,
                     "Voucher_Line_num": 1,
@@ -391,8 +391,8 @@ def nonIntegratedVoucherData(inv_id, db: Session):
                 existing_record.Vendor_ID = VENDOR_ID
                 existing_record.Deptid = DEPTID
                 existing_record.Account = ACCOUNT
-                existing_record.Gross_Amt = invo_SubTotal
-                existing_record.Merchandise_Amt = invo_total
+                existing_record.Gross_Amt = invo_total
+                existing_record.Merchandise_Amt = invo_SubTotal
                 existing_record.File_Name = docPath.split("/")[-1]
                 existing_record.Distrib_Line_num = 1
                 existing_record.Voucher_Line_num = 1
@@ -413,8 +413,8 @@ def nonIntegratedVoucherData(inv_id, db: Session):
                     "Vendor_ID": VENDOR_ID,
                     "Deptid": DEPTID,
                     "Account": ACCOUNT,
-                    "Gross_Amt": invo_SubTotal,
-                    "Merchandise_Amt": invo_total,
+                    "Gross_Amt": invo_total,
+                    "Merchandise_Amt": invo_SubTotal,
                     "File_Name": docPath.split("/")[-1],
                     "Distrib_Line_num": 1,
                     "Voucher_Line_num": 1,
@@ -1281,11 +1281,24 @@ def pfg_sync(docID, userID, db: Session):
 
                                     voucher_row = voucher_query.first()
                                     has_null_or_empty = False
+
                                     for column in model.VoucherData.__table__.columns:
+
+                                        if (store_type == "Non-Integrated") and (
+                                            column.name == "Business_unit"
+                                        ):
+                                            continue
+
                                         value = getattr(voucher_row, column.name)
                                         if value is None or value == "":
                                             has_null_or_empty = True
                                             NullVal.append(column.name)
+                                    # for column in model.VoucherData.__table__.columns:
+
+                                    #     value = getattr(voucher_row, column.name)
+                                    #     if value is None or value == "":
+                                    #         has_null_or_empty = True
+                                    #         NullVal.append(column.name)
 
                                     if has_null_or_empty:
                                         VthChk = 0
@@ -1367,6 +1380,7 @@ def pfg_sync(docID, userID, db: Session):
 
                                     overAllstatus_ck = 1
                                     for stCk in docStatusSync:
+
                                         if stCk != "File Size Check":
                                             valCkStatus = docStatusSync[stCk]["status"]
                                             if type(valCkStatus) is int:
