@@ -44,6 +44,7 @@ def IntegratedvoucherData(inv_id, db: Session):
     stmp_dt_dict = {}
     for dtm_rw in stmp_dt:
         stmp_dt_dict[dtm_rw.stamptagname] = dtm_rw.stampvalue
+    storeNumber, storeType, confNumber = "", "", ""
     if len(stmp_dt_dict) > 0:
         if "ConfirmationNumber" in stmp_dt_dict:
             confNumber = stmp_dt_dict["ConfirmationNumber"]
@@ -65,7 +66,13 @@ def IntegratedvoucherData(inv_id, db: Session):
         .filter(model.PFGReceipt.RECEIVER_ID == confNumber)
         .all()
     )
-
+    BUSINESS_UNIT = ""  # type: ignore
+    VENDOR_SETID = ""  # type: ignore
+    VENDOR_ID = ""  # type: ignore
+    ACCOUNT = ""  # type: ignore
+    DEPTID = ""  # type: ignore
+    location = ""  # type: ignore
+    recvLineNum = ""  # type: ignore
     for invRpt in invo_recp:
         BUSINESS_UNIT = invRpt.BUSINESS_UNIT
         VENDOR_SETID = invRpt.VENDOR_SETID
@@ -74,16 +81,17 @@ def IntegratedvoucherData(inv_id, db: Session):
         DEPTID = invRpt.DEPTID
         location = invRpt.LOCATION
         recvLineNum = invRpt.RECV_LN_NBR
+
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
         recvLineNum = 0
 
-    if location == storeNumber:
+    if location == storeNumber and location != "":
         intStatus = 1
         intStatusMsg = "Success"
     else:
         intStatus = 0
-        intStatusMsg = "Incorrect store number"
+        intStatusMsg = "Incorrect store number|Receipt not found"
 
     if intStatus == 1:
 
@@ -891,7 +899,9 @@ def pfg_sync(docID, userID, db: Session):
                         invTotalMth_msg = "Invoice total mismatch:" + str(e)
 
                     try:
-                        date_string = docHdrDt["InvoiceDate"]  # TODO: Unused variable
+                        date_string = docHdrDt.get(
+                            "InvoiceDate", ""
+                        )  # TODO: Unused variable
                         try:
                             formatted_date, dateValCk = format_and_validate_date(
                                 date_string

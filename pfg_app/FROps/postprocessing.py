@@ -337,7 +337,8 @@ def getBBox(data):
             if isinstance(data, list):
                 data = data[0]
                 # # Extract x, y, width, height
-            polygon = data["polygon"]
+            # llok for polygon if it does not exist set a default value
+            polygon = data.get("polygon", [{"x": 0, "y": 0}])
             x_values = [point["x"] for point in polygon]
             y_values = [point["y"] for point in polygon]
             x = round(min(x_values), 2)
