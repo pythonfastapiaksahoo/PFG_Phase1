@@ -77,10 +77,10 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
-            "QuickInvoice": 27,
-            "RecycledInvoice": 28,
-            "VoucherCreated": 29,
-            "VoucherNotFound": 30,
+            # "QuickInvoice": 27,
+            # "RecycledInvoice": 28,
+            # "VoucherCreated": 29,
+            # "VoucherNotFound": 30,
         }
 
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)

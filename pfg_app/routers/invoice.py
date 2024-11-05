@@ -32,10 +32,6 @@ async def read_paginate_doc_inv_list_with_ln_item(
             "exception",
             "VendorNotOnboarded",
             "VendorUnidentified",
-            "QuickInvoice",
-            "RecycledInvoice",
-            "VoucherCreated",
-            "VoucherNotFound",
         ]
     ] = None,
     offset: int = 1,
