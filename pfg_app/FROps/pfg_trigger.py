@@ -458,6 +458,21 @@ def pfg_sync(docID, userID, db: Session):
         .scalar()
     )
 
+    logger.info(f"docModel:{docModel}")
+
+    tagDef = (
+        db.query(model.DocumentTagDef)
+        .filter(model.DocumentTagDef.idDocumentModel == docModel)
+        .all()
+    )
+
+    tagNames = {}
+
+    for document_tag_def in tagDef:
+        tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+
+    logger.info(f"tagNames: {tagNames}")
+
     invTotalMth = 0
     dateCheck = 0
     docStatusSync: dict[str, dict[str, Union[int, list[str]]]] = {}
@@ -491,6 +506,13 @@ def pfg_sync(docID, userID, db: Session):
             filePath = dtb_rw.docPath
             invID_docTab = dtb_rw.docheaderID
             vdrAccID = dtb_rw.vendorAccountID
+        logger.info(
+            f"InvodocStatus:{InvodocStatus},"
+            + "filePath:{filePath},"
+            + "invID_docTab:{invID_docTab},"
+            + "vdrAccID:{vdrAccID}"
+        )
+
     except Exception as e:
         logger.error(f"{str(e)}")
 
@@ -592,6 +614,7 @@ def pfg_sync(docID, userID, db: Session):
             docHdrDt[document_tag_def.TagLabel] = document_data.Value
             tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
         logger.info(f"docHdrDt: {docHdrDt}")
+        logger.info(f"tagNames: {tagNames}")
 
         # ----------------
         if len(docHdrDt) > 0:
