@@ -889,7 +889,11 @@ def processInvoiceVoucher(doc_id, db):
                                     "MISC_AMT": 0,
                                     "PYMNT_TERMS_CD": "",
                                     "TXN_CURRENCY_CD": "",
-                                    "VAT_ENTRD_AMT": 0,
+                                    "VAT_ENTRD_AMT": (
+                                        voucherdata.gst_amt
+                                        if voucherdata.gst_amt
+                                        else 0
+                                    ),
                                     "VCHR_LINE_STG": [
                                         {
                                             "BUSINESS_UNIT": "MERCH",
@@ -907,7 +911,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "QTY_VCHR": 1,
                                             "UNIT_OF_MEASURE": "",
                                             "UNIT_PRICE": 0,
-                                            "VAT_APPLICABILITY": "O",
+                                            "VAT_APPLICABILITY": "",
                                             "BUSINESS_UNIT_RECV": (
                                                 voucherdata.Business_unit
                                                 if voucherdata.Business_unit
