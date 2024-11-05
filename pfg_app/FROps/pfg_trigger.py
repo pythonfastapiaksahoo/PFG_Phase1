@@ -43,6 +43,7 @@ def IntegratedvoucherData(inv_id, db: Session):
     stmp_dt_dict = {}
     for dtm_rw in stmp_dt:
         stmp_dt_dict[dtm_rw.stamptagname] = dtm_rw.stampvalue
+    storeNumber, storeType, confNumber = "", "", ""
     if len(stmp_dt_dict) > 0:
         if "ConfirmationNumber" in stmp_dt_dict:
             confNumber = stmp_dt_dict["ConfirmationNumber"]
@@ -64,7 +65,14 @@ def IntegratedvoucherData(inv_id, db: Session):
         .filter(model.PFGReceipt.RECEIVER_ID == confNumber)
         .all()
     )
-
+    BUSINESS_UNIT, VENDOR_SETID, VENDOR_ID, ACCOUNT, DEPTID, location = (
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+    )
     for invRpt in invo_recp:
         BUSINESS_UNIT = invRpt.BUSINESS_UNIT
         VENDOR_SETID = invRpt.VENDOR_SETID
@@ -72,12 +80,13 @@ def IntegratedvoucherData(inv_id, db: Session):
         ACCOUNT = invRpt.ACCOUNT
         DEPTID = invRpt.DEPTID
         location = invRpt.LOCATION
-    if location == storeNumber:
+
+    if location == storeNumber and location != "":
         intStatus = 1
         intStatusMsg = "Success"
     else:
         intStatus = 0
-        intStatusMsg = "Incorrect store number"
+        intStatusMsg = "Incorrect store number|Receipt not found"
 
     if intStatus == 1:
 
@@ -881,7 +890,9 @@ def pfg_sync(docID, userID, db: Session):
                         invTotalMth_msg = "Invoice total mismatch:" + str(e)
 
                     try:
-                        date_string = docHdrDt["InvoiceDate"]  # TODO: Unused variable
+                        date_string = docHdrDt.get(
+                            "InvoiceDate", ""
+                        )  # TODO: Unused variable
                         try:
                             formatted_date, dateValCk = format_and_validate_date(
                                 date_string
