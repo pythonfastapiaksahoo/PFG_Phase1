@@ -77,10 +77,10 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
-            "QuickInvoice": 27,
-            "RecycledInvoice": 28,
-            "VoucherCreated": 29,
-            "VoucherNotFound": 30,
+            # "QuickInvoice": 27,
+            # "RecycledInvoice": 28,
+            # "VoucherCreated": 29,
+            # "VoucherNotFound": 30,
         }
 
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
@@ -2207,3 +2207,27 @@ async def get_email_row_associated_files(
     except Exception:
         logger.error(f"An unexpected error occurred: {str(traceback.format_exc())}")
         return {"total_items": 0, "data": []}  # Default response on unexpected error
+
+
+async def readdeptname(db):
+    """This function read list of Department name from database.
+
+    It contains 2 parameter.
+    :param u_id: The user ID for which to fetch department data.
+    :param db: It provides a session to interact with the backend
+        Database,that is of Session Object Type.
+    :return: It return a result of dictionary type.
+    """
+    try:
+        # Query to get vendor names and filter by VENDOR_STATUS
+        query = db.query(model.PFGDepartment.DESCRSHORT)
+        data = query.all()
+        return data
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(
+            status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
+        )
+    finally:
+        db.close()

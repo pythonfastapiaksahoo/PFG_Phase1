@@ -294,7 +294,7 @@ def tb_cln_amt(amt):
         amt = "0"
     # cln_amt_sts = 0  # TODO: Unused variable
     amt_cpy = amt
-    logger.info(f"cln_amt - amt: {amt}")
+    # logger.info(f"cln_amt - amt: {amt}")
     # amt = amt.replace(',','.')
     try:
         if "," in amt:
@@ -347,7 +347,7 @@ def getBBox(data):
             h = str(round(max(y_values) - y, 2))
             x = str(x)
             y = str(y)
-            logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
+            # logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
             return {"x": x, "y": y, "w": w, "h": h}
     except Exception:
         logger.debug(f" {traceback.format_exc()}")

@@ -27,6 +27,7 @@ from pfg_app.auth import AuthHandler
 # from pfg_app.azuread.auth import get_user
 # from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.azure_fr import get_fr_data
+from pfg_app.core.stampData import is_valid_date
 from pfg_app.FROps.pfg_trigger import (
     IntegratedvoucherData,
     nonIntegratedVoucherData,
@@ -35,7 +36,6 @@ from pfg_app.FROps.pfg_trigger import (
 from pfg_app.FROps.postprocessing import getFrData_MNF, postpro
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.FROps.SplitDoc import splitDoc
-from pfg_app.FROps.stampData import is_valid_date
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 
@@ -171,62 +171,61 @@ def runStatus(
         destination_container_name = "apinvoice-container"  # TODO move to settings
         fr_API_version = "2023-07-31"  # TODO move to settings
 
-        prompt = """This is an invoice document. It may contain invoice ID, vendor name,
-          and a stamp with handwritten details as follows
-          (stamp may be of different variants):
+        prompt = """This is an invoice document containing an invoice ID,
+        vendor name, and a stamp with handwritten or stamped information, possibly
+        including a receiver's stamp. The document may include the following details:
 
-        - store number (number either starting after keyword "STR #" or "ST")
+        Store Number: Typically stamped and starting with "#".
 
-        - keyword - any one of Inventory/Supplies (select only circled or marked one)
+        Marked Department: Clearly circled or marked "Inventory" or "Supplies"
+        (if neither is marked, set this to "N/A") sometimes print might not be clear,
+        in those case also it can return N/A.
 
-        - Department number or name - Starting after Department (else set it to
-        'Unclear')
+        Department: Either a department code or department name, handwritten
+        and possibly starting with "Dept".
 
-        - Receiving Date (the date when the goods were received)
+        Receiving Date: The date when goods were received.
 
-        - Confirmation number (Starting after 'Confirmation' only number)
+        Confirmation Number: A 9-digit number, usually handwritten and labeled
+        as "Confirmation".
 
-        - Receiver# or Receiver name (the name of the person or code who received
-        the goods)
+        Receiver: The name or code of the person who received the goods
+        (may appear as "Receiver#" or by name).
 
+        Invoice Number: The unique number identifying the invoice.
 
-        InvoiceDocument: Yes/No
+        Currency: Identified by currency symbols (e.g., CAD, USD)
+        or determined by the country in the invoice address if
+        a currency symbol is not found.
 
-        InvoiceID: [InvoiceID].
+        Instructions
+        Invoice Document: Yes/No
+        Invoice ID: [Extracted Invoice ID].
+        Stamp Present: Yes/No
+        If a stamp is present, extract the following information
+        and output it in JSON format:
 
-        StampPresent: Yes/No.
-
-        If stamp is present:
-
-        - Extract the Invoice Number.
-
-        - Extract the valid Currency from the invoice document by identifying the
-        currency symbol before the total amount. The currency can be CAD or USD or any
-          other currency.If there is no symbol then check invoice address is in Canada
-          or USA or any other country and set the currency accordingly.
-
-        Provide all information in the following JSON format:
-
+        json
+        Copy code
         {
-
-            'StampFound': 'Yes/No',
-            'NumberOfPages : Number of pages in the document',
-            'MarkedDept': 'Inventory/Supplies' (only if it's clearly circled or marked),
-            'Confirmation': 'Extracted data',
-            'ReceivingDate': 'Extracted data',
-            'Receiver': 'Extracted data',
-            'Department': 'Extracted data',
-            'Store Number': 'Extracted data',
-            'VendorName': 'Extracted data',
-            'InvoiceID': 'Extracted data',
-            'Currency': 'Extracted data'
-        }.
-
-        Extract the relevant information and return it only in the JSON format above.
-          Do not include any text outside the JSON object. No additional
-          explanations are needed.
-
-"""
+            "StampFound": "Yes/No",
+            "NumberOfPages": "Total number of pages in the document",
+            "MarkedDept": "Inventory/Supplies/N/A",
+            "Confirmation": "Extracted 13-digit confirmation number",
+            "ReceivingDate": "Extracted receiving date",
+            "Receiver": "Extracted receiver information",
+            "Department": "Extracted department code or name",
+            "Store Number": "Extracted store number",
+            "VendorName": "Extracted vendor name",
+            "InvoiceID": "Extracted invoice ID",
+            "Currency": "Extracted currency"
+        }
+        Notes
+        MarkedDept: Return "Inventory" or "Supplies" based on the clearly
+        circled or marked option. If neither is marked, return "N/A".
+        Confirmation: Extract a 13-digit confirmation number.
+        Format: Output strictly in the JSON format provided above,
+        with no additional text or explanations."""
 
         (
             prbtHeaders,
@@ -323,9 +322,9 @@ def runStatus(
 
                 if "VendorName" in prbtHeaders[splt_map[fl]]:
                     # logger.info(f"DI prbtHeaders: {prbtHeaders}")
-                    inv_vendorName = prbtHeaders[splt_map[fl]]["VendorName"][0]
-                    di_inv_vendorName = inv_vendorName
-                    logger.info(f" DI inv_vendorName: {inv_vendorName}")
+                    di_inv_vendorName = prbtHeaders[splt_map[fl]]["VendorName"][0]
+                    # di_inv_vendorName = inv_vendorName
+                    logger.info(f" DI inv_vendorName: {di_inv_vendorName}")
                 else:
                     di_inv_vendorName = ""
 
@@ -476,7 +475,9 @@ def runStatus(
 
                     if modelData is None:
                         try:
-                            preBltFrdata, preBltFrdata_status = getFrData_MNF(rwOcrData)
+                            preBltFrdata, preBltFrdata_status = getFrData_MNF(
+                                [rwOcrData[fl]]
+                            )
 
                             invoId = push_frdata(
                                 preBltFrdata,
@@ -569,7 +570,7 @@ def runStatus(
                         try:
                             if len(str(invoId)) == 0:
                                 preBltFrdata, preBltFrdata_status = getFrData_MNF(
-                                    rwOcrData
+                                    [rwOcrData[fl]]
                                 )
                                 # Postprocessing Failed
                                 invoId = push_frdata(
@@ -648,7 +649,9 @@ def runStatus(
 
                 else:
                     try:
-                        preBltFrdata, preBltFrdata_status = getFrData_MNF(rwOcrData)
+                        preBltFrdata, preBltFrdata_status = getFrData_MNF(
+                            [rwOcrData[fl]]
+                        )
                         # 999999
                         invoId = push_frdata(
                             preBltFrdata,
@@ -1007,7 +1010,7 @@ def runStatus(
             # log to DB
         try:
             if len(str(invoId)) == 0:
-                preBltFrdata, preBltFrdata_status = getFrData_MNF(rwOcrData)
+                preBltFrdata, preBltFrdata_status = getFrData_MNF([rwOcrData[fl]])
                 invoId = push_frdata(
                     preBltFrdata,
                     999999,

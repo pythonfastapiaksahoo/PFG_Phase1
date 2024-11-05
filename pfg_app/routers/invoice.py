@@ -32,10 +32,6 @@ async def read_paginate_doc_inv_list_with_ln_item(
             "exception",
             "VendorNotOnboarded",
             "VendorUnidentified",
-            "QuickInvoice",
-            "RecycledInvoice",
-            "VoucherCreated",
-            "VoucherNotFound",
         ]
     ] = None,
     offset: int = 1,
@@ -483,3 +479,21 @@ async def get_email_row_associated_files(
         user.idUser, (offset, limit), uni_api_filter, column_filter, db
     )
     return docs
+
+
+# API to read all vendor names
+@router.get("/departmentnamelist")
+async def get_dept_names_list(db: Session = Depends(get_db)):
+    """API route to retrieve a list of all active department names.
+
+    Parameters:
+    ----------
+
+    db : Session
+        Database session object, used to interact with the database.
+
+    Returns:
+    -------
+    List of active department names.
+    """
+    return await crud.readdeptname(db)
