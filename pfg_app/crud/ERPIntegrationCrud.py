@@ -1280,6 +1280,7 @@ def newbulkupdateInvoiceStatus(db):
 
             # Prepare payloads and make API requests
             updates = []
+            doc_history_updates = []  # Collect history updates in bulk for the batch
             for voucherdata, doc_id in zip(voucher_data_list, doc_ids):
                 dmsg = None  # Initialize dmsg to ensure it's defined
                 documentstatusid = 7
@@ -1354,6 +1355,15 @@ def newbulkupdateInvoiceStatus(db):
                                     "voucher_id": voucher_id,
                                 }
                             )
+                            # Collect doc history update data
+                            doc_history_updates.append(
+                                {
+                                    "doc_id": doc_id[0],
+                                    "user_id": userID,
+                                    "documentstatusid": documentstatusid,
+                                    "dmsg": dmsg
+                                }
+                            )
                             success_count += 1  # Increment success counter
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
@@ -1371,8 +1381,12 @@ def newbulkupdateInvoiceStatus(db):
                 logger.error(f"Error: {traceback.format_exc()}")
 
             try:
-
-                update_docHistory(doc_id[0], userID, documentstatusid, dmsg, db)
+                if doc_history_updates:
+                    db.bulk_insert_mappings(
+                        model.DocumentHistoryLogs, doc_history_updates)
+                    db.commit()  # Commit the history log insertions for this batch
+                
+                logger.info(f"Update history log batch {start} to {start + batch_size}")
             except Exception as err:
                 dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(err)
                 logger.error(f"Error while update dochistlog: {traceback.format_exc()}")
