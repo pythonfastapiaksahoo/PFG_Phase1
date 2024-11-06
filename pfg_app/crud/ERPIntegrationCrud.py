@@ -889,7 +889,11 @@ def processInvoiceVoucher(doc_id, db):
                                     "MISC_AMT": 0,
                                     "PYMNT_TERMS_CD": "",
                                     "TXN_CURRENCY_CD": "",
-                                    "VAT_ENTRD_AMT": 0,
+                                    "VAT_ENTRD_AMT": (
+                                        voucherdata.gst_amt
+                                        if voucherdata.gst_amt
+                                        else 0
+                                    ),
                                     "VCHR_LINE_STG": [
                                         {
                                             "BUSINESS_UNIT": "MERCH",
@@ -907,7 +911,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "QTY_VCHR": 1,
                                             "UNIT_OF_MEASURE": "",
                                             "UNIT_PRICE": 0,
-                                            "VAT_APPLICABILITY": "O",
+                                            "VAT_APPLICABILITY": "",
                                             "BUSINESS_UNIT_RECV": (
                                                 voucherdata.Business_unit
                                                 if voucherdata.Business_unit
@@ -1002,8 +1006,22 @@ def processInvoiceVoucher(doc_id, db):
 
             # Check for success
             if response.status_code == 200:
-
-                responsedata = {"message": "Success", "data": response.json()}
+                try:
+                    response_data = response.json()
+                    if not response_data:
+                        logger.info("Response JSON is empty.")
+                        responsedata = {
+                            "message": "Success, but response JSON is empty."
+                        }
+                    else:
+                        responsedata = {"message": "Success", "data": response_data}
+                except ValueError:
+                    # Handle case where JSON decoding fails
+                    logger.info("Response returned, but not in JSON format.")
+                    responsedata = {
+                        "message": "Success, but response is not JSON.",
+                        "data": response.text,
+                    }
 
         except requests.exceptions.HTTPError as e:
             logger.info(f"HTTP error occurred: {traceback.format_exc()}")
@@ -1244,6 +1262,9 @@ def newbulkupdateInvoiceStatus(db):
         headers = {"Content-Type": "application/json"}
         auth = (settings.erp_user, settings.erp_password)
 
+        # Success counter
+        success_count = 0
+
         # Process in batches
         for start in range(0, total_docs, batch_size):
             doc_ids = doc_query.offset(start).limit(batch_size).all()
@@ -1333,7 +1354,7 @@ def newbulkupdateInvoiceStatus(db):
                                     "voucher_id": voucher_id,
                                 }
                             )
-
+                            success_count += 1  # Increment success counter
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
                     # but don't interrupt the batch
@@ -1356,7 +1377,11 @@ def newbulkupdateInvoiceStatus(db):
                 dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(err)
                 logger.error(f"Error while update dochistlog: {traceback.format_exc()}")
 
-        return {"message": "Bulk update completed successfully"}
+        return {
+            "message": "Bulk update run successfully",
+            "total_docs count": total_docs,
+            "success_count": success_count
+            }
 
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
@@ -1383,6 +1408,10 @@ def bulkProcessVoucherData(db):
         if total_docs == 0:
             logger.info("No documents to send to Peoplesoft.")
             return {"message": "No documents to send to Peoplesoft."}
+
+        # Success counter
+        success_count = 0
+
         # Process in batches
         for start in range(0, total_docs, batch_size):
             doc_ids = doc_query.offset(start).limit(batch_size).all()
@@ -1401,7 +1430,9 @@ def bulkProcessVoucherData(db):
                                     )
                                     docStatus = 7
                                     docSubStatus = 43
-
+                                    success_count += (
+                                        1  # Increment on successful status change
+                                    )
                                 elif RespCodeInt == 400:
                                     dmsg = (
                                         InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
@@ -1513,5 +1544,10 @@ def bulkProcessVoucherData(db):
                     update_docHistory(docID, userID, documentstatus, dmsg, db)
                 except Exception as e:
                     logger.error(f"ErrorUpdatingDocHistory 163: {str(e)}")
+        return {
+            "message": "Voucher processing completed.",
+            "Total docs processed": total_docs,
+            "success_count": success_count,
+        }
     except Exception as e:
         logger.error(f"Error in schedule IDP to Peoplesoft : {str(e)}")
