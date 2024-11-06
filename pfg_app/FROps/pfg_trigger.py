@@ -731,6 +731,12 @@ def pfg_sync(docID, userID, db: Session):
                                 invTotalMth = 0
                                 invTotalMth_msg = "HST found:" + str(hst)
                                 tax_isErr = 1
+                        if "GST" in docHdrDt:
+                            gst_amt = clean_amount(docHdrDt["GST"])
+                            if gst_amt is None:
+                                gst_amt = 0
+                        else:
+                            gst_amt = 0
                         if tax_isErr == 0:
                             try:
 
@@ -744,33 +750,30 @@ def pfg_sync(docID, userID, db: Session):
                                         )
 
                                         if invoTotal is not None:
-                                            if "GST" in docHdrDt:
-                                                gst_amt = clean_amount(docHdrDt["GST"])
-                                                if (
-                                                    gst_amt is not None
-                                                ) and gst_amt > 0:
-                                                    gst_sm = clean_amount(
-                                                        subTotal + gst_amt
-                                                    )
-                                                    if gst_sm is not None:
-                                                        if gst_sm == invoTotal:
-                                                            invTotalMth = 1
 
-                                                        elif (
-                                                            round(
-                                                                abs(gst_sm - invoTotal),
-                                                                2,
-                                                            )
-                                                            < 0.09
-                                                        ):  # noqa: E501
-                                                            invTotalMth = 1
-                                                        else:
-                                                            tax_isErr = 1
-                                                            invTotalMth = 0
-                                                            invTotalMth_msg = (
-                                                                "GST mismatch:"
-                                                                + str(gst_amt)
-                                                            )
+                                            if (gst_amt is not None) and gst_amt > 0:
+                                                gst_sm = clean_amount(
+                                                    subTotal + gst_amt
+                                                )
+                                                if gst_sm is not None:
+                                                    if gst_sm == invoTotal:
+                                                        invTotalMth = 1
+
+                                                    elif (
+                                                        round(
+                                                            abs(gst_sm - invoTotal),
+                                                            2,
+                                                        )
+                                                        < 0.09
+                                                    ):  # noqa: E501
+                                                        invTotalMth = 1
+                                                    else:
+                                                        tax_isErr = 1
+                                                        invTotalMth = 0
+                                                        invTotalMth_msg = (
+                                                            "GST mismatch:"
+                                                            + str(gst_amt)
+                                                        )
                                             if tax_isErr == 0:
                                                 if invoTotal == subTotal:
                                                     invTotalMth = 1
