@@ -1377,7 +1377,11 @@ def newbulkupdateInvoiceStatus(db):
                 dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(err)
                 logger.error(f"Error while update dochistlog: {traceback.format_exc()}")
 
-        return {"message": "Bulk update run successfully", "total_count": success_count}
+        return {
+            "message": "Bulk update run successfully",
+            "total_docs count": total_docs,
+            "success_count": success_count
+            }
 
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
@@ -1542,6 +1546,7 @@ def bulkProcessVoucherData(db):
                     logger.error(f"ErrorUpdatingDocHistory 163: {str(e)}")
         return {
             "message": "Voucher processing completed.",
+            "Total docs processed": total_docs,
             "success_count": success_count,
         }
     except Exception as e:
