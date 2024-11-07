@@ -221,9 +221,12 @@ def splitDoc(
                         "confidence"
                         in output_data_dt[i]["documents"][0]["fields"]["InvoiceId"]
                     ):
-                        invoConf = output_data_dt[i]["documents"][0]["fields"][
-                            "InvoiceId"
-                        ]["confidence"]
+                        try:
+                            invoConf = output_data_dt[i]["documents"][0]["fields"][
+                                "InvoiceId"
+                            ]["confidence"]
+                        except Exception:
+                            invoConf = 0.0
                     else:
                         invoConf = 0.0
                 else:
@@ -245,9 +248,12 @@ def splitDoc(
                         "confidence"
                         in output_data_dt[i]["documents"][0]["fields"]["VendorName"]
                     ):
-                        VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
-                            "VendorName"
-                        ]["confidence"]
+                        try:
+                            VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
+                                "VendorName"
+                            ]["confidence"]
+                        except Exception:
+                            VndrNmConf = 0.0
                     else:
                         VndrNmConf = 0.0
                 else:
@@ -326,13 +332,17 @@ def splitDoc(
                     and preDt[pb]["value_type"] != "array"
                     and pb != "Items"
                 ):
-                    prbtHeaderspg[pb] = [
-                        preDt[pb]["content"],
-                        round(float(preDt[pb]["confidence"]) * 100, 2),
-                    ]
+                    try:
+                        prbtHeaderspg[pb] = [
+                            preDt[pb]["content"],
+                            round(float(preDt[pb]["confidence"]) * 100, 2),
+                        ]
+                    except Exception:
+                        prbtHeaderspg[pb] = [preDt[pb]["content"], 0.0]
+
             prbtHeaders[docPg] = prbtHeaderspg
-        if len(output_data)==1:
-            split_list = [(1,1)]
+        if len(output_data) == 1:
+            split_list = [(1, 1)]
 
         elif sndChk == 1:
             grouped_pages = group_pages(prbtHeaders)
@@ -380,18 +390,24 @@ def splitDoc(
                             and preDt[pb]["value_type"] == "string"
                         ):
                             if "confidence" in preDt[pb]:
-                                prbtHeaderspg[pb] = [
-                                    preDt[pb]["content"],
-                                    round(float(preDt[pb]["confidence"]) * 100, 2),
-                                ]
+                                try:
+                                    prbtHeaderspg[pb] = [
+                                        preDt[pb]["content"],
+                                        round(float(preDt[pb]["confidence"]) * 100, 2),
+                                    ]
+                                except Exception:
+                                    prbtHeaderspg[pb] = [
+                                        preDt[pb]["content"],
+                                        0.0,
+                                    ]
                     except Exception:
                         logger.info(f"line 300: {[pb]}")
                         logger.error(f"{traceback.format_exc()}")
             prbtHeaders[docPg] = prbtHeaderspg
 
         #
-        if len(output_data)==1:
-            split_list = [(1,1)]
+        if len(output_data) == 1:
+            split_list = [(1, 1)]
         else:
             groupInvo = {}
             tmp = ()
