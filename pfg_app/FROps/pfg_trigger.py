@@ -910,7 +910,7 @@ def pfg_sync(docID, userID, db: Session):
                                                             < 0.09
                                                         ):
                                                             invTotalMth = 1
-                                elif gst_amt>0:
+                                elif gst_amt > 0:
                                     invTotalMth = 0
                                     invTotalMth_msg = "Missing subtotal"
                                 else:
