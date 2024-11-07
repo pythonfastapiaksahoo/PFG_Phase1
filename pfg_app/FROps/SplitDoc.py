@@ -221,9 +221,12 @@ def splitDoc(
                         "confidence"
                         in output_data_dt[i]["documents"][0]["fields"]["InvoiceId"]
                     ):
-                        invoConf = output_data_dt[i]["documents"][0]["fields"][
-                            "InvoiceId"
-                        ]["confidence"]
+                        try:
+                            invoConf = output_data_dt[i]["documents"][0]["fields"][
+                                "InvoiceId"
+                            ]["confidence"]
+                        except Exception:
+                            invoConf = 0.0
                     else:
                         invoConf = 0.0
                 else:
@@ -245,9 +248,12 @@ def splitDoc(
                         "confidence"
                         in output_data_dt[i]["documents"][0]["fields"]["VendorName"]
                     ):
-                        VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
-                            "VendorName"
-                        ]["confidence"]
+                        try:
+                            VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
+                                "VendorName"
+                            ]["confidence"]
+                        except Exception:
+                            VndrNmConf = 0.0
                     else:
                         VndrNmConf = 0.0
                 else:
@@ -326,13 +332,19 @@ def splitDoc(
                     and preDt[pb]["value_type"] != "array"
                     and pb != "Items"
                 ):
-                    prbtHeaderspg[pb] = [
-                        preDt[pb]["content"],
-                        round(float(preDt[pb]["confidence"]) * 100, 2),
-                    ]
-            prbtHeaders[docPg] = prbtHeaderspg
+                    try:
+                        prbtHeaderspg[pb] = [
+                            preDt[pb]["content"],
+                            round(float(preDt[pb]["confidence"]) * 100, 2),
+                        ]
+                    except Exception:
+                        prbtHeaderspg[pb] = [preDt[pb]["content"], 0.0]
 
-        if sndChk == 1:
+            prbtHeaders[docPg] = prbtHeaderspg
+        if len(output_data) == 1:
+            split_list = [(1, 1)]
+
+        elif sndChk == 1:
             grouped_pages = group_pages(prbtHeaders)
 
             splitpgsDt = [
@@ -378,60 +390,72 @@ def splitDoc(
                             and preDt[pb]["value_type"] == "string"
                         ):
                             if "confidence" in preDt[pb]:
-                                prbtHeaderspg[pb] = [
-                                    preDt[pb]["content"],
-                                    round(float(preDt[pb]["confidence"]) * 100, 2),
-                                ]
+                                try:
+                                    prbtHeaderspg[pb] = [
+                                        preDt[pb]["content"],
+                                        round(float(preDt[pb]["confidence"]) * 100, 2),
+                                    ]
+                                except Exception:
+                                    prbtHeaderspg[pb] = [
+                                        preDt[pb]["content"],
+                                        0.0,
+                                    ]
                     except Exception:
                         logger.info(f"line 300: {[pb]}")
                         logger.error(f"{traceback.format_exc()}")
             prbtHeaders[docPg] = prbtHeaderspg
 
         #
-        groupInvo = {}
-        tmp = ()
-        for inv in pageInvoVendorData:
-            if (
-                pageInvoVendorData[inv]["InvoiceId"][1] > 0.89
-                and pageInvoVendorData[inv]["VendorName"][1] > 0.80
-            ):
-                nwPg = 1
-            else:
-                nwPg = 0
-            groupInvo[inv] = nwPg
-        lt = []
-        prv = 0
-        for i in groupInvo:
-            if groupInvo[i] == 1:
-                prv = i
-                tmp = i
-            else:
-                if i == 1:
+        if len(output_data) == 1:
+            split_list = [(1, 1)]
+        else:
+            groupInvo = {}
+            tmp = ()
+            for inv in pageInvoVendorData:
+                if (
+                    pageInvoVendorData[inv]["InvoiceId"][1] > 0.89
+                    and pageInvoVendorData[inv]["VendorName"][1] > 0.80
+                ):
+                    nwPg = 1
+                else:
+                    if inv == 1:
+                        nwPg = 1
+                    else:
+                        nwPg = 0
+                groupInvo[inv] = nwPg
+            lt = []
+            prv = 0
+            for i in groupInvo:
+                if groupInvo[i] == 1:
+                    prv = i
                     tmp = i
                 else:
-                    tmp = (prv, i)
-            lt.append(tmp)
+                    if i == 1:
+                        tmp = i
+                    else:
+                        tmp = (prv, i)
+                lt.append(tmp)
 
-        output = []
-        for item in lt:
-            if isinstance(item, int):
-                prVal = item
-                output.append((item, item))
+            output = []
+            for item in lt:
+                if isinstance(item, int):
+                    prVal = item
+                    output.append((item, item))
 
-            elif isinstance(item, tuple):
+                elif isinstance(item, tuple):
 
-                if item[0] == prVal:
-                    if (prVal, prVal) in output:
-                        output.remove((prVal, prVal))
-                output.append(item)
+                    if item[0] == prVal:
+                        if (prVal, prVal) in output:
+                            output.remove((prVal, prVal))
+                    output.append(item)
 
-        finalInvoGrp = output.copy()
-        for op in range(0, len(output)):
-            if op < len(output) - 1:
-                if output[op][0] == output[op + 1][0]:
-                    finalInvoGrp.remove(output[op])
+            finalInvoGrp = output.copy()
+            for op in range(0, len(output)):
+                if op < len(output) - 1:
+                    if output[op][0] == output[op + 1][0]:
+                        finalInvoGrp.remove(output[op])
 
-        split_list = [tup for tup in finalInvoGrp if 0 not in tup]
+            split_list = [tup for tup in finalInvoGrp if 0 not in tup]
 
         # grouped_invoices = {}
         # previous_invoice = ""

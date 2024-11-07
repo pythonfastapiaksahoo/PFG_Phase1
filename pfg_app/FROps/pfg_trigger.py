@@ -1147,7 +1147,7 @@ def pfg_sync(docID, userID, db: Session):
                                         == "Integrated"
                                     ):
 
-                                        # -----------------------------------------
+                                        # -------------------------------
                                         if "ConfirmationNumber" in stmpData:
                                             Confirmation_rw = list(
                                                 stmpData["ConfirmationNumber"].keys()

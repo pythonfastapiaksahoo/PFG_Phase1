@@ -224,7 +224,7 @@ def runStatus(
         MarkedDept: Return "Inventory" or "Supplies" based on the clearly
         circled or marked option. If neither is marked, return "N/A".
         Confirmation: Extract a 13-digit confirmation number.
-        Format: Output strictly in the JSON format provided above,
+        Format: Output strictly in the JSON format with unique keys provided above,
         with no additional text or explanations."""
 
         (
@@ -479,7 +479,7 @@ def runStatus(
                     if modelData is None:
                         try:
                             preBltFrdata, preBltFrdata_status = getFrData_MNF(
-                                rwOcrData[grp_pages[fl][0] - 1:grp_pages[fl][1]]
+                                rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                             )
 
                             invoId = push_frdata(
@@ -573,7 +573,7 @@ def runStatus(
                         try:
                             if len(str(invoId)) == 0:
                                 preBltFrdata, preBltFrdata_status = getFrData_MNF(
-                                    rwOcrData[grp_pages[fl][0] - 1:grp_pages[fl][1]]
+                                    rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                                 )
                                 # Postprocessing Failed
                                 invoId = push_frdata(
@@ -653,7 +653,7 @@ def runStatus(
                 else:
                     try:
                         preBltFrdata, preBltFrdata_status = getFrData_MNF(
-                            rwOcrData[grp_pages[fl][0] - 1:grp_pages[fl][1]]
+                            rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                         )
                         # 999999
                         invoId = push_frdata(
