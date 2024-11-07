@@ -397,7 +397,10 @@ def splitDoc(
             ):
                 nwPg = 1
             else:
-                nwPg = 0
+                if inv==1:
+                    nwPg = 1
+                else:
+                    nwPg = 0
             groupInvo[inv] = nwPg
         lt = []
         prv = 0
