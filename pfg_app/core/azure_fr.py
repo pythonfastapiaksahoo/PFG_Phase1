@@ -37,7 +37,7 @@ def get_fr_data(
 
             result = poller.result().to_dict()
 
-            logger.info(f"FUNC => [get_fr_data result] : {result}")
+            # logger.info(f"FUNC => [get_fr_data result] : {result}")
 
             # Process the result
             if result and result["model_id"] == inv_model_id:
@@ -160,7 +160,7 @@ def call_form_recognizer(
 
     result = poller.result().to_dict()
 
-    logger.info(f"FUNC => [call_form_recognizer] result: {result}")
+    # logger.info(f"FUNC => [call_form_recognizer] result: {result}")
 
     return result
 
