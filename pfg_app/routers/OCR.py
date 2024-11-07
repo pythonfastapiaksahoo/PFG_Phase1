@@ -224,7 +224,7 @@ def runStatus(
         MarkedDept: Return "Inventory" or "Supplies" based on the clearly
         circled or marked option. If neither is marked, return "N/A".
         Confirmation: Extract a 13-digit confirmation number.
-        Format: Output strictly in the JSON format provided above,
+        Format: Output strictly in the JSON format with unique keys provided above,
         with no additional text or explanations."""
 
         (
@@ -358,13 +358,16 @@ def runStatus(
                                         for syn2 in syn_1:
                                             if stop:
                                                 break
-
-                                            tfidf_matrix_di = vectorizer.fit_transform(
-                                                [syn2, di_inv_vendorName]
-                                            )
-                                            cos_sim_di = cosine_similarity(
-                                                tfidf_matrix_di[0], tfidf_matrix_di[1]
-                                            )
+                                            if len(di_inv_vendorName) > 0:
+                                                tfidf_matrix_di = (
+                                                    vectorizer.fit_transform(
+                                                        [syn2, di_inv_vendorName]
+                                                    )
+                                                )
+                                                cos_sim_di = cosine_similarity(
+                                                    tfidf_matrix_di[0],
+                                                    tfidf_matrix_di[1],
+                                                )
 
                                             tfidf_matrix_stmp = (
                                                 vectorizer.fit_transform(
@@ -375,16 +378,16 @@ def runStatus(
                                                 tfidf_matrix_stmp[0],
                                                 tfidf_matrix_stmp[1],
                                             )
-
-                                            if cos_sim_di[0][0] * 100 >= 95:
-                                                vdrFound = 1
-                                                vendorID = vName
-                                                logger.info(
-                                                    f"cos_sim:{cos_sim_di} , \
-                                                        vendor:{vName}"
-                                                )
-                                                stop = True
-                                                break
+                                            if len(di_inv_vendorName) > 0:
+                                                if cos_sim_di[0][0] * 100 >= 95:
+                                                    vdrFound = 1
+                                                    vendorID = vName
+                                                    logger.info(
+                                                        f"cos_sim:{cos_sim_di} , \
+                                                            vendor:{vName}"
+                                                    )
+                                                    stop = True
+                                                    break
                                             elif cos_sim_stmp[0][0] * 100 >= 95:
                                                 vdrFound = 1
                                                 vendorID = vName
@@ -476,7 +479,7 @@ def runStatus(
                     if modelData is None:
                         try:
                             preBltFrdata, preBltFrdata_status = getFrData_MNF(
-                                [rwOcrData[fl]]
+                                rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                             )
 
                             invoId = push_frdata(
@@ -570,7 +573,7 @@ def runStatus(
                         try:
                             if len(str(invoId)) == 0:
                                 preBltFrdata, preBltFrdata_status = getFrData_MNF(
-                                    [rwOcrData[fl]]
+                                    rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                                 )
                                 # Postprocessing Failed
                                 invoId = push_frdata(
@@ -650,7 +653,7 @@ def runStatus(
                 else:
                     try:
                         preBltFrdata, preBltFrdata_status = getFrData_MNF(
-                            [rwOcrData[fl]]
+                            rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                         )
                         # 999999
                         invoId = push_frdata(
@@ -1011,7 +1014,9 @@ def runStatus(
             # log to DB
         try:
             if len(str(invoId)) == 0:
-                preBltFrdata, preBltFrdata_status = getFrData_MNF([rwOcrData[fl]])
+                preBltFrdata, preBltFrdata_status = getFrData_MNF(
+                    rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
+                )
                 invoId = push_frdata(
                     preBltFrdata,
                     999999,

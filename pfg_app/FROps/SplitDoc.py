@@ -8,6 +8,7 @@ from io import BytesIO
 
 from azure.storage.blob import BlobServiceClient
 from pypdf import PdfWriter
+from rapidfuzz import fuzz
 
 from pfg_app import settings
 from pfg_app.core.azure_fr import call_form_recognizer
@@ -199,11 +200,12 @@ def splitDoc(
                 logger.error(f"Error processing a page: {e}")
                 logger.error(f"{traceback.format_exc()}")
 
-    # pageInvoData = {}
+    pageInvoData = {}
     # data_serialized = serialize_dates(output_data)
     # with open("data.json", "w") as f:
     #     json.dump(data_serialized, f, indent=4)
 
+    #
     try:
         pageInvoVendorData = {}
         for i in output_data_dt.keys():
@@ -219,9 +221,12 @@ def splitDoc(
                         "confidence"
                         in output_data_dt[i]["documents"][0]["fields"]["InvoiceId"]
                     ):
-                        invoConf = output_data_dt[i]["documents"][0]["fields"][
-                            "InvoiceId"
-                        ]["confidence"]
+                        try:
+                            invoConf = output_data_dt[i]["documents"][0]["fields"][
+                                "InvoiceId"
+                            ]["confidence"]
+                        except Exception:
+                            invoConf = 0.0
                     else:
                         invoConf = 0.0
                 else:
@@ -243,9 +248,12 @@ def splitDoc(
                         "confidence"
                         in output_data_dt[i]["documents"][0]["fields"]["VendorName"]
                     ):
-                        VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
-                            "VendorName"
-                        ]["confidence"]
+                        try:
+                            VndrNmConf = output_data_dt[i]["documents"][0]["fields"][
+                                "VendorName"
+                            ]["confidence"]
+                        except Exception:
+                            VndrNmConf = 0.0
                     else:
                         VndrNmConf = 0.0
                 else:
@@ -259,108 +267,213 @@ def splitDoc(
                 "InvoiceId": [invoId, invoConf],
                 "VendorName": [vndrName, VndrNmConf],
             }
-
     except Exception as er:
         logger.error(f"{traceback.format_exc()}")
         logger.info(f"Exception splitDoc line 261: {er}")
+    vendor_names = []
+    for vrdNm in pageInvoVendorData:
+        vendor_names.append(pageInvoVendorData[vrdNm]["VendorName"][0])
+    reference_name = vendor_names[0]
+    threshold = 80
+    same_vendor = all(
+        fuzz.token_set_ratio(reference_name, name) > threshold for name in vendor_names
+    )
 
-    prbtHeaders = {}
-    rwOcrData = []
-    # print(len(output_data))
-
-    for docPg in range(len(output_data)):
+    if same_vendor:
 
         try:
-            rwOcrData.append(output_data[docPg]["content"])
-        except Exception:
-            logger.error(f"{traceback.format_exc()}")
+            for i in range(len(output_data)):
+                pageInvoData[i + 1] = output_data[i]["documents"][0]["fields"][
+                    "InvoiceId"
+                ]["content"]
+        except Exception as er:
+            logger.info(f"Exception splitDoc line 261: {er}")
+        grouped_dict = {}
+        sndChk = 0
+        for key, value in pageInvoData.items():
+            if value not in grouped_dict:
+                grouped_dict[value] = []
+            grouped_dict[value].append(key)
 
-        preDt = output_data[docPg]["documents"][0]["fields"]
-        prbtHeaderspg = {}
-        for pb in preDt:
-            if "content" in preDt[pb]:
-                try:
-                    # logger.info(f"line 297: {preDt[pb]}")
-                    if (
-                        "value_type" in preDt[pb]
-                        and preDt[pb]["value_type"] != "array"
-                        and pb != "Items"
-                        and pb != "list"
-                        and preDt[pb]["value_type"] == "string"
-                    ):
-                        if "confidence" in preDt[pb]:
-                            prbtHeaderspg[pb] = [
-                                preDt[pb]["content"],
-                                round(float(preDt[pb]["confidence"]) * 100, 2),
-                            ]
-                except Exception:
-                    logger.info(f"line 300: {[pb]}")
-                    logger.error(f"{traceback.format_exc()}")
-        prbtHeaders[docPg] = prbtHeaderspg
+        input_list = list(grouped_dict.values())
+        output_list = [
+            (item[0], item[1]) if len(item) == 2 else (item[0], item[0])
+            for item in input_list
+        ]
+        logger.info(f"input_list:  {output_list}")
 
-    #
-    groupInvo = {}
-    tmp = ()
-    for inv in pageInvoVendorData:
-        if (
-            pageInvoVendorData[inv]["InvoiceId"][1] > 0.89
-            and pageInvoVendorData[inv]["VendorName"][1] > 0.80
-        ):
-            nwPg = 1
-        else:
-            nwPg = 0
-        groupInvo[inv] = nwPg
-    lt = []
-    prv = 0
-    for i in groupInvo:
-        if groupInvo[i] == 1:
-            prv = i
-            tmp = i
-        else:
-            if i == 1:
-                tmp = i
+        pgVal = []
+        for pgvl in grouped_dict:
+            pgVal.append(grouped_dict[pgvl][0])
+            # print(grouped_dict[pgvl])
+        if "" in grouped_dict:
+            # print(grouped_dict[''])
+            pgVal = list(set(pgVal + grouped_dict[""]))
+        if len(pgVal) == len(output_data):
+            sndChk = 1
+        # if sndChk == 1:
+        prbtHeaders = {}
+        rwOcrData = []
+        # print(len(output_data))
+
+        for docPg in range(len(output_data)):
+
+            try:
+                rwOcrData.append(output_data[docPg]["content"])
+            except Exception as er:
+                logger.error(f"Exception splitdoc line 291: {er}")
+
+            preDt = output_data[docPg]["documents"][0]["fields"]
+            prbtHeaderspg = {}
+            for pb in preDt:
+                # logger.info(f"line 297: {preDt[pb]}")
+                if (
+                    "value_type" in preDt[pb]
+                    and preDt[pb]["value_type"] != "array"
+                    and pb != "Items"
+                ):
+                    try:
+                        prbtHeaderspg[pb] = [
+                            preDt[pb]["content"],
+                            round(float(preDt[pb]["confidence"]) * 100, 2),
+                        ]
+                    except Exception:
+                        prbtHeaderspg[pb] = [preDt[pb]["content"], 0.0]
+
+            prbtHeaders[docPg] = prbtHeaderspg
+        if len(output_data) == 1:
+            split_list = [(1, 1)]
+
+        elif sndChk == 1:
+            grouped_pages = group_pages(prbtHeaders)
+
+            splitpgsDt = [
+                (x[0] + 1, x[0] + 1) if len(x) == 1 else tuple(y + 1 for y in x)
+                for x in grouped_pages
+            ]
+
+            if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
+                # Unpack the tuple and create a list of tuples (n, n)
+                grp_pages = [(i, i) for i in splitpgsDt[0]]
+            elif all(isinstance(i, tuple) for i in splitpgsDt):
+                # If the input is already a list of tuples, return it as-is
+                grp_pages = splitpgsDt
             else:
-                tmp = (prv, i)
-        lt.append(tmp)
+                grp_pages = splitpgsDt
+            split_list = grp_pages
+        else:
+            split_list = output_list
+    else:
 
-    output = []
-    for item in lt:
-        if isinstance(item, int):
-            prVal = item
-            output.append((item, item))
+        prbtHeaders = {}
+        rwOcrData = []
+        # print(len(output_data))
 
-        elif isinstance(item, tuple):
+        for docPg in range(len(output_data)):
 
-            if item[0] == prVal:
-                if (prVal, prVal) in output:
-                    output.remove((prVal, prVal))
-            output.append(item)
+            try:
+                rwOcrData.append(output_data[docPg]["content"])
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
 
-    finalInvoGrp = output.copy()
-    for op in range(0, len(output)):
-        if op < len(output) - 1:
-            if output[op][0] == output[op + 1][0]:
-                finalInvoGrp.remove(output[op])
+            preDt = output_data[docPg]["documents"][0]["fields"]
+            prbtHeaderspg = {}
+            for pb in preDt:
+                if "content" in preDt[pb]:
+                    try:
+                        # logger.info(f"line 297: {preDt[pb]}")
+                        if (
+                            "value_type" in preDt[pb]
+                            and preDt[pb]["value_type"] != "array"
+                            and pb != "Items"
+                            and pb != "list"
+                            and preDt[pb]["value_type"] == "string"
+                        ):
+                            if "confidence" in preDt[pb]:
+                                try:
+                                    prbtHeaderspg[pb] = [
+                                        preDt[pb]["content"],
+                                        round(float(preDt[pb]["confidence"]) * 100, 2),
+                                    ]
+                                except Exception:
+                                    prbtHeaderspg[pb] = [
+                                        preDt[pb]["content"],
+                                        0.0,
+                                    ]
+                    except Exception:
+                        logger.info(f"line 300: {[pb]}")
+                        logger.error(f"{traceback.format_exc()}")
+            prbtHeaders[docPg] = prbtHeaderspg
 
-    split_list = [tup for tup in finalInvoGrp if 0 not in tup]
+        #
+        if len(output_data) == 1:
+            split_list = [(1, 1)]
+        else:
+            groupInvo = {}
+            tmp = ()
+            for inv in pageInvoVendorData:
+                if (
+                    pageInvoVendorData[inv]["InvoiceId"][1] > 0.89
+                    and pageInvoVendorData[inv]["VendorName"][1] > 0.80
+                ):
+                    nwPg = 1
+                else:
+                    if inv == 1:
+                        nwPg = 1
+                    else:
+                        nwPg = 0
+                groupInvo[inv] = nwPg
+            lt = []
+            prv = 0
+            for i in groupInvo:
+                if groupInvo[i] == 1:
+                    prv = i
+                    tmp = i
+                else:
+                    if i == 1:
+                        tmp = i
+                    else:
+                        tmp = (prv, i)
+                lt.append(tmp)
 
-    # grouped_invoices = {}
-    # previous_invoice = ""
-    # for k, v in pageInvoVendorData.items():
-    #     current_invoice = v["InvoiceId"][0]
-    #     if v["InvoiceId"][1] > 0.89 and v["VendorName"][1] > 0.80:
-    #         if current_invoice not in grouped_invoices:
-    #             grouped_invoices[current_invoice] = [k]
-    #         else:
-    #             grouped_invoices[current_invoice].append(k)
-    #         previous_invoice = current_invoice
-    #     else:
-    #         if previous_invoice not in grouped_invoices:
-    #             continue
-    #         grouped_invoices[previous_invoice].append(k)
-    # split_list = []
-    # for pg0, pg1 in grouped_invoices.items():
-    #     split_list.append((min(pg1), max(pg1)))
+            output = []
+            for item in lt:
+                if isinstance(item, int):
+                    prVal = item
+                    output.append((item, item))
+
+                elif isinstance(item, tuple):
+
+                    if item[0] == prVal:
+                        if (prVal, prVal) in output:
+                            output.remove((prVal, prVal))
+                    output.append(item)
+
+            finalInvoGrp = output.copy()
+            for op in range(0, len(output)):
+                if op < len(output) - 1:
+                    if output[op][0] == output[op + 1][0]:
+                        finalInvoGrp.remove(output[op])
+
+            split_list = [tup for tup in finalInvoGrp if 0 not in tup]
+
+        # grouped_invoices = {}
+        # previous_invoice = ""
+        # for k, v in pageInvoVendorData.items():
+        #     current_invoice = v["InvoiceId"][0]
+        #     if v["InvoiceId"][1] > 0.89 and v["VendorName"][1] > 0.80:
+        #         if current_invoice not in grouped_invoices:
+        #             grouped_invoices[current_invoice] = [k]
+        #         else:
+        #             grouped_invoices[current_invoice].append(k)
+        #         previous_invoice = current_invoice
+        #     else:
+        #         if previous_invoice not in grouped_invoices:
+        #             continue
+        #         grouped_invoices[previous_invoice].append(k)
+        # split_list = []
+        # for pg0, pg1 in grouped_invoices.items():
+        #     split_list.append((min(pg1), max(pg1)))
 
     logger.info(f"split_list: {split_list}")
     splitfileNames, stampData, fileSize = split_pdf_and_upload(
