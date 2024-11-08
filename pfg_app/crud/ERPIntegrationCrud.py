@@ -1362,7 +1362,7 @@ def newbulkupdateInvoiceStatus(db):
                                     "userID": userID,
                                     "documentStatusID": documentstatusid,
                                     "documentdescription": dmsg,
-                                    "CreatedOn": datetime.utcnow().strftime(
+                                    "CreatedOn": datetime.datetime.utcnow().strftime(
                                         "%Y-%m-%d %H:%M:%S"
                                     ),  # noqa: E501
                                 }
