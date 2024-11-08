@@ -827,11 +827,11 @@ def runStatus(
                                 RevDateCk_isErr = 0
                                 RevDateCk_msg = ""
                             else:
-                                RevDateCk_isErr = 1
+                                RevDateCk_isErr = 0
                                 RevDateCk_msg = "Invalid Date Format"
                         else:
                             ReceivingDate = "N/A"
-                            RevDateCk_isErr = 1
+                            RevDateCk_isErr = 0
                             RevDateCk_msg = "ReceivingDate Not Found."
 
                         stampdata["documentid"] = invoId
@@ -850,7 +850,7 @@ def runStatus(
                             RvrCk_msg = ""
                         else:
                             Receiver = "N/A"
-                            RvrCk_isErr = 1
+                            RvrCk_isErr = 0
                             RvrCk_msg = "Receiver Not Available"
 
                         stampdata["documentid"] = invoId
