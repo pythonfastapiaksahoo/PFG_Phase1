@@ -206,7 +206,7 @@ def customModelCall(docID):
 
         # entityBodyID = 1
         file_size_accepted = 100
-        accepted_file_type = metadata.InvoiceFormat.split(",")
+        accepted_file_type = "application/pdf"
         # date_format = metadata.DateFormat
         endpoint = settings.form_recognizer_endpoint
         DateFormat = metadata.DateFormat

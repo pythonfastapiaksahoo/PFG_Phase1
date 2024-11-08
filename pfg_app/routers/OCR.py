@@ -175,7 +175,7 @@ def runStatus(
         vendor name, and a stamp with handwritten or stamped information, possibly
         including a receiver's stamp. The document may include the following details:
 
-        Store Number: Typically stamped and starting with "#".
+        Store Number: Typically stamped and starting with either 'STR#' or "#".
 
         Marked Department: Clearly circled or marked "Inventory" or "Supplies"
         (if neither is marked, set this to "N/A") sometimes print might not be clear,
@@ -225,6 +225,7 @@ def runStatus(
         circled or marked option. If neither is marked, return "N/A".
         Confirmation: Extract a 13-digit confirmation number.
         Format: Output strictly in the JSON format with unique keys provided above,
+        Store Number: Must be a 4 digit. If its less than 4 digit than add leading zeros else return N/A its not clear.
         with no additional text or explanations."""
 
         (
@@ -1072,8 +1073,10 @@ def runStatus(
         status = "error: " + str(err)
 
     try:
+
         if vdrFound == 1 and modelData is not None:
-            pfg_sync(invoId, userID, db)
+            customCall = 0
+            pfg_sync(invoId, userID, db, customCall)
 
     except Exception:
         logger.debug(f"{traceback.format_exc()}")

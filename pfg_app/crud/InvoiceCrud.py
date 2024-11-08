@@ -1571,8 +1571,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
 
                     # Track this record as updated
                     updated_records.append(stamp_data)
-                
-                
+
                 # Query the Document table for the corresponding document
                 document_record = (
                     db.query(model.Document)
@@ -1584,11 +1583,11 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     # Update the JournalNumber field if stamptagname is 'ConfirmationNumber'
                     if stamptagname == "ConfirmationNumber":
                         document_record.JournalNumber = new_value
-                    
+
                     # Update the StoreNumber field if stamptagname is 'StoreNumber'
                     elif stamptagname == "StoreNumber":
                         document_record.store = new_value
-                    
+
                     # Update the Department field if stamptagname is 'Department'
                     elif stamptagname == "Department":
                         document_record.dept = new_value
@@ -2229,7 +2228,8 @@ async def readdeptname(db):
     """
     try:
         # Query to get vendor names and filter by VENDOR_STATUS
-        query = db.query(model.PFGDepartment.DESCRSHORT)
+        # query = db.query(model.PFGDepartment.DESCRSHORT)
+        query = db.query(model.PFGDepartment.DESCRSHORT, model.PFGDepartment.DEPTID)
         data = query.all()
         return data
 
