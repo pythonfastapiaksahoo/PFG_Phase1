@@ -1358,10 +1358,11 @@ def newbulkupdateInvoiceStatus(db):
                             # Collect doc history update data
                             doc_history_updates.append(
                                 {
-                                    "doc_id": doc_id[0],
-                                    "user_id": userID,
-                                    "documentstatusid": documentstatusid,
-                                    "dmsg": dmsg
+                                    "documentID": doc_id[0],
+                                    "userID": userID,
+                                    "documentStatusID": documentstatusid,
+                                    "documentdescription": dmsg,
+                                    "CreatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),  # noqa: E501
                                 }
                             )
                             success_count += 1  # Increment success counter
