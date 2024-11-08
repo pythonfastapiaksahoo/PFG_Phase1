@@ -920,29 +920,30 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                         obj["labelType"] = "Words"
                     labels_json["labels"].append(obj)
 
+        # Step 1: Normalize headers (remove spaces and convert to lowercase)
+        normalized_headers = {h.replace(" ", "").lower(): h for h in header}
+
         # Include the key-value pairs in the labels_json, if any header is missing
-        for key_value in key_value_pairs:
-            if key_value["key"]["content"] in header and key_value["key"][
-                "content"
-            ] not in [
-                standard_field["label"] for standard_field in labels_json["labels"]
+        for pair in key_value_pairs:
+            # Normalize the key
+            key = pair["key"]["content"].replace(" ", "").replace(":", "").lower()
+            if key in normalized_headers and key not in [
+                standard_field["label"].replace(" ", "").lower()
+                for standard_field in labels_json["labels"]
             ]:
+                original_header = normalized_headers[key]
                 obj = {
-                    "label": key_value["key"]["content"],
+                    "label": original_header,
                     "key": None,
                     "value": [
                         {
-                            "page": key_value["value"]["bounding_regions"][0][
-                                "page_number"
-                            ],
-                            "text": key_value["value"]["content"],
+                            "page": pair["value"]["bounding_regions"][0]["page_number"],
+                            "text": pair["value"]["content"],
                             "boundingBoxes": [  # TODO - check this
                                 normalize_coordinates(
                                     page_width,
                                     page_height,
-                                    key_value["value"]["bounding_regions"][0][
-                                        "polygon"
-                                    ],
+                                    pair["value"]["bounding_regions"][0]["polygon"],
                                 )
                             ],
                         }
@@ -955,10 +956,11 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                     del obj["key"]
                     obj["labelType"] = "Words"
                 labels_json["labels"].append(obj)
-        savelabelsfile(labels_json, document_name, db)
+        return savelabelsfile(labels_json, document_name, db)
 
     except Exception:
         logger.error(traceback.format_exc())
+        return "Error"
 
 
 # def getlabels(filedata, document_name, db, keyfields, ocr_engine):
@@ -1128,8 +1130,10 @@ def savelabelsfile(json_string, filename, db):
         json_string = json.dumps(json_string)
         blob_client.upload_blob(json_string, overwrite=True)
         print(f"saved: {filename+'.labels.json'}")
+        return "Success"
     except Exception:
         logger.error(traceback.format_exc())
+        return "Error"
 
 
 # Not sure there exists a function with this name without new
