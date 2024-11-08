@@ -156,11 +156,20 @@ async def update_metadata(
             if "vendorName" in frmetadata
             else frmetadata["ServiceProviderName"]
         )
-        if "vendorName" in frmetadata:
+        vendor_code = None
+        if "vendorCode" in frmetadata:
             syn = frmetadata["synonyms"]
+            vendor_code = frmetadata["vendorCode"]
             # vendorname = vendorname.replace("'","''")  >> uncomment this if
             # it's MySQL DB
-            db.query(model.Vendor).filter(model.Vendor.VendorName == vendorname).update(
+            # db.query(model.Vendor).filter(model.Vendor.VendorName == vendorname).update(
+            #     {"Synonyms": json.dumps(syn)}
+            # )
+            # Update the specific row based on both VendorName and VendorCode
+            db.query(model.Vendor).filter(
+                model.Vendor.VendorName == vendorname,
+                model.Vendor.VendorCode == vendor_code
+            ).update(
                 {"Synonyms": json.dumps(syn)}
             )
             db.commit()
@@ -590,10 +599,10 @@ async def getEmailInfo(db: Session = Depends(get_db)):
     return await crud.get_email_info(db)
 
 
-# Missed api's
-@router.get("/getalltags")
-async def get_fr_tags(tagtype: Optional[str] = None, db: Session = Depends(get_db)):
-    return await crud.getall_tags(tagtype, db)
+# # Missed api's
+# @router.get("/getalltags")
+# async def get_fr_tags(tagtype: Optional[str] = None, db: Session = Depends(get_db)):
+#     return await crud.getall_tags(tagtype, db)
 
 
 # check duplicate synonyms
