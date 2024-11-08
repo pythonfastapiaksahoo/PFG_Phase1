@@ -85,13 +85,24 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
         recvLineNum = 0
+   
+    if type(location) is not int and location.isdigit():
+        location = int(location)
+    else:
+        location = 0
+
+    if type(storeNumber) is not int and storeNumber.isdigit():
+        storeNumber = int(storeNumber)
+    else:
+        storeNumber = 0
+   
 
     if location == storeNumber and location != "":
         intStatus = 1
         intStatusMsg = "Success"
     else:
         intStatus = 0
-        intStatusMsg = "Incorrect store number|Receipt not found"
+        intStatusMsg = "Incorrect store number"
 
     if intStatus == 1:
 
@@ -453,7 +464,7 @@ def format_and_validate_date(date_str):
     return formatted_date, dateValCk
 
 
-def pfg_sync(docID, userID, db: Session):
+def pfg_sync(docID, userID, db: Session, customCall=0):
     logger.info(f"start on the pfg_sync,DocID{docID}")
 
     docModel = (
@@ -596,7 +607,7 @@ def pfg_sync(docID, userID, db: Session):
                 "response": [duplicate_status_ck_msg],
             }
         try:
-            if isinstance(InvodocStatus, int) and InvodocStatus == 26:
+            if customCall == 1:
                 customModelCall(docID)
         except Exception:
             logger.error(f"{traceback.format_exc()}")
@@ -1171,7 +1182,7 @@ def pfg_sync(docID, userID, db: Session):
                                                     if RepTb:
                                                         confirmation_ck = 1
                                                         confirmation_ck_msg = (
-                                                            "Valid Confirmation Number"
+                                                            "Valid confirmation number"
                                                         )
 
                                                     else:
@@ -1191,14 +1202,14 @@ def pfg_sync(docID, userID, db: Session):
                                             else:
                                                 confirmation_ck = 0
                                                 confirmation_ck_msg = (
-                                                    "Invalid Confirmation Number"
+                                                    "Invalid confirmation number"
                                                 )
 
                                         else:
 
                                             confirmation_ck = 0
                                             confirmation_ck_msg = (
-                                                "Confirmation Number NotFound"
+                                                "Confirmation number not found"
                                             )
 
                                         # -----------------------------------
