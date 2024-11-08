@@ -175,6 +175,7 @@ async def update_metadata(
             db.commit()
             # del frmetadata["synonyms"]
             del frmetadata["vendorName"]
+            del frmetadata["vendorCode"]
         else:
             del frmetadata["ServiceProviderName"]
         configs = getOcrParameters(1, db)
