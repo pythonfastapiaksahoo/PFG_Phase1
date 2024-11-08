@@ -453,7 +453,7 @@ def format_and_validate_date(date_str):
     return formatted_date, dateValCk
 
 
-def pfg_sync(docID, userID, db: Session):
+def pfg_sync(docID, userID, db: Session, customCall=0):
     logger.info(f"start on the pfg_sync,DocID{docID}")
 
     docModel = (
@@ -596,7 +596,7 @@ def pfg_sync(docID, userID, db: Session):
                 "response": [duplicate_status_ck_msg],
             }
         try:
-            if isinstance(InvodocStatus, int) and InvodocStatus == 26:
+            if customCall == 1:
                 customModelCall(docID)
         except Exception:
             logger.error(f"{traceback.format_exc()}")

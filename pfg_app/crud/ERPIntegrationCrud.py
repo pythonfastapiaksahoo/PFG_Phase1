@@ -1362,7 +1362,9 @@ def newbulkupdateInvoiceStatus(db):
                                     "userID": userID,
                                     "documentStatusID": documentstatusid,
                                     "documentdescription": dmsg,
-                                    "CreatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),  # noqa: E501
+                                    "CreatedOn": datetime.utcnow().strftime(
+                                        "%Y-%m-%d %H:%M:%S"
+                                    ),  # noqa: E501
                                 }
                             )
                             success_count += 1  # Increment success counter
@@ -1384,9 +1386,10 @@ def newbulkupdateInvoiceStatus(db):
             try:
                 if doc_history_updates:
                     db.bulk_insert_mappings(
-                        model.DocumentHistoryLogs, doc_history_updates)
+                        model.DocumentHistoryLogs, doc_history_updates
+                    )
                     db.commit()  # Commit the history log insertions for this batch
-                
+
                 logger.info(f"Update history log batch {start} to {start + batch_size}")
             except Exception as err:
                 dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(err)
@@ -1395,8 +1398,8 @@ def newbulkupdateInvoiceStatus(db):
         return {
             "message": "Bulk update run successfully",
             "total_docs count": total_docs,
-            "success_count": success_count
-            }
+            "success_count": success_count,
+        }
 
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
