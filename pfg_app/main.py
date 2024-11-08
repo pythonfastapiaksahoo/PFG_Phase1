@@ -5,6 +5,8 @@
 
 # from azure.data.tables import TableServiceClient
 # from azure.storage.blob import BlobServiceClient
+import uuid
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry.propagate import extract
@@ -62,19 +64,22 @@ async def add_operation_id(request: Request, call_next):
         operation_id = request.headers.get("x-operation-id")
         if operation_id:
             set_operation_id(operation_id)
-
-        logger.info(
-            "Received request in FastAPI"
-        )  # Automatically includes Operation ID
+        else:
+            # Create a new Operation ID if not provided
+            operation_id = uuid.uuid4().hex
+            set_operation_id(operation_id)
 
         with tracer.start_as_current_span(
             "FastAPIRequest", context=extract(request.headers), kind=SpanKind.SERVER
         ) as span:
+            logger.info(
+                "Received request in FastAPI"
+            )  # Automatically includes Operation ID
             span.set_attribute("operation_id", operation_id or "unknown")
 
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
-            response.headers["api-version"] = "0.14"
+            response.headers["api-version"] = "0.16"
 
             logger.info(
                 "Sending response from FastAPI"

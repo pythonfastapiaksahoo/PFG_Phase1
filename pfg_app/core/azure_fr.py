@@ -155,7 +155,10 @@ def call_form_recognizer(
     )
 
     poller = document_analysis_client.begin_analyze_document(
-        model_id=invoice_model_id, document=input_file, locale=locale
+        model_id=invoice_model_id,
+        document=input_file,
+        locale=locale,
+        features=["keyValuePairs"],
     )
 
     result = poller.result().to_dict()

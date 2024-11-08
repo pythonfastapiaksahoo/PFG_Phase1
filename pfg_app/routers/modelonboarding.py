@@ -757,9 +757,7 @@ async def get_labels_pdf_image(
             #     getlabel_image(blob_data, file, db, keys, ocr_engine)
 
             # elif file.endswith(".pdf"):
-            getlabels(blob_data, file, db, keys, ocr_engine)
-
-            return "Success"
+            return getlabels(blob_data, file, db, keys, ocr_engine)
 
         else:
             files = []
@@ -776,8 +774,7 @@ async def get_labels_pdf_image(
                 #     getlabel_image(blob_data, file, db, keys, ocr_engine)
 
                 # elif file.endswith(".pdf"):
-                getlabels(blob_data, file, db, keys, ocr_engine)
-            return "Success"
+            return getlabels(blob_data, file, db, keys, ocr_engine)
 
     except Exception as ex:
         print(ex)
@@ -832,6 +829,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
         )
         get_resp = core_fr.process_polygons(get_resp)
         fields = get_resp["documents"][0]["fields"]
+        key_value_pairs = get_resp["key_value_pairs"]
         pages = get_resp["pages"]
         page_width = pages[0]["width"]
         page_height = pages[0]["height"]
@@ -922,6 +920,41 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                         obj["labelType"] = "Words"
                     labels_json["labels"].append(obj)
 
+        # Include the key-value pairs in the labels_json, if any header is missing
+        for key_value in key_value_pairs:
+            if key_value["key"]["content"] in header and key_value["key"][
+                "content"
+            ] not in [
+                standard_field["label"] for standard_field in labels_json["labels"]
+            ]:
+                obj = {
+                    "label": key_value["key"]["content"],
+                    "key": None,
+                    "value": [
+                        {
+                            "page": key_value["value"]["bounding_regions"][0][
+                                "page_number"
+                            ],
+                            "text": key_value["value"]["content"],
+                            "boundingBoxes": [  # TODO - check this
+                                normalize_coordinates(
+                                    page_width,
+                                    page_height,
+                                    key_value["value"]["bounding_regions"][0][
+                                        "polygon"
+                                    ],
+                                )
+                            ],
+                        }
+                    ],
+                }
+                if ocr_engine in [
+                    "Azure Form Recognizer 3.0",
+                    "Azure Form Recognizer 3.1",
+                ]:
+                    del obj["key"]
+                    obj["labelType"] = "Words"
+                labels_json["labels"].append(obj)
         savelabelsfile(labels_json, document_name, db)
 
     except Exception:
