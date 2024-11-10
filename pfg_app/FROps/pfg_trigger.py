@@ -1157,6 +1157,18 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         == "Integrated"
                                         and skipConf == 1
                                     ):
+                                        try:
+                                            db.query(model.StampDataValidation).filter(
+                                                model.StampDataValidation.documentid == docID,
+                                                model.StampDataValidation.stamptagname == "ConfirmationNumber",
+                                            ).update(
+                                                {
+                                                    model.StampDataValidation.skipconfig_ck: 1,
+                                                }
+                                            )
+                                            db.commit()
+                                        except Exception:
+                                            logger.debug(traceback.format_exc())
                                         skipValidationCK, skipValidationStatusMsg = (
                                             nonIntegratedVoucherData(docID, gst_amt, db)
                                         )

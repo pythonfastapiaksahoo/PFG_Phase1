@@ -1412,6 +1412,7 @@ class StampDataValidation(Base):
     UpdatedOn = Column(DateTime, nullable=True)
     OldValue = Column(String, nullable=True)
     errordesc = Column(String, nullable=True)
+    skipconfig_ck = Column(Integer, nullable=True)
 
 
 class frtrigger_tab(Base):
