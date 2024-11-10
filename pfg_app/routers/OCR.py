@@ -27,7 +27,7 @@ from pfg_app.auth import AuthHandler
 # from pfg_app.azuread.auth import get_user
 # from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.azure_fr import get_fr_data
-from pfg_app.core.stampData import is_valid_date
+from pfg_app.core.stampData import VndMatchFn_2, is_valid_date
 from pfg_app.FROps.pfg_trigger import (
     IntegratedvoucherData,
     nonIntegratedVoucherData,
@@ -172,7 +172,7 @@ def runStatus(
         fr_API_version = "2023-07-31"  # TODO move to settings
 
         prompt = """This is an invoice document containing an invoice ID,
-        vendor name, and a stamp with handwritten or stamped information, possibly
+        vendor name, vendor address and a stamp with handwritten or stamped information, possibly
         including a receiver's stamp. The document may include the following details:
 
         Store Number: Typically stamped and starting with either 'STR#' or "#".
@@ -217,6 +217,7 @@ def runStatus(
             "Department": "Extracted department code or name",
             "Store Number": "Extracted store number",
             "VendorName": "Extracted vendor name",
+            "VendorAddress": "Extracted vendor address",
             "InvoiceID": "Extracted invoice ID",
             "Currency": "Extracted currency"
         }
@@ -254,6 +255,7 @@ def runStatus(
                 model.Vendor.VendorName,
                 model.Vendor.Synonyms,
                 model.Vendor.Address,
+                model.Vendor.VendorCode,
             ).filter(
                 func.jsonb_extract_path_text(
                     model.Vendor.miscellaneous, "VENDOR_STATUS"
@@ -261,7 +263,7 @@ def runStatus(
                 == "A"
             )
             rows = query.all()
-            columns = ["idVendor", "VendorName", "Synonyms", "Address"]
+            columns = ["idVendor", "VendorName", "Synonyms", "Address", "VendorCode"]
 
             vendorName_df = pd.DataFrame(rows, columns=columns)
 
@@ -447,7 +449,66 @@ def runStatus(
                     logger.error(f"{traceback.format_exc()}")
                     vdrFound = 0
 
-                # vxdrFound = 0
+                if vdrFound == 1:
+                    # Retrieve the vendor name for the specified vendorID
+                    try:
+                        metaVendorName = vendorName_df.loc[
+                            vendorName_df["idVendor"] == vendorID, "VendorName"
+                        ].values[0]
+                    except IndexError:
+                        logger.error(f"Vendor with ID {vendorID} not found.")
+                        metaVendorName = ""
+
+                    # Proceed only if vendor name was found
+                    if metaVendorName:
+                        # Group VendorCode and Address by VendorName
+                        address_dict = (
+                            vendorName_df[vendorName_df["VendorName"] == metaVendorName]
+                            .set_index("idVendor")["Address"]
+                            .to_dict()
+                        )
+
+                        # Format as a list of dictionaries with VendorCode as keys
+                        metaVendorAdd = [address_dict]
+
+                        # Log the retrieved information or assign as needed
+                        logger.info(f"Vendor Name: {metaVendorName}")
+                        logger.info(
+                            f"Addresses for Vendor Name '{metaVendorName}': {metaVendorAdd}"
+                        )
+                    else:
+                        # Assign empty list if vendor name is not found
+                        metaVendorAdd = []
+
+                    # Extract the required values from StampDataList
+                    try:
+                        doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
+                    except (KeyError, IndexError) as e:
+                        logger.error(
+                            f"Error retrieving VendorAddress from StampDataList: {e}"
+                        )
+                        doc_VendorAddress = ""
+
+                    # Initialize vndMth_address_ck to handle scenarios where no match function is called
+                    vndMth_address_ck = 0
+                    matched_id_vendor = None
+                    # Extract the required values from StampDataList
+                    doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
+                    if len(metaVendorAdd[0]) > 1 and doc_VendorAddress:
+                        vndMth_address_ck, matched_id_vendor = VndMatchFn_2(
+                            doc_VendorAddress, metaVendorAdd
+                        )
+
+                    if vndMth_address_ck == 1:
+                        vendorID = matched_id_vendor
+                        logger.info(f"Vendor Name Matching with Master Data")
+                    else:
+                        vdrFound = 0
+                        logger.info(f"Vendor Name MisMatched with Master Data")
+                else:
+                    vdrFound = 0
+                    logger.info(f"Vendor Name MisMatched with Master Data")
+
                 if vdrFound == 1:
 
                     try:
@@ -455,7 +516,7 @@ def runStatus(
                             vendorName_df[vendorName_df["idVendor"] == vendorID][
                                 "Address"
                             ]
-                        )[0]
+                        )
 
                     except Exception:
                         logger.error(f"{traceback.format_exc()}")
