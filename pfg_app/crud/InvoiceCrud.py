@@ -1580,7 +1580,8 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                 )
 
                 if document_record:
-                    # Update the JournalNumber field if stamptagname is 'ConfirmationNumber'
+                    # Update the JournalNumber field if stamptagname
+                    #  is 'ConfirmationNumber'
                     if stamptagname == "ConfirmationNumber":
                         document_record.JournalNumber = new_value
 

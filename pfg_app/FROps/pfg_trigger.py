@@ -85,7 +85,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
         recvLineNum = 0
-   
+
     if type(location) is not int and location.isdigit():
         location = int(location)
     else:
@@ -95,9 +95,8 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         storeNumber = int(storeNumber)
     else:
         storeNumber = 0
-   
 
-    if location == storeNumber and location != "":
+    if location == storeNumber and location != "" and location != 0:
         intStatus = 1
         intStatusMsg = "Success"
     else:
@@ -464,7 +463,7 @@ def format_and_validate_date(date_str):
     return formatted_date, dateValCk
 
 
-def pfg_sync(docID, userID, db: Session, customCall=0):
+def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     logger.info(f"start on the pfg_sync,DocID{docID}")
 
     docModel = (
@@ -1154,6 +1153,28 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
 
                                 try:
                                     if (
+                                        list(stmpData["StoreType"].keys())[0]
+                                        == "Integrated"
+                                        and skipConf == 1
+                                    ):
+                                        skipValidationCK, skipValidationStatusMsg = (
+                                            nonIntegratedVoucherData(docID, gst_amt, db)
+                                        )
+                                        if skipValidationCK == 1:
+                                            DeptCk = 1
+                                            DeptCk_msg = [
+                                                "User bypassed confirmation number validation"  # noqa: E501
+                                            ]
+                                        else:
+                                            DeptCk = 0
+                                            DeptCk_msg = [skipValidationStatusMsg]
+
+                                            docStatusSync["Storetype validation"] = {
+                                                "status": DeptCk,
+                                                "response": DeptCk_msg,
+                                            }
+
+                                    elif (
                                         list(stmpData["StoreType"].keys())[0]
                                         == "Integrated"
                                     ):
