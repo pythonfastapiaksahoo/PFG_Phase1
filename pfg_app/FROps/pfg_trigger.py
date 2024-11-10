@@ -1159,8 +1159,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     ):
                                         try:
                                             db.query(model.StampDataValidation).filter(
-                                                model.StampDataValidation.documentid == docID,
-                                                model.StampDataValidation.stamptagname == "ConfirmationNumber",
+                                                model.StampDataValidation.documentid
+                                                == docID,
+                                                model.StampDataValidation.stamptagname
+                                                == "ConfirmationNumber",
                                             ).update(
                                                 {
                                                     model.StampDataValidation.skipconfig_ck: 1,
@@ -1185,9 +1187,9 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 "status": DeptCk,
                                                 "response": DeptCk_msg,
                                             }
-                                        voucher_query = db.query(model.VoucherData).filter(
-                                        model.VoucherData.documentID == docID
-                                        )
+                                        voucher_query = db.query(
+                                            model.VoucherData
+                                        ).filter(model.VoucherData.documentID == docID)
                                         row_count = voucher_query.count()
                                         NullVal = []
                                         VthChk = 0
@@ -1343,12 +1345,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                                     for column in model.VoucherData.__table__.columns:
 
-                                        if ((store_type == "Non-Integrated") 
-                                            or skipConf == 1) and (
-                                            column.name == "Business_unit"
-                                        ):
+                                        if (
+                                            (store_type == "Non-Integrated")
+                                            or skipConf == 1
+                                        ) and (column.name == "Business_unit"):
                                             continue
-                                            
+
                                         value = getattr(voucher_row, column.name)
                                         if value is None or value == "":
                                             has_null_or_empty = True

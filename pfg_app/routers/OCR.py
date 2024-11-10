@@ -474,7 +474,7 @@ def runStatus(
                         # Log the retrieved information or assign as needed
                         logger.info(f"Vendor Name: {metaVendorName}")
                         logger.info(
-                            f"Addresses for Vendor Name '{metaVendorName}': {metaVendorAdd}"
+                            f"Addresses for Vendor Name '{metaVendorName}': {metaVendorAdd}"  # noqa: E501
                         )
                     else:
                         # Assign empty list if vendor name is not found
@@ -489,7 +489,8 @@ def runStatus(
                         )
                         doc_VendorAddress = ""
 
-                    # Initialize vndMth_address_ck to handle scenarios where no match function is called
+                    # Initialize vndMth_address_ck to handle scenarios w
+                    # here no match function is called
                     vndMth_address_ck = 0
                     matched_id_vendor = None
                     # Extract the required values from StampDataList
