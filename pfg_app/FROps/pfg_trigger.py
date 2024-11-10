@@ -510,6 +510,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     # StrTyp_Err = 0
     gst_amt = 0
     tax_isErr = 0
+    documentModelID = ""
 
     try:
 
@@ -522,6 +523,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
             filePath = dtb_rw.docPath
             invID_docTab = dtb_rw.docheaderID
             vdrAccID = dtb_rw.vendorAccountID
+            documentModelID = dtb_rw.documentModelID
         logger.info(
             f"InvodocStatus:{InvodocStatus},"
             + "filePath:{filePath},"
@@ -606,10 +608,29 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 "response": [duplicate_status_ck_msg],
             }
         try:
-            if customCall == 1:
+            if customCall == 1 or (documentModelID == 999999 and vdrAccID != 0):
                 customModelCall(docID)
+                docTb = (
+                    db.query(model.Document)
+                    .filter(model.Document.idDocument == docID)
+                    .all()
+                )
+
+                for dtb_rw in docTb:
+                    InvodocStatus = dtb_rw.documentStatusID
+                    filePath = dtb_rw.docPath
+                    invID_docTab = dtb_rw.docheaderID
+                    vdrAccID = dtb_rw.vendorAccountID
+                    documentModelID = dtb_rw.documentModelID
         except Exception:
             logger.error(f"{traceback.format_exc()}")
+
+        if vdrAccID == 0:
+            docStatusSync["Status overview"] = {
+                "status": 0,
+                "response": ["Vendor mapping unsuccessful"],
+            }
+            return docStatusSync
         # ----------
         DocDtHdr = (
             db.query(model.DocumentData, model.DocumentTagDef)
@@ -1159,11 +1180,13 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     ):
                                         try:
                                             db.query(model.StampDataValidation).filter(
-                                                model.StampDataValidation.documentid == docID,
-                                                model.StampDataValidation.stamptagname == "ConfirmationNumber",
+                                                model.StampDataValidation.documentid
+                                                == docID,
+                                                model.StampDataValidation.stamptagname
+                                                == "ConfirmationNumber",
                                             ).update(
                                                 {
-                                                    model.StampDataValidation.skipconfig_ck: 1,
+                                                    model.StampDataValidation.skipconfig_ck: 1,         # noqa: E501
                                                 }
                                             )
                                             db.commit()
@@ -1185,9 +1208,9 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 "status": DeptCk,
                                                 "response": DeptCk_msg,
                                             }
-                                        voucher_query = db.query(model.VoucherData).filter(
-                                        model.VoucherData.documentID == docID
-                                        )
+                                        voucher_query = db.query(
+                                            model.VoucherData
+                                        ).filter(model.VoucherData.documentID == docID)
                                         row_count = voucher_query.count()
                                         NullVal = []
                                         VthChk = 0
@@ -1343,12 +1366,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                                     for column in model.VoucherData.__table__.columns:
 
-                                        if ((store_type == "Non-Integrated") 
-                                            or skipConf == 1) and (
-                                            column.name == "Business_unit"
-                                        ):
+                                        if (
+                                            (store_type == "Non-Integrated")
+                                            or skipConf == 1
+                                        ) and (column.name == "Business_unit"):
                                             continue
-                                            
+
                                         value = getattr(voucher_row, column.name)
                                         if value is None or value == "":
                                             has_null_or_empty = True
