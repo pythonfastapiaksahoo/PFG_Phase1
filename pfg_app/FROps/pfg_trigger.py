@@ -96,7 +96,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
     else:
         storeNumber = 0
 
-    if location == storeNumber and location != "":
+    if location == storeNumber and location != "" and location != 0:
         intStatus = 1
         intStatusMsg = "Success"
     else:
@@ -463,7 +463,7 @@ def format_and_validate_date(date_str):
     return formatted_date, dateValCk
 
 
-def pfg_sync(docID, userID, db: Session, customCall=0):
+def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     logger.info(f"start on the pfg_sync,DocID{docID}")
 
     docModel = (
@@ -1155,6 +1155,47 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
                                     if (
                                         list(stmpData["StoreType"].keys())[0]
                                         == "Integrated"
+                                        and skipConf == 1
+                                    ):
+                                        try:
+                                            db.query(model.StampDataValidation).filter(
+                                                model.StampDataValidation.documentid == docID,
+                                                model.StampDataValidation.stamptagname == "ConfirmationNumber",
+                                            ).update(
+                                                {
+                                                    model.StampDataValidation.skipconfig_ck: 1,
+                                                }
+                                            )
+                                            db.commit()
+                                        except Exception:
+                                            logger.debug(traceback.format_exc())
+                                        skipValidationCK, skipValidationStatusMsg = (
+                                            nonIntegratedVoucherData(docID, gst_amt, db)
+                                        )
+                                        if skipValidationCK == 1:
+                                            DeptCk = 1
+                                            DeptCk_msg = [
+                                                "User bypassed confirmation number validation"  # noqa: E501
+                                            ]
+                                        else:
+                                            DeptCk = 0
+                                            DeptCk_msg = [skipValidationStatusMsg]
+
+                                            docStatusSync["Storetype validation"] = {
+                                                "status": DeptCk,
+                                                "response": DeptCk_msg,
+                                            }
+                                        voucher_query = db.query(model.VoucherData).filter(
+                                        model.VoucherData.documentID == docID
+                                        )
+                                        row_count = voucher_query.count()
+                                        NullVal = []
+                                        VthChk = 0
+                                        VthChk_msg = ""
+
+                                    elif (
+                                        list(stmpData["StoreType"].keys())[0]
+                                        == "Integrated"
                                     ):
 
                                         # -------------------------------
@@ -1302,11 +1343,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
 
                                     for column in model.VoucherData.__table__.columns:
 
-                                        if (store_type == "Non-Integrated") and (
+                                        if ((store_type == "Non-Integrated") 
+                                            or skipConf == 1) and (
                                             column.name == "Business_unit"
                                         ):
                                             continue
-
+                                            
                                         value = getattr(voucher_row, column.name)
                                         if value is None or value == "":
                                             has_null_or_empty = True

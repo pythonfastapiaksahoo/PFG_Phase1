@@ -226,7 +226,8 @@ def runStatus(
         circled or marked option. If neither is marked, return "N/A".
         Confirmation: Extract a 13-digit confirmation number.
         Format: Output strictly in the JSON format with unique keys provided above,
-        Store Number: Must be a 4 digit. If its less than 4 digit than add leading zeros else return N/A its not clear.
+        Store Number: Must be a 4 digit. If its less than 4 digit than add leading
+          zeros else return N/A its not clear.
         with no additional text or explanations."""
 
         (
@@ -1137,7 +1138,9 @@ def runStatus(
 
         if vdrFound == 1 and modelData is not None:
             customCall = 0
-            pfg_sync(invoId, userID, db, customCall)
+            skipConf = 0
+
+            pfg_sync(invoId, userID, db, customCall, skipConf)
 
     except Exception:
         logger.debug(f"{traceback.format_exc()}")

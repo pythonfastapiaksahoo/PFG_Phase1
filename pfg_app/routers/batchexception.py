@@ -34,12 +34,14 @@ async def testlinedata(
     return lineData
 
 
-@router.get("/pfg/pfgsync/{inv_id}/{customCall}")
+@router.get("/pfg/pfgsync/{inv_id}/{customCall}/{skipConf}")
 async def pfgsyncflw(
     inv_id: int,
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
     customCall: int = 0,
+    skipConf: int = 0,
 ):
-    overall_status = pfg_sync(inv_id, user.idUser, db, customCall)
+    overall_status = pfg_sync(inv_id, user.idUser, db, customCall, skipConf)
+
     return overall_status
