@@ -25,7 +25,7 @@ async def readvendorname(db):
     """
     try:
         # Query to get vendor names and filter by VENDOR_STATUS
-        query = db.query(model.Vendor.VendorName).filter(
+        query = db.query(model.Vendor.VendorName, model.Vendor.VendorCode).filter(
             func.jsonb_extract_path_text(model.Vendor.miscellaneous, "VENDOR_STATUS")
             == "A"
         )

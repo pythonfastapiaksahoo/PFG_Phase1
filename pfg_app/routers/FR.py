@@ -168,10 +168,8 @@ async def update_metadata(
             # Update the specific row based on both VendorName and VendorCode
             db.query(model.Vendor).filter(
                 model.Vendor.VendorName == vendorname,
-                model.Vendor.VendorCode == vendor_code
-            ).update(
-                {"Synonyms": json.dumps(syn)}
-            )
+                model.Vendor.VendorCode == vendor_code,
+            ).update({"Synonyms": json.dumps(syn)})
             db.commit()
             # del frmetadata["synonyms"]
             del frmetadata["vendorName"]
