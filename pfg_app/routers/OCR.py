@@ -476,12 +476,24 @@ def runStatus(
                             f"Addresses for Vendor Name '{metaVendorName}': {metaVendorAdd}"
                         )
                     else:
-                        metaVendorAdd = (
-                            []
-                        )  # Assign empty list if vendor name is not found
+                        # Assign empty list if vendor name is not found
+                        metaVendorAdd = []
+
+                    # Extract the required values from StampDataList
+                    try:
+                        doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
+                    except (KeyError, IndexError) as e:
+                        logger.error(
+                            f"Error retrieving VendorAddress from StampDataList: {e}"
+                        )
+                        doc_VendorAddress = ""
+
+                    # Initialize vndMth_address_ck to handle scenarios where no match function is called
+                    vndMth_address_ck = 0
+                    matched_id_vendor = None
                     # Extract the required values from StampDataList
                     doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
-                    if len(metaVendorAdd) > 1:
+                    if len(metaVendorAdd[0]) > 1 and doc_VendorAddress:
                         vndMth_address_ck, matched_id_vendor = VndMatchFn_2(
                             doc_VendorAddress, metaVendorAdd
                         )

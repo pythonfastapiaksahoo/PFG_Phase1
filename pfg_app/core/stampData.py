@@ -217,15 +217,15 @@ def VndMatchFn_2(doc_VendorAddress, metaVendorAdd):
                         {
                             "type": "text",
                             "text": (
-                                f"vendorAddresses = {metaVendorAdd}, documentAddress = {doc_VendorAddress}. "  # noqa: E501
-                                + f"You are given vendor data from two sources: vendorAddresses from master data "  # noqa: E501
-                                + f"and documentAddress from an openai model. Your task is to confirm "  # noqa: E501
-                                + f"if any address from vendorAddresses matches the documentAddress based on location, "  # noqa: E501
-                                + f"normalize the addresses by handling common abbreviations such as 'Road' and 'RD'. Normalize addresses and check for matches. "  # noqa: E501
-                                + f"If a match is found, return strictly only the JSON response as {'addressMatching': 'yes/no', 'idVendor': 'matched_idVendor'}. "  # noqa: E501
-                                + f"If no match is found, return the JSON response as {'addressMatching': 'no', 'idVendor': None}. "  # noqa: E501
-                                + f"Give me response in JSON format as {'addressMatching': 'yes/no', 'idVendor': 'matched_idVendor'} with two keys: 'addressMatching' and 'idVendor', "  # noqa: E501
-                                + f"each having a value of either 'yes' or 'no' based on the comparison without any explanation."  # noqa: E501
+                                f"vendorAddresses = {metaVendorAdd}, documentAddress = {doc_VendorAddress}. "
+                                + f"You are given vendor data from two sources: vendorAddresses from master data "
+                                + f"and documentAddress from an openai model. Your task is to confirm "
+                                + f"if any address from vendorAddresses matches the documentAddress based on location, "
+                                + f"normalize the addresses by handling common abbreviations such as 'Road' and 'RD'. Normalize addresses and check for matches. "
+                                + f"If a match is found, return strictly only the JSON response as {{'addressMatching': 'yes', 'idVendor': 'matched_idVendor'}}. "
+                                + f"If no match is found, return the JSON response as {{'addressMatching': 'no', 'idVendor': None}}. "
+                                + f"Give me response in JSON format as {{'addressMatching': 'yes/no', 'idVendor': 'matched_idVendor'}} with two keys: 'addressMatching' and 'idVendor', "
+                                + f"each having a value of either 'yes' or 'no' based on the comparison without any explanation."
                             ),
                         }
                     ],
