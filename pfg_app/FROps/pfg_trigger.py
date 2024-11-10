@@ -85,7 +85,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
         recvLineNum = 0
-   
+
     if type(location) is not int and location.isdigit():
         location = int(location)
     else:
@@ -95,7 +95,6 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         storeNumber = int(storeNumber)
     else:
         storeNumber = 0
-   
 
     if location == storeNumber and location != "":
         intStatus = 1
