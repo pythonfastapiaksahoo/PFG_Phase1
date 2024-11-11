@@ -1579,7 +1579,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 ).update(
                                                     {
                                                         model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                        model.Document.documentsubstausID: docSubStatus,  # noqa: E501
+                                                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
                                                     }
                                                 )
                                                 db.commit()
