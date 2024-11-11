@@ -956,6 +956,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                     del obj["key"]
                     obj["labelType"] = "Words"
                 labels_json["labels"].append(obj)
+
         return savelabelsfile(labels_json, document_name, db)
 
     except Exception:
