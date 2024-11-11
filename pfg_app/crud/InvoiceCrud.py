@@ -167,16 +167,17 @@ async def read_paginate_doc_inv_list_with_ln_items(
         #         model.Document.documentStatusID == all_status[stat]
         #     )
 
+        status_list = []
         if stat:
             # Split the status string by ':' to get a list of statuses
             status_list = stat.split(":")
 
-        # Map status names to IDs
-        status_ids = [all_status[s] for s in status_list if s in all_status]
-        if status_ids:
-            data_query = data_query.filter(
-                model.Document.documentStatusID.in_(status_ids)
-            )
+            # Map status names to IDs
+            status_ids = [all_status[s] for s in status_list if s in all_status]
+            if status_ids:
+                data_query = data_query.filter(
+                    model.Document.documentStatusID.in_(status_ids)
+                )
         # Apply vendor status filter if provided
         if ven_status:
             if ven_status == "A":
