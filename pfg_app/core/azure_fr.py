@@ -153,13 +153,20 @@ def call_form_recognizer(
         api_version=api_version,
         retry_policy=custom_retry_policy,
     )
-
-    poller = document_analysis_client.begin_analyze_document(
-        model_id=invoice_model_id,
-        document=input_file,
-        locale=locale,
-        features=["keyValuePairs"],
-    )
+    if invoice_model_id == "prebuilt-invoice":
+        # Call the Form Recognizer service
+        poller = document_analysis_client.begin_analyze_document(
+            model_id=invoice_model_id,
+            document=input_file,
+            locale=locale,
+            features=["keyValuePairs"],
+        )
+    else:
+        poller = document_analysis_client.begin_analyze_document(
+            model_id=invoice_model_id,
+            document=input_file,
+            locale=locale,
+        )
 
     result = poller.result().to_dict()
 
