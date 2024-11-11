@@ -547,7 +547,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         if isinstance(InvodocStatus, int):
             docStatusSync[sentToPPlSft[InvodocStatus]] = {
                 "status": 1,
-                "response": ["Invoice Already Sent to PeopleSoft"],
+                "response": ["Invoice sent to peopleSoft"],
             }
     else:
 
@@ -683,7 +683,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     dmsg = "Success"
 
                                 else:
-                                    dmsg = "Invoice Currency Invalid"
+                                    dmsg = "Invoice currency invalid"
 
                             else:
                                 dmsg = "No currency found in the OpenAI result"
