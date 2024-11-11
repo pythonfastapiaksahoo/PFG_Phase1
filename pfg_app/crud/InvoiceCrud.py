@@ -77,10 +77,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
-            # "QuickInvoice": 27,
-            # "RecycledInvoice": 28,
-            # "VoucherCreated": 29,
-            # "VoucherNotFound": 30,
         }
 
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
@@ -165,12 +161,23 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.Document.vendorAccountID.in_(sub_query)
             )
 
-        # Filter by status if provided
-        if stat:
-            data_query = data_query.filter(
-                model.Document.documentStatusID == all_status[stat]
-            )
+        # # Filter by status if provided
+        # if stat:
+        #     data_query = data_query.filter(
+        #         model.Document.documentStatusID == all_status[stat]
+        #     )
 
+        status_list = []
+        if stat:
+            # Split the status string by ':' to get a list of statuses
+            status_list = stat.split(":")
+
+            # Map status names to IDs
+            status_ids = [all_status[s] for s in status_list if s in all_status]
+            if status_ids:
+                data_query = data_query.filter(
+                    model.Document.documentStatusID.in_(status_ids)
+                )
         # Apply vendor status filter if provided
         if ven_status:
             if ven_status == "A":
@@ -1550,7 +1557,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                         stamptagname=stamptagname,
                         stampvalue=new_value,
                         is_error=0,
-                        skipconfig_ck = 0,
+                        skipconfig_ck=0,
                         IsUpdated=1,
                         OldValue=old_value,
                         UpdatedOn=dt,

@@ -343,15 +343,55 @@ def runStatus(
                     # output_data = rwOcrData[hdr]  # TODO: Unused variable
 
                     spltFileName = splitfileNames[fl]
+                    # Define a list of common terms to ignore in direct matching
+                    common_terms = {
+                        "ltd",
+                        "inc",
+                        "co",
+                        "corp",
+                        "corporation",
+                        "company",
+                        "limited",
+                    }
                     try:
                         stop = False
-                        for syn, vName in zip(
-                            vendorName_df["Synonyms"], vendorName_df["idVendor"]
+                        for syn, v_id, vendorName in zip(
+                            vendorName_df["Synonyms"],
+                            vendorName_df["idVendor"],
+                            vendorName_df["VendorName"],
                         ):
                             if stop:
                                 break
-                                # print("syn: ",syn,"   vName: ",vName)
-                            if syn is not None or str(syn) != "None":
+                                # print("syn: ",syn,"   v_id: ",v_id)
+
+                            vName_lower = str(stamp_inv_vendorName).lower()
+                            vendorName_lower = str(vendorName).lower()
+                            # Check if `v_id` is a common term; skip if it is
+                            if vName_lower not in common_terms:
+                                # Perform substring match check
+                                compared_from = [vName_lower]
+                                compared_to = [vendorName_lower]
+
+                            # Perform the substring match check
+                            if all(isinstance(item, str) for item in compared_to):
+                                if any(
+                                    any(
+                                        compared_from_value in compared_to_value
+                                        or compared_to_value in compared_from_value
+                                        for compared_to_value in compared_to
+                                    )
+                                    for compared_from_value in compared_from
+                                ):
+                                    vdrFound = 1
+                                    vendorID = v_id
+                                    logger.info(
+                                        f"Direct Vendor match found using substring match"
+                                    )  # noqa: E501
+                                    stop = True
+
+                            if (syn is not None or str(syn) != "None") and (
+                                vdrFound == 0
+                            ):
                                 synlt = json.loads(syn)
                                 if isinstance(synlt, list):
                                     for syn1 in synlt:
@@ -385,19 +425,19 @@ def runStatus(
                                             if len(di_inv_vendorName) > 0:
                                                 if cos_sim_di[0][0] * 100 >= 95:
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     logger.info(
                                                         f"cos_sim:{cos_sim_di} , \
-                                                            vendor:{vName}"
+                                                            vendor:{v_id}"
                                                     )
                                                     stop = True
                                                     break
                                             elif cos_sim_stmp[0][0] * 100 >= 95:
                                                 vdrFound = 1
-                                                vendorID = vName
+                                                vendorID = v_id
                                                 logger.info(
                                                     f"cos_sim:{cos_sim_stmp} , \
-                                                        vendor:{vName}"
+                                                        vendor:{v_id}"
                                                 )
                                                 stop = True
                                                 break
@@ -410,7 +450,7 @@ def runStatus(
                                                 if syn2 == di_inv_vendorName:
 
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     stop = True
                                                     break
                                                 elif (
@@ -419,14 +459,14 @@ def runStatus(
                                                 ):
 
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     stop = True
                                                     break
                                             elif stamp_inv_vendorName != "":
                                                 if syn2 == stamp_inv_vendorName:
 
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     stop = True
                                                     break
                                                 elif (
@@ -435,7 +475,7 @@ def runStatus(
                                                 ):
 
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     stop = True
                                                     break
 
@@ -500,15 +540,13 @@ def runStatus(
                             doc_VendorAddress, metaVendorAdd
                         )
 
-                    if vndMth_address_ck == 1:
-                        vendorID = matched_id_vendor
-                        logger.info(f"Vendor Name Matching with Master Data")
-                    else:
-                        vdrFound = 0
-                        logger.info(f"Vendor Name MisMatched with Master Data")
-                else:
-                    vdrFound = 0
-                    logger.info(f"Vendor Name MisMatched with Master Data")
+                        if vndMth_address_ck == 1:
+                            vendorID = matched_id_vendor
+                            vdrFound = 1
+                            logger.info(f"Vendor Name Matching with Master Data")
+                        else:
+                            vdrFound = 0
+                            logger.info(f"Vendor Name MisMatched with Master Data")
 
                 if vdrFound == 1:
 
