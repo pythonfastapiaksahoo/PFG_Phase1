@@ -868,7 +868,8 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                             # get the polygon from the words that match with
                             # the span offset of the documents
                             total_calculated_length = 0
-                            words_polygon = []
+                            # words_polygon = []
+                            words_value = []
                             for word in words:
                                 if (
                                     word["span"]["offset"] >= start
@@ -877,30 +878,37 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                                     total_calculated_length += (
                                         word["span"]["length"] + 1
                                     )
-                                    words_polygon.append(word["polygon"])
+                                    # words_polygon.append(word["polygon"])
+                                    words_value.append(
+                                        {
+                                            "page": v["bounding_regions"][0][
+                                                "page_number"
+                                            ],
+                                            "text": word["content"],
+                                            "boundingBoxes": [  # TODO - check this
+                                                normalize_coordinates(
+                                                    page_width,
+                                                    page_height,
+                                                    word["polygon"],
+                                                )
+                                            ],
+                                        }
+                                    )
                                     if total_calculated_length > label_spans["length"]:
                                         break
-                            normalize_coordinates_list = []
-                            for each in words_polygon:
-                                normalize_coordinates_list.append(
-                                    normalize_coordinates(
-                                        page_width,
-                                        page_height,
-                                        each,
-                                    )
-                                )
+                            # normalize_coordinates_list = []
+                            # for each in words_polygon:
+                            #     normalize_coordinates_list.append(
+                            #         normalize_coordinates(
+                            #             page_width,
+                            #             page_height,
+                            #             each,
+                            #         )
+                            #     )
                             obj = {
                                 "label": table_name + "/" + str(line_number) + "/" + k,
                                 "key": None,
-                                "value": [
-                                    {
-                                        "page": v["bounding_regions"][0]["page_number"],
-                                        "text": v["content"],
-                                        "boundingBoxes": [  # TODO - check this
-                                            normalize_coordinates_list
-                                        ],
-                                    }
-                                ],
+                                "value": words_value,
                             }
                             if ocr_engine in [
                                 "Azure Form Recognizer 3.0",
@@ -929,38 +937,42 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                     # get the polygon from the words that match with the span offset
                     # of the documents
                     total_calculated_length = 0
-                    words_polygon = []
+                    # words_polygon = []
+                    words_value = []
                     for word in words:
                         if (
                             word["span"]["offset"] >= start
                             and word["span"]["offset"] <= end
                         ):
                             total_calculated_length += word["span"]["length"] + 1
-                            words_polygon.append(word["polygon"])
+                            # words_polygon.append(word["polygon"])
+                            words_value.append(
+                                {
+                                    "page": fields[f]["bounding_regions"][0][
+                                        "page_number"
+                                    ],
+                                    "text": word["content"],
+                                    "boundingBoxes": [  # TODO - check this
+                                        normalize_coordinates(
+                                            page_width,
+                                            page_height,
+                                            word["polygon"],
+                                        )
+                                    ],
+                                }
+                            )
                             if total_calculated_length > label_spans["length"]:
                                 break
-                    normalize_coordinates_list = []
-                    for each in words_polygon:
-                        normalize_coordinates_list.append(
-                            normalize_coordinates(
-                                page_width,
-                                page_height,
-                                each,
-                            )
-                        )
-                    obj = {
-                        "label": label,
-                        "key": None,
-                        "value": [
-                            {
-                                "page": fields[f]["bounding_regions"][0]["page_number"],
-                                "text": fields[f]["content"],
-                                "boundingBoxes": [  # TODO - check this
-                                    normalize_coordinates_list
-                                ],
-                            }
-                        ],
-                    }
+                    # normalize_coordinates_list = []
+                    # for each in words_polygon:
+                    #     normalize_coordinates_list.append(
+                    #         normalize_coordinates(
+                    #             page_width,
+                    #             page_height,
+                    #             each,
+                    #         )
+                    #     )
+                    obj = {"label": label, "key": None, "value": words_value}
                     if ocr_engine in [
                         "Azure Form Recognizer 3.0",
                         "Azure Form Recognizer 3.1",
@@ -990,36 +1002,42 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                 # get the polygon from the words that match with the span offset
                 # of the key-value pair
                 total_calculated_length = 0
-                words_polygon = []
+                # words_polygon = []
+                words_value = []
                 for word in words:
                     if (
                         word["span"]["offset"] >= start
                         and word["span"]["offset"] <= end
                     ):
                         total_calculated_length += word["span"]["length"] + 1
-                        words_polygon.append(word["polygon"])
+                        # words_polygon.append(word["polygon"])
+                        words_value.append(
+                            {
+                                "page": pair["value"]["bounding_regions"][0][
+                                    "page_number"
+                                ],
+                                "text": word["content"],
+                                "boundingBoxes": [  # TODO - check this
+                                    normalize_coordinates(
+                                        page_width,
+                                        page_height,
+                                        word["polygon"],
+                                    )
+                                ],
+                            }
+                        )
                         if total_calculated_length > kvp_spans["length"]:
                             break
-                normalize_coordinates_list = []
-                for each in words_polygon:
-                    normalize_coordinates_list.append(
-                        normalize_coordinates(
-                            page_width,
-                            page_height,
-                            each,
-                        )
-                    )
-                obj = {
-                    "label": original_header,
-                    "key": None,
-                    "value": [
-                        {
-                            "page": pair["value"]["bounding_regions"][0]["page_number"],
-                            "text": pair["value"]["content"],
-                            "boundingBoxes": normalize_coordinates_list,
-                        }
-                    ],
-                }
+                # normalize_coordinates_list = []
+                # for each in words_polygon:
+                #     normalize_coordinates_list.append(
+                #         normalize_coordinates(
+                #             page_width,
+                #             page_height,
+                #             each,
+                #         )
+                #     )
+                obj = {"label": original_header, "key": None, "value": words_value}
                 if ocr_engine in [
                     "Azure Form Recognizer 3.0",
                     "Azure Form Recognizer 3.1",
