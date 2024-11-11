@@ -1013,7 +1013,9 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                         # words_polygon.append(word["polygon"])
                         words_value.append(
                             {
-                                "page": fields[f]["bounding_regions"][0]["page_number"],
+                                "page": pair["value"]["bounding_regions"][0][
+                                    "page_number"
+                                ],
                                 "text": word["content"],
                                 "boundingBoxes": [  # TODO - check this
                                     normalize_coordinates(
