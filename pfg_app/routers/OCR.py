@@ -227,7 +227,9 @@ def runStatus(
         Confirmation: Extract a 13-digit confirmation number.
         Format: Output strictly in the JSON format with unique keys provided above,
         Store Number: Must be a 4 digit. If its less than 4 digit than add leading
-          zeros else return N/A its not clear.
+        zeros else return N/A its not clear.
+        VendorName: Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
+        VendorAddress: Don't consider the vendor Address from 'Sold To' or 'Ship To' or 'Bill To' section
         with no additional text or explanations."""
 
         (
