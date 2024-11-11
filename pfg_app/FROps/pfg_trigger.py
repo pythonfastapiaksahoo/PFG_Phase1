@@ -85,7 +85,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
         recvLineNum = 0
-   
+
     if type(location) is not int and location.isdigit():
         location = int(location)
     else:
@@ -95,9 +95,8 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         storeNumber = int(storeNumber)
     else:
         storeNumber = 0
-   
 
-    if location == storeNumber and location != "":
+    if location == storeNumber and location != "" and location != 0:
         intStatus = 1
         intStatusMsg = "Success"
     else:
@@ -464,7 +463,7 @@ def format_and_validate_date(date_str):
     return formatted_date, dateValCk
 
 
-def pfg_sync(docID, userID, db: Session, customCall=0):
+def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     logger.info(f"start on the pfg_sync,DocID{docID}")
 
     docModel = (
@@ -511,6 +510,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
     # StrTyp_Err = 0
     gst_amt = 0
     tax_isErr = 0
+    documentModelID = ""
 
     try:
 
@@ -523,6 +523,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
             filePath = dtb_rw.docPath
             invID_docTab = dtb_rw.docheaderID
             vdrAccID = dtb_rw.vendorAccountID
+            documentModelID = dtb_rw.documentModelID
         logger.info(
             f"InvodocStatus:{InvodocStatus},"
             + "filePath:{filePath},"
@@ -546,7 +547,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
         if isinstance(InvodocStatus, int):
             docStatusSync[sentToPPlSft[InvodocStatus]] = {
                 "status": 1,
-                "response": ["Invoice Already Sent to PeopleSoft"],
+                "response": ["Invoice sent to peopleSoft"],
             }
     else:
 
@@ -607,10 +608,29 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
                 "response": [duplicate_status_ck_msg],
             }
         try:
-            if customCall == 1:
+            if customCall == 1 or (documentModelID == 999999 and vdrAccID != 0):
                 customModelCall(docID)
+                docTb = (
+                    db.query(model.Document)
+                    .filter(model.Document.idDocument == docID)
+                    .all()
+                )
+
+                for dtb_rw in docTb:
+                    InvodocStatus = dtb_rw.documentStatusID
+                    filePath = dtb_rw.docPath
+                    invID_docTab = dtb_rw.docheaderID
+                    vdrAccID = dtb_rw.vendorAccountID
+                    documentModelID = dtb_rw.documentModelID
         except Exception:
             logger.error(f"{traceback.format_exc()}")
+
+        if vdrAccID == 0:
+            docStatusSync["Status overview"] = {
+                "status": 0,
+                "response": ["Vendor mapping unsuccessful"],
+            }
+            return docStatusSync
         # ----------
         DocDtHdr = (
             db.query(model.DocumentData, model.DocumentTagDef)
@@ -663,7 +683,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
                                     dmsg = "Success"
 
                                 else:
-                                    dmsg = "Invoice Currency Invalid"
+                                    dmsg = "Invoice currency invalid"
 
                             else:
                                 dmsg = "No currency found in the OpenAI result"
@@ -1156,6 +1176,49 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
                                     if (
                                         list(stmpData["StoreType"].keys())[0]
                                         == "Integrated"
+                                        and skipConf == 1
+                                    ):
+                                        try:
+                                            db.query(model.StampDataValidation).filter(
+                                                model.StampDataValidation.documentid
+                                                == docID,
+                                                model.StampDataValidation.stamptagname
+                                                == "ConfirmationNumber",
+                                            ).update(
+                                                {
+                                                    model.StampDataValidation.skipconfig_ck: 1,  # noqa: E501
+                                                }
+                                            )
+                                            db.commit()
+                                        except Exception:
+                                            logger.debug(traceback.format_exc())
+                                        skipValidationCK, skipValidationStatusMsg = (
+                                            nonIntegratedVoucherData(docID, gst_amt, db)
+                                        )
+                                        if skipValidationCK == 1:
+                                            DeptCk = 1
+                                            DeptCk_msg = [
+                                                "User bypassed confirmation number validation"  # noqa: E501
+                                            ]
+                                        else:
+                                            DeptCk = 0
+                                            DeptCk_msg = [skipValidationStatusMsg]
+
+                                            docStatusSync["Storetype validation"] = {
+                                                "status": DeptCk,
+                                                "response": DeptCk_msg,
+                                            }
+                                        voucher_query = db.query(
+                                            model.VoucherData
+                                        ).filter(model.VoucherData.documentID == docID)
+                                        row_count = voucher_query.count()
+                                        NullVal = []
+                                        VthChk = 0
+                                        VthChk_msg = ""
+
+                                    elif (
+                                        list(stmpData["StoreType"].keys())[0]
+                                        == "Integrated"
                                     ):
 
                                         # -------------------------------
@@ -1303,9 +1366,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
 
                                     for column in model.VoucherData.__table__.columns:
 
-                                        if (store_type == "Non-Integrated") and (
-                                            column.name == "Business_unit"
-                                        ):
+                                        if (
+                                            (store_type == "Non-Integrated")
+                                            or skipConf == 1
+                                        ) and (column.name == "Business_unit"):
                                             continue
 
                                         value = getattr(voucher_row, column.name)
@@ -1515,7 +1579,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0):
                                                 ).update(
                                                     {
                                                         model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                        model.Document.documentsubstausID: docSubStatus,  # noqa: E501
+                                                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
                                                     }
                                                 )
                                                 db.commit()

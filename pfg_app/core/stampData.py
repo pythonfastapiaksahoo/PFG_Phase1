@@ -31,12 +31,12 @@ def stampDataFn(blob_data, prompt):
         for page in pdf_img:
 
             buffered = BytesIO()
-            page.save(buffered, format="JPEG")
+            page.save(buffered, format="PNG")
             encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
             image_content.append(
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
+                    "image_url": {"url": f"data:image/png;base64,{encoded_image}"},
                 }
             )
         data = {
@@ -201,6 +201,90 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
         vndMth_address_ck = 0
 
     return vndMth_ck, vndMth_address_ck
+
+
+def VndMatchFn_2(doc_VendorAddress, metaVendorAdd):
+    vndMth_address_ck = 0  # Indicates if address matching was successful
+    matched_id_vendor = None  # To store the matched idVendor if found
+
+    try:
+        # prompt to only match addresses and return idVendor
+        data = {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                f"vendorAddresses = {metaVendorAdd}, documentAddress = {doc_VendorAddress}. "  # noqa: E501
+                                + f"You are given vendor data from two sources: vendorAddresses from master data "  # noqa: E501
+                                + f"and documentAddress from an openai model. Your task is to confirm "  # noqa: E501
+                                + f"if any address from vendorAddresses matches the documentAddress based on location, "  # noqa: E501
+                                + f"normalize the addresses by handling common abbreviations such as 'Road' and 'RD'. Normalize addresses and check for matches. "  # noqa: E501
+                                + f"If a match is found, return strictly only the JSON response as {{'addressMatching': 'yes', 'idVendor': 'matched_idVendor'}}. "  # noqa: E501
+                                + f"If no match is found, return the JSON response as {{'addressMatching': 'no', 'idVendor': None}}. "  # noqa: E501
+                                + f"Give me response in JSON format as {{'addressMatching': 'yes/no', 'idVendor': 'matched_idVendor'}} with two keys: 'addressMatching' and 'idVendor', "  # noqa: E501
+                                + f"each having a value of either 'yes' or 'no' based on the comparison without any explanation."  # noqa: E501
+                            ),
+                        }
+                    ],
+                }
+            ]
+        }
+
+        # Make the API call to Azure OpenAI
+        access_token = get_open_ai_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(
+            settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+        )
+
+        # Check and process the response
+        if response.status_code == 200:
+            result = response.json()
+            for choice in result["choices"]:
+                content = choice["message"]["content"].strip()
+                logger.info(f"Content: {content}")
+        else:
+            logger.error(f"Error: {response.status_code}, {response.text}")
+
+        # Process JSON response
+        cl_mtch = (
+            content.replace("json", "")
+            .replace("\n", "")
+            .replace("'''", "")
+            .replace("```", "")
+        )
+        try:
+            vndMth = json.loads(cl_mtch)
+            if vndMth.get("addressMatching") == "yes":
+                vndMth_address_ck = 1
+                matched_id_vendor = vndMth.get("idVendor")
+        except BaseException:
+            try:
+                cl_data_corrected = cl_mtch.replace("'", '"')
+                vndMth = json.loads(cl_data_corrected)
+                if vndMth.get("addressMatching") == "yes":
+                    vndMth_address_ck = 1
+                    matched_id_vendor = vndMth.get("idVendor")
+            except BaseException:
+                vndMth = cl_mtch
+                if '"addressMatching": "yes"' in content:
+                    vndMth_address_ck = 1
+                    matched_id_vendor = (
+                        vndMth.get("idVendor") if "idVendor" in vndMth else None
+                    )
+
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        vndMth_address_ck = 0
+        matched_id_vendor = None
+
+    return vndMth_address_ck, matched_id_vendor
 
 
 def is_valid_date(date_string):
