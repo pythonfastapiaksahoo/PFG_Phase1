@@ -1186,7 +1186,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 == "ConfirmationNumber",
                                             ).update(
                                                 {
-                                                    model.StampDataValidation.skipconfig_ck: 1,         # noqa: E501
+                                                    model.StampDataValidation.skipconfig_ck: 1,  # noqa: E501
                                                 }
                                             )
                                             db.commit()

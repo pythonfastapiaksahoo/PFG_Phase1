@@ -31,12 +31,12 @@ def stampDataFn(blob_data, prompt):
         for page in pdf_img:
 
             buffered = BytesIO()
-            page.save(buffered, format="JPEG")
+            page.save(buffered, format="PNG")
             encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
             image_content.append(
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
+                    "image_url": {"url": f"data:image/png;base64,{encoded_image}"},
                 }
             )
         data = {
