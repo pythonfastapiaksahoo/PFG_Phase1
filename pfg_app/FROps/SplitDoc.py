@@ -409,53 +409,49 @@ def splitDoc(
         if len(output_data) == 1:
             split_list = [(1, 1)]
         else:
+            spltLtmain = []
+            nwPg = 0
+
             groupInvo = {}
-            tmp = ()
-            for inv in pageInvoVendorData:
-                if (
-                    pageInvoVendorData[inv]["InvoiceId"][1] > 0.89
-                    and pageInvoVendorData[inv]["VendorName"][1] > 0.80
-                ):
+            cnt_dt = 0
+            tmpLt = []
+            for inv, data in pageInvoVendorData.items():
+                if cnt_dt ==0:
                     nwPg = 1
-                else:
-                    if inv == 1:
-                        nwPg = 1
-                    else:
+                    cnt_dt = 1
+                    tmpLt.append(inv)
+                    continue
+                    
+                if cnt_dt !=0:
+                    crtInv = pageInvoVendorData[inv]['InvoiceId']
+                    
+                    prvInv = pageInvoVendorData[inv-1]['InvoiceId']
+                    
+
+                    if prvInv[0]==crtInv[0]:
+                        #same invoice
                         nwPg = 0
-                groupInvo[inv] = nwPg
-            lt = []
-            prv = 0
-            for i in groupInvo:
-                if groupInvo[i] == 1:
-                    prv = i
-                    tmp = i
-                else:
-                    if i == 1:
-                        tmp = i
+                        tmpLt.append(inv)
                     else:
-                        tmp = (prv, i)
-                lt.append(tmp)
+                        if crtInv[1] >= 0.90:
+                            #new page
+                            spltLtmain.append(tmpLt)
+                            
+                            tmpLt= []
+                            tmpLt.append(inv)
+                            nwPg = 1
+                        # else crtInv[1] <0.90 and (crtVdr[0]=='' or crtVdr[1]<70):
+                        else: 
+                            #same page
 
-            output = []
-            for item in lt:
-                if isinstance(item, int):
-                    prVal = item
-                    output.append((item, item))
+                            tmpLt.append(inv)
+                groupInvo[inv] = nwPg
+                    
+            spltLtmain.append(tmpLt)
 
-                elif isinstance(item, tuple):
 
-                    if item[0] == prVal:
-                        if (prVal, prVal) in output:
-                            output.remove((prVal, prVal))
-                    output.append(item)
-
-            finalInvoGrp = output.copy()
-            for op in range(0, len(output)):
-                if op < len(output) - 1:
-                    if output[op][0] == output[op + 1][0]:
-                        finalInvoGrp.remove(output[op])
-
-            split_list = [tup for tup in finalInvoGrp if 0 not in tup]
+            # Transform each sublist to the desired tuple format
+            split_list = [(item[0], item[-1]) for item in spltLtmain]
 
         # grouped_invoices = {}
         # previous_invoice = ""
