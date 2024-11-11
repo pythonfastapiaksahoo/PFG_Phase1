@@ -25,15 +25,7 @@ router = APIRouter(
 @router.get("/readPaginatedDocumentINVListWithLnItems")
 async def read_paginate_doc_inv_list_with_ln_item(
     ven_id: Optional[int] = None,
-    status: Optional[
-        Literal[
-            "posted",
-            "rejected",
-            "exception",
-            "VendorNotOnboarded",
-            "VendorUnidentified",
-        ]
-    ] = None,
+    status: Optional[str] = None,  # Accept a colon-separated string
     offset: int = 1,
     limit: int = 10,
     date_range: Optional[str] = None,  # New parameter for start date
