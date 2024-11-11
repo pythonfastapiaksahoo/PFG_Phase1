@@ -436,7 +436,7 @@ def splitDoc(
                         if crtInv[1] >= 0.90:
                             #new page
                             spltLtmain.append(tmpLt)
-                            groupInvo
+                            
                             tmpLt= []
                             tmpLt.append(inv)
                             nwPg = 1
