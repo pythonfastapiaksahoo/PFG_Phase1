@@ -345,22 +345,26 @@ def splitDoc(
             split_list = [(1, 1)]
 
         elif sndChk == 1:
-            grouped_pages = group_pages(prbtHeaders)
+            try:
+                split_list =  [(x[0], x[1]) if len(x) == 2 else (x[0], x[0]) for x in output_list]    # noqa: E501
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+                grouped_pages = group_pages(prbtHeaders)
 
-            splitpgsDt = [
-                (x[0] + 1, x[0] + 1) if len(x) == 1 else tuple(y + 1 for y in x)
-                for x in grouped_pages
-            ]
+                splitpgsDt = [
+                    (x[0] + 1, x[0] + 1) if len(x) == 1 else tuple(y + 1 for y in x)
+                    for x in grouped_pages
+                ]
 
-            if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
-                # Unpack the tuple and create a list of tuples (n, n)
-                grp_pages = [(i, i) for i in splitpgsDt[0]]
-            elif all(isinstance(i, tuple) for i in splitpgsDt):
-                # If the input is already a list of tuples, return it as-is
-                grp_pages = splitpgsDt
-            else:
-                grp_pages = splitpgsDt
-            split_list = grp_pages
+                if len(splitpgsDt) == 1 and isinstance(splitpgsDt[0], tuple):
+                    # Unpack the tuple and create a list of tuples (n, n)
+                    grp_pages = [(i, i) for i in splitpgsDt[0]]
+                elif all(isinstance(i, tuple) for i in splitpgsDt):
+                    # If the input is already a list of tuples, return it as-is
+                    grp_pages = splitpgsDt
+                else:
+                    grp_pages = splitpgsDt
+                split_list = grp_pages
         else:
             split_list = output_list
     else:

@@ -141,7 +141,12 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
             if "SubTotal" in docHdrDt:
                 invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
             else:
-                invo_SubTotal = invo_total
+                if "GST" in docHdrDt:
+                    invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["GST"]))
+                elif "TotalTax" in docHdrDt:
+                    invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["TotalTax"]))
+                else:
+                    invo_SubTotal = invo_total
         else:
             voucher_data_status = 0
         if "InvoiceDate" in docHdrDt:
@@ -547,7 +552,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         if isinstance(InvodocStatus, int):
             docStatusSync[sentToPPlSft[InvodocStatus]] = {
                 "status": 1,
-                "response": ["Invoice Already Sent to PeopleSoft"],
+                "response": ["Invoice sent to peopleSoft"],
             }
     else:
 
@@ -683,7 +688,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     dmsg = "Success"
 
                                 else:
-                                    dmsg = "Invoice Currency Invalid"
+                                    dmsg = "Invoice currency invalid"
 
                             else:
                                 dmsg = "No currency found in the OpenAI result"
@@ -764,6 +769,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 tax_isErr = 1
                         if "GST" in docHdrDt:
                             gst_amt = clean_amount(docHdrDt["GST"])
+                            if gst_amt is None:
+                                gst_amt = 0
+                        elif "TotalTax" in docHdrDt:
+                            gst_amt = clean_amount(docHdrDt["TotalTax"])
                             if gst_amt is None:
                                 gst_amt = 0
                         else:
@@ -895,6 +904,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                 < 0.09
                                                             ):  # noqa: E501
                                                                 invTotalMth = 1
+                                                            else:
+                                                                litterDeposit_sm_gst = clean_amount(litterDeposit_sm + gst_amt)     # noqa: E501
+                                                                if litterDeposit_sm_gst is not None:                                # noqa: E501
+                                                                    if (litterDeposit_sm_gst == invoTotal) or (                     # noqa: E501
+                                                                        abs(litterDeposit_sm_gst - invoTotal) < 0.09                # noqa: E501
+                                                                    ):  # noqa: E501
+                                                                        invTotalMth = 1
+
                                                 if (invTotalMth == 0) and (
                                                     "Fuel surcharge" in docHdrDt
                                                 ):  # noqa: E501
@@ -941,9 +958,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                             < 0.09
                                                         ):
                                                             invTotalMth = 1
-                                elif gst_amt > 0:
-                                    invTotalMth = 0
-                                    invTotalMth_msg = "Missing subtotal"
+                                # elif gst_amt > 0:
+                                #     if 
+                                #     invTotalMth = 0
+                                #     invTotalMth_msg = "Missing subtotal"
                                 else:
                                     invTotalMth = 1
                                     invTotalMth_msg = (
