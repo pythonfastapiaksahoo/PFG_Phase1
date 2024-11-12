@@ -895,6 +895,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                 < 0.09
                                                             ):  # noqa: E501
                                                                 invTotalMth = 1
+                                                            else:
+                                                                litterDeposit_sm_gst = clean_amount(litterDeposit_sm + gst_amt)     # noqa: E501
+                                                                if litterDeposit_sm_gst is not None:                                # noqa: E501
+                                                                    if (litterDeposit_sm_gst == invoTotal) or (                     # noqa: E501
+                                                                        abs(litterDeposit_sm_gst - invoTotal) < 0.09                # noqa: E501
+                                                                    ):  # noqa: E501
+                                                                        invTotalMth = 1
+
                                                 if (invTotalMth == 0) and (
                                                     "Fuel surcharge" in docHdrDt
                                                 ):  # noqa: E501
