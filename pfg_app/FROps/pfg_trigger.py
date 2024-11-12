@@ -141,7 +141,12 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
             if "SubTotal" in docHdrDt:
                 invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
             else:
-                invo_SubTotal = invo_total
+                if "GST" in docHdrDt:
+                    invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["GST"]))
+                elif "TotalTax" in docHdrDt:
+                    invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["TotalTax"]))
+                else:
+                    invo_SubTotal = invo_total
         else:
             voucher_data_status = 0
         if "InvoiceDate" in docHdrDt:
@@ -766,6 +771,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             gst_amt = clean_amount(docHdrDt["GST"])
                             if gst_amt is None:
                                 gst_amt = 0
+                        elif "TotalTax" in docHdrDt:
+                            gst_amt = clean_amount(docHdrDt["TotalTax"])
+                            if gst_amt is None:
+                                gst_amt = 0
                         else:
                             gst_amt = 0
                         if tax_isErr == 0:
@@ -949,9 +958,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                             < 0.09
                                                         ):
                                                             invTotalMth = 1
-                                elif gst_amt > 0:
-                                    invTotalMth = 0
-                                    invTotalMth_msg = "Missing subtotal"
+                                # elif gst_amt > 0:
+                                #     if 
+                                #     invTotalMth = 0
+                                #     invTotalMth_msg = "Missing subtotal"
                                 else:
                                     invTotalMth = 1
                                     invTotalMth_msg = (
