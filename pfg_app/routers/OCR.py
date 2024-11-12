@@ -91,6 +91,7 @@ def runStatus(
         # email_path = ""
         # subject = ""
         vendorAccountID = 0
+        vendorID = 0
         db = next(get_db())
         # Create a new instance of the SplitDocTab model
         new_split_doc = model.SplitDocTab(
@@ -304,8 +305,10 @@ def runStatus(
                 # ltPg = [spltInv[1] - 1][0]  # TODO: Unused variable
                 vdrFound = 0
                 spltFileName = splitfileNames[splt_map[fl]]
+                logger.info(f"spltFileName: {spltFileName}")
                 try:
                     InvofileSize = fileSize[spltFileName]
+                    logger.info(f"InvofileSize: {InvofileSize}")
                 except Exception:
                     logger.error(f"{traceback.format_exc()}")
                     InvofileSize = ""
@@ -327,7 +330,7 @@ def runStatus(
                     logger.error(f"{traceback.format_exc()}")
 
                 if "VendorName" in prbtHeaders[splt_map[fl]]:
-                    # logger.info(f"DI prbtHeaders: {prbtHeaders}")
+                    logger.info(f"DI prbtHeaders: {prbtHeaders}")
                     di_inv_vendorName = prbtHeaders[splt_map[fl]]["VendorName"][0]
                     # di_inv_vendorName = inv_vendorName
                     logger.info(f" DI inv_vendorName: {di_inv_vendorName}")
@@ -545,10 +548,10 @@ def runStatus(
                         if vndMth_address_ck == 1:
                             vendorID = matched_id_vendor
                             vdrFound = 1
-                            logger.info(f"Vendor Name Matching with Master Data")
+                            logger.info(f"Vendor Address Matching with Master Data")
                         else:
                             vdrFound = 0
-                            logger.info(f"Vendor Name MisMatched with Master Data")
+                            logger.info(f"Vendor Address MisMatched with Master Data")
 
                 if vdrFound == 1:
 
