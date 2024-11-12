@@ -259,7 +259,13 @@ def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
         if "SubTotal" in docHdrDt:
             invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
         else:
-            invo_SubTotal = invo_total
+            if "GST" in docHdrDt:
+                invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["GST"]))
+            elif "TotalTax" in docHdrDt:
+                invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["TotalTax"]))
+            else:
+                invo_SubTotal = invo_total
+        
     else:
         voucher_data_status = 0
     if "InvoiceDate" in docHdrDt:
