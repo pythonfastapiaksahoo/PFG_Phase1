@@ -296,11 +296,15 @@ def splitDoc(
             grouped_dict[value].append(key)
 
         input_list = list(grouped_dict.values())
-        output_list = [
-            (item[0], item[1]) if len(item) == 2 else (item[0], item[0])
-            for item in input_list
-        ]
-        logger.info(f"input_list:  {output_list}")
+        output_list = []
+        for item in input_list:
+            if len(item) == 2:
+                output_list.append((item[0], item[1]))
+            elif len(item)>2:
+                output_list.append((item[0], item[-1]))
+            else:
+                output_list.append((item[0], item[0]))
+                logger.info(f"input_list:  {output_list}")
 
         pgVal = []
         for pgvl in grouped_dict:
@@ -446,8 +450,9 @@ def splitDoc(
                             nwPg = 1
                         # else crtInv[1] <0.90 and (crtVdr[0]=='' or crtVdr[1]<70):
                         else: 
-                            #same page
-
+                            
+                            spltLtmain.append(tmpLt)
+                            tmpLt= []
                             tmpLt.append(inv)
                 groupInvo[inv] = nwPg
                     
