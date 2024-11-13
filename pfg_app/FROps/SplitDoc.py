@@ -446,8 +446,9 @@ def splitDoc(
                             nwPg = 1
                         # else crtInv[1] <0.90 and (crtVdr[0]=='' or crtVdr[1]<70):
                         else: 
-                            #same page
-
+                            
+                            spltLtmain.append(tmpLt)
+                            tmpLt= []
                             tmpLt.append(inv)
                 groupInvo[inv] = nwPg
                     

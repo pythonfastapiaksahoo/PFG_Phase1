@@ -1,4 +1,3 @@
-# import logging
 import io
 import json
 import os
@@ -578,7 +577,7 @@ def runStatus(
                     vendorAccountID = vendorID
                     poNumber = "nonPO"
                     VendoruserID = 1
-                    configs = getOcrParameters(customerID, db)
+                    # configs = getOcrParameters(customerID, db)
                     metadata = getMetaData(vendorAccountID, db)
                     entityID = 1
                     modelData, modelDetails = getModelData(vendorAccountID, db)
@@ -635,7 +634,9 @@ def runStatus(
                         date_format = metadata.DateFormat
                         endpoint = settings.form_recognizer_endpoint
                         inv_model_id = modelData.modelID
-                        API_version = configs.ApiVersion
+                        API_version = settings.api_version
+                        # API_version = configs.ApiVersion
+
 
                         generatorObj = {
                             "spltFileName": spltFileName,
