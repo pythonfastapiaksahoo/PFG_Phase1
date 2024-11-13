@@ -432,7 +432,7 @@ def splitDoc(
                     
                 if cnt_dt !=0:
                     crtInv = pageInvoVendorData[inv]['InvoiceId']
-                    
+                    crtVrd = pageInvoVendorData[inv]['VendorName']
                     prvInv = pageInvoVendorData[inv-1]['InvoiceId']
                     
 
@@ -449,6 +449,9 @@ def splitDoc(
                             tmpLt.append(inv)
                             nwPg = 1
                         # else crtInv[1] <0.90 and (crtVdr[0]=='' or crtVdr[1]<70):
+                        elif crtInv[1] < 0.90 and (crtVrd[0] == "" or crtVrd[1] < 70):
+                            #same page
+                            tmpLt.append(inv)
                         else: 
                             
                             spltLtmain.append(tmpLt)
