@@ -1051,16 +1051,15 @@ def updateInvoiceStatus(doc_id, db):
             db.query(model.Document)
             .filter(
                 model.Document.idDocument == doc_id,
-                model.Document.documentStatusID == 7,
             )
             .first()
         )
 
         if not document:
-            logger.error(f"Document with ID {doc_id} and status ID 7 not found.")
+            logger.error(f"Document with ID {doc_id} not found.")
             raise HTTPException(
                 status_code=404,
-                detail="Document not found or status is not 'Sent to Peoplesoft'",
+                detail="Document not found in the database",
             )
 
         # Fetch associated voucher data
@@ -1251,7 +1250,7 @@ def newbulkupdateInvoiceStatus(db):
 
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
         doc_query = db.query(model.Document.idDocument).filter(
-            model.Document.documentStatusID == 7
+            model.Document.documentStatusID.in_([7, 14])
         )
 
         total_docs = doc_query.count()  # Total number of documents to process
