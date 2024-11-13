@@ -1451,7 +1451,7 @@ class VoucherData(Base):
     Deptid = Column(String(100), nullable=True)
     Image_Nbr = Column(Integer, nullable=True)
     File_Name = Column(String, nullable=True)
-    storenumber = Column(Integer, nullable=True)
+    storenumber = Column(String, nullable=True)
     storetype = Column(String, nullable=True)
     receiver_id = Column(String, nullable=True)
     status = Column(String, nullable=True)
