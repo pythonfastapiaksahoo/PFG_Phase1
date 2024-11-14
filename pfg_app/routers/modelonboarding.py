@@ -777,7 +777,7 @@ async def get_labels_pdf_image(
 
             # check if all the files have been processed successfully
             if all(
-                auto_labels_results[file] == "success" for file in auto_labels_results
+                auto_labels_results[file] == "Success" for file in auto_labels_results
             ):
                 logger.info(f"Auto-labels result => {auto_labels_results}")
                 return "Success"
