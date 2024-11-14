@@ -1457,6 +1457,9 @@ class VoucherData(Base):
     status = Column(String, nullable=True)
     recv_ln_nbr = Column(Integer, nullable=True)
     gst_amt = Column(Float, nullable=True)
+    currency_code = Column(String, nullable=True)
+    freight_amt = Column(Float, nullable=True)
+    misc_amt = Column(Float, nullable=True)
 
 
 class NonintegratedStores(Base):

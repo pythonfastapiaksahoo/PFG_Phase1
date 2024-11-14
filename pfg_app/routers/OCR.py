@@ -230,6 +230,7 @@ def runStatus(
         zeros else return N/A its not clear.
         VendorName: Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
         VendorAddress: Don't consider the vendor Address from 'Sold To' or 'Ship To' or 'Bill To' section
+        Currency: If it's unclear kept it blank as ""
         with no additional text or explanations."""
 
         (
@@ -564,16 +565,20 @@ def runStatus(
                     except Exception:
                         logger.error(f"{traceback.format_exc()}")
                         metaVendorAdd = ""
+                        
                     try:
-                        metaVendorName = list(
-                            vendorName_df[vendorName_df["idVendor"] == vendorID][
-                                "VendorName"
-                            ]
-                        )[0]
-                    except Exception:
-                        logger.error(f"{traceback.format_exc()}")
+                        # Filter the DataFrame for rows matching vendorID
+                        vendorName_list = list(vendorName_df[vendorName_df["idVendor"] == vendorID]["VendorName"])
+                        
+                        # Check if the list is not empty
+                        if vendorName_list:
+                            metaVendorName = vendorName_list[0]
+                        else:
+                            # Handle the case where no match is found
+                            metaVendorName = ""
 
-                        metaVendorName = ""
+                    except Exception as e:
+                        logger.error(f"Error occurred: {traceback.format_exc()}")
                     vendorAccountID = vendorID
                     poNumber = "nonPO"
                     VendoruserID = 1
