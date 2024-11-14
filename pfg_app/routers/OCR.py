@@ -41,6 +41,7 @@ from pfg_app.logger_module import logger
 # from logModule import email_sender
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 
+import Levenshtein
 # model.Base.metadata.create_all(bind=engine)
 auth_handler = AuthHandler()
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
@@ -371,28 +372,18 @@ def runStatus(
 
                             vName_lower = str(stamp_inv_vendorName).lower()
                             vendorName_lower = str(vendorName).lower()
-                            # Check if `v_id` is a common term; skip if it is
-                            if vName_lower not in common_terms:
-                                # Perform substring match check
-                                compared_from = [vName_lower]
-                                compared_to = [vendorName_lower]
-
-                            # Perform the substring match check
-                            if all(isinstance(item, str) for item in compared_to):
-                                if any(
-                                    any(
-                                        compared_from_value in compared_to_value
-                                        or compared_to_value in compared_from_value
-                                        for compared_to_value in compared_to
-                                    )
-                                    for compared_from_value in compared_from
-                                ):
-                                    vdrFound = 1
-                                    vendorID = v_id
-                                    logger.info(
-                                        f"Direct Vendor match found using substring match"
-                                    )  # noqa: E501
-                                    stop = True
+                            # 
+                            similarity = Levenshtein.ratio(
+                                vName_lower, vendorName_lower)
+                            logger.info(f"Vendor Match Accuracy using Levenshtein: {similarity*100}%")  # noqa: E501
+                            # Check if similarity is 80% or greater
+                            if similarity * 100 >= 90:
+                                vdrFound = 1
+                                vendorID = v_id
+                                logger.info(
+                                    f"Direct Vendor match found using substring match"
+                                )  
+                                stop = True
 
                             if (syn is not None or str(syn) != "None") and (
                                 vdrFound == 0
