@@ -766,15 +766,24 @@ async def get_labels_pdf_image(
                 if blob.name.endswith((".pdf", ".png", ".jpg", ".jpeg")):
                     files.append(blob.name)
 
+            # define a named dict to store the autolabels results status
+            auto_labels_results = {}
             for file in files:
                 blob_client = container_client.get_blob_client(file)
                 blob_data = blob_client.download_blob().readall()
+                auto_labels_results[file] = getlabels(
+                    blob_data, file, db, keys, ocr_engine
+                )
 
-                # if file.endswith((".png", ".jpg", ".jpeg")):
-                #     getlabel_image(blob_data, file, db, keys, ocr_engine)
-
-                # elif file.endswith(".pdf"):
-            return getlabels(blob_data, file, db, keys, ocr_engine)
+            # check if all the files have been processed successfully
+            if all(
+                auto_labels_results[file] == "success" for file in auto_labels_results
+            ):
+                logger.info(f"Auto-labels result => {auto_labels_results}")
+                return "Success"
+            else:
+                logger.error(f"Auto-labels result => {auto_labels_results}")
+                return "Failure"
 
     except Exception as ex:
         print(ex)
