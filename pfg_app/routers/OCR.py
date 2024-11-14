@@ -230,6 +230,7 @@ def runStatus(
         zeros else return N/A its not clear.
         VendorName: Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
         VendorAddress: Don't consider the vendor Address from 'Sold To' or 'Ship To' or 'Bill To' section
+        Currency: If it's unclear kept it blank as ""
         with no additional text or explanations."""
 
         (

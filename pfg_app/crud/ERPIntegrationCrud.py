@@ -885,10 +885,10 @@ def processInvoiceVoucher(doc_id, db):
                                         else 0
                                     ),
                                     "SALETX_AMT": 0,
-                                    "FREIGHT_AMT": 0,
-                                    "MISC_AMT": 0,
+                                    "FREIGHT_AMT": voucherdata.freight_amt or "",
+                                    "MISC_AMT": voucherdata.misc_amt or "",
                                     "PYMNT_TERMS_CD": "",
-                                    "TXN_CURRENCY_CD": "",
+                                    "TXN_CURRENCY_CD": voucherdata.currency_code or "",
                                     "VAT_ENTRD_AMT": (
                                         voucherdata.gst_amt
                                         if voucherdata.gst_amt
@@ -1138,6 +1138,38 @@ def updateInvoiceStatus(doc_id, db):
                     documentstatusid = 14
                     docsubstatusid = 119
                     dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
+                elif entry_status == "S":
+                    documentstatusid = 14
+                    docsubstatusid = 120
+                    dmsg = InvoiceVoucherSchema.VOUCHER_SCHEDULED
+                elif entry_status == "C":
+                    documentstatusid = 14
+                    docsubstatusid = 121
+                    dmsg = InvoiceVoucherSchema.VOUCHER_COMPLETED
+                elif entry_status == "D":
+                    documentstatusid = 14
+                    docsubstatusid = 122
+                    dmsg = InvoiceVoucherSchema.VOUCHER_DEFAULTED
+                elif entry_status == "E":
+                    documentstatusid = 14
+                    docsubstatusid = 123
+                    dmsg = InvoiceVoucherSchema.VOUCHER_EDITED
+                elif entry_status == "L":
+                    documentstatusid = 14
+                    docsubstatusid = 124
+                    dmsg = InvoiceVoucherSchema.VOUCHER_REVIEWED
+                elif entry_status == "M":
+                    documentstatusid = 14
+                    docsubstatusid = 125
+                    dmsg = InvoiceVoucherSchema.VOUCHER_MODIFIED
+                elif entry_status == "O":
+                    documentstatusid = 14
+                    docsubstatusid = 126
+                    dmsg = InvoiceVoucherSchema.VOUCHER_OPEN
+                elif entry_status == "T":
+                    documentstatusid = 14
+                    docsubstatusid = 127
+                    dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
 
                 # Update document status and commit the change if valid
                 if documentstatusid:

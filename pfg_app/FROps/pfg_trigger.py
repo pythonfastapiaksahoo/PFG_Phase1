@@ -41,6 +41,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         .filter(model.StampDataValidation.documentid == inv_id)
         .all()
     )
+ 
     stmp_dt_dict = {}
     for dtm_rw in stmp_dt:
         stmp_dt_dict[dtm_rw.stamptagname] = dtm_rw.stampvalue
@@ -135,7 +136,8 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         for document_data, document_tag_def in DocDtHdr:
             docHdrDt[document_tag_def.TagLabel] = document_data.Value
             tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
-
+        currency_code = ""
+        freight_charges = ""
         if "InvoiceTotal" in docHdrDt:
             invo_total = clean_amount(docHdrDt["InvoiceTotal"])
             if "SubTotal" in docHdrDt:
@@ -156,7 +158,11 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         if "InvoiceId" in docHdrDt:
             invo_ID = docHdrDt["InvoiceId"]
         else:
-            voucher_data_status = 0
+            voucher_data_status = 0   
+        if "Currency" in docHdrDt:
+            currency_code = docHdrDt["Currency"]
+        if "FreightCharges" in docHdrDt:
+            freight_charges = docHdrDt["FreightCharges"]
 
         if voucher_data_status == 1:
 
@@ -186,6 +192,9 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
                 existing_record.status = voucher_data_status
                 existing_record.recv_ln_nbr = recvLineNum
                 existing_record.gst_amt = gst_amt
+                existing_record.currency = currency_code
+                existing_record.freight_amt = freight_charges
+                
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -210,6 +219,8 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
                     "status": voucher_data_status,
                     "recv_ln_nbr": recvLineNum,
                     "gst_amt": gst_amt,
+                    "currency_code": currency_code,
+                    "freight_amt": freight_charges
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
@@ -253,7 +264,8 @@ def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
     for document_data, document_tag_def in DocDtHdr:
         docHdrDt[document_tag_def.TagLabel] = document_data.Value
         tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
-
+    currency_code = ""
+    freight_charges = ""
     if "InvoiceTotal" in docHdrDt:
         invo_total = clean_amount(docHdrDt["InvoiceTotal"])
         if "SubTotal" in docHdrDt:
@@ -276,7 +288,11 @@ def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
         invo_ID = docHdrDt["InvoiceId"]
     else:
         voucher_data_status = 0
-
+    if "Currency" in docHdrDt:
+            currency_code = docHdrDt["Currency"]
+    if "FreightCharges" in docHdrDt:
+            freight_charges = docHdrDt["FreightCharges"]
+    
     result = (
         db.query(model.Document)
         .join(
@@ -426,6 +442,8 @@ def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
                 existing_record.receiver_id = "NA"
                 existing_record.status = voucher_data_status
                 existing_record.gst_amt = gst_amt
+                existing_record.currency_code = currency_code
+                existing_record.freight_amt = freight_charges
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -450,6 +468,9 @@ def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
                     "status": voucher_data_status,
                     "recv_ln_nbr": recvLineNum,
                     "gst_amt": gst_amt,
+                    "currency_code": currency_code,
+                    "freight_amt": freight_charges,
+                    
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
