@@ -497,6 +497,17 @@ def getFrData_MNF(input_data):
                             "LitterDeposit",
                             "BottleDeposit",
                             "Discount",
+                            "FreightCharges",
+                            "Fuel surcharge",
+                            "Credit_Card_Surcharge",
+                            "Deposit",
+                            "EcoFees",
+                            "EnviroFees",
+                            "OtherCharges",
+                            "Other Credit Charges",
+                            "ShipmentCharges",
+                            "TotalDiscount",
+                            "Usage Charges"
                         ]:
 
                             if isinstance(
@@ -878,10 +889,21 @@ def postpro(
                         "TotalTax",
                         "GST",
                         "PST",
+                        "HST",
                         "LitterDeposit",
                         "BottleDeposit",
                         "Discount",
-                        "HST",
+                        "FreightCharges",
+                        "Fuel surcharge",
+                        "Credit_Card_Surcharge",
+                        "Deposit",
+                        "EcoFees",
+                        "EnviroFees",
+                        "OtherCharges",
+                        "Other Credit Charges",
+                        "ShipmentCharges",
+                        "TotalDiscount",
+                        "Usage Charges"
                     ]:
                         if isinstance(tb_cln_amt(cst_dict[ct_tag]["content"]), float):
                             tag_status = 1
@@ -1600,11 +1622,22 @@ def postpro(
                 "GST",
                 "HST",
                 "PST",
+                "HST",
+                "TotalTax",
+                "LitterDeposit",
                 "BottleDeposit",
                 "Discount",
-                "LitterDeposit",
+                "FreightCharges",
                 "Fuel surcharge",
+                "Credit_Card_Surcharge",
+                "Deposit",
+                "EcoFees",
+                "EnviroFees",
+                "OtherCharges",
+                "Other Credit Charges",
                 "ShipmentCharges",
+                "TotalDiscount",
+                "Usage Charges"
             ]:
                 try:
                     dt["header"][tg]["data"]["value"] = cln_amt(
