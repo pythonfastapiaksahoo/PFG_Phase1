@@ -494,6 +494,9 @@ def getFrData_MNF(input_data):
                             "GST",
                             "PST",
                             "HST",
+                            "LitterDeposit",
+                            "BottleDeposit",
+                            "Discount",
                         ]:
 
                             if isinstance(
@@ -876,6 +879,8 @@ def postpro(
                         "GST",
                         "PST",
                         "LitterDeposit",
+                        "BottleDeposit",
+                        "Discount",
                         "HST",
                     ]:
                         if isinstance(tb_cln_amt(cst_dict[ct_tag]["content"]), float):
@@ -1595,6 +1600,8 @@ def postpro(
                 "GST",
                 "HST",
                 "PST",
+                "BottleDeposit",
+                "Discount",
                 "LitterDeposit",
                 "Fuel surcharge",
                 "ShipmentCharges",
