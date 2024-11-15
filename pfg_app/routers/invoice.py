@@ -32,7 +32,7 @@ async def read_paginate_doc_inv_list_with_ln_item(
     uni_search: Optional[str] = None,
     ven_status: Optional[str] = None,
     sort_column: Optional[str] = None,  # New parameter for sorting column
-    sort_order: str = "asc",  # New parameter for sorting order
+    sort_order: Optional[str] = None,  # New parameter for sorting order
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
 ):

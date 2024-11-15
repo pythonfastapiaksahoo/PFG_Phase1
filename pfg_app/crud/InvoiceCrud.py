@@ -44,8 +44,7 @@ substatus = [
 
 async def read_paginate_doc_inv_list_with_ln_items(
     u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status, date_range,
-    sort_column=None,
-    sort_order="asc",
+    sort_column,sort_order,
 ):
     """Function to read the paginated document invoice list.
 
