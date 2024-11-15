@@ -5,6 +5,7 @@ import re
 import traceback
 from datetime import datetime, timezone
 
+import Levenshtein
 import pandas as pd
 
 # import psycopg2
@@ -41,7 +42,7 @@ from pfg_app.logger_module import logger
 # from logModule import email_sender
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 
-import Levenshtein
+import re
 # model.Base.metadata.create_all(bind=engine)
 auth_handler = AuthHandler()
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
@@ -65,6 +66,25 @@ docLabelMap = {
 status_stream_delay = 1  # second
 status_stream_retry_timeout = 30000  # milisecond
 
+common_terms = {
+                "ltd",
+                "inc",
+                "co",
+                "corp",
+                "corporation",
+                "company",
+                "limited",
+                }
+
+# Clean the vendor names by removing punctuation, converting to lowercase, and filtering out common terms
+def clean_vendor_name(name):
+    # Convert to lowercase
+    name = name.lower()
+    # Remove punctuation
+    name = re.sub(r"[^\w\s]", "", name)
+    # Split name into words, remove common terms, and rejoin
+    name = " ".join(word for word in name.split() if word not in common_terms)
+    return name
 
 @router.post("/status/stream_pfg")
 def runStatus(
@@ -349,16 +369,6 @@ def runStatus(
                     # output_data = rwOcrData[hdr]  # TODO: Unused variable
 
                     spltFileName = splitfileNames[fl]
-                    # Define a list of common terms to ignore in direct matching
-                    common_terms = {
-                        "ltd",
-                        "inc",
-                        "co",
-                        "corp",
-                        "corporation",
-                        "company",
-                        "limited",
-                    }
                     try:
                         stop = False
                         for syn, v_id, vendorName in zip(
@@ -370,18 +380,20 @@ def runStatus(
                                 break
                                 # print("syn: ",syn,"   v_id: ",v_id)
 
-                            vName_lower = str(stamp_inv_vendorName).lower()
-                            vendorName_lower = str(vendorName).lower()
-                            # 
+                            vName_lower = str(stamp_inv_vendorName)
+                            vendorName_lower = str(vendorName)
+                            # Cleaned versions of the vendor names
+                            vName_lower = clean_vendor_name(vName_lower).lower()
+                            vendorName_lower = clean_vendor_name(vendorName_lower).lower()  # noqa: E501
                             similarity = Levenshtein.ratio(
                                 vName_lower, vendorName_lower)
-                            logger.info(f"Vendor Match Accuracy using Levenshtein: {similarity*100}%")  # noqa: E501
+                            
                             # Check if similarity is 80% or greater
-                            if similarity * 100 >= 90:
+                            if similarity * 100 >= 85:
                                 vdrFound = 1
                                 vendorID = v_id
                                 logger.info(
-                                    f"Direct Vendor match found using substring match"
+                                    f"Vendor match found using Levenshtein similarity with accuracy: {similarity*100}%"   # noqa: E501
                                 )  
                                 stop = True
 
