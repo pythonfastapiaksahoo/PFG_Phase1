@@ -266,6 +266,8 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "Department": model.Document.dept,
             "Status": model.DocumentStatus.status,
             "Sub Status": model.DocumentSubStatus.status,
+            "Amount": model.Document.totalAmount,
+            "Upload Date": model.Document.CreatedOn,
         }
         
         if sort_column in sort_columns_map:
