@@ -869,42 +869,46 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                         if k in table_tags.keys():
                             k = table_tags[k]
                         if k in line:
-                            label_spans = v["spans"][0]
-                            # identify the starting portion from the words
-                            start = label_spans["offset"]
-                            end = start + label_spans["length"]
-                            words = pages[0]["words"]
-                            # get the polygon from the words that match with
-                            # the span offset of the documents
-                            total_calculated_length = 0
-                            # words_polygon = []
-                            words_value = []
-                            for word in words:
-                                if (
-                                    word["span"]["offset"] >= start
-                                    and word["span"]["offset"] <= end
-                                ):
-                                    total_calculated_length += (
-                                        word["span"]["length"] + 1
-                                    )
-                                    # words_polygon.append(word["polygon"])
-                                    words_value.append(
-                                        {
-                                            "page": v["bounding_regions"][0][
-                                                "page_number"
-                                            ],
-                                            "text": word["content"],
-                                            "boundingBoxes": [  # TODO - check this
-                                                normalize_coordinates(
-                                                    page_width,
-                                                    page_height,
-                                                    word["polygon"],
-                                                )
-                                            ],
-                                        }
-                                    )
-                                    if total_calculated_length > label_spans["length"]:
-                                        break
+                            for span in v["spans"]:
+                                label_spans = span
+                                # identify the starting portion from the words
+                                start = label_spans["offset"]
+                                end = start + label_spans["length"]
+                                words = pages[0]["words"]
+                                # get the polygon from the words that match with
+                                # the span offset of the documents
+                                total_calculated_length = 0
+                                # words_polygon = []
+                                words_value = []
+                                for word in words:
+                                    if (
+                                        word["span"]["offset"] >= start
+                                        and word["span"]["offset"] <= end
+                                    ):
+                                        total_calculated_length += (
+                                            word["span"]["length"] + 1
+                                        )
+                                        # words_polygon.append(word["polygon"])
+                                        words_value.append(
+                                            {
+                                                "page": v["bounding_regions"][0][
+                                                    "page_number"
+                                                ],
+                                                "text": word["content"],
+                                                "boundingBoxes": [  # TODO - check this
+                                                    normalize_coordinates(
+                                                        page_width,
+                                                        page_height,
+                                                        word["polygon"],
+                                                    )
+                                                ],
+                                            }
+                                        )
+                                        if (
+                                            total_calculated_length
+                                            > label_spans["length"]
+                                        ):
+                                            break
                             # normalize_coordinates_list = []
                             # for each in words_polygon:
                             #     normalize_coordinates_list.append(
@@ -938,40 +942,41 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                 if label in header:
                     if f in tags.keys():
                         label = tags[f]
-                    label_spans = fields[f]["spans"][0]
-                    # identify the starting portion from the words
-                    start = label_spans["offset"]
-                    end = start + label_spans["length"]
-                    words = pages[0]["words"]
-                    # get the polygon from the words that match with the span offset
-                    # of the documents
-                    total_calculated_length = 0
-                    # words_polygon = []
-                    words_value = []
-                    for word in words:
-                        if (
-                            word["span"]["offset"] >= start
-                            and word["span"]["offset"] <= end
-                        ):
-                            total_calculated_length += word["span"]["length"] + 1
-                            # words_polygon.append(word["polygon"])
-                            words_value.append(
-                                {
-                                    "page": fields[f]["bounding_regions"][0][
-                                        "page_number"
-                                    ],
-                                    "text": word["content"],
-                                    "boundingBoxes": [  # TODO - check this
-                                        normalize_coordinates(
-                                            page_width,
-                                            page_height,
-                                            word["polygon"],
-                                        )
-                                    ],
-                                }
-                            )
-                            if total_calculated_length > label_spans["length"]:
-                                break
+                    for span in fields[f]["spans"]:
+                        label_spans = span
+                        # identify the starting portion from the words
+                        start = label_spans["offset"]
+                        end = start + label_spans["length"]
+                        words = pages[0]["words"]
+                        # get the polygon from the words that match with the span offset
+                        # of the documents
+                        total_calculated_length = 0
+                        # words_polygon = []
+                        words_value = []
+                        for word in words:
+                            if (
+                                word["span"]["offset"] >= start
+                                and word["span"]["offset"] <= end
+                            ):
+                                total_calculated_length += word["span"]["length"] + 1
+                                # words_polygon.append(word["polygon"])
+                                words_value.append(
+                                    {
+                                        "page": fields[f]["bounding_regions"][0][
+                                            "page_number"
+                                        ],
+                                        "text": word["content"],
+                                        "boundingBoxes": [  # TODO - check this
+                                            normalize_coordinates(
+                                                page_width,
+                                                page_height,
+                                                word["polygon"],
+                                            )
+                                        ],
+                                    }
+                                )
+                                if total_calculated_length > label_spans["length"]:
+                                    break
                     # normalize_coordinates_list = []
                     # for each in words_polygon:
                     #     normalize_coordinates_list.append(
@@ -1002,41 +1007,42 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
                 for standard_field in labels_json["labels"]
             ]:
                 original_header = normalized_headers[key]
-                kvp_spans = pair["value"]["spans"][0]
-                # identify the starting portion from the words
-                start = kvp_spans["offset"]
-                end = start + kvp_spans["length"]
+                for span in pair["value"]["spans"]:
+                    kvp_spans = span
+                    # identify the starting portion from the words
+                    start = kvp_spans["offset"]
+                    end = start + kvp_spans["length"]
 
-                words = pages[0]["words"]
-                # get the polygon from the words that match with the span offset
-                # of the key-value pair
-                total_calculated_length = 0
-                # words_polygon = []
-                words_value = []
-                for word in words:
-                    if (
-                        word["span"]["offset"] >= start
-                        and word["span"]["offset"] <= end
-                    ):
-                        total_calculated_length += word["span"]["length"] + 1
-                        # words_polygon.append(word["polygon"])
-                        words_value.append(
-                            {
-                                "page": pair["value"]["bounding_regions"][0][
-                                    "page_number"
-                                ],
-                                "text": word["content"],
-                                "boundingBoxes": [  # TODO - check this
-                                    normalize_coordinates(
-                                        page_width,
-                                        page_height,
-                                        word["polygon"],
-                                    )
-                                ],
-                            }
-                        )
-                        if total_calculated_length > kvp_spans["length"]:
-                            break
+                    words = pages[0]["words"]
+                    # get the polygon from the words that match with the span offset
+                    # of the key-value pair
+                    total_calculated_length = 0
+                    # words_polygon = []
+                    words_value = []
+                    for word in words:
+                        if (
+                            word["span"]["offset"] >= start
+                            and word["span"]["offset"] <= end
+                        ):
+                            total_calculated_length += word["span"]["length"] + 1
+                            # words_polygon.append(word["polygon"])
+                            words_value.append(
+                                {
+                                    "page": pair["value"]["bounding_regions"][0][
+                                        "page_number"
+                                    ],
+                                    "text": word["content"],
+                                    "boundingBoxes": [  # TODO - check this
+                                        normalize_coordinates(
+                                            page_width,
+                                            page_height,
+                                            word["polygon"],
+                                        )
+                                    ],
+                                }
+                            )
+                            if total_calculated_length > kvp_spans["length"]:
+                                break
                 # normalize_coordinates_list = []
                 # for each in words_polygon:
                 #     normalize_coordinates_list.append(
