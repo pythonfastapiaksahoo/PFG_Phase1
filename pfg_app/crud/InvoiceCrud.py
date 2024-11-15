@@ -43,7 +43,9 @@ substatus = [
 
 
 async def read_paginate_doc_inv_list_with_ln_items(
-    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status, date_range
+    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status, date_range,
+    sort_column=None,
+    sort_order="asc",
 ):
     """Function to read the paginated document invoice list.
 
@@ -161,12 +163,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.Document.vendorAccountID.in_(sub_query)
             )
 
-        # # Filter by status if provided
-        # if stat:
-        #     data_query = data_query.filter(
-        #         model.Document.documentStatusID == all_status[stat]
-        #     )
-
         status_list = []
         if stat:
             # Split the status string by ':' to get a list of statuses
@@ -194,15 +190,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     )
                     == "I"
                 )
-
-        # # Apply date range filter for documentDate
-        # if date_range:
-        #     frdate, todate = date_range.lower().split("to")
-        #     frdate = datetime.strptime(frdate.strip(), '%Y-%m-%d')
-        #     todate = datetime.strptime(todate.strip(), '%Y-%m-%d')
-        #     data_query = data_query.filter(
-        #         model.Document.documentDate.between(frdate, todate)
-        #     )
 
         # Apply date range filter for documentDate
         if date_range:
@@ -266,9 +253,30 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     ),
                 )
                 data_query = data_query.filter(filter_condition)
-
+                
         # Get the total count of records before applying limit and offset
         total_count = data_query.distinct(model.Document.idDocument).count()
+        # Apply sorting
+        sort_columns_map = {
+            "Invoice Number": model.Document.docheaderID,
+            "Vendor Code": model.Vendor.VendorCode,
+            "Vendor Name": model.Vendor.VendorName,
+            "Confirmation Number": model.Document.JournalNumber,
+            "Store": model.Document.store,
+            "Department": model.Document.dept,
+            "Status": model.DocumentStatus.status,
+            "Sub Status": model.DocumentSubStatus.status,
+        }
+        
+        if sort_column in sort_columns_map:
+            sort_field = sort_columns_map[sort_column]
+            if sort_order.lower() == "desc":
+                data_query = data_query.order_by(sort_field.desc())
+            else:
+                data_query = data_query.order_by(sort_field.asc())
+                
+        # # Get the total count of records before applying limit and offset
+        # total_count = data_query.distinct(model.Document.idDocument).count()
 
         # Pagination
         offset, limit = off_limit
