@@ -162,7 +162,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         if "Currency" in docHdrDt:
             currency_code = docHdrDt["Currency"]
         if "FreightCharges" in docHdrDt:
-            freight_charges = docHdrDt["FreightCharges"]
+            freight_charges = clean_amount(docHdrDt["FreightCharges"])
 
         if voucher_data_status == 1:
 
@@ -291,7 +291,7 @@ def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
     if "Currency" in docHdrDt:
             currency_code = docHdrDt["Currency"]
     if "FreightCharges" in docHdrDt:
-            freight_charges = docHdrDt["FreightCharges"]
+            freight_charges = clean_amount(docHdrDt["FreightCharges"])
     
     result = (
         db.query(model.Document)
