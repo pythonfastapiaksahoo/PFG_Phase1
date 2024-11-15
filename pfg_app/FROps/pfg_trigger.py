@@ -137,7 +137,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
             docHdrDt[document_tag_def.TagLabel] = document_data.Value
             tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
         currency_code = ""
-        freight_charges = ""
+        freight_charges = 0
         if "InvoiceTotal" in docHdrDt:
             invo_total = clean_amount(docHdrDt["InvoiceTotal"])
             if "SubTotal" in docHdrDt:
@@ -265,7 +265,7 @@ def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
         docHdrDt[document_tag_def.TagLabel] = document_data.Value
         tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
     currency_code = ""
-    freight_charges = ""
+    freight_charges = 0
     if "InvoiceTotal" in docHdrDt:
         invo_total = clean_amount(docHdrDt["InvoiceTotal"])
         if "SubTotal" in docHdrDt:
