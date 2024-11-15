@@ -885,8 +885,16 @@ def processInvoiceVoucher(doc_id, db):
                                         else 0
                                     ),
                                     "SALETX_AMT": 0,
-                                    "FREIGHT_AMT": voucherdata.freight_amt or "",
-                                    "MISC_AMT": voucherdata.misc_amt or "",
+                                    "FREIGHT_AMT": (
+                                        voucherdata.freight_amt
+                                        if voucherdata.freight_amt
+                                        else 0
+                                    ),
+                                    "MISC_AMT": (
+                                        voucherdata.misc_amt
+                                        if voucherdata.misc_amt
+                                        else 0
+                                    ),
                                     "PYMNT_TERMS_CD": "",
                                     "TXN_CURRENCY_CD": voucherdata.currency_code or "",
                                     "VAT_ENTRD_AMT": (
