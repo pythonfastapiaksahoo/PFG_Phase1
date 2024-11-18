@@ -168,29 +168,29 @@ async def create_invoice_voucher(inv_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# API endpoint to handle the invoice status request
-@router.post(
-    "/bulkupdateinvoicestatus",
-    # response_model=InvoiceResponse
-)
-async def bulk_update_invoice_status(db: Session = Depends(get_db)):
-    try:
-        # Process the request using the mock CRUD function
-        response = crud.newbulkupdateInvoiceStatus(db)
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# # API endpoint to handle the invoice status request
+# @router.post(
+#     "/bulkupdateinvoicestatus",
+#     # response_model=InvoiceResponse
+# )
+# async def bulk_update_invoice_status(db: Session = Depends(get_db)):
+#     try:
+#         # Process the request using the mock CRUD function
+#         response = crud.newbulkupdateInvoiceStatus(db)
+#         return response
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
-# API endpoint to handle the invoice status request
-@router.post(
-    "/bulkprocessvoucherdata",
-    # response_model=InvoiceResponse
-)
-async def bulk_process_voucher_data(db: Session = Depends(get_db)):
-    try:
-        # Process the request using the mock CRUD function
-        response = crud.bulkProcessVoucherData(db)
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# # API endpoint to handle the invoice status request
+# @router.post(
+#     "/bulkprocessvoucherdata",
+#     # response_model=InvoiceResponse
+# )
+# async def bulk_process_voucher_data(db: Session = Depends(get_db)):
+#     try:
+#         # Process the request using the mock CRUD function
+#         response = crud.bulkProcessVoucherData(db)
+#         return response
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
