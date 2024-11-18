@@ -119,6 +119,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     "dept",
                     "documentDate",
                     "voucher_id",
+                    "mail_row_key",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
