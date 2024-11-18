@@ -1098,9 +1098,11 @@ def runStatus(
                         try:
                             gst_amt = 0
                             if store_type == "Integrated":
-                                IntegratedvoucherData(invoId, gst_amt, db)
+                                payload_subtotal = ""
+                                IntegratedvoucherData(invoId, gst_amt,payload_subtotal, db)
                             elif store_type == "Non-Integrated":
-                                nonIntegratedVoucherData(invoId, gst_amt, db)
+                                payload_subtotal = ""
+                                nonIntegratedVoucherData(invoId, gst_amt,payload_subtotal, db)
                         except Exception:
                             logger.debug(f"{traceback.format_exc()}")
 

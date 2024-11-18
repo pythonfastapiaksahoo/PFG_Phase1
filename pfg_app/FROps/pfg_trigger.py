@@ -30,7 +30,7 @@ def clean_amount(amount_str):
 
 
 # db = SCHEMA
-def IntegratedvoucherData(inv_id, gst_amt, db: Session):
+def IntegratedvoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
     voucher_data_status = 1
     intStatus = 0
     recvLineNum = 0
@@ -142,15 +142,19 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         misc_amt = 0
         if "InvoiceTotal" in docHdrDt:
             invo_total = clean_amount(docHdrDt["InvoiceTotal"])
-            if "SubTotal" in docHdrDt:
-                invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
-            else:
-                if "GST" in docHdrDt:
-                    invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["GST"]))
-                elif "TotalTax" in docHdrDt:
-                    invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["TotalTax"]))
+            if payload_subtotal=="":
+                if "SubTotal" in docHdrDt:
+                    invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
                 else:
-                    invo_SubTotal = invo_total
+                    if "GST" in docHdrDt:
+                        invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["GST"]))
+                    elif "TotalTax" in docHdrDt:
+                        invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["TotalTax"]))
+                    else:
+                        invo_SubTotal = invo_total
+            else:
+                invo_SubTotal = clean_amount(payload_subtotal)
+            
         else:
             voucher_data_status = 0
         if "InvoiceDate" in docHdrDt:
@@ -250,7 +254,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
     return intStatus, intStatusMsg
 
 
-def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
+def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
     nonIntStatus = 1
     nonIntStatusMsg = ""
     voucher_data_status = 1
@@ -289,15 +293,19 @@ def nonIntegratedVoucherData(inv_id, gst_amt, db: Session):
     misc_amt = 0
     if "InvoiceTotal" in docHdrDt:
         invo_total = clean_amount(docHdrDt["InvoiceTotal"])
-        if "SubTotal" in docHdrDt:
-            invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
-        else:
-            if "GST" in docHdrDt:
-                invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["GST"]))
-            elif "TotalTax" in docHdrDt:
-                invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["TotalTax"]))
+        if payload_subtotal=="":
+            if "SubTotal" in docHdrDt:
+                invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
             else:
-                invo_SubTotal = invo_total
+                if "GST" in docHdrDt:
+                    invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["GST"]))
+                elif "TotalTax" in docHdrDt:
+                    invo_SubTotal = (clean_amount(docHdrDt["InvoiceTotal"])-clean_amount(docHdrDt["TotalTax"]))
+                else:
+                    invo_SubTotal = invo_total
+        else:
+            invo_SubTotal = clean_amount(payload_subtotal)
+
         
     else:
         voucher_data_status = 0
@@ -581,7 +589,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     gst_amt = 0
     tax_isErr = 0
     documentModelID = ""
-
+    otrChgsCk = 0
     try:
 
         docTb = (
@@ -963,6 +971,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                             == invoTotal
                                                                         ):
                                                                             invTotalMth = 1
+                                                                            otrChgsCk = 1
                                                                             break
                                                                         elif (
                                                                             round(
@@ -975,6 +984,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                             < 0.09
                                                                         ):  # noqa: E501
                                                                             invTotalMth = 1
+                                                                            otrChgsCk = 1
                                                                             break
                                                                         elif (
                                                                             round(
@@ -987,6 +997,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                             < 0.09
                                                                         ):  # noqa: E501
                                                                             invTotalMth = 1
+                                                                            otrChgsCk = 1
                                                                             break
                                                         
                                             # elif gst_amt > 0:
@@ -1226,6 +1237,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     )
                                 except Exception:
                                     logger.debug(traceback.format_exc)
+                                # subtotal for payload: 
+                                if otrChgsCk == 1:
+                                    payload_subtotal = othCrgs_sm
+
+                                elif "subtotal" in docHdrDt:
+                                    payload_subtotal = docHdrDt["subtotal"]
+                                else:
+                                    payload_subtotal = invoTotal
 
                                 try:
                                     if (
@@ -1248,7 +1267,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         except Exception:
                                             logger.debug(traceback.format_exc())
                                         skipValidationCK, skipValidationStatusMsg = (
-                                            nonIntegratedVoucherData(docID, gst_amt, db)
+                                            nonIntegratedVoucherData(docID, gst_amt, payload_subtotal,db)
                                         )
                                         if skipValidationCK == 1:
                                             DeptCk = 1
@@ -1337,7 +1356,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         if confirmation_ck == 1:
                                             intStatus, intStatusMsg = (
                                                 IntegratedvoucherData(
-                                                    docID, gst_amt, db
+                                                    docID, gst_amt, payload_subtotal, db
                                                 )
                                             )
                                             if intStatus == 0:
