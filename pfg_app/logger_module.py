@@ -56,8 +56,12 @@ if settings.build_type != "debug":
 else:
     # Console (Terminal) Log Handler
     console_handler = StreamHandler()
+    # Context variable to store Operation ID
+    operation_id_var = ContextVar("operation_id", default=None)
 
     logger.addHandler(console_handler)
     logger.setLevel(INFO)
+    # Add the filter to the logger
+    logger.addFilter(OperationIdFilter())
 
 __all__ = ["logger", "tracer", "set_operation_id"]
