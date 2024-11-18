@@ -133,6 +133,7 @@ class Document(Base):
     store = Column(TEXT, nullable=True)
     dept = Column(TEXT, nullable=True)
     voucher_id = Column(String, nullable=True)
+    mail_row_key = Column(String, nullable=True)
     # __mapper_args__ = {"eager_defaults": True}
 
 
@@ -1439,24 +1440,27 @@ class VoucherData(Base):
     documentID = Column(Integer, nullable=False)
     Business_unit = Column(String(5), nullable=True)
     Invoice_Id = Column(String(30), nullable=True)
-    Invoice_Dt = Column(String(10), nullable=True)
+    Invoice_Dt = Column(String(100), nullable=True)
     Vendor_Setid = Column(String(5), nullable=True)
-    Vendor_ID = Column(String(10), nullable=True)
-    Origin = Column(String(10), nullable=True)
+    Vendor_ID = Column(String(100), nullable=True)
+    Origin = Column(String(100), nullable=True)
     Gross_Amt = Column(Float, nullable=True)
     Voucher_Line_num = Column(Integer, nullable=True)
     Merchandise_Amt = Column(Float, nullable=True)
     Distrib_Line_num = Column(Integer, nullable=True)
-    Account = Column(String(10), nullable=True)
-    Deptid = Column(String(10), nullable=True)
+    Account = Column(String(100), nullable=True)
+    Deptid = Column(String(100), nullable=True)
     Image_Nbr = Column(Integer, nullable=True)
     File_Name = Column(String, nullable=True)
-    storenumber = Column(Integer, nullable=True)
+    storenumber = Column(String, nullable=True)
     storetype = Column(String, nullable=True)
     receiver_id = Column(String, nullable=True)
     status = Column(String, nullable=True)
     recv_ln_nbr = Column(Integer, nullable=True)
     gst_amt = Column(Float, nullable=True)
+    currency_code = Column(String, nullable=True)
+    freight_amt = Column(Float, nullable=True)
+    misc_amt = Column(Float, nullable=True)
 
 
 class NonintegratedStores(Base):

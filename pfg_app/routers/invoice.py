@@ -31,6 +31,8 @@ async def read_paginate_doc_inv_list_with_ln_item(
     date_range: Optional[str] = None,  # New parameter for start date
     uni_search: Optional[str] = None,
     ven_status: Optional[str] = None,
+    sort_column: Optional[str] = None,  # New parameter for sorting column
+    sort_order: Optional[str] = None,  # New parameter for sorting order
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
 ):
@@ -53,6 +55,12 @@ async def read_paginate_doc_inv_list_with_ln_item(
         Universal search term to filter documents (default is None).
     ven_status : str, optional
         Vendor status to filter documents (default is None).
+    sort_column : str, optional
+        The column to sort the results by (default is None).
+        Available columns: 'docheaderID', 'VendorCode', 'VendorName', 'JournalNumber',
+        'Store', 'Department', 'Status', 'SubStatus'.
+    sort_order : str
+        The sorting order ('asc' or 'desc', default is 'asc').
     db : Session
         Database session object, used to interact with the database.
 
@@ -71,6 +79,8 @@ async def read_paginate_doc_inv_list_with_ln_item(
         uni_search,
         ven_status,
         date_range,
+        sort_column,
+        sort_order,
     )
     return docs
 

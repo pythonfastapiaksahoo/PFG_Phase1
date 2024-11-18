@@ -887,10 +887,18 @@ def processInvoiceVoucher(doc_id, db):
                                         else 0
                                     ),
                                     "SALETX_AMT": 0,
-                                    "FREIGHT_AMT": 0,
-                                    "MISC_AMT": 0,
+                                    "FREIGHT_AMT": (
+                                        voucherdata.freight_amt
+                                        if voucherdata.freight_amt
+                                        else 0
+                                    ),
+                                    "MISC_AMT": (
+                                        voucherdata.misc_amt
+                                        if voucherdata.misc_amt
+                                        else 0
+                                    ),
                                     "PYMNT_TERMS_CD": "",
-                                    "TXN_CURRENCY_CD": "",
+                                    "TXN_CURRENCY_CD": voucherdata.currency_code or "",
                                     "VAT_ENTRD_AMT": (
                                         voucherdata.gst_amt
                                         if voucherdata.gst_amt
@@ -983,7 +991,7 @@ def processInvoiceVoucher(doc_id, db):
                 }
             ]
         }
-        # print(request_payload)
+        logger.info(f"request_payload: {request_payload}")
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -1053,16 +1061,15 @@ def updateInvoiceStatus(doc_id, db):
             db.query(model.Document)
             .filter(
                 model.Document.idDocument == doc_id,
-                model.Document.documentStatusID == 7,
             )
             .first()
         )
 
         if not document:
-            logger.error(f"Document with ID {doc_id} and status ID 7 not found.")
+            logger.error(f"Document with ID {doc_id} not found.")
             raise HTTPException(
                 status_code=404,
-                detail="Document not found or status is not 'Sent to Peoplesoft'",
+                detail="Document not found in the database",
             )
 
         # Fetch associated voucher data
@@ -1141,6 +1148,38 @@ def updateInvoiceStatus(doc_id, db):
                     documentstatusid = 14
                     docsubstatusid = 119
                     dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
+                elif entry_status == "S":
+                    documentstatusid = 14
+                    docsubstatusid = 120
+                    dmsg = InvoiceVoucherSchema.VOUCHER_SCHEDULED
+                elif entry_status == "C":
+                    documentstatusid = 14
+                    docsubstatusid = 121
+                    dmsg = InvoiceVoucherSchema.VOUCHER_COMPLETED
+                elif entry_status == "D":
+                    documentstatusid = 14
+                    docsubstatusid = 122
+                    dmsg = InvoiceVoucherSchema.VOUCHER_DEFAULTED
+                elif entry_status == "E":
+                    documentstatusid = 14
+                    docsubstatusid = 123
+                    dmsg = InvoiceVoucherSchema.VOUCHER_EDITED
+                elif entry_status == "L":
+                    documentstatusid = 14
+                    docsubstatusid = 124
+                    dmsg = InvoiceVoucherSchema.VOUCHER_REVIEWED
+                elif entry_status == "M":
+                    documentstatusid = 14
+                    docsubstatusid = 125
+                    dmsg = InvoiceVoucherSchema.VOUCHER_MODIFIED
+                elif entry_status == "O":
+                    documentstatusid = 14
+                    docsubstatusid = 126
+                    dmsg = InvoiceVoucherSchema.VOUCHER_OPEN
+                elif entry_status == "T":
+                    documentstatusid = 14
+                    docsubstatusid = 127
+                    dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
 
                 # Update document status and commit the change if valid
                 if documentstatusid:

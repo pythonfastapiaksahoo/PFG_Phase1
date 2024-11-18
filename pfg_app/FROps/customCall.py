@@ -213,17 +213,18 @@ def customModelCall(docID):
         # mandatoryheadertags = configs.mandatoryheadertags
         # mandatorylinetags = configs.mandatorylinetags
         inv_model_id = modelData.modelID
-        API_version = configs.ApiVersion
+        # API_version = configs.ApiVersion
 
         filename = spltFileName.split("/")[-1]
 
         destination_container_name = configs.ContainerName
-        API_version = configs.ApiVersion
+        API_version = settings.api_version
         model_type = "custom"
 
         # preprocess the file and get binary data
         fr_preprocessing_status, fr_preprocessing_msg, input_data, ui_status = (
             fr_preprocessing(
+                
                 vendorAccountID,
                 entityID,
                 file_path,

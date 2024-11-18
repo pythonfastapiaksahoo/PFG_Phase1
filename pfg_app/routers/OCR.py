@@ -1,4 +1,3 @@
-# import logging
 import io
 import json
 import os
@@ -6,6 +5,7 @@ import re
 import traceback
 from datetime import datetime, timezone
 
+import Levenshtein
 import pandas as pd
 
 # import psycopg2
@@ -42,6 +42,7 @@ from pfg_app.logger_module import logger
 # from logModule import email_sender
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 
+import re
 # model.Base.metadata.create_all(bind=engine)
 auth_handler = AuthHandler()
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
@@ -65,6 +66,25 @@ docLabelMap = {
 status_stream_delay = 1  # second
 status_stream_retry_timeout = 30000  # milisecond
 
+common_terms = {
+                "ltd",
+                "inc",
+                "co",
+                "corp",
+                "corporation",
+                "company",
+                "limited",
+                }
+
+# Clean the vendor names by removing punctuation, converting to lowercase, and filtering out common terms
+def clean_vendor_name(name):
+    # Convert to lowercase
+    name = name.lower()
+    # Remove punctuation
+    name = re.sub(r"[^\w\s]", "", name)
+    # Split name into words, remove common terms, and rejoin
+    name = " ".join(word for word in name.split() if word not in common_terms)
+    return name
 
 @router.post("/status/stream_pfg")
 def runStatus(
@@ -231,6 +251,7 @@ def runStatus(
         zeros else return N/A its not clear.
         VendorName: Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
         VendorAddress: Don't consider the vendor Address from 'Sold To' or 'Ship To' or 'Bill To' section
+        Currency: If it's unclear kept it blank as ""
         with no additional text or explanations."""
 
         (
@@ -348,16 +369,6 @@ def runStatus(
                     # output_data = rwOcrData[hdr]  # TODO: Unused variable
 
                     spltFileName = splitfileNames[fl]
-                    # Define a list of common terms to ignore in direct matching
-                    common_terms = {
-                        "ltd",
-                        "inc",
-                        "co",
-                        "corp",
-                        "corporation",
-                        "company",
-                        "limited",
-                    }
                     try:
                         stop = False
                         for syn, v_id, vendorName in zip(
@@ -369,30 +380,22 @@ def runStatus(
                                 break
                                 # print("syn: ",syn,"   v_id: ",v_id)
 
-                            vName_lower = str(stamp_inv_vendorName).lower()
-                            vendorName_lower = str(vendorName).lower()
-                            # Check if `v_id` is a common term; skip if it is
-                            if vName_lower not in common_terms:
-                                # Perform substring match check
-                                compared_from = [vName_lower]
-                                compared_to = [vendorName_lower]
-
-                            # Perform the substring match check
-                            if all(isinstance(item, str) for item in compared_to):
-                                if any(
-                                    any(
-                                        compared_from_value in compared_to_value
-                                        or compared_to_value in compared_from_value
-                                        for compared_to_value in compared_to
-                                    )
-                                    for compared_from_value in compared_from
-                                ):
-                                    vdrFound = 1
-                                    vendorID = v_id
-                                    logger.info(
-                                        f"Direct Vendor match found using substring match"
-                                    )  # noqa: E501
-                                    stop = True
+                            vName_lower = str(stamp_inv_vendorName)
+                            vendorName_lower = str(vendorName)
+                            # Cleaned versions of the vendor names
+                            vName_lower = clean_vendor_name(vName_lower).lower()
+                            vendorName_lower = clean_vendor_name(vendorName_lower).lower()  # noqa: E501
+                            similarity = Levenshtein.ratio(
+                                vName_lower, vendorName_lower)
+                            
+                            # Check if similarity is 80% or greater
+                            if similarity * 100 >= 85:
+                                vdrFound = 1
+                                vendorID = v_id
+                                logger.info(
+                                    f"Vendor match found using Levenshtein similarity with accuracy: {similarity*100}%"   # noqa: E501
+                                )  
+                                stop = True
 
                             if (syn is not None or str(syn) != "None") and (
                                 vdrFound == 0
@@ -565,20 +568,24 @@ def runStatus(
                     except Exception:
                         logger.error(f"{traceback.format_exc()}")
                         metaVendorAdd = ""
+                        
                     try:
-                        metaVendorName = list(
-                            vendorName_df[vendorName_df["idVendor"] == vendorID][
-                                "VendorName"
-                            ]
-                        )[0]
-                    except Exception:
-                        logger.error(f"{traceback.format_exc()}")
+                        # Filter the DataFrame for rows matching vendorID
+                        vendorName_list = list(vendorName_df[vendorName_df["idVendor"] == vendorID]["VendorName"])
+                        
+                        # Check if the list is not empty
+                        if vendorName_list:
+                            metaVendorName = vendorName_list[0]
+                        else:
+                            # Handle the case where no match is found
+                            metaVendorName = ""
 
-                        metaVendorName = ""
+                    except Exception as e:
+                        logger.error(f"Error occurred: {traceback.format_exc()}")
                     vendorAccountID = vendorID
                     poNumber = "nonPO"
                     VendoruserID = 1
-                    configs = getOcrParameters(customerID, db)
+                    # configs = getOcrParameters(customerID, db)
                     metadata = getMetaData(vendorAccountID, db)
                     entityID = 1
                     modelData, modelDetails = getModelData(vendorAccountID, db)
@@ -610,7 +617,7 @@ def runStatus(
                                 106,
                                 db,
                             )
-
+                            
                             logger.info(
                                 f" Onboard vendor Pending: invoice_ID: {invoId}"
                             )
@@ -635,7 +642,9 @@ def runStatus(
                         date_format = metadata.DateFormat
                         endpoint = settings.form_recognizer_endpoint
                         inv_model_id = modelData.modelID
-                        API_version = configs.ApiVersion
+                        API_version = settings.api_version
+                        # API_version = configs.ApiVersion
+
 
                         generatorObj = {
                             "spltFileName": spltFileName,
@@ -1172,7 +1181,23 @@ def runStatus(
         except Exception:
             # logger.error(f"ocr.py: {err}")
             logger.error(f" ocr.py: {traceback.format_exc()}")
+        try:
+            if len(str(invoId)) !=0:
+                    
+                db.query(model.Document).filter(
+                    model.Document.idDocument == invoId
+                ).update(
+                    {
+                        model.Document.mail_row_key: str(
+                            mail_row_key
+                        ),  # noqa: E501
+                       
+                    }
+                )
+                db.commit()
 
+        except Exception:
+            logger.debug(f"{traceback.format_exc()}")
     except Exception as err:
 
         logger.error(f"API exception ocr.py: {traceback.format_exc()}")
