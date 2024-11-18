@@ -846,7 +846,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 invoTotal = clean_amount(
                                                 docHdrDt["InvoiceTotal"]
                                             )
-                                if invoTotal is not None and (invoTotal > 0):
+                                if (invoTotal is not None) and (invoTotal > 0):
    
                                     try:
 
@@ -1037,11 +1037,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         invTotalMth_msg = "Invoice total mismatch:" + str(e)
                                 else:
                                     invTotalMth = 0
-                                    invTotalMth_msg = "Invalid invoice total:" 
-                                    + str(invoTotal)
+                                    invTotalMth_msg = "Invalid invoice total."
                             else:
                                 invTotalMth = 0
-                                invTotalMth_msg = "Invalid invoice total"
+                                invTotalMth_msg = "Invalid invoice total."
                     except Exception as e:
                         logger.debug(traceback.format_exc())
                         invTotalMth = 0
