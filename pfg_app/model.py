@@ -133,6 +133,7 @@ class Document(Base):
     store = Column(TEXT, nullable=True)
     dept = Column(TEXT, nullable=True)
     voucher_id = Column(String, nullable=True)
+    mail_row_key = Column(String, nullable=True)
     # __mapper_args__ = {"eager_defaults": True}
 
 
