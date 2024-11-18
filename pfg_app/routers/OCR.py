@@ -617,7 +617,7 @@ def runStatus(
                                 106,
                                 db,
                             )
-
+                            
                             logger.info(
                                 f" Onboard vendor Pending: invoice_ID: {invoId}"
                             )
@@ -1181,7 +1181,23 @@ def runStatus(
         except Exception:
             # logger.error(f"ocr.py: {err}")
             logger.error(f" ocr.py: {traceback.format_exc()}")
+        try:
+            if len(str(invoId)) !=0:
+                    
+                db.query(model.Document).filter(
+                    model.Document.idDocument == invoId
+                ).update(
+                    {
+                        model.Document.mail_row_key: str(
+                            mail_row_key
+                        ),  # noqa: E501
+                       
+                    }
+                )
+                db.commit()
 
+        except Exception:
+            logger.debug(f"{traceback.format_exc()}")
     except Exception as err:
 
         logger.error(f"API exception ocr.py: {traceback.format_exc()}")
