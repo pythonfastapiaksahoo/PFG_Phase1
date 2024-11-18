@@ -52,7 +52,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         else:
             voucher_data_status = 0
         if "StoreNumber" in stmp_dt_dict:
-            storeNumber = stmp_dt_dict["StoreNumber"]
+            storeNumber_rw = stmp_dt_dict["StoreNumber"]
         else:
             voucher_data_status = 0
         if "StoreType" in stmp_dt_dict:
@@ -80,22 +80,23 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
         VENDOR_ID = invRpt.VENDOR_ID
         ACCOUNT = invRpt.ACCOUNT
         DEPTID = invRpt.DEPTID
-        location = invRpt.LOCATION
+        location_rw = invRpt.LOCATION
         recvLineNum = invRpt.RECV_LN_NBR
 
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
         recvLineNum = 0
 
-    if type(location) is not int and location.isdigit():
-        location = int(location)
+    if type(location_rw) is not int and location_rw.isdigit():
+        location = int(location_rw)
     else:
         location = 0
 
-    if type(storeNumber) is not int and storeNumber.isdigit():
-        storeNumber = int(storeNumber)
+    if type(storeNumber_rw) is not int and storeNumber_rw.isdigit():
+        storeNumber = int(storeNumber_rw)
     else:
         storeNumber = 0
+        storeNumber_rw = "0"
 
     if location == storeNumber and location != "" and location != 0:
         intStatus = 1
@@ -204,7 +205,7 @@ def IntegratedvoucherData(inv_id, gst_amt, db: Session):
                 existing_record.Voucher_Line_num = 1
                 existing_record.Image_Nbr = 1
                 existing_record.Origin = invoice_type
-                existing_record.storenumber = storeNumber
+                existing_record.storenumber = location_rw
                 existing_record.storetype = storeType
                 existing_record.receiver_id = str(confNumber)
                 existing_record.status = voucher_data_status
