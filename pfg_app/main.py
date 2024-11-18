@@ -4,7 +4,6 @@
 # import traceback
 
 import uuid
-from contextlib import asynccontextmanager
 
 # from azure.data.tables import TableServiceClient
 from datetime import datetime
@@ -58,9 +57,20 @@ account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
 blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
 container_client = blob_service_client.get_container_client("locks")
 
+app = FastAPI(
+    title="IDP",
+    version="1.0",
+    swagger_ui_oauth2_redirect_url="/oauth2-redirect",
+    swagger_ui_init_oauth={
+        "usePkceWithAuthorizationCodeGrant": True,
+        "clientId": settings.swagger_ui_client_id,
+        "scopes": [f"api://{settings.api_client_id}/access_as_user"],
+    },
+)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+
+@app.on_event("startup")
+async def app_startup():
 
     operation_id = uuid.uuid4().hex
     set_operation_id(operation_id)
@@ -153,13 +163,20 @@ async def lifespan(app: FastAPI):
         logger.info(f"Exception: {e}")
 
     logger.info("Application is ready to process requests")
-    yield
+    # yield
 
-    scheduler.shutdown()
+    # scheduler.shutdown()
+    # logger.info("Shutting down FastAPI application")
+
+    # await app.shutdown()
+    # await app.cleanup()
+
+
+@app.on_event("shutdown")
+async def app_shutdown():
     logger.info("Shutting down FastAPI application")
-
-    await app.shutdown()
-    await app.cleanup()
+    scheduler.shutdown()
+    logger.info("Application is shut down")
 
 
 def schedule_bulk_update_invoice_status_job():
@@ -186,18 +203,6 @@ def schedule_bulk_update_invoice_creation_job():
         logger.info(
             f"[{datetime.now()}] Scheduled background job`Creation` with locking"
         )
-
-
-app = FastAPI(
-    title="IDP",
-    version="1.0",
-    swagger_ui_oauth2_redirect_url="/oauth2-redirect",
-    swagger_ui_init_oauth={
-        "usePkceWithAuthorizationCodeGrant": True,
-        "clientId": settings.swagger_ui_client_id,
-        "scopes": [f"api://{settings.api_client_id}/access_as_user"],
-    },
-)
 
 
 @app.post("/run-job")
@@ -334,7 +339,6 @@ async def add_operation_id(request: Request, call_next):
 
             response.headers["api-version"] = "0.33"
 
-
             logger.info(
                 "Sending response from FastAPI"
             )  # Automatically includes Operation ID
@@ -352,13 +356,6 @@ app.include_router(modelonboarding.router)
 app.include_router(ERPIntegrationapi.router)
 app.include_router(batchexception.router)
 app.include_router(common.router)
-
-
-@app.on_event("startup")
-async def app_startup():
-    logger.warning(
-        "App Startup is called",
-    )
 
 
 @app.get("/")

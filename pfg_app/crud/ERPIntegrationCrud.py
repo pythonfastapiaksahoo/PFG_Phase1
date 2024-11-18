@@ -1295,7 +1295,7 @@ def newbulkupdateInvoiceStatus():
         blob_client = container_client.get_blob_client("status-job-lock")
         lease = blob_client.acquire_lease()
 
-        logger.info(f"[{datetime.now()}] Background job `Status` Started!")
+        logger.info(f"[{datetime.datetime.now()}] Background job `Status` Started!")
 
         userID = 1
         # db = next(get_db())
@@ -1450,7 +1450,7 @@ def newbulkupdateInvoiceStatus():
 
         blob_client.append_block(operation_id + "\n", lease=lease)
         blob_metadata = blob_client.get_blob_properties().metadata
-        blob_metadata["last_run_time"] = str(datetime.now())
+        blob_metadata["last_run_time"] = str(datetime.datetime.now())
         blob_client.set_blob_metadata(blob_metadata, lease=lease)
         data = {
             "message": "Bulk update run successfully",
@@ -1458,7 +1458,8 @@ def newbulkupdateInvoiceStatus():
             "success_count": success_count,
         }
         logger.info(
-            f"[{datetime.now()}] Background job `Status` Completed! with data: {data}"
+            f"[{datetime.datetime.now()}] Background job `Status` "
+            + f"Completed! with data: {data}"
         )
 
     except Exception:
@@ -1494,7 +1495,7 @@ def bulkProcessVoucherData():
         blob_client = container_client.get_blob_client("creation-job-lock")
         lease = blob_client.acquire_lease()
 
-        logger.info(f"[{datetime.now()}] Background job `Creation` Started!")
+        logger.info(f"[{datetime.datetime.now()}] Background job `Creation` Started!")
 
         userID = 1
         # db = next(get_db())
@@ -1654,7 +1655,8 @@ def bulkProcessVoucherData():
             "success_count": success_count,
         }
         logger.info(
-            f"[{datetime.now()}] Background job `Creation` Completed! with data: {data}"
+            f"[{datetime.datetime.now()}] Background job `Creation` "
+            + f"Completed! with data: {data}"
         )
     except Exception:
         logger.error(f"Error in schedule IDP to Peoplesoft : {traceback.format_exc()}")
