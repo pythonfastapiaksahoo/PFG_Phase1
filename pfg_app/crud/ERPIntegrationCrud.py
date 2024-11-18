@@ -2,6 +2,7 @@ import base64
 import datetime
 import os
 import traceback
+from uuid import uuid4
 
 import requests
 from azure.storage.blob import BlobServiceClient
@@ -14,8 +15,9 @@ import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.core.utils import get_credential
 from pfg_app.crud.InvoiceCrud import update_docHistory
-from pfg_app.logger_module import logger
+from pfg_app.logger_module import logger, set_operation_id
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
+from pfg_app.session.session import get_db
 
 
 async def getDepartmentMaster(db):
@@ -1281,8 +1283,28 @@ def read_invoice_file_voucher(inv_id, db):
         db.close()
 
 
-def newbulkupdateInvoiceStatus(db):
+def newbulkupdateInvoiceStatus():
     try:
+        db = next(get_db())
+        # Create an operation ID for the background job
+        operation_id = uuid4().hex
+        set_operation_id(operation_id)
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+        container_client = blob_service_client.get_container_client("locks")
+
+        # Update the blob with the latest operation ID and
+        # timestamp after acquiring the lease
+        blob_client = container_client.get_blob_client("status-job-lock")
+        lease = blob_client.acquire_lease()
+
+        logger.info(f"[{datetime.now()}] Background job `Status` Started!")
+
         userID = 1
         # db = next(get_db())
         # Batch size for processing
@@ -1434,21 +1456,54 @@ def newbulkupdateInvoiceStatus(db):
                 dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(err)
                 logger.error(f"Error while update dochistlog: {traceback.format_exc()}")
 
-        return {
+        blob_client.append_block(operation_id + "\n", lease=lease)
+        blob_metadata = blob_client.get_blob_properties().metadata
+        blob_metadata["last_run_time"] = str(datetime.now())
+        blob_client.set_blob_metadata(blob_metadata, lease=lease)
+        data = {
             "message": "Bulk update run successfully",
             "total_docs count": total_docs,
             "success_count": success_count,
         }
-
-    except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500, detail=f"Error updating invoice status: {str(e)}"
+        logger.info(
+            f"[{datetime.now()}] Background job `Status` Completed! with data: {data}"
         )
 
+    except Exception:
+        logger.error(f"Error: {traceback.format_exc()}")
+        # raise HTTPException(
+        #     status_code=500, detail=f"Error updating invoice status: {str(e)}"
+        # )
+        return False
+    finally:
+        db.close()
+        if "lease" in locals():
+            lease.break_lease()
 
-def bulkProcessVoucherData(db):
+
+def bulkProcessVoucherData():
     try:
+        db = next(get_db())
+
+        # Create an operation ID for the background job
+        operation_id = uuid4().hex
+        set_operation_id(operation_id)
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+        container_client = blob_service_client.get_container_client("locks")
+
+        # Update the blob with the latest operation ID and timestamp
+        # after acquiring the lease
+        blob_client = container_client.get_blob_client("creation-job-lock")
+        lease = blob_client.acquire_lease()
+
+        logger.info(f"[{datetime.now()}] Background job `Creation` Started!")
+
         userID = 1
         # db = next(get_db())
         # Batch size for processing
@@ -1601,10 +1656,18 @@ def bulkProcessVoucherData(db):
                     update_docHistory(docID, userID, documentstatus, dmsg, db)
                 except Exception as e:
                     logger.error(f"ErrorUpdatingDocHistory 163: {str(e)}")
-        return {
+        data = {
             "message": "Voucher processing completed.",
             "Total docs processed": total_docs,
             "success_count": success_count,
         }
-    except Exception as e:
-        logger.error(f"Error in schedule IDP to Peoplesoft : {str(e)}")
+        logger.info(
+            f"[{datetime.now()}] Background job `Creation` Completed! with data: {data}"
+        )
+    except Exception:
+        logger.error(f"Error in schedule IDP to Peoplesoft : {traceback.format_exc()}")
+        return False
+    finally:
+        db.close()
+        if "lease" in locals():
+            lease.break_lease()
