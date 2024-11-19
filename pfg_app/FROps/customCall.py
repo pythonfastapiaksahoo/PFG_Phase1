@@ -351,12 +351,27 @@ def customModelCall(docID):
                                 iserror = 0
                                 errorDesc = "NA"
                         if hdr in [
+                            "InvoiceTotal",
                             "SubTotal",
-                            "TotalTax",
                             "GST",
+                            "HST",
                             "PST",
                             "HST",
+                            "TotalTax",
                             "LitterDeposit",
+                            "BottleDeposit",
+                            "Discount",
+                            "FreightCharges",
+                            "Fuel surcharge",
+                            "Credit_Card_Surcharge",
+                            "Deposit",
+                            "EcoFees",
+                            "EnviroFees",
+                            "OtherCharges",
+                            "Other Credit Charges",
+                            "ShipmentCharges",
+                            "TotalDiscount",
+                            "Usage Charges"
                         ]:
                             clnAnt = clean_amount(val)
                             if clnAnt is not None:
