@@ -41,3 +41,4 @@ reportlab==4.2.2
 Pillow==10.4.0
 RapidFuzz==3.10.1
 rsa
+apscheduler==3.10.4

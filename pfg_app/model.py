@@ -133,6 +133,7 @@ class Document(Base):
     store = Column(TEXT, nullable=True)
     dept = Column(TEXT, nullable=True)
     voucher_id = Column(String, nullable=True)
+    mail_row_key = Column(String, nullable=True)
     # __mapper_args__ = {"eager_defaults": True}
 
 
@@ -1457,6 +1458,9 @@ class VoucherData(Base):
     status = Column(String, nullable=True)
     recv_ln_nbr = Column(Integer, nullable=True)
     gst_amt = Column(Float, nullable=True)
+    currency_code = Column(String, nullable=True)
+    freight_amt = Column(Float, nullable=True)
+    misc_amt = Column(Float, nullable=True)
 
 
 class NonintegratedStores(Base):
