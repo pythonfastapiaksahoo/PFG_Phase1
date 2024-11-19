@@ -488,8 +488,7 @@ def getFrData_MNF(input_data):
                             )
 
                         if prTg in [
-                            "InvoiceTotal",
-                            "SubTotal",
+                           
                             "TotalTax",
                             "GST",
                             "PST",
@@ -884,8 +883,6 @@ def postpro(
                         )
                         ovrll_conf_ck = ovrll_conf_ck * 0
                     if ct_tag in [
-                        "InvoiceTotal",
-                        "SubTotal",
                         "TotalTax",
                         "GST",
                         "PST",
@@ -1619,8 +1616,6 @@ def postpro(
                 fr_data = dt
 
             if dt["header"][tg]["tag"] in [
-                "InvoiceTotal",
-                "SubTotal",
                 "GST",
                 "HST",
                 "PST",

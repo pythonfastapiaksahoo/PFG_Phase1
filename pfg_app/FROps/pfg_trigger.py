@@ -1445,6 +1445,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             or skipConf == 1
                                         ) and (column.name == "Business_unit"):
                                             continue
+                                        if column.name == "currency_code":
+                                            continue
 
                                         value = getattr(voucher_row, column.name)
                                         if value is None or value == "":
