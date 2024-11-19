@@ -192,67 +192,97 @@ def runStatus(
         destination_container_name = "apinvoice-container"  # TODO move to settings
         fr_API_version = "2023-07-31"  # TODO move to settings
 
-        prompt = """This is an invoice document containing an invoice ID,
-        vendor name, vendor address and a stamp with handwritten or stamped information, possibly
-        including a receiver's stamp. The document may include the following details:
+        prompt = """
+            The provided image contains invoice ID, vendor name, vendor address, and a stamp sealed with handwritten or stamped information, possibly
+            including a receiver's stamp. Extract the relevant information and format it as a list of JSON objects, adhering strictly to the structure provided below:
 
-        Store Number: Typically stamped and starting with either 'STR#' or "#".
+            {
+                        "StampFound": "Yes/No",
+                        "NumberOfPages": "Total number of pages in the document",
+                        "MarkedDept": "Inventory/Supplies/N/A",
+                        "Confirmation": "Extracted confirmation number",
+                        "ReceivingDate": "Extracted receiving date",
+                        "Receiver": "Extracted receiver information",
+                        "Department": "Extracted department code or name",
+                        "Store Number": "Extracted store number",
+                        "VendorName": "Extracted vendor name",
+                        "VendorAddress": "Extracted vendor address",
+                        "InvoiceID": "Extracted invoice ID",
+                        "Currency": "Extracted currency"
+                    }
 
-        Marked Department: Clearly circled or marked "Inventory" or "Supplies"
-        (if neither is marked, set this to "N/A") sometimes print might not be clear,
-        in those case also it can return N/A.
+            ### Instructions:
+            1. Extract only the information specified:
+            - **Invoice Document**: Yes/No
+            - **Invoice ID**: Extracted Invoice ID from invoice document
+            - **Vendor Name**: Extracted vendor name from invoice document
+            - **Vendor Address**: Extracted vendor address from invoice document
+            - **Stamp Present**: Yes/No
+            - If a stamp is present, extract the following information:
+            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or "#".
+            - **Circled Department**: Extract the clearly circled or marked keyword "Inventory" or "Supplies" from the stamp image,
+                    If not circled, return "N/A".
+            - **Department**: Extract either a department code or department name, handwritten
+                    and possibly starting with "Dept"
+            - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
+                    If not, leave it blank.
+            - **Receiver**: Extract The name or code of the person who received the goods
+                    (may appear on the stamp image or as "Receiver#" followed by code or name).
+                    If not, leave it blank.
+            - **Confirmation Number**: Extract the number, usually handwritten and labeled as "Confirmation" on the stamp image, if it is visible.
+                    If not, leave it blank.
+            - **Currency**: Identified by currency symbols (e.g., CAD, USD) or determined by the city and country in the invoice address if
+                    a currency symbol is not found.
 
-        Department: Either a department code or department name, handwritten
-        and possibly starting with "Dept".
 
-        Receiving Date: The date when goods were received.
+            2. **Special Notes**:
+            - *Marked Department*: Ensure the extraction is based on the actual circled text by the human, regardless of any imperfections in the circle.
+                    - If the circle starts with the word "Inventory" and ends with the starting character of "Supplies", extract "Inventory".
+                    - If the circle starts with the last character of "Inventory" and covers "Supplies" completely, extract "Supplies".
+                    - If the circle exactly encloses the word "Inventory", return "Inventory".
+                    - If the circle exactly encloses the word "Supplies", return "Supplies".
+                - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
+                    - The confirmation number must be a handwritten number. 
+                    - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
+                    - Apply image enhancement techniques such as increasing contrast to clarify obscured digits.
+                    - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
+                    - if the confirmation number is not present, return "N/A"
+                - **Vendor Name:** : VendorName: Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
+                - **Vendor Address:** : VendorAddress: Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
+                - **Currency**: If it's unclear kept it blank as "".
 
-        Confirmation Number: A 9-digit number, usually handwritten and labeled
-        as "Confirmation".
+            3. **Ensure that the JSON output is precise and clean**, without any extra text or commentary like ```json```, because I am going to perform a `json.loads` on the output.
 
-        Receiver: The name or code of the person who received the goods
-        (may appear as "Receiver#" or by name).
+            ### Example Output:
+            If the extracted text includes:
+            - MarkedDept: "Inventory"
+            - Confirmation: "123456789"
+            - ReceivingDate: "2023-01-01"
+            - Receiver: "John Doe"
+            - Department: "30"
+            - Store Number: "1981"
+            - VendorName: "ABC Company"
+            - VendorAddress: "123 Main St, Anytown CANADA"
+            - InvoiceID: "INV-12345"
+            - Currency: "CAD"
 
-        Invoice Number: The unique number identifying the invoice.
+            The expected output should be:
+            {
+                "StampFound": "Yes",
+                "NumberOfPages": "1",
+                "MarkedDept": "Inventory",
+                "Confirmation": "123456789",
+                "ReceivingDate": "2023-01-01",
+                "Receiver": "John Doe",
+                "Department": "30",
+                "Store Number": "1981",
+                "VendorName": "ABC Company",
+                "VendorAddress": "123 Main St, Anytown USA",
+                "InvoiceID": "INV-12345",
+                "Currency": "CAD"
+            }
 
-        Currency: Identified by currency symbols (e.g., CAD, USD)
-        or determined by the country in the invoice address if
-        a currency symbol is not found.
-
-        Instructions
-        Invoice Document: Yes/No
-        Invoice ID: [Extracted Invoice ID].
-        Stamp Present: Yes/No
-        If a stamp is present, extract the following information
-        and output it in JSON format:
-
-        json
-        Copy code
-        {
-            "StampFound": "Yes/No",
-            "NumberOfPages": "Total number of pages in the document",
-            "MarkedDept": "Inventory/Supplies/N/A",
-            "Confirmation": "Extracted 13-digit confirmation number",
-            "ReceivingDate": "Extracted receiving date",
-            "Receiver": "Extracted receiver information",
-            "Department": "Extracted department code or name",
-            "Store Number": "Extracted store number",
-            "VendorName": "Extracted vendor name",
-            "VendorAddress": "Extracted vendor address",
-            "InvoiceID": "Extracted invoice ID",
-            "Currency": "Extracted currency"
-        }
-        Notes
-        MarkedDept: Return "Inventory" or "Supplies" based on the clearly
-        circled or marked option. If neither is marked, return "N/A".
-        Confirmation: Extract a 13-digit confirmation number.
-        Format: Output strictly in the JSON format with unique keys provided above,
-        Store Number: Must be a 4 digit. If its less than 4 digit than add leading
-        zeros else return N/A its not clear.
-        VendorName: Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
-        VendorAddress: Don't consider the vendor Address from 'Sold To' or 'Ship To' or 'Bill To' section
-        Currency: If it's unclear kept it blank as ""
-        with no additional text or explanations."""
+            """
 
         (
             prbtHeaders,
