@@ -243,9 +243,11 @@ def runStatus(
             "Currency": "Extracted currency"
         }
         Notes
+        Provide information only if its clear and confident, else make it N/A.
+
         MarkedDept: Return "Inventory" or "Supplies" based on the clearly
         circled or marked option. If neither is marked, return "N/A".
-        Confirmation: Extract a 13-digit confirmation number.
+        Confirmation: Extract a 9-digit confirmation number.if not present make it N/A
         Format: Output strictly in the JSON format with unique keys provided above,
         Store Number: Must be a 4 digit. If its less than 4 digit than add leading
         zeros else return N/A its not clear.

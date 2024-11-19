@@ -1619,6 +1619,8 @@ def postpro(
                 fr_data = dt
 
             if dt["header"][tg]["tag"] in [
+                "InvoiceTotal",
+                "SubTotal",
                 "GST",
                 "HST",
                 "PST",
