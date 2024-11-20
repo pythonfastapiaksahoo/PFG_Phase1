@@ -22,6 +22,10 @@ tz_region = tz.timezone(tz_region_name)
 
 
 def date_cnv(doc_date, date_format):
+    if doc_date is None:
+        date_status = 0
+        req_date = doc_date
+        return req_date, date_status
     correctDate = None
     get_date = {
         "jan": "01",

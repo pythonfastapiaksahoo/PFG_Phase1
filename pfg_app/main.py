@@ -71,6 +71,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def app_startup():
+    # return True
 
     operation_id = uuid.uuid4().hex
     set_operation_id(operation_id)
