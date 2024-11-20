@@ -861,7 +861,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
         table_name = "tab_1"
         for f in fields:
             line_number = 0
-            if fields[f]["value_type"] == "list":
+            if fields[f]["value_type"] == "list" and f == 'Items':
                 value_list = fields[f]["value"]
                 for v in value_list:
                     obj = v["value"]
