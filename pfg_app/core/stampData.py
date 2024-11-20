@@ -45,7 +45,7 @@ def stampDataFn(blob_data, ocr_data, prompt):
                 }
             )
         ocr_text = ocr_data[0]['content']
-        print("ocr_text: ", ocr_text)
+        # print("ocr_text: ", ocr_text)
         
         # Define the regex pattern
         pattern = r"(STR#.*?Receive.{0,10})"
@@ -56,8 +56,8 @@ def stampDataFn(blob_data, ocr_data, prompt):
         # Extract and print the matched portion
         if match:
             extracted_data = match.group(1)
-            print("Extracted Data:")
-            print(extracted_data)
+            logger.info("Extracted Data:")
+            logger.info(extracted_data)
             data = {
             "messages": [
                 {
@@ -82,7 +82,7 @@ def stampDataFn(blob_data, ocr_data, prompt):
             # "max_tokens": 4000,
         }
         else:
-            print("No match found.")
+            logger.info("No match found.")
             data = {
             "messages": [
                 {
@@ -115,9 +115,9 @@ def stampDataFn(blob_data, ocr_data, prompt):
             result = response.json()
             for choice in result["choices"]:
                 content = choice["message"]["content"].strip()
-                print(f"Content: {content}")
+                logger.info(f"Content: {content}")
         else:
-            print(f"Error: {response.status_code}, {response.text}")
+            logger.info(f"Error: {response.status_code}, {response.text}")
         
         cl_data = (
             content.replace("json", "")
@@ -134,7 +134,7 @@ def stampDataFn(blob_data, ocr_data, prompt):
             except BaseException:
                 stampData = cl_data
     except Exception:
-        print(traceback.format_exc())
+        logger.info(traceback.format_exc())
         stampData = {
             "StampFound": "Response not found",
             "NumberOfPages": "Response not found",
