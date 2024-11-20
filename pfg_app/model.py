@@ -1306,6 +1306,7 @@ class PFGVendor(Base):
     DEFAULT_LOC = Column(String(10), nullable=True)
     VENDOR_LOC = Column(JSON, nullable=True)
     VENDOR_ADDR = Column(JSON, nullable=True)
+    VNDR_FIELD_C30_B = Column(String(30),nullable=True)
 
 
 # class PFGVendor(Base):

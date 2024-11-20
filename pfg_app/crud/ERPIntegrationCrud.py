@@ -738,6 +738,7 @@ async def SyncVendorMaster(db, vendordata):
                 "VENDOR_CLASS": row.VENDOR_CLASS,
                 "VENDOR_STATUS": row.VENDOR_STATUS,
                 "DEFAULT_LOC": row.DEFAULT_LOC,
+                "VNDR_FIELD_C30_B": row.VNDR_FIELD_C30_B,
                 "VENDOR_LOC": row.VENDOR_LOC if row.VENDOR_LOC else [],
                 "VENDOR_ADDR": row.VENDOR_ADDR if row.VENDOR_ADDR else [],
             }
