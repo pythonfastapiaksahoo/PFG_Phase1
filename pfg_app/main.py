@@ -39,98 +39,100 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def app_startup():
-    # if settings.build_type != "debug":
-    operation_id = uuid.uuid4().hex
-    set_operation_id(operation_id)
-    logger.info("Starting FastAPI application")
+    if settings.build_type != "debug":
+        operation_id = uuid.uuid4().hex
+        set_operation_id(operation_id)
+        logger.info("Starting FastAPI application")
 
-    try:
-        if not scheduler_container_client.exists():
-            scheduler_container_client.create_container()
-    except Exception as e:
-        logger.error(f"Error: {e}")
+        try:
+            if not scheduler_container_client.exists():
+                scheduler_container_client.create_container()
+        except Exception as e:
+            logger.error(f"Error: {e}")
 
-    try:
-        # Create the STATUS_BLOB_NAME blob
-        blob_client = scheduler_container_client.get_blob_client("status-job-lock")
-        # Check if the blob exists
-        if not blob_client.exists():
-            blob_client.create_append_blob()
-            logger.info("Blob `status-job-lock` created successfully")
+        try:
+            # Create the STATUS_BLOB_NAME blob
+            blob_client = scheduler_container_client.get_blob_client("status-job-lock")
+            # Check if the blob exists
+            if not blob_client.exists():
+                blob_client.create_append_blob()
+                logger.info("Blob `status-job-lock` created successfully")
 
-        # Check if the blob has an active lease
-        properties = blob_client.get_blob_properties()
-        lease_state = properties.lease.state
+            # Check if the blob has an active lease
+            properties = blob_client.get_blob_properties()
+            lease_state = properties.lease.state
 
-        # If a lease exists, break it
-        if lease_state == "leased":
-            lease_client = BlobLeaseClient(blob_client)
-            logger.info("Breaking existing lease...")
-            lease_client.break_lease()
+            # If a lease exists, break it
+            if lease_state == "leased":
+                lease_client = BlobLeaseClient(blob_client)
+                logger.info("Breaking existing lease...")
+                lease_client.break_lease()
 
-        # Acquire a lease on the blob to act as a distributed lock.
-        lease = blob_client.acquire_lease()
+            # Acquire a lease on the blob to act as a distributed lock.
+            lease = blob_client.acquire_lease()
 
-        # check if the blob meta dat ato see if any job is running from the metadata
-        blob_metadata = blob_client.get_blob_properties().metadata
+            # check if the blob meta dat ato see if any job is running from the metadata
+            blob_metadata = blob_client.get_blob_properties().metadata
 
-        blob_metadata.update({"last_run_time": str(datetime.now())})
-        blob_client.append_block(operation_id + "\n")
-        blob_client.set_blob_metadata(metadata=blob_metadata, lease=lease)
+            blob_metadata.update({"last_run_time": str(datetime.now())})
+            blob_client.append_block(operation_id + "\n")
+            blob_client.set_blob_metadata(metadata=blob_metadata, lease=lease)
 
-        logger.info(
-            f"Metadata updated with last run time: {blob_metadata['last_run_time']}"
-        )
-        # release the lock
-        lease.break_lease()
-        # Set up a Timer triggered Background Job with ap-scheduler
-        schedule_bulk_update_invoice_status_job()
-    except ResourceExistsError as e:
-        logger.warning(f"Error: {e.error_code} - {e.reason}")
-    except Exception as e:
-        logger.info(f"Exception: {e}")
+            logger.info(
+                f"Metadata updated with last run time: {blob_metadata['last_run_time']}"
+            )
+            # release the lock
+            lease.break_lease()
+            # Set up a Timer triggered Background Job with ap-scheduler
+            schedule_bulk_update_invoice_status_job()
+        except ResourceExistsError as e:
+            logger.warning(f"Error: {e.error_code} - {e.reason}")
+        except Exception as e:
+            logger.info(f"Exception: {e}")
 
-    try:
-        # Create the CREATION_BLOB_NAME blob `creation-job-lock`
-        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
-        # Check if the blob exists
-        if not blob_client.exists():
-            blob_client.create_append_blob()
-            logger.info("Blob `creation-job-lock` created successfully")
+        try:
+            # Create the CREATION_BLOB_NAME blob `creation-job-lock`
+            blob_client = scheduler_container_client.get_blob_client(
+                "creation-job-lock"
+            )
+            # Check if the blob exists
+            if not blob_client.exists():
+                blob_client.create_append_blob()
+                logger.info("Blob `creation-job-lock` created successfully")
 
-        # Check if the blob has an active lease
-        properties = blob_client.get_blob_properties()
-        lease_state = properties.lease.state
+            # Check if the blob has an active lease
+            properties = blob_client.get_blob_properties()
+            lease_state = properties.lease.state
 
-        # If a lease exists, break it
-        if lease_state == "leased":
-            lease_client = BlobLeaseClient(blob_client)
-            logger.info("Breaking existing lease...")
-            lease_client.break_lease()
+            # If a lease exists, break it
+            if lease_state == "leased":
+                lease_client = BlobLeaseClient(blob_client)
+                logger.info("Breaking existing lease...")
+                lease_client.break_lease()
 
-        # Acquire a lease on the blob to act as a distributed lock.
-        lease = blob_client.acquire_lease()
+            # Acquire a lease on the blob to act as a distributed lock.
+            lease = blob_client.acquire_lease()
 
-        # check if the blob meta dat ato see if any job is running from the metadata
-        blob_metadata = blob_client.get_blob_properties().metadata
+            # check if the blob meta dat ato see if any job is running from the metadata
+            blob_metadata = blob_client.get_blob_properties().metadata
 
-        blob_metadata.update({"last_run_time": str(datetime.now())})
-        blob_client.append_block(operation_id + "\n")
-        blob_client.set_blob_metadata(metadata=blob_metadata, lease=lease)
+            blob_metadata.update({"last_run_time": str(datetime.now())})
+            blob_client.append_block(operation_id + "\n")
+            blob_client.set_blob_metadata(metadata=blob_metadata, lease=lease)
 
-        logger.info(
-            f"Metadata updated with last run time: {blob_metadata['last_run_time']}"
-        )
-        # release the lock
-        lease.break_lease()
-        # Set up a Timer triggered Background Job with ap-scheduler
-        schedule_bulk_update_invoice_creation_job()
-    except ResourceExistsError as e:
-        logger.warning(f"Error: {e.error_code} - {e.reason}")
-    except Exception as e:
-        logger.info(f"Exception: {e}")
+            logger.info(
+                f"Metadata updated with last run time: {blob_metadata['last_run_time']}"
+            )
+            # release the lock
+            lease.break_lease()
+            # Set up a Timer triggered Background Job with ap-scheduler
+            schedule_bulk_update_invoice_creation_job()
+        except ResourceExistsError as e:
+            logger.warning(f"Error: {e.error_code} - {e.reason}")
+        except Exception as e:
+            logger.info(f"Exception: {e}")
 
-    logger.info("Application is ready to process requests")
+        logger.info("Application is ready to process requests")
 
 
 @app.on_event("shutdown")
