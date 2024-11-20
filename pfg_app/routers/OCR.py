@@ -199,7 +199,7 @@ def runStatus(
             {
                         "StampFound": "Yes/No",
                         "NumberOfPages": "Total number of pages in the document",
-                        "MarkedDept": "Inventory/Supplies/N/A",
+                        "MarkedDept": "Extracted Circled department only",
                         "Confirmation": "Extracted confirmation number",
                         "ReceivingDate": "Extracted receiving date",
                         "Receiver": "Extracted receiver information",
@@ -212,46 +212,48 @@ def runStatus(
                     }
 
             ### Instructions:
-            1. Extract only the information specified:
+	    1. **Orientation Correction**: Check if the invoice orientation is not straight. If so, make it straight before extracting the data
+            2. **Data Extraction**: Extract only the information specified:
             - **Invoice Document**: Yes/No
-            - **Invoice ID**: Extracted Invoice ID from invoice document
-            - **Vendor Name**: Extracted vendor name from invoice document
+            - **Invoice ID**: Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
+            - **Vendor Name**:  Extracted vendor address from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
             - **Vendor Address**: Extracted vendor address from invoice document
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
             - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or "#".
-            - **Circled Department**: Extract the clearly circled or marked keyword "Inventory" or "Supplies" from the stamp image,
+            - **Circled Department**: Extract the clearly circled or marked keyword "Inventory", "INV" or "Supplies" or "SUP" from the stamp image,
                     If not circled, return "N/A".
             - **Department**: Extract either a department code or department name, handwritten
                     and possibly starting with "Dept"
             - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
                     If not, leave it blank.
-            - **Receiver**: Extract The name or code of the person who received the goods
-                    (may appear on the stamp image or as "Receiver#" followed by code or name).
-                    If not, leave it blank.
+            - **Receiver**: The name or code of the person who received the goods (may appear as "Receiver#" or by name).
             - **Confirmation Number**: Extract the number, usually handwritten and labeled as "Confirmation" on the stamp image, if it is visible.
-                    If not, leave it blank.
+                    If not, leave it as "N/A".
             - **Currency**: Identified by currency symbols (e.g., CAD, USD) or determined by the city and country in the invoice address if
                     a currency symbol is not found.
 
 
-            2. **Special Notes**:
-            - *Marked Department*: Ensure the extraction is based on the actual circled text by the human, regardless of any imperfections in the circle.
+            3. **Special Notes**:
+            - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
                     - If the circle starts with the word "Inventory" and ends with the starting character of "Supplies", extract "Inventory".
                     - If the circle starts with the last character of "Inventory" and covers "Supplies" completely, extract "Supplies".
-                    - If the circle exactly encloses the word "Inventory", return "Inventory".
-                    - If the circle exactly encloses the word "Supplies", return "Supplies".
+                    - If the circle exactly encloses the word "Inventory" or "INV," return "Inventory."
+                    - If the circle exactly encloses the word "Supplies" or "SUP," return "Supplies."
+                    - If the circle encloses the word "INV," return "Inventory."
+                    - If the circle encloses the word "SUP," return "Supplies."
                 - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
                     - The confirmation number must be a handwritten number. 
                     - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
                     - Apply image enhancement techniques such as increasing contrast to clarify obscured digits.
                     - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
                     - if the confirmation number is not present, return "N/A"
-                - **Vendor Name:** : VendorName: Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
-                - **Vendor Address:** : VendorAddress: Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
-                - **Currency**: If it's unclear kept it blank as "".
+                - **Receiver** : Extract it only if keyword "Receiver#" exist before the receiver code or name.
+                - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
+                - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
+                - **Currency**: If it's unclear kept it as "CAD" as default.
 
-            3. **Ensure that the JSON output is precise and clean**, without any extra text or commentary like ```json```, because I am going to perform a `json.loads` on the output.
+            4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
             ### Example Output:
             If the extracted text includes:
