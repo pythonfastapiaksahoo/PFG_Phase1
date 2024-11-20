@@ -7,13 +7,12 @@ from apscheduler.triggers.interval import IntervalTrigger
 from azure.ai.formrecognizer import DocumentModelAdministrationClient
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
-from pfg_app import settings
+from pfg_app import scheduler, settings
 from pfg_app.crud.ERPIntegrationCrud import (
     bulkProcessVoucherData,
     newbulkupdateInvoiceStatus,
 )
 from pfg_app.logger_module import logger
-from pfg_app.main import scheduler
 
 
 def acquire_lock(container_client, LOCK_BLOB_NAME):

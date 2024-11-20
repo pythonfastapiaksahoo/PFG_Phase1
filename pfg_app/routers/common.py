@@ -8,7 +8,7 @@ from azure.storage.blob import BlobServiceClient
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from starlette.status import HTTP_201_CREATED
 
-from pfg_app import settings
+from pfg_app import scheduler, scheduler_container_client, settings
 from pfg_app.azuread.auth import get_admin_user
 
 # from pfg_app.core import azure_fr as core_fr
@@ -24,7 +24,6 @@ from pfg_app.crud.ERPIntegrationCrud import (
     newbulkupdateInvoiceStatus,
 )
 from pfg_app.logger_module import logger
-from pfg_app.main import container_client, scheduler
 
 router = APIRouter(
     prefix="/apiv1.1/Common",
@@ -177,7 +176,7 @@ async def run_job(background_tasks: BackgroundTasks, job_name: str):
     logger.info(f"Manually triggering the job {job_name}")
     if job_name == "bulk_update_invoice_status":
         # check if the job is already scheduled by looking at the Blob Lease
-        blob_client = container_client.get_blob_client("status-job-lock")
+        blob_client = scheduler_container_client.get_blob_client("status-job-lock")
         try:
             lease = blob_client.acquire_lease()
         except Exception as e:
@@ -191,7 +190,7 @@ async def run_job(background_tasks: BackgroundTasks, job_name: str):
         }
     elif job_name == "bulk_update_invoice_creation":
         # check if the job is already scheduled by looking at the Blob Lease
-        blob_client = container_client.get_blob_client("creation-job-lock")
+        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
         try:
             lease = blob_client.acquire_lease()
         except Exception as e:
@@ -217,7 +216,7 @@ async def update_schedule(minutes: int, job_name: str):
         )
     if job_name == "bulk_update_invoice_status":
         # check if the job is already scheduled by looking at the Blob Lease
-        blob_client = container_client.get_blob_client("status-job-lock")
+        blob_client = scheduler_container_client.get_blob_client("status-job-lock")
         try:
             lease = blob_client.acquire_lease()
         except ResourceExistsError as e:
@@ -235,7 +234,7 @@ async def update_schedule(minutes: int, job_name: str):
         return {"message": f"Job schedule updated to every {minutes} minutes"}
     elif job_name == "bulk_update_invoice_creation":
         # check if the job is already scheduled by looking at the Blob Lease
-        blob_client = container_client.get_blob_client("creation-job-lock")
+        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
         try:
             lease = blob_client.acquire_lease()
         except ResourceExistsError as e:
