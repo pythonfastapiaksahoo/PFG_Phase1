@@ -228,7 +228,7 @@ def runStatus(
             - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
                     If not, leave it blank.
             - **Receiver**: The name or code of the person who received the goods (may appear as "Receiver#" or by name).
-            - **Confirmation Number**: Extract the number, usually handwritten and labeled as "Confirmation" on the stamp image, if it is visible.
+            - **Confirmation Number**: A 9-digit number, usually handwritten and labeled as "Confirmation"., if it is visible.
                     If not, leave it as "N/A".
             - **Currency**: Identified by currency symbols (e.g., CAD, USD) or determined by the city and country in the invoice address if
                     a currency symbol is not found.
@@ -243,7 +243,7 @@ def runStatus(
                     - If the circle encloses the word "INV," return "Inventory."
                     - If the circle encloses the word "SUP," return "Supplies."
                 - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
-                    - The confirmation number must be a handwritten number. 
+                    - The confirmation number must be a handwritten number only. 
                     - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
                     - Apply image enhancement techniques such as increasing contrast to clarify obscured digits.
                     - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
