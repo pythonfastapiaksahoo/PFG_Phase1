@@ -54,7 +54,6 @@ def split_pdf_and_upload(
     destination_container_name,
     subfolder_name,
     prompt,
-    output_data,
     fileSize={},
     # deployment_name,
     # OpenAI_api_base,
@@ -118,7 +117,6 @@ def split_pdf_and_upload(
         # TODO below uses the stampData function from core.stampData
         pgstampdata = stampDataFn(
             stp_blb_data,
-            output_data,
             prompt,
             # deployment_name,
             # OpenAI_api_base,
@@ -492,7 +490,6 @@ def splitDoc(
         destination_container_name,
         subfolder_name,
         prompt,
-        output_data,
         # deployment_name,
         # OpenAI_api_base,
         # OpenAI_api_key,
