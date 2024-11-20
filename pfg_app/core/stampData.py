@@ -85,8 +85,8 @@ def stampDataFn(blob_data, prompt):
                 }
             ],
             "temperature": 0.1,
-            # "top_p": 0.95,
-            # "max_tokens": 4000,
+            "top_p": 0.95,
+            "max_tokens": 800,
         }
         else:
             logger.info("No match found.")
@@ -101,8 +101,8 @@ def stampDataFn(blob_data, prompt):
                 }
             ],
             "temperature": 0.1,
-            # "top_p": 0.95,
-            # "max_tokens": 800,
+            "top_p": 0.95,
+            "max_tokens": 800,
         }
         
 
