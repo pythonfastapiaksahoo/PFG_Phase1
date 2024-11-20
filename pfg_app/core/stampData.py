@@ -48,7 +48,7 @@ def stampDataFn(blob_data, ocr_data, prompt):
         print("ocr_text: ", ocr_text)
         
         # Define the regex pattern
-        pattern = r"(STR#.*?Receiver.{0,15})"
+        pattern = r"(STR#.*?Receive.{0,10})"
 
         # Search for the pattern
         match = re.search(pattern, ocr_text, re.DOTALL)
