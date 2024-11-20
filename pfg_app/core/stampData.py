@@ -10,6 +10,7 @@ from dateutil import parser
 from pdf2image import convert_from_bytes
 
 from pfg_app import settings
+from pfg_app.core.azure_fr import analyze_form
 from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
 
@@ -20,7 +21,7 @@ def get_open_ai_token():
     access_token = token.token
     return access_token
 
-def stampDataFn(blob_data, ocr_data, prompt):
+def stampDataFn(blob_data, prompt):
     try:
         time.sleep(0.3)
         image_content = []
@@ -44,7 +45,13 @@ def stampDataFn(blob_data, ocr_data, prompt):
                     "image_url": {"url": f"data:image/png;base64,{encoded_image}"},
                 }
             )
-        ocr_text = ocr_data[0]['content']
+        endpoint=settings.form_recognizer_endpoint
+        resp = analyze_form(blob_data, endpoint, "2023-07-31", "prebuilt-read")
+        if 'message' not in resp:
+            ocr_text = resp['content']
+        else:
+            ocr_text = ''
+        
         # print("ocr_text: ", ocr_text)
         
         # Define the regex pattern
