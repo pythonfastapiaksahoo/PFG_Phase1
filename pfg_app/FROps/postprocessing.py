@@ -488,7 +488,8 @@ def getFrData_MNF(input_data):
                             )
 
                         if prTg in [
-                           
+                            "InvoiceTotal",
+                           "SubTotal",
                             "TotalTax",
                             "GST",
                             "PST",
