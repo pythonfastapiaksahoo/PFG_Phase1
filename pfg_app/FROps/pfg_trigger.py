@@ -169,22 +169,24 @@ def IntegratedvoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
         if "FreightCharges" in docHdrDt:
             freight_charges = clean_amount(docHdrDt["FreightCharges"])
 
-        try:
-            if "Currency" in docHdrDt:
-                currency_code_rw = docHdrDt["Currency"]
-                isCurrencyMatch = validate_currency(
-                    inv_id, currency_code_rw, db
-                )  
+        # try:
+        if "Currency" in docHdrDt:
+            currency_code = docHdrDt["Currency"]
+        else:
+            currency_code = "CAD"
+                # isCurrencyMatch = validate_currency(
+                #     inv_id, currency_code_rw, db
+                # )  
 
-                if isCurrencyMatch: 
-                    currency_code = currency_code_rw
+        #         if isCurrencyMatch: 
+        #             currency_code = currency_code_rw
 
-                else:
-                    currency_code = ""
-            else:
-                currency_code = ""
-        except Exception: 
-            currency_code = ""
+        #         else:
+        #             currency_code = ""
+        #     else:
+        #         currency_code = ""
+        # except Exception: 
+        #     currency_code = ""
 
 
         if voucher_data_status == 1:
@@ -320,22 +322,24 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
     
     if "FreightCharges" in docHdrDt:
             freight_charges = clean_amount(docHdrDt["FreightCharges"])
-    try:
-        if "Currency" in docHdrDt:
-            currency_code_rw = docHdrDt["Currency"]
-            isCurrencyMatch = validate_currency(
-                inv_id, currency_code_rw, db
-            )  
+    # try:
+    if "Currency" in docHdrDt:
+        currency_code = docHdrDt["Currency"]
+    else:
+        currency_code = "CAD"
+    #         isCurrencyMatch = validate_currency(
+    #             inv_id, currency_code_rw, db
+    #         )  
 
-            if isCurrencyMatch: 
-                currency_code = currency_code_rw
+    #         if isCurrencyMatch: 
+    #             currency_code = currency_code_rw
 
-            else:
-                currency_code = ""
-        else:
-            currency_code = ""
-    except Exception: 
-        currency_code = ""
+    #         else:
+    #             currency_code = ""
+    #     else:
+    #         currency_code = ""
+    # except Exception: 
+    #     currency_code = ""
     
     result = (
         db.query(model.Document)

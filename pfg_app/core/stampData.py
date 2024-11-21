@@ -263,30 +263,66 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
                         {
                             "type": "text",
                             "text": (
-                                f"vendor1={metaVendorName},vendor2 = {doc_VendorName}, "
-                                + f"vendor1Address = {metaVendorAdd}, "
-                                + f"vendor2Address = {doc_VendorAddress}.You are given "
-                                + "vendor data from two sources: vendor1 from master data"  # noqa: E501
-                                + "and vendor2 from an OCR model. Your task is to"
-                                + "confirm if both vendor names and their addresses are"
-                                + " matching based on location,because in few cases it "
-                                + "would be mentioned in short."
-                                + ". Compare the vendor names, ignoring case"
-                                + "sensitivity and trimming extra spaces.For addresses, "  # noqa: E501
-                                + "normalize the text by handling common abbreviations"
-                                + "like 'Road' and 'RD'.Return response in JSON format as"  # noqa: E501
-                                + "{'vendorMatching': 'yes/no','addressMatching': 'yes/no'}"  # noqa: E501
-                                + "only with two keys: vendorMatching and addressMatching,"  # noqa: E501
-                                + "each having a value of either 'yes' or 'no' based on"
-                                + "the comparison without any explanation.Give me response"  # noqa: E501
-                                + "in Json Format in {'vendorMatching': 'yes/no',"
-                                + "'addressMatching': 'yes/no'} without any explanation"
+                                f"vendor1={metaVendorName}, vendor2={doc_VendorName}, "
+                                + f"vendor1Address={metaVendorAdd}, vendor2Address={doc_VendorAddress}. "               # noqa: E501
+                                + "You are given vendor data from two sources: 'vendor1' from master data "             # noqa: E501
+                                + "and 'vendor2' from an OCR model. Your task is to: "
+                                + "1) Check if the vendor names match, ignoring case "
+                                + "sensitivity and trimming extra spaces. "
+                                + "2) Verify if the vendor2 address contains the vendor"
+                                + " store information from the master address (vendor1Address), "                   # noqa: E501
+                                + "including postal code and country if they are present. "                 # noqa: E501
+                                + "3) Confirm if the addresses correspond to the same" 
+                                + "location, even if vendor2Address is in a shorter form. "                 # noqa: E501
+                                + "Use AI to normalize the text, handle abbreviations "
+                                + "(e.g., 'Road' vs. 'Rd'), and account for possible "
+                                + "formatting differences. "
+                                + "Provide your response strictly in JSON format as: "
+                                + "{'vendorMatching': 'yes/no', 'addressMatching': 'yes/no'},"              # noqa: E501
+                                + "where 'vendorMatching' "
+                                + "indicates if the names match, and 'addressMatching' "
+                                + "verifies if the addresses match, including postal code and country. "  # noqa: E501
+                                + "Return the JSON response only, without any explanation or additional information."           # noqa: E501    
                             ),
                         }
                     ],
                 }
             ]
         }
+
+        # data = {
+        #     "messages": [
+        #         {
+        #             "role": "user",
+        #             "content": [
+        #                 {
+        #                     "type": "text",
+        #                     "text": (
+        #                         f"vendor1={metaVendorName},vendor2 = {doc_VendorName}, "
+        #                         + f"vendor1Address = {metaVendorAdd}, "
+        #                         + f"vendor2Address = {doc_VendorAddress}.You are given "
+        #                         + "vendor data from two sources: vendor1 from master data"  # noqa: E501
+        #                         + "and vendor2 from an OCR model. Your task is to"
+        #                         + "confirm if both vendor names and their addresses are"
+        #                         + " matching based on location,because in few cases it "
+        #                         + "would be mentioned in short."
+        #                         + ". Compare the vendor names, ignoring case"
+        #                         + "sensitivity and trimming extra spaces.For addresses, "  # noqa: E501
+        #                         + "normalize the text by handling common abbreviations"
+        #                         + "like 'Road' and 'RD'.Return response in JSON format as"  # noqa: E501
+        #                         + "{'vendorMatching': 'yes/no','addressMatching': 'yes/no'}"  # noqa: E501
+        #                         + "only with two keys: vendorMatching and addressMatching,"  # noqa: E501
+        #                         + "each having a value of either 'yes' or 'no' based on"
+        #                         + "the comparison without any explanation.Give me response"  # noqa: E501
+        #                         + "in Json Format in {'vendorMatching': 'yes/no',"
+        #                         + "'addressMatching': 'yes/no'} without any explanation",
+                            
+        #                     ),
+        #                 }
+        #             ],
+        #         }
+        #     ]
+        # }
 
         # Make the API call to Azure OpenAI
         access_token = get_open_ai_token()
