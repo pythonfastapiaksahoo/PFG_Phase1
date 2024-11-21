@@ -198,6 +198,7 @@ def runStatus(
 
             {
                         "StampFound": "Yes/No",
+                        "Credit Note": "Yes/No",
                         "NumberOfPages": "Total number of pages in the document",
                         "MarkedDept": "Extracted Circled department only",
                         "Confirmation": "Extracted confirmation number",
@@ -215,6 +216,7 @@ def runStatus(
 	    1. **Orientation Correction**: Check if the invoice orientation is not straight. If so, make it straight before extracting the data
             2. **Data Extraction**: Extract only the information specified:
             - **Invoice Document**: Yes/No
+            - **Credit Note**: Yes/No
             - **Invoice ID**: Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
             - **Vendor Name**:  Extracted vendor address from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
             - **Vendor Address**: Extracted vendor address from invoice document
@@ -250,7 +252,11 @@ def runStatus(
                 - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
                 - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                 - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
-
+                - **Credit Note**:  May have 'CREDIT MEMO' written on the invoice with or without Negative Amount.
+                    - If the invoice has 'CREDIT MEMO' written on it, return 'Yes'
+                    - If the invoice does not have 'CREDIT MEMO' written on it, return 'No'
+                    - If the invoice has 'CREDIT MEMO' written on it, but the amount is negative, return 'Yes'
+                    - Don't consider Discounts as it is not a Credit Note.
             4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
             ### Example Output:
