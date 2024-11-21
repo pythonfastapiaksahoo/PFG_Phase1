@@ -67,6 +67,7 @@ async def getVendorMaster(db):
                 "VENDOR_CLASS": vendor.VENDOR_CLASS,
                 "VENDOR_STATUS": vendor.VENDOR_STATUS,
                 "DEFAULT_LOC": vendor.DEFAULT_LOC,
+                "VNDR_FIELD_C30_B": vendor.VNDR_FIELD_C30_B,
                 "VENDOR_LOC": vendor.VENDOR_LOC if vendor.VENDOR_LOC else [],
                 "VENDOR_ADDR": vendor.VENDOR_ADDR if vendor.VENDOR_ADDR else [],
             }
