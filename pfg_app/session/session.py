@@ -23,7 +23,7 @@ if settings.build_type not in ["debug"]:
     ).token
 
     # Get the connection string from the environment variable
-    conn_string = os.getenv("AZURE_POSTGRESQL_AAD_API_CONNECTION_CONNECTIONSTRING")
+    conn_string = os.getenv("AZURE_POSTGRESQL_API_CONNECTION_CONNECTIONSTRING")
 
     # Convert connection string to RFC1738 format
     db_url, status = build_rfc1738_url(conn_string, access_token)
