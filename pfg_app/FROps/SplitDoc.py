@@ -54,7 +54,6 @@ def split_pdf_and_upload(
     destination_container_name,
     subfolder_name,
     prompt,
-    output_data,
     fileSize={},
     # deployment_name,
     # OpenAI_api_base,
@@ -118,7 +117,6 @@ def split_pdf_and_upload(
         # TODO below uses the stampData function from core.stampData
         pgstampdata = stampDataFn(
             stp_blb_data,
-            output_data,
             prompt,
             # deployment_name,
             # OpenAI_api_base,
@@ -436,7 +434,7 @@ def splitDoc(
                     crtInv = pageInvoVendorData[inv]['InvoiceId']
                     crtVrd = pageInvoVendorData[inv]['VendorName']
                     prvInv = pageInvoVendorData[inv-1]['InvoiceId']
-                    
+                    prvVrd = pageInvoVendorData[inv-1]['VendorName']
 
                     if prvInv[0]==crtInv[0]:
                         #same invoice
@@ -452,8 +450,15 @@ def splitDoc(
                             nwPg = 1
                         # else crtInv[1] <0.90 and (crtVdr[0]=='' or crtVdr[1]<70):
                         elif crtInv[1] < 0.90 and (crtVrd[0] == "" or crtVrd[1] < 70):
-                            #same page
-                            tmpLt.append(inv)
+                            chk_vdr = fuzz.token_set_ratio(prvVrd[0], crtVrd[0])> threshold
+                            if chk_vdr:
+                                spltLtmain.append(tmpLt)
+                                tmpLt= []
+                                tmpLt.append(inv)
+                                nwPg = 1
+                            else:
+                                #same page
+                                tmpLt.append(inv)
                         else: 
                             
                             spltLtmain.append(tmpLt)
@@ -492,7 +497,6 @@ def splitDoc(
         destination_container_name,
         subfolder_name,
         prompt,
-        output_data,
         # deployment_name,
         # OpenAI_api_base,
         # OpenAI_api_key,

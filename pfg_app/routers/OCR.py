@@ -571,21 +571,25 @@ def runStatus(
                     # here no match function is called
                     vndMth_address_ck = 0
                     matched_id_vendor = None
-                    # Extract the required values from StampDataList
-                    doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
-                    if len(metaVendorAdd[0]) > 1 and doc_VendorAddress:
-                        vndMth_address_ck, matched_id_vendor = VndMatchFn_2(
-                            doc_VendorAddress, metaVendorAdd
-                        )
-
-                        if vndMth_address_ck == 1:
-                            vendorID = matched_id_vendor
-                            vdrFound = 1
-                            logger.info(f"Vendor Address Matching with Master Data")
+                    try:
+                        # Extract the required values from StampDataList
+                        doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
+                        if doc_VendorAddress:
+                            if len(metaVendorAdd[0]) > 1:
+                                vndMth_address_ck, matched_id_vendor = VndMatchFn_2(
+                                    doc_VendorAddress, metaVendorAdd
+                                )
+                                if vndMth_address_ck == 1:
+                                    vendorID = matched_id_vendor
+                                    vdrFound = 1
+                                    logger.info("Vendor Address Matching with Master Data")
+                                else:
+                                    vdrFound = 0
+                                    logger.info("Vendor Address MisMatched with Master Data")
                         else:
-                            vdrFound = 0
-                            logger.info(f"Vendor Address MisMatched with Master Data")
-
+                            logger.warning(f"'VendorAddress' missing in StampDataList[splt_map[fl]]")
+                    except Exception as e:
+                        logger.error(f"Unexpected error: {e}")
                 if vdrFound == 1:
 
                     try:
