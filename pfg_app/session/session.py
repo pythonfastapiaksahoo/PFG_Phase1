@@ -12,6 +12,7 @@ Session = None
 Base = None
 DB = None
 SQLALCHEMY_DATABASE_URL = None
+SCHEMA = None
 
 if settings.build_type not in ["debug"]:
 
