@@ -10,6 +10,8 @@ from pfg_app.core.utils import build_rfc1738_url
 
 Session = None
 Base = None
+DB = None
+SQLALCHEMY_DATABASE_URL = None
 
 if settings.build_type not in ["debug"]:
 
