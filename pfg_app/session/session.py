@@ -13,7 +13,7 @@ Session = None
 Base = None
 DB = None
 SQLALCHEMY_DATABASE_URL = None
-SCHEMA = None
+SCHEMA = "pfg_schema"
 
 if settings.build_type not in ["debug"]:
 
@@ -30,11 +30,11 @@ if settings.build_type not in ["debug"]:
     db_url, status = build_rfc1738_url(conn_string, access_token)
 
     # include the schema name int he connection string
-    db_url = db_url + "&options=-csearch_path=pfg_schema"
+    SQLALCHEMY_DATABASE_URL = db_url + "&options=-csearch_path=pfg_schema"
 
     # Create the SQLAlchemy engine
     engine = create_engine(
-        db_url,
+        SQLALCHEMY_DATABASE_URL,
         pool_recycle=1800,
         pool_size=20,
         max_overflow=2,
