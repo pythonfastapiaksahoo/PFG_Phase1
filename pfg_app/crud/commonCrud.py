@@ -1,11 +1,17 @@
 import json
 import time
 import traceback
+from datetime import datetime
 
+from apscheduler.triggers.interval import IntervalTrigger
 from azure.ai.formrecognizer import DocumentModelAdministrationClient
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
-from pfg_app import settings
+from pfg_app import scheduler, settings
+from pfg_app.crud.ERPIntegrationCrud import (
+    bulkProcessVoucherData,
+    newbulkupdateInvoiceStatus,
+)
 from pfg_app.logger_module import logger
 
 
@@ -302,3 +308,29 @@ def copy_models_in_background(
         # Release the lock once done
         release_lock(container_client, "copy-process-lock")
         clear_stop_signal(container_client, "stop-signal")
+
+
+def schedule_bulk_update_invoice_status_job():
+    """Schedule a recurring job with a locking mechanism."""
+    if not scheduler.get_job("bulk_update_invoice_status"):
+        scheduler.add_job(
+            newbulkupdateInvoiceStatus,
+            trigger=IntervalTrigger(minutes=5),
+            id="bulk_update_invoice_status",
+            replace_existing=True,
+        )
+        logger.info(f"[{datetime.now()}] Scheduled background job`Status` with locking")
+
+
+def schedule_bulk_update_invoice_creation_job():
+    """Schedule a recurring job with a locking mechanism."""
+    if not scheduler.get_job("bulk_update_invoice_creation"):
+        scheduler.add_job(
+            bulkProcessVoucherData,
+            trigger=IntervalTrigger(minutes=5),
+            id="bulk_update_invoice_creation",
+            replace_existing=True,
+        )
+        logger.info(
+            f"[{datetime.now()}] Scheduled background job`Creation` with locking"
+        )

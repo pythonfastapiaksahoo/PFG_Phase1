@@ -65,6 +65,7 @@ class PFGVendor(BaseModel):
     ]
     VENDOR_STATUS: Optional[Literal["A", "D", "E", "I", "X"]]
     DEFAULT_LOC: Optional[str] = Field(max_length=10)
+    VNDR_FIELD_C30_B: Optional[str] = Field(max_length=30)
     VENDOR_LOC: Optional[List[dict]] = None
     VENDOR_ADDR: Optional[List[dict]] = None
 

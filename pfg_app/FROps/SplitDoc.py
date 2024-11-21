@@ -434,7 +434,7 @@ def splitDoc(
                     crtInv = pageInvoVendorData[inv]['InvoiceId']
                     crtVrd = pageInvoVendorData[inv]['VendorName']
                     prvInv = pageInvoVendorData[inv-1]['InvoiceId']
-                    
+                    prvVrd = pageInvoVendorData[inv-1]['VendorName']
 
                     if prvInv[0]==crtInv[0]:
                         #same invoice
@@ -450,8 +450,15 @@ def splitDoc(
                             nwPg = 1
                         # else crtInv[1] <0.90 and (crtVdr[0]=='' or crtVdr[1]<70):
                         elif crtInv[1] < 0.90 and (crtVrd[0] == "" or crtVrd[1] < 70):
-                            #same page
-                            tmpLt.append(inv)
+                            chk_vdr = fuzz.token_set_ratio(prvVrd[0], crtVrd[0])> threshold
+                            if chk_vdr:
+                                spltLtmain.append(tmpLt)
+                                tmpLt= []
+                                tmpLt.append(inv)
+                                nwPg = 1
+                            else:
+                                #same page
+                                tmpLt.append(inv)
                         else: 
                             
                             spltLtmain.append(tmpLt)
