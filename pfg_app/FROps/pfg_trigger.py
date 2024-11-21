@@ -355,9 +355,19 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
 
     if result:
         VENDOR_ID = result[0]
+        account_no = db.query(model.Vendor.account).filter(
+            model.Vendor.idVendor == VENDOR_ID).first()
+        # Check if there are multiple accounts
+        if "," in account_no:
+            # Extract the first account
+            account = account_no.split(",")[0]
+        else:
+            # If only one account exists, assign it as the first account
+            account = account_no
+
     else:
         VENDOR_ID = ""
-
+    
     InvStmDt = (
         db.query(model.StampDataValidation)
         .filter(model.StampDataValidation.documentid == inv_id)
