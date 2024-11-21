@@ -558,6 +558,8 @@ class Vendor(Base):
     Synonyms = Column(String(100), nullable=True)
     vendorType = Column(String(100), nullable=True)
     miscellaneous = Column(JSONB, nullable=True)
+    currency = Column(String, nullable=True)
+    account = Column(String(30),nullable=True)
 
     # __mapper_args__ = {"eager_defaults": True}
 
