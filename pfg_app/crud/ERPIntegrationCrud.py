@@ -738,6 +738,7 @@ async def SyncVendorMaster(db, vendordata):
                 "VENDOR_CLASS": row.VENDOR_CLASS,
                 "VENDOR_STATUS": row.VENDOR_STATUS,
                 "DEFAULT_LOC": row.DEFAULT_LOC,
+                "VNDR_FIELD_C30_B": row.VNDR_FIELD_C30_B,
                 "VENDOR_LOC": row.VENDOR_LOC if row.VENDOR_LOC else [],
                 "VENDOR_ADDR": row.VENDOR_ADDR if row.VENDOR_ADDR else [],
             }
@@ -770,6 +771,9 @@ async def SyncVendorMaster(db, vendordata):
             # Extract the CITY field
             city = primary_address.get("CITY", "").strip()
 
+            primary_loc = row.VENDOR_LOC[0] if row.VENDOR_LOC else {}
+            currency_cd = primary_loc.get("CURRENCY_CD", "").strip()
+            
             if existing_vendor:
                 # Update existing vendor record
                 existing_vendor.VendorName = row.NAME1
@@ -778,6 +782,8 @@ async def SyncVendorMaster(db, vendordata):
                 existing_vendor.City = city
                 existing_vendor.UpdatedOn = datetime.datetime.now()
                 existing_vendor.miscellaneous = row_data
+                existing_vendor.account = row.VNDR_FIELD_C30_B
+                existing_vendor.currency = currency_cd
                 update_vendors.append(existing_vendor)
 
             else:
@@ -792,6 +798,8 @@ async def SyncVendorMaster(db, vendordata):
                     createdBy=1,
                     entityID=1,
                     miscellaneous=row_data,
+                    account=row.VNDR_FIELD_C30_B,
+                    currency=currency_cd,
                     CreatedOn=datetime.datetime.now(),
                 )
                 new_vendors.append(new_vendor)

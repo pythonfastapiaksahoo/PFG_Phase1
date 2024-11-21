@@ -220,7 +220,7 @@ def runStatus(
             - **Vendor Address**: Extracted vendor address from invoice document
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
-            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or "#".
+            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.
             - **Circled Department**: Extract the clearly circled or marked keyword "Inventory", "INV" or "Supplies" or "SUP" from the stamp image,
                     If not circled, return "N/A".
             - **Department**: Extract either a department code or department name, handwritten
@@ -230,9 +230,7 @@ def runStatus(
             - **Receiver**: The name or code of the person who received the goods (may appear as "Receiver#" or by name).
             - **Confirmation Number**: A 9-digit number, usually handwritten and labeled as "Confirmation"., if it is visible.
                     If not, leave it as "N/A".
-            - **Currency**: Identified by currency symbols (e.g., CAD, USD) or determined by the city and country in the invoice address if
-                    a currency symbol is not found.
-
+            - **Currency**: Identified by currency symbols (e.g., CAD, USD).
 
             3. **Special Notes**:
             - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
@@ -251,7 +249,7 @@ def runStatus(
                 - **Receiver** : Extract it only if keyword "Receiver#" exist before the receiver code or name.
                 - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
                 - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
-                - **Currency**: If it's unclear kept it as "CAD" as default.
+                - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
 
             4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
