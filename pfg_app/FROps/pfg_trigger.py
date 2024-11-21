@@ -358,12 +358,15 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
         account_no = db.query(model.Vendor.account).filter(
             model.Vendor.idVendor == VENDOR_ID).first()
         # Check if there are multiple accounts
-        if "," in account_no:
+        if account_no and "," in account_no:
             # Extract the first account
             account = account_no.split(",")[0]
-        else:
-            # If only one account exists, assign it as the first account
+        elif account_no:
+            # If only one account exists, assign it
             account = account_no
+        else:
+            # If account is None or empty, set it as empty
+            account = ""
 
     else:
         VENDOR_ID = ""
@@ -385,13 +388,18 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
     else:
         voucher_data_status = 0
 
-    itmSelected = stmpData["SelectedDept"]
-    if itmSelected == "Inventory":
-        ACCOUNT = "14100"
-    elif itmSelected == "Supplies":
-        ACCOUNT = "71999"
+    # Determine ACCOUNT based on account existence or emptiness
+    if account:
+        ACCOUNT = account
+    
     else:
-        ACCOUNT = ""
+        itmSelected = stmpData["SelectedDept"]
+        if itmSelected == "Inventory":
+            ACCOUNT = "14100"
+        elif itmSelected == "Supplies":
+            ACCOUNT = "71999"
+        else:
+            ACCOUNT = ""
 
     if voucher_data_status == 1:
         try:
