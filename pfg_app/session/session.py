@@ -7,6 +7,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from pfg_app import settings
 from pfg_app.core.utils import build_rfc1738_url
+from pfg_app.logger_module import logger
 
 Session = None
 Base = None
@@ -75,6 +76,11 @@ else:
 def get_db():
     try:
         db = Session()
+        current_schema = db.execute("SELECT current_schema();").scalar()
+        logger.info(f"Current schema before setting: {current_schema}")
+        db.execute("SET search_path TO pfg_schema;")
+        current_schema = db.execute("SELECT current_schema();").scalar()
+        logger.info(f"Current schema after setting: {current_schema}")
         yield db
     finally:
         db.close()
