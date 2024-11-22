@@ -1,4 +1,5 @@
 import json
+import traceback
 
 import numpy as np
 from azure.storage.blob import BlobServiceClient
@@ -129,7 +130,7 @@ def model_validate(
 
     except Exception as e:
         trin_doc_path = ""
-        model_validate_msg = str(e)
+        model_validate_msg = str(e) + traceback.format_exc()
         model_validate_status = 0
     return model_validate_status, model_validate_msg, model_id, trin_doc_path
 
@@ -310,7 +311,7 @@ def db_push_data(
             db_push_msg = "Issue with Model merge!"
     except Exception as e:
         db_push_status = 0
-        db_push_msg = "db push error: " + str(e)
+        db_push_msg = "db push error: " + str(e) + traceback.format_exc()
     return db_push_status, db_push_msg, file_path, data_mdy
 
 
@@ -387,7 +388,7 @@ def model_validate_final(
 
     except Exception as e:
         model_validate_final_status = 0
-        model_validate_final_msg = "Error: " + str(e)
+        model_validate_final_msg = "Error: " + str(e) + traceback.format_exc()
     return (
         model_validate_final_status,
         model_validate_final_msg,
