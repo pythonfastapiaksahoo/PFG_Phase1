@@ -198,7 +198,7 @@ def runStatus(
 
             {
                         "StampFound": "Yes/No",
-                        "Credit Note": "Yes/No",
+                        "CreditNote": "Yes/No",
                         "NumberOfPages": "Total number of pages in the document",
                         "MarkedDept": "Extracted Circled department only",
                         "Confirmation": "Extracted confirmation number",
@@ -216,7 +216,7 @@ def runStatus(
 	    1. **Orientation Correction**: Check if the invoice orientation is not straight. If so, make it straight before extracting the data
             2. **Data Extraction**: Extract only the information specified:
             - **Invoice Document**: Yes/No
-            - **Credit Note**: Yes/No
+            - **CreditNote**: Yes/No
             - **Invoice ID**: Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
             - **Vendor Name**:  Extracted vendor address from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
             - **Vendor Address**: Extracted vendor address from invoice document
@@ -275,6 +275,7 @@ def runStatus(
             The expected output should be:
             {
                 "StampFound": "Yes",
+                "CreditNote": "Yes/No",
                 "NumberOfPages": "1",
                 "MarkedDept": "Inventory",
                 "Confirmation": "123456789",
