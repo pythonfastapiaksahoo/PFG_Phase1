@@ -1401,6 +1401,7 @@ def postpro(
                         doc_invID = doc_invID[1:]
                     while doc_invID[-1].isalnum() == 0:
                         doc_invID = doc_invID[:-1]
+                    doc_invID = re.sub(r'[^a-zA-Z0-9\s]', '', doc_invID)
                     
                     dt["header"][tg]["data"]["value"] = doc_invID
                     vendor = model.Vendor
@@ -1432,9 +1433,9 @@ def postpro(
                             if d[0] not in [10, 0]:
                                 duplicate_status = 0
                                 break
-                            elif d[0] in [7, 14]:
-                                # posted_status = 0  # TODO: Unused variable
-                                break
+                            # elif d[0] in [7, 14]:
+                            #     # posted_status = 0  # TODO: Unused variable
+                            #     break
 
             if dt["header"][tg]["tag"] == "InvoiceDate":
                 invo_date = dt["header"][tg]["data"]["value"]
