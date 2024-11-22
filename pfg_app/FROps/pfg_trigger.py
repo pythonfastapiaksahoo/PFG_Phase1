@@ -4,7 +4,7 @@ import traceback
 from datetime import datetime
 from typing import Union
 
-from sqlalchemy import or_
+from sqlalchemy import or_,and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -665,16 +665,32 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     else:
 
         try:
+            # docTb_docHdr_count = (
+            #     db.query(model.Document)
+            #     .filter(
+            #         model.Document.docheaderID == invID_docTab,
+            #         model.Document.documentStatusID != 10,
+            #         model.Document.vendorAccountID == vdrAccID,
+            #         (model.Document.documentStatusID ==10 and model.Document.idDocument == docID)
+            #     )
+            #     .count()
+            # )
+
             docTb_docHdr_count = (
                 db.query(model.Document)
                 .filter(
                     model.Document.docheaderID == invID_docTab,
-                    model.Document.documentStatusID != 10,
                     model.Document.vendorAccountID == vdrAccID,
+                    or_(
+                        model.Document.documentStatusID != 10,  # First condition
+                        and_(
+                            model.Document.documentStatusID == 10,  # Second condition
+                            model.Document.idDocument == docID
+                        )
+                    )
                 )
                 .count()
             )
-
             if docTb_docHdr_count > 1:
                 InvodocStatus = 10
                 invoSubstatus = 12

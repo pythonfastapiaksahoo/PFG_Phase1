@@ -1684,6 +1684,8 @@ def postpro(
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
         for msg_itm_ck in missing_header:
+            if msg_itm_ck == "Credit Identifier":
+                continue
             # notification missing header = msg_itm_ck
             tp_tg = {
                 "tag": msg_itm_ck,
