@@ -74,5 +74,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'ase-api-azidp-prod-westus2-001'
+          app-name: 'ase-api-fia-prod-westus2-001'
           slot-name: 'Production'
