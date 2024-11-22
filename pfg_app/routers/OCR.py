@@ -1648,8 +1648,9 @@ def push_frdata(
         credit_note = 0
         for tg in data['header']:
             if tg['tag'] =="Credit Identifier":
-                credit_note=1
-                break
+                if "credit" in tg["data"]["value"].lower():
+                    credit_note=1
+                    break
 
         if credit_note==1:        
             for crt_tg in data['header']:
