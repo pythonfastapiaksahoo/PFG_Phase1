@@ -355,8 +355,9 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
 
     if result:
         VENDOR_ID = result[0]
-        account_no = db.query(model.Vendor.account).filter(
-            model.Vendor.idVendor == VENDOR_ID).first()
+        account_number = db.query(model.Vendor.account).filter(
+            model.Vendor.VendorCode == VENDOR_ID).first()
+        account_no = account_number[0]
         # Check if there are multiple accounts
         if account_no and "," in account_no:
             # Extract the first account
