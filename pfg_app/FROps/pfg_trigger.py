@@ -308,6 +308,7 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
                 else:
                     invo_SubTotal = invo_total
         else:
+            
             invo_SubTotal = clean_amount(payload_subtotal)
 
         
@@ -326,7 +327,16 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
             freight_charges = clean_amount(docHdrDt["FreightCharges"])
     # try:
     if "Currency" in docHdrDt:
-        currency_code = docHdrDt["Currency"]
+        currency_code_rw = docHdrDt["Currency"]
+
+        isCurrencyMatch = validate_currency(
+                inv_id, currency_code_rw, db
+            )  
+
+        if isCurrencyMatch: 
+            currency_code = currency_code_rw
+        else:
+            currency_code = "CAD"
     else:
         currency_code = "CAD"
     #         isCurrencyMatch = validate_currency(
@@ -1266,8 +1276,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 if otrChgsCk == 1:
                                     payload_subtotal = othCrgs_sm
 
-                                elif "subtotal" in docHdrDt:
-                                    payload_subtotal = docHdrDt["subtotal"]
+                                elif "SubTotal" in docHdrDt:
+                                    payload_subtotal = docHdrDt["SubTotal"]
                                 else:
                                     payload_subtotal = invoTotal
 

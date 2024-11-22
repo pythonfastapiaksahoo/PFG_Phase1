@@ -1433,9 +1433,9 @@ def postpro(
                             if d[0] not in [10, 0]:
                                 duplicate_status = 0
                                 break
-                            elif d[0] in [7, 14]:
-                                # posted_status = 0  # TODO: Unused variable
-                                break
+                            # elif d[0] in [7, 14]:
+                            #     # posted_status = 0  # TODO: Unused variable
+                            #     break
 
             if dt["header"][tg]["tag"] == "InvoiceDate":
                 invo_date = dt["header"][tg]["data"]["value"]
