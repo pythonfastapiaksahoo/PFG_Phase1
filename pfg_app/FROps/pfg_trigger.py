@@ -1424,7 +1424,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     ):
 
                                         nonIntStatus, nonIntStatusMsg = (
-                                            nonIntegratedVoucherData(docID, gst_amt, db)
+                                            nonIntegratedVoucherData(docID, gst_amt, payload_subtotal,db)
                                         )
                                         if nonIntStatus == 1:
                                             DeptCk = 1
