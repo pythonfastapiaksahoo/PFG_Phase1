@@ -328,7 +328,7 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
     # try:
     if "Currency" in docHdrDt:
         currency_code_rw = docHdrDt["Currency"]
-        
+
         isCurrencyMatch = validate_currency(
                 inv_id, currency_code_rw, db
             )  
