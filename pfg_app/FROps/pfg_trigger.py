@@ -74,6 +74,8 @@ def IntegratedvoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
     DEPTID = ""  # type: ignore
     location = ""  # type: ignore
     recvLineNum = ""  # type: ignore
+    location_rw = ""
+    
     for invRpt in invo_recp:
         BUSINESS_UNIT = invRpt.BUSINESS_UNIT
         VENDOR_SETID = invRpt.VENDOR_SETID

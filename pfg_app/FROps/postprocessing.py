@@ -1401,6 +1401,7 @@ def postpro(
                         doc_invID = doc_invID[1:]
                     while doc_invID[-1].isalnum() == 0:
                         doc_invID = doc_invID[:-1]
+                    doc_invID = re.sub(r'[^a-zA-Z0-9\s]', '', doc_invID)
                     
                     dt["header"][tg]["data"]["value"] = doc_invID
                     vendor = model.Vendor
