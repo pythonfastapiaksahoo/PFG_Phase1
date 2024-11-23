@@ -29,6 +29,7 @@ def clean_amount(amount_str):
     return 0.0
 
 
+
 # db = SCHEMA
 def IntegratedvoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
     voucher_data_status = 1
@@ -625,6 +626,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     tax_isErr = 0
     documentModelID = ""
     otrChgsCk = 0
+    credit_note = 0
     try:
 
         docTb = (
@@ -877,7 +879,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         invTotalMth = 0
                         invTotalMth_msg = "Invoice total mismatch, please review."
                         # if dsdApprovalCheck == 1:
+                        if "Credit Identifier" in docHdrDt:
+                            # if docHdrDt["Credit Identifier"]:
+                                if "credit" in docHdrDt["Credit Identifier"].lower():
+                                    credit_note = 1
+                                    if credit_note == 1:
+                                        docStatusSync["Status overview"] = {
+                                                "status": 0,
+                                                "response": ["The Credit Note process is currently in progress. Please try again later."],
+                                            }
+                                        return docStatusSync
+                                    # check if amount is negative
+                                    # read data from document table where idDocument = inv_id
+                                    # 1. Check if values are negative, if not make it negative
+                        
 
+                        
                         # TAX validations:
                         if "PST" in docHdrDt:
                             pst = clean_amount(docHdrDt["PST"])
