@@ -4,7 +4,7 @@ import traceback
 from datetime import datetime
 from typing import Union
 
-from sqlalchemy import or_
+from sqlalchemy import or_,and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,7 @@ def clean_amount(amount_str):
     except Exception:
         return None
     return 0.0
+
 
 
 # db = SCHEMA
@@ -625,6 +626,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     tax_isErr = 0
     documentModelID = ""
     otrChgsCk = 0
+    credit_note = 0
     try:
 
         docTb = (
@@ -665,16 +667,32 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     else:
 
         try:
+            # docTb_docHdr_count = (
+            #     db.query(model.Document)
+            #     .filter(
+            #         model.Document.docheaderID == invID_docTab,
+            #         model.Document.documentStatusID != 10,
+            #         model.Document.vendorAccountID == vdrAccID,
+            #         (model.Document.documentStatusID ==10 and model.Document.idDocument == docID)
+            #     )
+            #     .count()
+            # )
+
             docTb_docHdr_count = (
                 db.query(model.Document)
                 .filter(
                     model.Document.docheaderID == invID_docTab,
-                    model.Document.documentStatusID != 10,
                     model.Document.vendorAccountID == vdrAccID,
+                    or_(
+                        model.Document.documentStatusID != 10,  # First condition
+                        and_(
+                            model.Document.documentStatusID == 10,  # Second condition
+                            model.Document.idDocument == docID
+                        )
+                    )
                 )
                 .count()
             )
-
             if docTb_docHdr_count > 1:
                 InvodocStatus = 10
                 invoSubstatus = 12
@@ -861,7 +879,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         invTotalMth = 0
                         invTotalMth_msg = "Invoice total mismatch, please review."
                         # if dsdApprovalCheck == 1:
+                        if "Credit Identifier" in docHdrDt:
+                            # if docHdrDt["Credit Identifier"]:
+                                if "credit" in docHdrDt["Credit Identifier"].lower():
+                                    credit_note = 1
+                                    if credit_note == 1:
+                                        docStatusSync["Status overview"] = {
+                                                "status": 0,
+                                                "response": ["The Credit Note process is currently in progress. Please try again later."],
+                                            }
+                                        return docStatusSync
+                                    # check if amount is negative
+                                    # read data from document table where idDocument = inv_id
+                                    # 1. Check if values are negative, if not make it negative
+                        
 
+                        
                         # TAX validations:
                         if "PST" in docHdrDt:
                             pst = clean_amount(docHdrDt["PST"])
@@ -1408,7 +1441,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     ):
 
                                         nonIntStatus, nonIntStatusMsg = (
-                                            nonIntegratedVoucherData(docID, gst_amt, db)
+                                            nonIntegratedVoucherData(docID, gst_amt, payload_subtotal,db)
                                         )
                                         if nonIntStatus == 1:
                                             DeptCk = 1

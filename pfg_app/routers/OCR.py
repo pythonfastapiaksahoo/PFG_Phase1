@@ -1619,6 +1619,58 @@ def push_frdata(
     docsubstatus,
     db,
 ):
+    # credit invoice processsing:
+    try:
+        hdr_ck_list = ["SubTotal","InvoiceTotal","GST",
+        "HST",
+        "PST",
+        "HST",
+        "TotalTax",
+        "LitterDeposit",
+        "BottleDeposit",
+        "Discount",
+        "FreightCharges",
+        "Fuel surcharge",
+        "Credit_Card_Surcharge",
+        "Deposit",
+        "EcoFees",
+        "EnviroFees",
+        "OtherCharges",
+        "Other Credit Charges",
+        "ShipmentCharges",
+        "TotalDiscount",
+        "Usage Charges"
+        ]
+
+        tab_ck_list = ["Quantity","UnitPrice","Amount","AmountExcTax"]
+
+
+        credit_note = 0
+        for tg in data['header']:
+            if tg['tag'] =="Credit Identifier":
+                if "credit" in tg["data"]["value"].lower():
+                    credit_note=1
+                    break
+
+        if credit_note==1:        
+            for crt_tg in data['header']:
+                if crt_tg['tag'] in hdr_ck_list:
+                    try:
+                        crt_tg["data"]["value"] = str(float(crt_tg["data"]["value"])*-1)
+                    except:
+                        logger.info(f"Invalid {crt_tg['tag']} : {crt_tg['data']['value']} ")
+
+            for line_cr_tg in data['tab']:
+                for cr_rw in line_cr_tg:
+                    if cr_rw['tag'] in tab_ck_list:
+                        try:
+                            cr_rw['data'] = str(float(cr_rw['data'])*-1)
+                        except:
+                            logger.info(f"invalid {cr_rw['tag']} : {cr_rw['data']}")
+                            crt_tg['status'] = 0
+    except Exception:
+        logger.error("Credit Note Error")
+        logger.error(traceback.format_exc())
 
     # create Invoice record
 
