@@ -237,6 +237,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     normalize_string(model.Document.store).ilike(pattern),
                     normalize_string(model.Document.dept).ilike(pattern),
                     normalize_string(model.Document.voucher_id).ilike(pattern),
+                    normalize_string(model.Document.mail_row_key).ilike(pattern),
                     normalize_string(model.Vendor.VendorName).ilike(pattern),
                     normalize_string(model.Vendor.Address).ilike(pattern),
                     normalize_string(model.DocumentSubStatus.status).ilike(pattern),
