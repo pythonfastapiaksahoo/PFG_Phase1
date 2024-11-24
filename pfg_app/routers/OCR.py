@@ -657,6 +657,7 @@ def runStatus(
                                 25,
                                 106,
                                 db,
+                                mail_row_key,
                             )
                             
                             logger.info(
@@ -753,6 +754,7 @@ def runStatus(
                                     4,
                                     7,
                                     db,
+                                    mail_row_key,
                                 )
 
                                 logger.info(
@@ -833,6 +835,7 @@ def runStatus(
                             26,
                             107,
                             db,
+                            mail_row_key,
                         )
 
                         logger.info(f" VendorUnidentified: invoice_ID: {invoId}")
@@ -1196,6 +1199,7 @@ def runStatus(
                     4,
                     7,
                     db,
+                    mail_row_key,
                 )
 
                 logger.info(
@@ -1224,20 +1228,20 @@ def runStatus(
         except Exception:
             # logger.error(f"ocr.py: {err}")
             logger.error(f" ocr.py: {traceback.format_exc()}")
-        try:
-            if len(str(invoId)) !=0:
+        # try:
+        #     if len(str(invoId)) !=0:
                     
-                db.query(model.Document).filter(
-                    model.Document.idDocument == invoId
-                ).update(
-                    {
-                        model.Document.mail_row_key: str(
-                            mail_row_key
-                        ),  # noqa: E501
+        #         db.query(model.Document).filter(
+        #             model.Document.idDocument == invoId
+        #         ).update(
+        #             {
+        #                 model.Document.mail_row_key: str(
+        #                     mail_row_key
+        #                 ),  # noqa: E501
                        
-                    }
-                )
-                db.commit()
+        #             }
+        #         )
+        #         db.commit()
 
         except Exception:
             logger.debug(f"{traceback.format_exc()}")
@@ -1618,6 +1622,7 @@ def push_frdata(
     docStatus,
     docsubstatus,
     db,
+    mail_row_key,
 ):
     # credit invoice processsing:
     try:
@@ -1714,6 +1719,7 @@ def push_frdata(
         "docPath": ref_url,
         "UploadDocType": UploadDocType,
         "documentsubstatusID": docsubstatus,
+        "mail_row_key": mail_row_key,
     }
 
     try:
