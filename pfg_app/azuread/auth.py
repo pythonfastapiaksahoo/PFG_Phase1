@@ -1,11 +1,13 @@
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from pfg_app.azuread.AzureADAuthorization import authorize
 from pfg_app.azuread.schemas import AzureUser
+from pfg_app.logger_module import logger
 from pfg_app.model import User
-from pfg_app.session.session import Session, get_db
+from pfg_app.session.session import get_db
 
 
 class ForbiddenAccess(HTTPException):
@@ -62,6 +64,20 @@ def get_admin_user(
     # )
 
     if "Admin" in user.roles:
+        try:
+            all_results = []
+            current_schema = db.execute("SELECT current_schema();").fetchall()
+            all_results.append({"current_schema": current_schema})
+            tables = db.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'pfg_schema';"
+            ).fetchall()
+            all_results.append({"tables_in_schema": tables})
+        except Exception as e:
+            all_results.append({"error": str(e)})
+        finally:
+            logger.info(all_results)
+
         # check if this user exists in the database agaisnt user tabel
         user_in_db = db.query(User).filter(User.azure_id == user.id).first()
 

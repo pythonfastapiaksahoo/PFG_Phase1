@@ -1,5 +1,6 @@
 import traceback
 from datetime import date, datetime, timedelta
+from urllib.parse import quote_plus
 
 # from azure.core.credentials import AzureKeyCredential
 from azure.core.exceptions import AzureError
@@ -259,3 +260,18 @@ def get_container_sas(container_name: str):
         expiry=datetime.utcnow() + timedelta(hours=1),  # Set appropriate expiry time
     )
     return sas_token
+
+
+def build_rfc1738_url(conn_string, access_token):
+    try:
+        """Convert the connection string into an RFC1738-compliant URL."""
+        conn_params = dict(param.split("=") for param in conn_string.split())
+        rfc1738_url = (
+            f"postgresql+psycopg2://{conn_params['user']}:{quote_plus(access_token)}"
+            f"@{conn_params['host']}:{conn_params['port']}/{conn_params['dbname']}"
+            f"?sslmode={conn_params['sslmode']}"
+        )
+        return rfc1738_url, True
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return str(e), False
