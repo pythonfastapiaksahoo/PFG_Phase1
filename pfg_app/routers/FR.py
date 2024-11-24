@@ -156,16 +156,24 @@ async def update_metadata(
             if "vendorName" in frmetadata
             else frmetadata["ServiceProviderName"]
         )
-        if "vendorName" in frmetadata:
+        vendor_code = None
+        if "vendorCode" in frmetadata:
             syn = frmetadata["synonyms"]
+            vendor_code = frmetadata["vendorCode"]
             # vendorname = vendorname.replace("'","''")  >> uncomment this if
             # it's MySQL DB
-            db.query(model.Vendor).filter(model.Vendor.VendorName == vendorname).update(
-                {"Synonyms": json.dumps(syn)}
-            )
+            # db.query(model.Vendor).filter(model.Vendor.VendorName == vendorname).update(
+            #     {"Synonyms": json.dumps(syn)}
+            # )
+            # Update the specific row based on both VendorName and VendorCode
+            db.query(model.Vendor).filter(
+                model.Vendor.VendorName == vendorname,
+                model.Vendor.VendorCode == vendor_code,
+            ).update({"Synonyms": json.dumps(syn)})
             db.commit()
             # del frmetadata["synonyms"]
             del frmetadata["vendorName"]
+            del frmetadata["vendorCode"]
         else:
             del frmetadata["ServiceProviderName"]
         configs = getOcrParameters(1, db)
@@ -620,3 +628,28 @@ async def check_duplicate_synonyms(synonym: str, db: Session = Depends(get_db)):
             "status": "error",
             "message": f"Error in checking duplicate synonyms: {e}",
         }
+
+
+# check duplicate synonyms
+@router.get("/checkduplicatemodel")
+async def check_duplicate_model(model_name: str, db: Session = Depends(get_db)):
+    """
+    Check if the given model_name already exists in the DocumentModel table.
+
+    Args:
+        db (Session): SQLAlchemy database session.
+        model_name (str): The name of the model to check.
+
+    Returns:
+        str: A message indicating if the model is duplicate or not.
+    """
+    try:
+        # Query the DocumentModel table using db.query
+        existing_model = db.query(model.DocumentModel).filter(model.DocumentModel.modelName == model_name).first()
+        
+        if existing_model:
+            return True
+        else:
+            return False
+    except Exception as e:
+        return f"An error occurred while checking for duplicates: {str(traceback.format_exc())}"

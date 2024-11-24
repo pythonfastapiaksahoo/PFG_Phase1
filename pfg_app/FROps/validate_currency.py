@@ -1,6 +1,6 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-
+from pfg_app.logger_module import logger
 import pfg_app.model as model
 
 # StampDataList = [
@@ -21,7 +21,8 @@ import pfg_app.model as model
 def validate_currency(doc_id, currency, db: Session):
     # db = next(get_db())
     if not currency:
-        raise ValueError("No currency found in the OpenAI result")
+        logger.error("Currency is missing or empty in the OpenAI result. Treating it as NULL.")  # noqa: E501
+        currency = ""  # Treat empty string as NULL
 
     # Get the vendor account ID associated with the document
     va_id = (
@@ -48,10 +49,10 @@ def validate_currency(doc_id, currency, db: Session):
         .scalar()
     )
     # Determine if currencies match or not
-    currencies_match = actual_currency == currency or actual_currency == ""
+    # currencies_match = actual_currency == currency
 
     currencies_match = (
-        actual_currency != "" and currency != "" and actual_currency == currency
+        actual_currency != "" and actual_currency == currency
     )
     # Get documentModelID for the given document
     doc_model_id = (

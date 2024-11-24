@@ -37,6 +37,8 @@ def get_fr_data(
 
             result = poller.result().to_dict()
 
+            # logger.info(f"FUNC => [get_fr_data result] : {result}")
+
             # Process the result
             if result and result["model_id"] == inv_model_id:
                 output_data.append(result)
@@ -151,12 +153,24 @@ def call_form_recognizer(
         api_version=api_version,
         retry_policy=custom_retry_policy,
     )
-
-    poller = document_analysis_client.begin_analyze_document(
-        model_id=invoice_model_id, document=input_file, locale=locale
-    )
+    if invoice_model_id == "prebuilt-invoice":
+        # Call the Form Recognizer service
+        poller = document_analysis_client.begin_analyze_document(
+            model_id=invoice_model_id,
+            document=input_file,
+            locale=locale,
+            features=["keyValuePairs"],
+        )
+    else:
+        poller = document_analysis_client.begin_analyze_document(
+            model_id=invoice_model_id,
+            document=input_file,
+            locale=locale,
+        )
 
     result = poller.result().to_dict()
+
+    # logger.info(f"FUNC => [call_form_recognizer] result: {result}")
 
     return result
 
@@ -169,6 +183,7 @@ def analyze_form(
         result = call_form_recognizer(
             input_file, endpoint, api_version, invoice_model_id, locale
         )
+        logger.info(f"FUNC => [analyzeForm] result: {result}")
         return result
     except Exception:
         logger.error(f"Error in Form Recognizer: analyzeForm {traceback.format_exc()}")
@@ -191,6 +206,7 @@ def train_model(endpoint, model_id, blob_container_url, prefix):
         )
 
         model = poller.result().to_dict()
+        logger.info(f"FUNC => [train_model] model: {model}")
 
         return {"message": "success", "result": model}
 
@@ -213,7 +229,7 @@ def compose_model(endpoint, model_id, model_ids):
     )
 
     model = poller.result().to_dict()
-
+    logger.info(f"FUNC => [compose_model] model: {model}")
     return model
 
 
@@ -225,7 +241,7 @@ def get_model(endpoint, model_id):
         )
 
         model = document_model_admin_client.get_document_model(model_id=model_id)
-
+        logger.info(f"FUNC => [get_model] model: {model}")
         return {"message": "success", "result": model}
     # Capture specific ResourceNotFoundError
     except ResourceNotFoundError as e:

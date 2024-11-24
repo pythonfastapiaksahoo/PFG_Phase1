@@ -4,6 +4,7 @@ import traceback
 from fastapi import Response
 
 import pfg_app.model as model
+from pfg_app import settings
 from pfg_app.core.azure_fr import get_fr_data
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.logger_module import logger
@@ -205,24 +206,25 @@ def customModelCall(docID):
 
         # entityBodyID = 1
         file_size_accepted = 100
-        accepted_file_type = metadata.InvoiceFormat.split(",")
+        accepted_file_type = "application/pdf"
         # date_format = metadata.DateFormat
-        endpoint = configs.Endpoint
+        endpoint = settings.form_recognizer_endpoint
         DateFormat = metadata.DateFormat
         # mandatoryheadertags = configs.mandatoryheadertags
         # mandatorylinetags = configs.mandatorylinetags
         inv_model_id = modelData.modelID
-        API_version = configs.ApiVersion
+        # API_version = configs.ApiVersion
 
         filename = spltFileName.split("/")[-1]
 
         destination_container_name = configs.ContainerName
-        API_version = configs.ApiVersion
+        API_version = settings.api_version
         model_type = "custom"
 
         # preprocess the file and get binary data
         fr_preprocessing_status, fr_preprocessing_msg, input_data, ui_status = (
             fr_preprocessing(
+                
                 vendorAccountID,
                 entityID,
                 file_path,
@@ -349,12 +351,27 @@ def customModelCall(docID):
                                 iserror = 0
                                 errorDesc = "NA"
                         if hdr in [
+                            "InvoiceTotal",
                             "SubTotal",
-                            "TotalTax",
                             "GST",
+                            "HST",
                             "PST",
                             "HST",
+                            "TotalTax",
                             "LitterDeposit",
+                            "BottleDeposit",
+                            "Discount",
+                            "FreightCharges",
+                            "Fuel surcharge",
+                            "Credit_Card_Surcharge",
+                            "Deposit",
+                            "EcoFees",
+                            "EnviroFees",
+                            "OtherCharges",
+                            "Other Credit Charges",
+                            "ShipmentCharges",
+                            "TotalDiscount",
+                            "Usage Charges"
                         ]:
                             clnAnt = clean_amount(val)
                             if clnAnt is not None:

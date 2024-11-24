@@ -1,6 +1,8 @@
 import concurrent.futures
 from os import getenv
 
+from apscheduler.schedulers.background import BackgroundScheduler
+from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 
 from pfg_app.core.config import Settings
@@ -11,6 +13,15 @@ settings: Settings = Settings()
 
 from pfg_app.core.utils import get_credential, get_secret_from_vault  # noqa: E402
 from pfg_app.logger_module import logger  # noqa: E402
+
+# Initialize the scheduler
+scheduler = BackgroundScheduler(daemon=True)
+scheduler.start()
+# Create a ContainerClient from BlobServiceClient
+scheduler_container_client = BlobServiceClient(
+    account_url=f"https://{settings.storage_account_name}.blob.core.windows.net",
+    credential=get_credential(),
+).get_container_client("locks")
 
 if settings.build_type not in ["debug"]:
     credential = get_credential()
@@ -41,7 +52,7 @@ if settings.build_type not in ["debug"]:
         {"client_secret": "APPORTAL-CLIENT-SECRET"},
         # {"key_vault_url": "APPORTAL-KEY-VAULT-URL"},
         # {"open_ai_endpoint": "APPORTAL-OPEN-AI-ENDPOINT"},
-        # {"storage_account_name": "APPORTAL-STORAGE-ACCOUNT-NAME"},
+        {"storage_account_name": "AZURE-STORAGE-ACCOUNT-NAME"},
         {"erp_url": "APPORTAL-ERP-URL"},
         {"erp_invoice_import_endpoint": "APPORTAL-ERP-INVOICE-IMPORT-ENDPOINT"},
         {"erp_invoice_status_endpoint": "APPORTAL-ERP-INVOICE-STATUS-ENDPOINT"},

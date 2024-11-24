@@ -22,6 +22,10 @@ tz_region = tz.timezone(tz_region_name)
 
 
 def date_cnv(doc_date, date_format):
+    if doc_date is None:
+        date_status = 0
+        req_date = doc_date
+        return req_date, date_status
     correctDate = None
     get_date = {
         "jan": "01",
@@ -294,7 +298,7 @@ def tb_cln_amt(amt):
         amt = "0"
     # cln_amt_sts = 0  # TODO: Unused variable
     amt_cpy = amt
-    logger.info(f"cln_amt - amt: {amt}")
+    # logger.info(f"cln_amt - amt: {amt}")
     # amt = amt.replace(',','.')
     try:
         if "," in amt:
@@ -337,7 +341,8 @@ def getBBox(data):
             if isinstance(data, list):
                 data = data[0]
                 # # Extract x, y, width, height
-            polygon = data["polygon"]
+            # llok for polygon if it does not exist set a default value
+            polygon = data.get("polygon", [{"x": 0, "y": 0}])
             x_values = [point["x"] for point in polygon]
             y_values = [point["y"] for point in polygon]
             x = round(min(x_values), 2)
@@ -346,7 +351,7 @@ def getBBox(data):
             h = str(round(max(y_values) - y, 2))
             x = str(x)
             y = str(y)
-            logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
+            # logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
             return {"x": x, "y": y, "w": w, "h": h}
     except Exception:
         logger.debug(f" {traceback.format_exc()}")
@@ -488,11 +493,25 @@ def getFrData_MNF(input_data):
 
                         if prTg in [
                             "InvoiceTotal",
-                            "SubTotal",
+                           "SubTotal",
                             "TotalTax",
                             "GST",
                             "PST",
                             "HST",
+                            "LitterDeposit",
+                            "BottleDeposit",
+                            "Discount",
+                            "FreightCharges",
+                            "Fuel surcharge",
+                            "Credit_Card_Surcharge",
+                            "Deposit",
+                            "EcoFees",
+                            "EnviroFees",
+                            "OtherCharges",
+                            "Other Credit Charges",
+                            "ShipmentCharges",
+                            "TotalDiscount",
+                            "Usage Charges"
                         ]:
 
                             if isinstance(
@@ -869,13 +888,24 @@ def postpro(
                         )
                         ovrll_conf_ck = ovrll_conf_ck * 0
                     if ct_tag in [
-                        "InvoiceTotal",
-                        "SubTotal",
                         "TotalTax",
                         "GST",
                         "PST",
-                        "LitterDeposit",
                         "HST",
+                        "LitterDeposit",
+                        "BottleDeposit",
+                        "Discount",
+                        "FreightCharges",
+                        "Fuel surcharge",
+                        "Credit_Card_Surcharge",
+                        "Deposit",
+                        "EcoFees",
+                        "EnviroFees",
+                        "OtherCharges",
+                        "Other Credit Charges",
+                        "ShipmentCharges",
+                        "TotalDiscount",
+                        "Usage Charges"
                     ]:
                         if isinstance(tb_cln_amt(cst_dict[ct_tag]["content"]), float):
                             tag_status = 1
@@ -1366,44 +1396,46 @@ def postpro(
         for tg in range(len(dt["header"])):
             if dt["header"][tg]["tag"] == "InvoiceId":
                 doc_invID = dt["header"][tg]["data"]["value"]
-                if len(doc_invID) > 1:
+                if doc_invID is not None and len(doc_invID) > 1:
                     while doc_invID[0].isalnum() == 0:
                         doc_invID = doc_invID[1:]
                     while doc_invID[-1].isalnum() == 0:
                         doc_invID = doc_invID[:-1]
-                dt["header"][tg]["data"]["value"] = doc_invID
-                vendor = model.Vendor
-                vendor_account = model.VendorAccount
-                document = model.Document
+                    doc_invID = re.sub(r'[^a-zA-Z0-9\s]', '', doc_invID)
+                    
+                    dt["header"][tg]["data"]["value"] = doc_invID
+                    vendor = model.Vendor
+                    vendor_account = model.VendorAccount
+                    document = model.Document
 
-                # Join Vendor and VendorAccount tables on vendorID
-                vendor_vendor_account_join = join(
-                    vendor, vendor_account, vendor.idVendor == vendor_account.vendorID
-                )
-
-                # Construct the final query
-                query = (
-                    db.query(document.documentStatusID)
-                    .join(
-                        vendor_vendor_account_join,
-                        document.vendorAccountID == vendor_account.idVendorAccount,
+                    # Join Vendor and VendorAccount tables on vendorID
+                    vendor_vendor_account_join = join(
+                        vendor, vendor_account, vendor.idVendor == vendor_account.vendorID
                     )
-                    .filter(
-                        document.docheaderID == str(doc_invID),
-                        document.idDocumentType == 3,
-                        vendor.VendorName == metaVendorName,
-                    )
-                    .all()
-                )
 
-                if len(query) > 0:
-                    for d in query:
-                        if d[0] not in [10, 0]:
-                            duplicate_status = 0
-                            break
-                        elif d[0] in [7, 14]:
-                            # posted_status = 0  # TODO: Unused variable
-                            break
+                    # Construct the final query
+                    query = (
+                        db.query(document.documentStatusID)
+                        .join(
+                            vendor_vendor_account_join,
+                            document.vendorAccountID == vendor_account.idVendorAccount,
+                        )
+                        .filter(
+                            document.docheaderID == str(doc_invID),
+                            document.idDocumentType == 3,
+                            vendor.VendorName == metaVendorName,
+                        )
+                        .all()
+                    )
+
+                    if len(query) > 0:
+                        for d in query:
+                            if d[0] not in [10, 0]:
+                                duplicate_status = 0
+                                break
+                            # elif d[0] in [7, 14]:
+                            #     # posted_status = 0  # TODO: Unused variable
+                            #     break
 
             if dt["header"][tg]["tag"] == "InvoiceDate":
                 invo_date = dt["header"][tg]["data"]["value"]
@@ -1497,32 +1529,34 @@ def postpro(
                             ] = "Vendor Name Matching with Master Data"
                             dt["header"][tg]["status"] = 1
                         else:
-                            vectorizer = TfidfVectorizer()
-
-                            tfidf_matrix_di = vectorizer.fit_transform(
-                                [doc_VendorName, metaVendorName]
-                            )
-                            cos_sim_vndName = cosine_similarity(
-                                tfidf_matrix_di[0], tfidf_matrix_di[1]
-                            )
-
-                            if cos_sim_vndName[0][0] * 100 >= 95:
-                                dt["header"][tg][
-                                    "status_message"
-                                ] = "Vendor Name Matching with Master Data"
-                                dt["header"][tg]["status"] = 1
-
-                                logger.info(
-                                    f"cos_sim:{doc_VendorName} ,"
-                                    + f"vendor:{metaVendorName}"
+                           
+                            if doc_VendorName is not None:
+                                vectorizer = TfidfVectorizer()
+                                tfidf_matrix_di = vectorizer.fit_transform(
+                                    [doc_VendorName, metaVendorName]
                                 )
-
-                            else:
+                                cos_sim_vndName = cosine_similarity(
+                                    tfidf_matrix_di[0], tfidf_matrix_di[1]
+                                )
+                                if cos_sim_vndName[0][0] * 100 >= 95:
+                                    dt["header"][tg][
+                                        "status_message"
+                                    ] = "Vendor Name Matching with Master Data"
+                                    dt["header"][tg]["status"] = 1
+                                    logger.info(
+                                        f"cos_sim:{doc_VendorName} ,"
+                                        + f"vendor:{metaVendorName}"
+                                    )
+                                else:
+                                    dt["header"][tg][
+                                        "status_message"
+                                    ] = "Vendor Name Mismatch with Master Data"
+                                    dt["header"][tg]["status"] = 0
+                            else:   
                                 dt["header"][tg][
                                     "status_message"
-                                ] = "Vendor Name Mismatch with Master Data"
-                                dt["header"][tg]["status"] = 0
-
+                                ]   = "Vendor Name Mismatch with Master Data"
+                                dt["header"][tg]["status"] = 0      
                     except Exception:
                         logger.debug(f" {traceback.format_exc()}")
                         dt["header"][tg][
@@ -1591,9 +1625,22 @@ def postpro(
                 "GST",
                 "HST",
                 "PST",
+                "HST",
+                "TotalTax",
                 "LitterDeposit",
+                "BottleDeposit",
+                "Discount",
+                "FreightCharges",
                 "Fuel surcharge",
+                "Credit_Card_Surcharge",
+                "Deposit",
+                "EcoFees",
+                "EnviroFees",
+                "OtherCharges",
+                "Other Credit Charges",
                 "ShipmentCharges",
+                "TotalDiscount",
+                "Usage Charges"
             ]:
                 try:
                     dt["header"][tg]["data"]["value"] = cln_amt(
@@ -1637,6 +1684,8 @@ def postpro(
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
         for msg_itm_ck in missing_header:
+            if msg_itm_ck == "Credit Identifier":
+                continue
             # notification missing header = msg_itm_ck
             tp_tg = {
                 "tag": msg_itm_ck,

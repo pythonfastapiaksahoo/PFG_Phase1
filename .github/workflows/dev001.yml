@@ -2,13 +2,13 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
-name: Build and deploy to Azure Web App DEV
-# Dev build - ase-api-azidp-dev-westus2-001
+name: Build and deploy DEV001
 
 on:
-  push:
-    branches:
-      - main
+
+  #  branches:
+  #    - main
+
   workflow_dispatch:
 
 jobs:
@@ -48,7 +48,7 @@ jobs:
     runs-on: azure-private-ghhostedrunner-nonprod-001
     needs: build
     environment:
-      name: 'development'
+      name: 'dev'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write #This is required for requesting the JWT
@@ -66,9 +66,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENTID }}
-          tenant-id: ${{ secrets.AZURE_TENANTID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTIONID }}
+          client-id: ${{ secrets.CLOUD_AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.CLOUD_AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.CLOUD_AZUREAPPSERVICE_SUBSCRIPTIONID }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3

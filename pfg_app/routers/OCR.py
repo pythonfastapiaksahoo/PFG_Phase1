@@ -1,4 +1,3 @@
-# import logging
 import io
 import json
 import os
@@ -6,6 +5,7 @@ import re
 import traceback
 from datetime import datetime, timezone
 
+import Levenshtein
 import pandas as pd
 
 # import psycopg2
@@ -27,6 +27,7 @@ from pfg_app.auth import AuthHandler
 # from pfg_app.azuread.auth import get_user
 # from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.azure_fr import get_fr_data
+from pfg_app.core.stampData import VndMatchFn_2, is_valid_date
 from pfg_app.FROps.pfg_trigger import (
     IntegratedvoucherData,
     nonIntegratedVoucherData,
@@ -35,13 +36,13 @@ from pfg_app.FROps.pfg_trigger import (
 from pfg_app.FROps.postprocessing import getFrData_MNF, postpro
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.FROps.SplitDoc import splitDoc
-from pfg_app.FROps.stampData import is_valid_date
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 
 # from logModule import email_sender
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 
+import re
 # model.Base.metadata.create_all(bind=engine)
 auth_handler = AuthHandler()
 tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
@@ -65,6 +66,25 @@ docLabelMap = {
 status_stream_delay = 1  # second
 status_stream_retry_timeout = 30000  # milisecond
 
+common_terms = {
+                "ltd",
+                "inc",
+                "co",
+                "corp",
+                "corporation",
+                "company",
+                "limited",
+                }
+
+# Clean the vendor names by removing punctuation, converting to lowercase, and filtering out common terms
+def clean_vendor_name(name):
+    # Convert to lowercase
+    name = name.lower()
+    # Remove punctuation
+    name = re.sub(r"[^\w\s]", "", name)
+    # Split name into words, remove common terms, and rejoin
+    name = " ".join(word for word in name.split() if word not in common_terms)
+    return name
 
 @router.post("/status/stream_pfg")
 def runStatus(
@@ -91,6 +111,7 @@ def runStatus(
         # email_path = ""
         # subject = ""
         vendorAccountID = 0
+        vendorID = 0
         db = next(get_db())
         # Create a new instance of the SplitDocTab model
         new_split_doc = model.SplitDocTab(
@@ -171,62 +192,104 @@ def runStatus(
         destination_container_name = "apinvoice-container"  # TODO move to settings
         fr_API_version = "2023-07-31"  # TODO move to settings
 
-        prompt = """This is an invoice document. It may contain invoice ID, vendor name,
-          and a stamp with handwritten details as follows
-          (stamp may be of different variants):
+        prompt = """
+            The provided image contains invoice ID, vendor name, vendor address, and a stamp sealed with handwritten or stamped information, possibly
+            including a receiver's stamp. Extract the relevant information and format it as a list of JSON objects, adhering strictly to the structure provided below:
 
-        - store number (number either starting after keyword "STR #" or "ST")
+            {
+                        "StampFound": "Yes/No",
+                        "CreditNote": "Yes/No",
+                        "NumberOfPages": "Total number of pages in the document",
+                        "MarkedDept": "Extracted Circled department only",
+                        "Confirmation": "Extracted confirmation number",
+                        "ReceivingDate": "Extracted receiving date",
+                        "Receiver": "Extracted receiver information",
+                        "Department": "Extracted department code or name",
+                        "Store Number": "Extracted store number",
+                        "VendorName": "Extracted vendor name",
+                        "VendorAddress": "Extracted vendor address",
+                        "InvoiceID": "Extracted invoice ID",
+                        "Currency": "Extracted currency"
+                    }
 
-        - keyword - any one of Inventory/Supplies (select only circled or marked one)
+            ### Instructions:
+	    1. **Orientation Correction**: Check if the invoice orientation is not straight. If so, make it straight before extracting the data
+            2. **Data Extraction**: Extract only the information specified:
+            - **Invoice Document**: Yes/No
+            - **CreditNote**: Yes/No
+            - **Invoice ID**: Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
+            - **Vendor Name**:  Extracted vendor address from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
+            - **Vendor Address**: Extracted vendor address from invoice document
+            - **Stamp Present**: Yes/No
+            - If a stamp is present, extract the following information:
+            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.
+            - **Circled Department**: Extract the clearly circled or marked keyword "Inventory", "INV" or "Supplies" or "SUP" from the stamp image,
+                    If not circled, return "N/A".
+            - **Department**: Extract either a department code or department name, handwritten
+                    and possibly starting with "Dept"
+            - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
+                    If not, leave it blank.
+            - **Receiver**: The name or code of the person who received the goods (may appear as "Receiver#" or by name).
+            - **Confirmation Number**: A 9-digit number, usually handwritten and labeled as "Confirmation"., if it is visible.
+                    If not, leave it as "N/A".
+            - **Currency**: Identified by currency symbols (e.g., CAD, USD).
 
-        - Department number or name - Starting after Department (else set it to
-        'Unclear')
+            3. **Special Notes**:
+            - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
+                    - If the circle starts with the word "Inventory" and ends with the starting character of "Supplies", extract "Inventory".
+                    - If the circle starts with the last character of "Inventory" and covers "Supplies" completely, extract "Supplies".
+                    - If the circle exactly encloses the word "Inventory" or "INV," return "Inventory."
+                    - If the circle exactly encloses the word "Supplies" or "SUP," return "Supplies."
+                    - If the circle encloses the word "INV," return "Inventory."
+                    - If the circle encloses the word "SUP," return "Supplies."
+                - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
+                    - The confirmation number must be a handwritten number only. 
+                    - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
+                    - Apply image enhancement techniques such as increasing contrast to clarify obscured digits.
+                    - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
+                    - if the confirmation number is not present, return "N/A"
+                - **Receiver** : Extract it only if keyword "Receiver#" exist before the receiver code or name.
+                - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
+                - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
+                - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
+                - **Credit Note**:  May have 'CREDIT MEMO' written on the invoice with or without Negative Amount.
+                    - If the invoice has 'CREDIT MEMO' written on it, return 'Yes'
+                    - If the invoice does not have 'CREDIT MEMO' written on it, return 'No'
+                    - If the invoice has 'CREDIT MEMO' written on it, but the amount is negative, return 'Yes'
+                    - Don't consider Discounts as it is not a Credit Note.
+            4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
-        - Receiving Date (the date when the goods were received)
+            ### Example Output:
+            If the extracted text includes:
+            - MarkedDept: "Inventory"
+            - Confirmation: "123456789"
+            - ReceivingDate: "2023-01-01"
+            - Receiver: "John Doe"
+            - Department: "30"
+            - Store Number: "1981"
+            - VendorName: "ABC Company"
+            - VendorAddress: "123 Main St, Anytown CANADA"
+            - InvoiceID: "INV-12345"
+            - Currency: "CAD"
 
-        - Confirmation number (Starting after 'Confirmation' only number)
+            The expected output should be:
+            {
+                "StampFound": "Yes",
+                "CreditNote": "Yes/No",
+                "NumberOfPages": "1",
+                "MarkedDept": "Inventory",
+                "Confirmation": "123456789",
+                "ReceivingDate": "2023-01-01",
+                "Receiver": "John Doe",
+                "Department": "30",
+                "Store Number": "1981",
+                "VendorName": "ABC Company",
+                "VendorAddress": "123 Main St, Anytown USA",
+                "InvoiceID": "INV-12345",
+                "Currency": "CAD"
+            }
 
-        - Receiver# or Receiver name (the name of the person or code who received
-        the goods)
-
-
-        InvoiceDocument: Yes/No
-
-        InvoiceID: [InvoiceID].
-
-        StampPresent: Yes/No.
-
-        If stamp is present:
-
-        - Extract the Invoice Number.
-
-        - Extract the valid Currency from the invoice document by identifying the
-        currency symbol before the total amount. The currency can be CAD or USD or any
-          other currency.If there is no symbol then check invoice address is in Canada
-          or USA or any other country and set the currency accordingly.
-
-        Provide all information in the following JSON format:
-
-        {
-
-            'StampFound': 'Yes/No',
-            'NumberOfPages : Number of pages in the document',
-            'MarkedDept': 'Inventory/Supplies' (only if it's clearly circled or marked),
-            'Confirmation': 'Extracted data',
-            'ReceivingDate': 'Extracted data',
-            'Receiver': 'Extracted data',
-            'Department': 'Extracted data',
-            'Store Number': 'Extracted data',
-            'VendorName': 'Extracted data',
-            'InvoiceID': 'Extracted data',
-            'Currency': 'Extracted data'
-        }.
-
-        Extract the relevant information and return it only in the JSON format above.
-          Do not include any text outside the JSON object. No additional
-          explanations are needed.
-
-"""
+            """
 
         (
             prbtHeaders,
@@ -253,6 +316,7 @@ def runStatus(
                 model.Vendor.VendorName,
                 model.Vendor.Synonyms,
                 model.Vendor.Address,
+                model.Vendor.VendorCode,
             ).filter(
                 func.jsonb_extract_path_text(
                     model.Vendor.miscellaneous, "VENDOR_STATUS"
@@ -260,7 +324,7 @@ def runStatus(
                 == "A"
             )
             rows = query.all()
-            columns = ["idVendor", "VendorName", "Synonyms", "Address"]
+            columns = ["idVendor", "VendorName", "Synonyms", "Address", "VendorCode"]
 
             vendorName_df = pd.DataFrame(rows, columns=columns)
 
@@ -299,8 +363,10 @@ def runStatus(
                 # ltPg = [spltInv[1] - 1][0]  # TODO: Unused variable
                 vdrFound = 0
                 spltFileName = splitfileNames[splt_map[fl]]
+                logger.info(f"spltFileName: {spltFileName}")
                 try:
                     InvofileSize = fileSize[spltFileName]
+                    logger.info(f"InvofileSize: {InvofileSize}")
                 except Exception:
                     logger.error(f"{traceback.format_exc()}")
                     InvofileSize = ""
@@ -322,10 +388,10 @@ def runStatus(
                     logger.error(f"{traceback.format_exc()}")
 
                 if "VendorName" in prbtHeaders[splt_map[fl]]:
-                    # logger.info(f"DI prbtHeaders: {prbtHeaders}")
-                    inv_vendorName = prbtHeaders[splt_map[fl]]["VendorName"][0]
-                    di_inv_vendorName = inv_vendorName
-                    logger.info(f" DI inv_vendorName: {inv_vendorName}")
+                    logger.info(f"DI prbtHeaders: {prbtHeaders}")
+                    di_inv_vendorName = prbtHeaders[splt_map[fl]]["VendorName"][0]
+                    # di_inv_vendorName = inv_vendorName
+                    logger.info(f" DI inv_vendorName: {di_inv_vendorName}")
                 else:
                     di_inv_vendorName = ""
 
@@ -342,13 +408,35 @@ def runStatus(
                     spltFileName = splitfileNames[fl]
                     try:
                         stop = False
-                        for syn, vName in zip(
-                            vendorName_df["Synonyms"], vendorName_df["idVendor"]
+                        for syn, v_id, vendorName in zip(
+                            vendorName_df["Synonyms"],
+                            vendorName_df["idVendor"],
+                            vendorName_df["VendorName"],
                         ):
                             if stop:
                                 break
-                                # print("syn: ",syn,"   vName: ",vName)
-                            if syn is not None or str(syn) != "None":
+                                # print("syn: ",syn,"   v_id: ",v_id)
+
+                            vName_lower = str(stamp_inv_vendorName)
+                            vendorName_lower = str(vendorName)
+                            # Cleaned versions of the vendor names
+                            vName_lower = clean_vendor_name(vName_lower).lower()
+                            vendorName_lower = clean_vendor_name(vendorName_lower).lower()  # noqa: E501
+                            similarity = Levenshtein.ratio(
+                                vName_lower, vendorName_lower)
+                            
+                            # Check if similarity is 80% or greater
+                            if similarity * 100 >= 85:
+                                vdrFound = 1
+                                vendorID = v_id
+                                logger.info(
+                                    f"Vendor match found using Levenshtein similarity with accuracy: {similarity*100}%"   # noqa: E501
+                                )  
+                                stop = True
+
+                            if (syn is not None or str(syn) != "None") and (
+                                vdrFound == 0
+                            ):
                                 synlt = json.loads(syn)
                                 if isinstance(synlt, list):
                                     for syn1 in synlt:
@@ -359,13 +447,16 @@ def runStatus(
                                         for syn2 in syn_1:
                                             if stop:
                                                 break
-
-                                            tfidf_matrix_di = vectorizer.fit_transform(
-                                                [syn2, di_inv_vendorName]
-                                            )
-                                            cos_sim_di = cosine_similarity(
-                                                tfidf_matrix_di[0], tfidf_matrix_di[1]
-                                            )
+                                            if len(di_inv_vendorName) > 0:
+                                                tfidf_matrix_di = (
+                                                    vectorizer.fit_transform(
+                                                        [syn2, di_inv_vendorName]
+                                                    )
+                                                )
+                                                cos_sim_di = cosine_similarity(
+                                                    tfidf_matrix_di[0],
+                                                    tfidf_matrix_di[1],
+                                                )
 
                                             tfidf_matrix_stmp = (
                                                 vectorizer.fit_transform(
@@ -376,22 +467,22 @@ def runStatus(
                                                 tfidf_matrix_stmp[0],
                                                 tfidf_matrix_stmp[1],
                                             )
-
-                                            if cos_sim_di[0][0] * 100 >= 95:
-                                                vdrFound = 1
-                                                vendorID = vName
-                                                logger.info(
-                                                    f"cos_sim:{cos_sim_di} , \
-                                                        vendor:{vName}"
-                                                )
-                                                stop = True
-                                                break
+                                            if len(di_inv_vendorName) > 0:
+                                                if cos_sim_di[0][0] * 100 >= 95:
+                                                    vdrFound = 1
+                                                    vendorID = v_id
+                                                    logger.info(
+                                                        f"cos_sim:{cos_sim_di} , \
+                                                            vendor:{v_id}"
+                                                    )
+                                                    stop = True
+                                                    break
                                             elif cos_sim_stmp[0][0] * 100 >= 95:
                                                 vdrFound = 1
-                                                vendorID = vName
+                                                vendorID = v_id
                                                 logger.info(
                                                     f"cos_sim:{cos_sim_stmp} , \
-                                                        vendor:{vName}"
+                                                        vendor:{v_id}"
                                                 )
                                                 stop = True
                                                 break
@@ -404,7 +495,7 @@ def runStatus(
                                                 if syn2 == di_inv_vendorName:
 
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     stop = True
                                                     break
                                                 elif (
@@ -413,14 +504,14 @@ def runStatus(
                                                 ):
 
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     stop = True
                                                     break
                                             elif stamp_inv_vendorName != "":
                                                 if syn2 == stamp_inv_vendorName:
 
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     stop = True
                                                     break
                                                 elif (
@@ -429,7 +520,7 @@ def runStatus(
                                                 ):
 
                                                     vdrFound = 1
-                                                    vendorID = vName
+                                                    vendorID = v_id
                                                     stop = True
                                                     break
 
@@ -443,7 +534,69 @@ def runStatus(
                     logger.error(f"{traceback.format_exc()}")
                     vdrFound = 0
 
-                # vxdrFound = 0
+                if vdrFound == 1:
+                    # Retrieve the vendor name for the specified vendorID
+                    try:
+                        metaVendorName = vendorName_df.loc[
+                            vendorName_df["idVendor"] == vendorID, "VendorName"
+                        ].values[0]
+                    except IndexError:
+                        logger.error(f"Vendor with ID {vendorID} not found.")
+                        metaVendorName = ""
+
+                    # Proceed only if vendor name was found
+                    if metaVendorName:
+                        # Group VendorCode and Address by VendorName
+                        address_dict = (
+                            vendorName_df[vendorName_df["VendorName"] == metaVendorName]
+                            .set_index("idVendor")["Address"]
+                            .to_dict()
+                        )
+
+                        # Format as a list of dictionaries with VendorCode as keys
+                        metaVendorAdd = [address_dict]
+
+                        # Log the retrieved information or assign as needed
+                        logger.info(f"Vendor Name: {metaVendorName}")
+                        logger.info(
+                            f"Addresses for Vendor Name '{metaVendorName}': {metaVendorAdd}"  # noqa: E501
+                        )
+                    else:
+                        # Assign empty list if vendor name is not found
+                        metaVendorAdd = []
+
+                    # Extract the required values from StampDataList
+                    try:
+                        doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
+                    except (KeyError, IndexError) as e:
+                        logger.error(
+                            f"Error retrieving VendorAddress from StampDataList: {e}"
+                        )
+                        doc_VendorAddress = ""
+
+                    # Initialize vndMth_address_ck to handle scenarios w
+                    # here no match function is called
+                    vndMth_address_ck = 0
+                    matched_id_vendor = None
+                    try:
+                        # Extract the required values from StampDataList
+                        doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
+                        if doc_VendorAddress:
+                            if len(metaVendorAdd[0]) > 1:
+                                vndMth_address_ck, matched_id_vendor = VndMatchFn_2(
+                                    doc_VendorAddress, metaVendorAdd
+                                )
+                                if vndMth_address_ck == 1:
+                                    vendorID = matched_id_vendor
+                                    vdrFound = 1
+                                    logger.info("Vendor Address Matching with Master Data")
+                                else:
+                                    vdrFound = 0
+                                    logger.info("Vendor Address MisMatched with Master Data")
+                        else:
+                            logger.warning(f"'VendorAddress' missing in StampDataList[splt_map[fl]]")
+                    except Exception as e:
+                        logger.error(f"Unexpected error: {e}")
                 if vdrFound == 1:
 
                     try:
@@ -451,32 +604,38 @@ def runStatus(
                             vendorName_df[vendorName_df["idVendor"] == vendorID][
                                 "Address"
                             ]
-                        )[0]
+                        )
 
                     except Exception:
                         logger.error(f"{traceback.format_exc()}")
                         metaVendorAdd = ""
+                        
                     try:
-                        metaVendorName = list(
-                            vendorName_df[vendorName_df["idVendor"] == vendorID][
-                                "VendorName"
-                            ]
-                        )[0]
-                    except Exception:
-                        logger.error(f"{traceback.format_exc()}")
+                        # Filter the DataFrame for rows matching vendorID
+                        vendorName_list = list(vendorName_df[vendorName_df["idVendor"] == vendorID]["VendorName"])
+                        
+                        # Check if the list is not empty
+                        if vendorName_list:
+                            metaVendorName = vendorName_list[0]
+                        else:
+                            # Handle the case where no match is found
+                            metaVendorName = ""
 
-                        metaVendorName = ""
+                    except Exception as e:
+                        logger.error(f"Error occurred: {traceback.format_exc()}")
                     vendorAccountID = vendorID
                     poNumber = "nonPO"
                     VendoruserID = 1
-                    configs = getOcrParameters(customerID, db)
+                    # configs = getOcrParameters(customerID, db)
                     metadata = getMetaData(vendorAccountID, db)
                     entityID = 1
                     modelData, modelDetails = getModelData(vendorAccountID, db)
 
                     if modelData is None:
                         try:
-                            preBltFrdata, preBltFrdata_status = getFrData_MNF(rwOcrData)
+                            preBltFrdata, preBltFrdata_status = getFrData_MNF(
+                                rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
+                            )
 
                             invoId = push_frdata(
                                 preBltFrdata,
@@ -499,7 +658,7 @@ def runStatus(
                                 106,
                                 db,
                             )
-
+                            
                             logger.info(
                                 f" Onboard vendor Pending: invoice_ID: {invoId}"
                             )
@@ -522,9 +681,11 @@ def runStatus(
                         file_size_accepted = 100
                         accepted_file_type = metadata.InvoiceFormat.split(",")
                         date_format = metadata.DateFormat
-                        endpoint = configs.Endpoint
+                        endpoint = settings.form_recognizer_endpoint
                         inv_model_id = modelData.modelID
-                        API_version = configs.ApiVersion
+                        API_version = settings.api_version
+                        # API_version = configs.ApiVersion
+
 
                         generatorObj = {
                             "spltFileName": spltFileName,
@@ -569,7 +730,7 @@ def runStatus(
                         try:
                             if len(str(invoId)) == 0:
                                 preBltFrdata, preBltFrdata_status = getFrData_MNF(
-                                    rwOcrData
+                                    rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                                 )
                                 # Postprocessing Failed
                                 invoId = push_frdata(
@@ -648,7 +809,9 @@ def runStatus(
 
                 else:
                     try:
-                        preBltFrdata, preBltFrdata_status = getFrData_MNF(rwOcrData)
+                        preBltFrdata, preBltFrdata_status = getFrData_MNF(
+                            rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
+                        )
                         # 999999
                         invoId = push_frdata(
                             preBltFrdata,
@@ -820,11 +983,11 @@ def runStatus(
                                 RevDateCk_isErr = 0
                                 RevDateCk_msg = ""
                             else:
-                                RevDateCk_isErr = 1
+                                RevDateCk_isErr = 0
                                 RevDateCk_msg = "Invalid Date Format"
                         else:
                             ReceivingDate = "N/A"
-                            RevDateCk_isErr = 1
+                            RevDateCk_isErr = 0
                             RevDateCk_msg = "ReceivingDate Not Found."
 
                         stampdata["documentid"] = invoId
@@ -843,7 +1006,7 @@ def runStatus(
                             RvrCk_msg = ""
                         else:
                             Receiver = "N/A"
-                            RvrCk_isErr = 1
+                            RvrCk_isErr = 0
                             RvrCk_msg = "Receiver Not Available"
 
                         stampdata["documentid"] = invoId
@@ -974,10 +1137,13 @@ def runStatus(
                             logger.debug(f"{traceback.format_exc()}")
 
                         try:
+                            gst_amt = 0
                             if store_type == "Integrated":
-                                IntegratedvoucherData(invoId, db)
+                                payload_subtotal = ""
+                                IntegratedvoucherData(invoId, gst_amt,payload_subtotal, db)
                             elif store_type == "Non-Integrated":
-                                nonIntegratedVoucherData(invoId, db)
+                                payload_subtotal = ""
+                                nonIntegratedVoucherData(invoId, gst_amt,payload_subtotal, db)
                         except Exception:
                             logger.debug(f"{traceback.format_exc()}")
 
@@ -1007,7 +1173,9 @@ def runStatus(
             # log to DB
         try:
             if len(str(invoId)) == 0:
-                preBltFrdata, preBltFrdata_status = getFrData_MNF(rwOcrData)
+                preBltFrdata, preBltFrdata_status = getFrData_MNF(
+                    rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
+                )
                 invoId = push_frdata(
                     preBltFrdata,
                     999999,
@@ -1056,15 +1224,35 @@ def runStatus(
         except Exception:
             # logger.error(f"ocr.py: {err}")
             logger.error(f" ocr.py: {traceback.format_exc()}")
+        try:
+            if len(str(invoId)) !=0:
+                    
+                db.query(model.Document).filter(
+                    model.Document.idDocument == invoId
+                ).update(
+                    {
+                        model.Document.mail_row_key: str(
+                            mail_row_key
+                        ),  # noqa: E501
+                       
+                    }
+                )
+                db.commit()
 
+        except Exception:
+            logger.debug(f"{traceback.format_exc()}")
     except Exception as err:
 
         logger.error(f"API exception ocr.py: {traceback.format_exc()}")
         status = "error: " + str(err)
 
     try:
+
         if vdrFound == 1 and modelData is not None:
-            pfg_sync(invoId, userID, db)
+            customCall = 0
+            skipConf = 0
+
+            pfg_sync(invoId, userID, db, customCall, skipConf)
 
     except Exception:
         logger.debug(f"{traceback.format_exc()}")
@@ -1088,6 +1276,7 @@ def getModelData(vendorAccountID, db):
         modelData = (
             db.query(model.DocumentModel)
             .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
+            .filter(model.DocumentModel.is_active == 1)
             .order_by(model.DocumentModel.UpdatedOn)
             .all()
         )
@@ -1166,7 +1355,7 @@ def live_model_fn_1(generatorObj):
     file_path = generatorObj["file_path"]
     # container = generatorObj["containername"]  # TODO: Unused variable
     API_version = generatorObj["API_version"]
-    endpoint = generatorObj["endpoint"]
+    endpoint = settings.form_recognizer_endpoint
     inv_model_id = generatorObj["inv_model_id"]
     entityID = 1
     entityBodyID = generatorObj["entityBodyID"]
@@ -1430,6 +1619,58 @@ def push_frdata(
     docsubstatus,
     db,
 ):
+    # credit invoice processsing:
+    try:
+        hdr_ck_list = ["SubTotal","InvoiceTotal","GST",
+        "HST",
+        "PST",
+        "HST",
+        "TotalTax",
+        "LitterDeposit",
+        "BottleDeposit",
+        "Discount",
+        "FreightCharges",
+        "Fuel surcharge",
+        "Credit_Card_Surcharge",
+        "Deposit",
+        "EcoFees",
+        "EnviroFees",
+        "OtherCharges",
+        "Other Credit Charges",
+        "ShipmentCharges",
+        "TotalDiscount",
+        "Usage Charges"
+        ]
+
+        tab_ck_list = ["Quantity","UnitPrice","Amount","AmountExcTax"]
+
+
+        credit_note = 0
+        for tg in data['header']:
+            if tg['tag'] =="Credit Identifier":
+                if "credit" in tg["data"]["value"].lower():
+                    credit_note=1
+                    break
+
+        if credit_note==1:        
+            for crt_tg in data['header']:
+                if crt_tg['tag'] in hdr_ck_list:
+                    try:
+                        crt_tg["data"]["value"] = str(float(crt_tg["data"]["value"])*-1)
+                    except:
+                        logger.info(f"Invalid {crt_tg['tag']} : {crt_tg['data']['value']} ")
+
+            for line_cr_tg in data['tab']:
+                for cr_rw in line_cr_tg:
+                    if cr_rw['tag'] in tab_ck_list:
+                        try:
+                            cr_rw['data'] = str(float(cr_rw['data'])*-1)
+                        except:
+                            logger.info(f"invalid {cr_rw['tag']} : {cr_rw['data']}")
+                            crt_tg['status'] = 0
+    except Exception:
+        logger.error("Credit Note Error")
+        logger.error(traceback.format_exc())
 
     # create Invoice record
 

@@ -2,12 +2,12 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
-name: Build and deploy Python app to Azure Web App - ase-api-azidp-dev-westus2-002
+name: Build and deploy Python app to Azure Web App - ase-api-azidp-qa-westus2-001
 
 on:
   push:
     branches:
-      - main
+      - qa
   workflow_dispatch:
 
 jobs:
@@ -26,10 +26,10 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-
+      
       - name: Install dependencies
         run: pip install -r requirements.txt
-
+        
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
@@ -61,17 +61,18 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_D75B9BE2873A46F89F61E1D588D8D082 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_20D35D74594840D8B83D01A7B148D4E4 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1304C955326340CBAAB9EA6531C9AC93 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_325589DD030946B8AEC0DC9C72B5F495 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C1EC9DA0E9BF40B1BF7704061B6C01AA }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A50BC2719B1D4EE9924E32B0B28A073C }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'ase-api-azidp-dev-westus2-002'
+          app-name: 'ase-api-azidp-qa-westus2-001'
           slot-name: 'Production'
+          

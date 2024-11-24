@@ -1,52 +1,67 @@
-import logging
+import os
+from contextvars import ContextVar
+from logging import DEBUG, INFO, Filter, StreamHandler, getLogger
 
-from opencensus.ext.azure.log_exporter import AzureLogHandler
+from azure.monitor.opentelemetry import configure_azure_monitor
+from opentelemetry import trace
 
 from pfg_app import settings
 
-# import os
+logger = getLogger(__name__)
+# Create OpenTelemetry tracer
+tracer = trace.get_tracer(__name__)
 
 
-# from opencensus.trace import execution_context
+# Custom logging filter to inject Operation ID automatically
+class OperationIdFilter(Filter):
+    def filter(self, record):
+        # Retrieve the Operation ID
+        # from the context variable or OpenTelemetry trace context
+        operation_id = (
+            operation_id_var.get()
+            or trace.get_current_span().get_span_context().trace_id
+        )
+        # Convert trace_id to hexadecimal string if necessary
+        if isinstance(operation_id, int):
+            operation_id = format(operation_id, "032x")
+        record.operation_id = operation_id
+        record.worker_id = os.getpid()  # Use process ID to identify the worker
+        record.msg = f"[Worker PID: {record.worker_id}] [Operation ID: {operation_id}] {record.msg}"  # noqa: E501
+        return True
 
 
-# class TraceIdFilter(logging.Filter):
-#     def filter(self, record):
-#         # Get the current tracer and retrieve the trace_id
-#         tracer = execution_context.get_opencensus_tracer()
-#         trace_id = (
-#             tracer.span_context.trace_id
-#             if tracer
-#             else "00000000000000000000000000000000"
-#         )
-
-#         # Add the trace_id to the log record
-#         record.trace_id = trace_id
-#         record.environment = os.getenv("ENVIRONMENT", "unknown")
-#         record.worker_pid = os.getpid()
-#         return True
+# Helper function to manually set Operation ID if needed (optional)
+def set_operation_id(operation_id):
+    operation_id_var.set(operation_id)
 
 
-# # Configure logging
-# trace_id_filter = TraceIdFilter()
-# formatter = logging.Formatter(
-#     "%(asctime)s - %(environment)s - \
-#         Worker PID: %(worker_pid)s - %(trace_id)s - %(message)s"
-# )
 if settings.build_type != "debug":
-    print(settings.appinsights_connection_string)
-    handler = AzureLogHandler(connection_string=settings.appinsights_connection_string)
-# handler.setFormatter(formatter)
-# handler.addFilter(trace_id_filter)
+    os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"] = (
+        settings.appinsights_connection_string
+    )
+    configure_azure_monitor()
+    # Create OpenTelemetry tracer
+    tracer = trace.get_tracer(__name__)
 
+    # Context variable to store Operation ID
+    operation_id_var = ContextVar("operation_id", default=None)
 
-# Console (Terminal) Log Handler
-console_handler = logging.StreamHandler()
-# console_handler.setFormatter(formatter)
-# console_handler.addFilter(trace_id_filter)
+    # Initialize logger
+    logger = getLogger(__name__)
+    logger.setLevel(DEBUG)
 
-logger = logging.getLogger(__name__)
-if settings.build_type != "debug":
-    logger.addHandler(handler)
-logger.addHandler(console_handler)
-logger.setLevel(logging.INFO)
+    # Add the filter to the logger
+    logger.addFilter(OperationIdFilter())
+
+else:
+    # Console (Terminal) Log Handler
+    console_handler = StreamHandler()
+    # Context variable to store Operation ID
+    operation_id_var = ContextVar("operation_id", default=None)
+
+    logger.addHandler(console_handler)
+    logger.setLevel(INFO)
+    # Add the filter to the logger
+    logger.addFilter(OperationIdFilter())
+
+__all__ = ["logger", "tracer", "set_operation_id"]

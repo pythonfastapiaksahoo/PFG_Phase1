@@ -2,6 +2,7 @@ import base64
 import datetime
 import os
 import traceback
+from uuid import uuid4
 
 import requests
 from azure.storage.blob import BlobServiceClient
@@ -14,8 +15,9 @@ import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.core.utils import get_credential
 from pfg_app.crud.InvoiceCrud import update_docHistory
-from pfg_app.logger_module import logger
+from pfg_app.logger_module import logger, set_operation_id
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
+from pfg_app.session.session import get_db
 
 
 async def getDepartmentMaster(db):
@@ -65,6 +67,7 @@ async def getVendorMaster(db):
                 "VENDOR_CLASS": vendor.VENDOR_CLASS,
                 "VENDOR_STATUS": vendor.VENDOR_STATUS,
                 "DEFAULT_LOC": vendor.DEFAULT_LOC,
+                "VNDR_FIELD_C30_B": vendor.VNDR_FIELD_C30_B,
                 "VENDOR_LOC": vendor.VENDOR_LOC if vendor.VENDOR_LOC else [],
                 "VENDOR_ADDR": vendor.VENDOR_ADDR if vendor.VENDOR_ADDR else [],
             }
@@ -305,7 +308,7 @@ async def updateVendorMaster(vendordata, db):
                 existing_vendor_loc = (
                     existing_vendor.VENDOR_LOC if existing_vendor.VENDOR_LOC else []
                 )
-                print(f"Initial existing_vendor_loc: {existing_vendor_loc}")
+                logger.info(f"Initial existing_vendor_loc: {existing_vendor_loc}")
 
                 for loc in vendor_loc_data:
                     existing_loc = next(
@@ -320,7 +323,9 @@ async def updateVendorMaster(vendordata, db):
 
                     if existing_loc:
                         # Update the existing location
-                        print(f"Updating existing location: {existing_loc} with {loc}")
+                        logger.info(
+                            f"Updating existing location: {existing_loc} with {loc}"
+                        )
                         for key, value in loc.items():
                             existing_loc[key] = value
                     else:
@@ -734,6 +739,7 @@ async def SyncVendorMaster(db, vendordata):
                 "VENDOR_CLASS": row.VENDOR_CLASS,
                 "VENDOR_STATUS": row.VENDOR_STATUS,
                 "DEFAULT_LOC": row.DEFAULT_LOC,
+                "VNDR_FIELD_C30_B": row.VNDR_FIELD_C30_B,
                 "VENDOR_LOC": row.VENDOR_LOC if row.VENDOR_LOC else [],
                 "VENDOR_ADDR": row.VENDOR_ADDR if row.VENDOR_ADDR else [],
             }
@@ -766,6 +772,9 @@ async def SyncVendorMaster(db, vendordata):
             # Extract the CITY field
             city = primary_address.get("CITY", "").strip()
 
+            primary_loc = row.VENDOR_LOC[0] if row.VENDOR_LOC else {}
+            currency_cd = primary_loc.get("CURRENCY_CD", "").strip()
+            
             if existing_vendor:
                 # Update existing vendor record
                 existing_vendor.VendorName = row.NAME1
@@ -774,6 +783,8 @@ async def SyncVendorMaster(db, vendordata):
                 existing_vendor.City = city
                 existing_vendor.UpdatedOn = datetime.datetime.now()
                 existing_vendor.miscellaneous = row_data
+                existing_vendor.account = row.VNDR_FIELD_C30_B
+                existing_vendor.currency = currency_cd
                 update_vendors.append(existing_vendor)
 
             else:
@@ -788,6 +799,8 @@ async def SyncVendorMaster(db, vendordata):
                     createdBy=1,
                     entityID=1,
                     miscellaneous=row_data,
+                    account=row.VNDR_FIELD_C30_B,
+                    currency=currency_cd,
                     CreatedOn=datetime.datetime.now(),
                 )
                 new_vendors.append(new_vendor)
@@ -840,7 +853,7 @@ def processInvoiceVoucher(doc_id, db):
             .scalar()
         )
         if not voucherdata:
-            raise HTTPException(status_code=404, detail="Voucherdata not found")
+            return {"message": "Voucherdata not found for document ID: {doc_id}"}
 
         # Call the function to get the base64 file and content type
         try:
@@ -876,7 +889,7 @@ def processInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": voucherdata.Vendor_ID or "",
                                     "ORIGIN": "IDP",
                                     "ACCOUNTING_DT": "",
-                                    "VOUCHER_ID_RELATED": " ",
+                                    "VOUCHER_ID_RELATED": "",
                                     "GROSS_AMT": (
                                         voucherdata.Gross_Amt
                                         if voucherdata.Gross_Amt
@@ -886,8 +899,12 @@ def processInvoiceVoucher(doc_id, db):
                                     "FREIGHT_AMT": 0,
                                     "MISC_AMT": 0,
                                     "PYMNT_TERMS_CD": "",
-                                    "TXN_CURRENCY_CD": "",
-                                    "VAT_ENTRD_AMT": 0,
+                                    "TXN_CURRENCY_CD": voucherdata.currency_code or "",
+                                    "VAT_ENTRD_AMT": (
+                                        voucherdata.gst_amt
+                                        if voucherdata.gst_amt
+                                        else 0
+                                    ),
                                     "VCHR_LINE_STG": [
                                         {
                                             "BUSINESS_UNIT": "MERCH",
@@ -896,7 +913,7 @@ def processInvoiceVoucher(doc_id, db):
                                                 if voucherdata.Voucher_Line_num
                                                 else 1
                                             ),
-                                            "DESCR": " ",
+                                            "DESCR": "",
                                             "MERCHANDISE_AMT": (
                                                 voucherdata.Merchandise_Amt
                                                 if voucherdata.Merchandise_Amt
@@ -906,10 +923,21 @@ def processInvoiceVoucher(doc_id, db):
                                             "UNIT_OF_MEASURE": "",
                                             "UNIT_PRICE": 0,
                                             "VAT_APPLICABILITY": "",
-                                            "BUSINESS_UNIT_RECV": "OFGDS",
-                                            "RECEIVER_ID": voucherdata.receiver_id
-                                            or "",
-                                            "RECV_LN_NBR": 1,
+                                            "BUSINESS_UNIT_RECV": (
+                                                voucherdata.Business_unit
+                                                if voucherdata.Business_unit
+                                                else ""
+                                            ),
+                                            "RECEIVER_ID": (
+                                                voucherdata.receiver_id
+                                                if voucherdata.receiver_id
+                                                else ""
+                                            ),
+                                            "RECV_LN_NBR": (
+                                                voucherdata.recv_ln_nbr
+                                                if voucherdata.recv_ln_nbr
+                                                else 0
+                                            ),
                                             "SHIPTO_ID": "",
                                             "VCHR_DIST_STG": [
                                                 {
@@ -928,8 +956,11 @@ def processInvoiceVoucher(doc_id, db):
                                                     "ACCOUNT": voucherdata.Account
                                                     or "",
                                                     "DEPTID": voucherdata.Deptid or "",
-                                                    "OPERATING_UNIT": voucherdata.storenumber  # noqa: E501
-                                                    or "",
+                                                    "OPERATING_UNIT": (
+                                                        voucherdata.storenumber
+                                                        if voucherdata.storenumber
+                                                        else ""
+                                                    ),
                                                     "MERCHANDISE_AMT": (
                                                         voucherdata.Merchandise_Amt
                                                         if voucherdata.Merchandise_Amt
@@ -961,7 +992,7 @@ def processInvoiceVoucher(doc_id, db):
                 }
             ]
         }
-        # print(request_payload)
+        logger.info(f"request_payload: {request_payload}")
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -980,18 +1011,32 @@ def processInvoiceVoucher(doc_id, db):
             response.raise_for_status()
             # Raises an HTTPError if the response was unsuccessful
             # Log full response details
-            print("Response Status: ", response.status_code)
-            print("Response Headers: ", response.headers)
-            print("Response Content: ", response.content.decode())  # Full content
+            logger.info(f"Response Status: {response.status_code}")
+            logger.info(f"Response Headers: {response.headers}")
+            # print("Response Content: ", response.content.decode())  # Full content
 
             # Check for success
             if response.status_code == 200:
-
-                responsedata = {"message": "Success", "data": response.json()}
+                try:
+                    response_data = response.json()
+                    if not response_data:
+                        logger.info("Response JSON is empty.")
+                        responsedata = {
+                            "message": "Success, but response JSON is empty."
+                        }
+                    else:
+                        responsedata = {"message": "Success", "data": response_data}
+                except ValueError:
+                    # Handle case where JSON decoding fails
+                    logger.info("Response returned, but not in JSON format.")
+                    responsedata = {
+                        "message": "Success, but response is not JSON.",
+                        "data": response.text,
+                    }
 
         except requests.exceptions.HTTPError as e:
-            print(f"HTTP error occurred: {traceback.format_exc()}")
-            print("Response content:", response.content.decode())
+            logger.info(f"HTTP error occurred: {traceback.format_exc()}")
+            logger.info(f"Response content: {response.content.decode()}")
             responsedata = {"message": str(e), "data": response.json()}
 
     except Exception:
@@ -1010,105 +1055,158 @@ def processInvoiceVoucher(doc_id, db):
 
 def updateInvoiceStatus(doc_id, db):
     try:
-        voucherdata = (
+        userID = 1
+
+        # Fetch document with status ID 7 (Sent to Peoplesoft)
+        document = (
+            db.query(model.Document)
+            .filter(
+                model.Document.idDocument == doc_id,
+            )
+            .first()
+        )
+
+        if not document:
+            logger.error(f"Document with ID {doc_id} not found.")
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found in the database",
+            )
+
+        # Fetch associated voucher data
+        voucher_data = (
             db.query(model.VoucherData)
             .filter(model.VoucherData.documentID == doc_id)
-            .scalar()
+            .first()
         )
-        if not voucherdata:
-            raise HTTPException(status_code=404, detail="Voucherdata not found")
+
+        if not voucher_data:
+            logger.error(f"Voucher data for document ID {doc_id} not found.")
+            raise HTTPException(
+                status_code=404, detail="Voucher data not found for document"
+            )
+
+        # API credentials
+        api_url = settings.erp_invoice_status_endpoint
+        headers = {"Content-Type": "application/json"}
+        auth = (settings.erp_user, settings.erp_password)
+
+        # Prepare the payload for the API request
         invoice_status_payload = {
             "RequestBody": {
                 "INV_STAT_RQST": {
-                    "BUSINESS_UNIT": voucherdata.Business_unit,
-                    "INVOICE_ID": voucherdata.Invoice_Id,
-                    "INVOICE_DT": voucherdata.Invoice_Dt,
-                    "VENDOR_SETID": voucherdata.Vendor_Setid,
-                    "VENDOR_ID": voucherdata.Vendor_ID,
+                    "BUSINESS_UNIT": "MERCH",
+                    "INVOICE_ID": voucher_data.Invoice_Id,
+                    "INVOICE_DT": voucher_data.Invoice_Dt,
+                    "VENDOR_SETID": voucher_data.Vendor_Setid,
+                    "VENDOR_ID": voucher_data.Vendor_ID,
                 }
             }
         }
-        # Make a POST request to the external API endpoint
-        api_url = settings.erp_invoice_status_endpoint
-        headers = {"Content-Type": "application/json"}
-        username = settings.erp_user
-        password = settings.erp_password
-
-        response = (
-            None  # Initialize response to avoid 'referenced before assignment' error
-        )
 
         try:
-            # Make the POST request with basic authentication
+            # Make a POST request to the external API
             response = requests.post(
                 api_url,
                 json=invoice_status_payload,
                 headers=headers,
-                auth=(username, password),
+                auth=auth,
                 timeout=60,  # Set a timeout of 60 seconds
             )
-            response.raise_for_status()
-            # Raises an HTTPError if the response was unsuccessful
-            print("Response Status: ", response.status_code)
-            # Check for success
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            logger.info(response.json())
+
+            # Process the response if the status code is 200
             if response.status_code == 200:
+                invoice_data = response.json()
+                entry_status = invoice_data.get("ENTRY_STATUS")
+                voucher_id = invoice_data.get("VOUCHER_ID")
 
-                invoice_data = response.json()  # Parse the response JSON data
-                entry_status = invoice_data.get(
-                    "ENTRY_STATUS"
-                )  # Get the ENTRY_STATUS field
-                # voucher_id = invoice_data.get("VOUCHER_ID")  # TODO: Unused variable
-                # Set the documentstatusid based on the ENTRY_STATUS value
-
-                if entry_status == "NF":
-                    documentstatusid = 30
+                # Determine the new document status based on ENTRY_STATUS
+                documentstatusid = None
+                docsubstatusid = None
+                dmsg = None
+                if entry_status == "STG":
+                    documentstatusid = 7
+                    docsubstatusid = 43
                 elif entry_status == "QCK":
-                    documentstatusid = 27
-                elif entry_status == "P":
-                    documentstatusid = 29
+                    documentstatusid = 14
+                    docsubstatusid = 114
+                    dmsg = InvoiceVoucherSchema.QUICK_INVOICE
                 elif entry_status == "R":
-                    documentstatusid = 28
-                else:
-                    documentstatusid = None  # Default if ENTRY_STATUS is not recognized
+                    documentstatusid = 14
+                    docsubstatusid = 115
+                    dmsg = InvoiceVoucherSchema.RECYCLED_INVOICE
+                elif entry_status == "P":
+                    documentstatusid = 14
+                    docsubstatusid = 116
+                    dmsg = InvoiceVoucherSchema.VOUCHER_CREATED
+                elif entry_status == "NF":
+                    documentstatusid = 14
+                    docsubstatusid = 117
+                    dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
+                elif entry_status == "X":
+                    documentstatusid = 14
+                    docsubstatusid = 119
+                    dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
+                elif entry_status == "S":
+                    documentstatusid = 14
+                    docsubstatusid = 120
+                    dmsg = InvoiceVoucherSchema.VOUCHER_SCHEDULED
+                elif entry_status == "C":
+                    documentstatusid = 14
+                    docsubstatusid = 121
+                    dmsg = InvoiceVoucherSchema.VOUCHER_COMPLETED
+                elif entry_status == "D":
+                    documentstatusid = 14
+                    docsubstatusid = 122
+                    dmsg = InvoiceVoucherSchema.VOUCHER_DEFAULTED
+                elif entry_status == "E":
+                    documentstatusid = 14
+                    docsubstatusid = 123
+                    dmsg = InvoiceVoucherSchema.VOUCHER_EDITED
+                elif entry_status == "L":
+                    documentstatusid = 14
+                    docsubstatusid = 124
+                    dmsg = InvoiceVoucherSchema.VOUCHER_REVIEWED
+                elif entry_status == "M":
+                    documentstatusid = 14
+                    docsubstatusid = 125
+                    dmsg = InvoiceVoucherSchema.VOUCHER_MODIFIED
+                elif entry_status == "O":
+                    documentstatusid = 14
+                    docsubstatusid = 126
+                    dmsg = InvoiceVoucherSchema.VOUCHER_OPEN
+                elif entry_status == "T":
+                    documentstatusid = 14
+                    docsubstatusid = 127
+                    dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
 
-                # Now update the documentstatusid in the document table
-                if documentstatusid is not None:
-                    # # Assuming 'doc_id'
-                    # is the identifier of the document you want to update
-                    db.query(model.Document).filter(
-                        model.Document.documentStatusID == doc_id
-                    ).update({model.Document.documentStatusID: documentstatusid})
-                    db.commit()  # Commit the transaction to save the changes
-                    print("DocumentStatusID: ", documentstatusid)
-                invoice_status = {"message": "Success", "data": response.json()}
-            else:
-                # Return a meaningful message if the status code is not 200
-                invoice_status = {
-                    "message": "Failed",
-                    "status_code": response.status_code,
-                    "details": response.content.decode(),
-                }
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP error occurred: {traceback.format_exc()}")
-            if response:
-                return {
-                    "message": "HTTP error occurred",
-                    "status_code": response.status_code,
-                    "details": response.content.decode(),
-                }
-            else:
-                return {
-                    "message": "HTTP error occurred, no response",
-                    "details": str(e),
-                }
+                # Update document status and commit the change if valid
+                if documentstatusid:
+                    document.documentStatusID = documentstatusid
+                    document.documentsubstatusID = docsubstatusid
+                    document.voucher_id = voucher_id
+                    db.commit()
 
-    except Exception:
+                    # Update document history
+                    update_docHistory(doc_id, userID, documentstatusid, dmsg, db)
+
+                return {
+                    "response": response.json(),
+                    "message": "Invoice status updated successfully",
+                }
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error for doc_id {doc_id}: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error making API request: {str(e)}"
+            )
+
+    except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
+            status_code=500, detail=f"Error updating invoice status: {str(e)}"
         )
-    return invoice_status
 
 
 def read_invoice_file_voucher(inv_id, db):
@@ -1186,8 +1284,28 @@ def read_invoice_file_voucher(inv_id, db):
         db.close()
 
 
-def newbulkupdateInvoiceStatus(db):
+def newbulkupdateInvoiceStatus():
     try:
+        db = next(get_db())
+        # Create an operation ID for the background job
+        operation_id = uuid4().hex
+        set_operation_id(operation_id)
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+        container_client = blob_service_client.get_container_client("locks")
+
+        # Update the blob with the latest operation ID and
+        # timestamp after acquiring the lease
+        blob_client = container_client.get_blob_client("status-job-lock")
+        lease = blob_client.acquire_lease()
+
+        logger.info(f"[{datetime.datetime.now()}] Background job `Status` Started!")
+
         userID = 1
         # db = next(get_db())
         # Batch size for processing
@@ -1206,6 +1324,9 @@ def newbulkupdateInvoiceStatus(db):
         headers = {"Content-Type": "application/json"}
         auth = (settings.erp_user, settings.erp_password)
 
+        # Success counter
+        success_count = 0
+
         # Process in batches
         for start in range(0, total_docs, batch_size):
             doc_ids = doc_query.offset(start).limit(batch_size).all()
@@ -1221,8 +1342,11 @@ def newbulkupdateInvoiceStatus(db):
 
             # Prepare payloads and make API requests
             updates = []
+            doc_history_updates = []  # Collect history updates in bulk for the batch
             for voucherdata, doc_id in zip(voucher_data_list, doc_ids):
                 dmsg = None  # Initialize dmsg to ensure it's defined
+                documentstatusid = 7
+                docsubstatusid = 43
                 # Prepare the payload for the API request
                 invoice_status_payload = {
                     "RequestBody": {
@@ -1246,7 +1370,8 @@ def newbulkupdateInvoiceStatus(db):
                         timeout=60,  # Set a timeout of 60 seconds
                     )
                     response.raise_for_status()  # Raise an exception for HTTP errors
-                    logger.info(response.json())
+                    logger.info(f"fetching status for document id: {doc_id}")
+                    logger.info(f"Response: {response.json()}")
                     # Process the response if the status code is 200
                     if response.status_code == 200:
                         invoice_data = response.json()
@@ -1254,7 +1379,6 @@ def newbulkupdateInvoiceStatus(db):
                         voucher_id = invoice_data.get("VOUCHER_ID")
 
                         # Determine the new document status based on ENTRY_STATUS
-                        documentstatusid = None
                         if entry_status == "STG":
                             documentstatusid = 7
                             docsubstatusid = 43
@@ -1262,21 +1386,25 @@ def newbulkupdateInvoiceStatus(db):
                             # because the status is already 7
                             # continue
                         elif entry_status == "QCK":
-                            documentstatusid = 27
+                            documentstatusid = 14
                             docsubstatusid = 114
                             dmsg = InvoiceVoucherSchema.QUICK_INVOICE
                         elif entry_status == "R":
-                            documentstatusid = 28
+                            documentstatusid = 14
                             docsubstatusid = 115
                             dmsg = InvoiceVoucherSchema.RECYCLED_INVOICE
                         elif entry_status == "P":
-                            documentstatusid = 29
+                            documentstatusid = 14
                             docsubstatusid = 116
                             dmsg = InvoiceVoucherSchema.VOUCHER_CREATED
                         elif entry_status == "NF":
-                            documentstatusid = 30
+                            documentstatusid = 14
                             docsubstatusid = 117
                             dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
+                        elif entry_status == "X":
+                            documentstatusid = 14
+                            docsubstatusid = 119
+                            dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
 
                         # If there's a valid document status update,
                         # add it to the bulk update list
@@ -1289,7 +1417,19 @@ def newbulkupdateInvoiceStatus(db):
                                     "voucher_id": voucher_id,
                                 }
                             )
-
+                            # Collect doc history update data
+                            doc_history_updates.append(
+                                {
+                                    "documentID": doc_id[0],
+                                    "userID": userID,
+                                    "documentStatusID": documentstatusid,
+                                    "documentdescription": dmsg,
+                                    "CreatedOn": datetime.datetime.utcnow().strftime(
+                                        "%Y-%m-%d %H:%M:%S"
+                                    ),  # noqa: E501
+                                }
+                            )
+                            success_count += 1  # Increment success counter
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
                     # but don't interrupt the batch
@@ -1306,23 +1446,66 @@ def newbulkupdateInvoiceStatus(db):
                 logger.error(f"Error: {traceback.format_exc()}")
 
             try:
+                if doc_history_updates:
+                    db.bulk_insert_mappings(
+                        model.DocumentHistoryLogs, doc_history_updates
+                    )
+                    db.commit()  # Commit the history log insertions for this batch
 
-                update_docHistory(doc_id[0], userID, documentstatusid, dmsg, db)
+                logger.info(f"Update history log batch {start} to {start + batch_size}")
             except Exception as err:
                 dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(err)
                 logger.error(f"Error while update dochistlog: {traceback.format_exc()}")
 
-        return {"message": "Bulk update completed successfully"}
-
-    except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500, detail=f"Error updating invoice status: {str(e)}"
+        blob_client.append_block(operation_id + "\n", lease=lease)
+        blob_metadata = blob_client.get_blob_properties().metadata
+        blob_metadata["last_run_time"] = str(datetime.datetime.now())
+        blob_client.set_blob_metadata(blob_metadata, lease=lease)
+        data = {
+            "message": "Bulk update run successfully",
+            "total_docs count": total_docs,
+            "success_count": success_count,
+        }
+        logger.info(
+            f"[{datetime.datetime.now()}] Background job `Status` "
+            + f"Completed! with data: {data}"
         )
 
+    except Exception:
+        logger.error(f"Error: {traceback.format_exc()}")
+        # raise HTTPException(
+        #     status_code=500, detail=f"Error updating invoice status: {str(e)}"
+        # )
+        return False
+    finally:
+        db.close()
+        if "lease" in locals():
+            lease.break_lease()
 
-def bulkProcessVoucherData(db):
+
+def bulkProcessVoucherData():
     try:
+        db = next(get_db())
+
+        # Create an operation ID for the background job
+        operation_id = uuid4().hex
+        set_operation_id(operation_id)
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+        container_client = blob_service_client.get_container_client("locks")
+
+        # Update the blob with the latest operation ID and timestamp
+        # after acquiring the lease
+        blob_client = container_client.get_blob_client("creation-job-lock")
+        lease = blob_client.acquire_lease()
+
+        logger.info(f"[{datetime.datetime.now()}] Background job `Creation` Started!")
+
         userID = 1
         # db = next(get_db())
         # Batch size for processing
@@ -1334,6 +1517,15 @@ def bulkProcessVoucherData(db):
 
         total_docs = doc_query.count()  # Total number of documents to process
         logger.info(f"Total documents to process: {total_docs}")
+
+        # If no documents to process, log and return
+        if total_docs == 0:
+            logger.info("No documents to send to Peoplesoft.")
+            return {"message": "No documents to send to Peoplesoft."}
+
+        # Success counter
+        success_count = 0
+
         # Process in batches
         for start in range(0, total_docs, batch_size):
             doc_ids = doc_query.offset(start).limit(batch_size).all()
@@ -1352,7 +1544,9 @@ def bulkProcessVoucherData(db):
                                     )
                                     docStatus = 7
                                     docSubStatus = 43
-
+                                    success_count += (
+                                        1  # Increment on successful status change
+                                    )
                                 elif RespCodeInt == 400:
                                     dmsg = (
                                         InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
@@ -1464,5 +1658,19 @@ def bulkProcessVoucherData(db):
                     update_docHistory(docID, userID, documentstatus, dmsg, db)
                 except Exception as e:
                     logger.error(f"ErrorUpdatingDocHistory 163: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error in schedule IDP to Peoplesoft : {str(e)}")
+        data = {
+            "message": "Voucher processing completed.",
+            "Total docs processed": total_docs,
+            "success_count": success_count,
+        }
+        logger.info(
+            f"[{datetime.datetime.now()}] Background job `Creation` "
+            + f"Completed! with data: {data}"
+        )
+    except Exception:
+        logger.error(f"Error in schedule IDP to Peoplesoft : {traceback.format_exc()}")
+        return False
+    finally:
+        db.close()
+        if "lease" in locals():
+            lease.break_lease()
