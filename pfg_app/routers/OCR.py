@@ -716,6 +716,7 @@ def runStatus(
                             "UploadDocType": invoice_type,
                             "metaVendorAdd": metaVendorAdd,
                             "metaVendorName": metaVendorName,
+                            "mail_row_key": mail_row_key,
                             # "pre_data": "",
                             # "pre_status": "",
                             # "pre_model_msg": "",
@@ -1382,6 +1383,7 @@ def live_model_fn_1(generatorObj):
 
     metaVendorAdd = generatorObj["metaVendorAdd"]
     metaVendorName = generatorObj["metaVendorName"]
+    mail_row_key = generatorObj["mail_row_key"]
     # OpenAI_client = generatorObj["OpenAI_client"]
 
     # pre_data = generatorObj["pre_data"]
@@ -1518,6 +1520,7 @@ def live_model_fn_1(generatorObj):
                     docStatus,
                     docsubstatus,
                     db,
+                    mail_row_key,
                 )
                 # print("invoice_ID line 504: ",invoice_ID)
                 # logger.info(f"ocr.py, line 571: InvoiceDocumentID: {invoice_ID}")
