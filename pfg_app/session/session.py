@@ -1,4 +1,5 @@
 import os
+import traceback
 
 from azure.identity import DefaultAzureCredential
 from sqlalchemy import create_engine
@@ -44,6 +45,7 @@ if settings.build_type not in ["debug"]:
         sessionmaker(autocommit=False, autoflush=False, bind=engine)
     )
     Base = declarative_base()
+    logger.info(f"Database URL: {SQLALCHEMY_DATABASE_URL}")
 
 
 else:
@@ -71,6 +73,7 @@ else:
         sessionmaker(autocommit=False, autoflush=False, bind=engine)
     )
     Base = declarative_base()
+    logger.info(f"Database URL: {SQLALCHEMY_DATABASE_URL}")
 
 
 def get_db():
@@ -82,5 +85,7 @@ def get_db():
         current_schema = db.execute("SELECT current_schema();").scalar()
         logger.info(f"Current schema after setting: {current_schema}")
         yield db
+    except Exception as e:
+        logger.error(f"Error in get_db: {e} =>" + traceback.format_exc())
     finally:
         db.close()
