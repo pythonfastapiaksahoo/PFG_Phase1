@@ -141,7 +141,7 @@ def call_form_recognizer(
     # Create a custom retry policy
     custom_retry_policy = RetryPolicy(
         retry_on_status_codes=[429],  # Retry on HTTP 429 Too Many Requests
-        retry_total=5,  # Maximum retries
+        retry_total=10,  # Maximum retries
         retry_backoff_factor=1,  # Exponential backoff factor
         retry_backoff_max=60,  # Max backoff time in seconds
     )
