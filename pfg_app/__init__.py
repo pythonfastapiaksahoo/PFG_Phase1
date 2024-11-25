@@ -17,12 +17,7 @@ from pfg_app.logger_module import logger  # noqa: E402
 # Initialize the scheduler
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.start()
-# Create a ContainerClient from BlobServiceClient
-scheduler_service_client = BlobServiceClient(
-    account_url=f"https://{settings.storage_account_name}.blob.core.windows.net",
-    credential=get_credential(),
-)
-scheduler_container_client = scheduler_service_client.get_container_client("locks")
+
 
 if settings.build_type not in ["debug"]:
     credential = get_credential()
@@ -87,3 +82,10 @@ if settings.build_type not in ["debug"]:
 
             except Exception as e:
                 logger.error(f"Error processing a secret: {e}")  # type: ignore
+
+# Create a ContainerClient from BlobServiceClient
+scheduler_service_client = BlobServiceClient(
+    account_url=f"https://{settings.storage_account_name}.blob.core.windows.net",
+    credential=get_credential(),
+)
+scheduler_container_client = scheduler_service_client.get_container_client("locks")
