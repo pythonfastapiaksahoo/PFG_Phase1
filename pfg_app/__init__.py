@@ -18,10 +18,11 @@ from pfg_app.logger_module import logger  # noqa: E402
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.start()
 # Create a ContainerClient from BlobServiceClient
-scheduler_container_client = BlobServiceClient(
+scheduler_service_client = BlobServiceClient(
     account_url=f"https://{settings.storage_account_name}.blob.core.windows.net",
     credential=get_credential(),
-).get_container_client("locks")
+)
+scheduler_container_client = scheduler_service_client.get_container_client("locks")
 
 if settings.build_type not in ["debug"]:
     credential = get_credential()
