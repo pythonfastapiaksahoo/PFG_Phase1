@@ -1,3 +1,4 @@
+import traceback
 import uuid
 from datetime import datetime
 
@@ -48,7 +49,7 @@ async def app_startup():
             if not scheduler_container_client.exists():
                 scheduler_container_client.create_container()
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error: {e}" + traceback.format_exc())
 
         try:
             # Create the STATUS_BLOB_NAME blob
@@ -88,7 +89,7 @@ async def app_startup():
         except ResourceExistsError as e:
             logger.warning(f"Error: {e.error_code} - {e.reason}")
         except Exception as e:
-            logger.info(f"Exception: {e}")
+            logger.info(f"Exception: {e}" + traceback.format_exc())
 
         try:
             # Create the CREATION_BLOB_NAME blob `creation-job-lock`
@@ -130,7 +131,7 @@ async def app_startup():
         except ResourceExistsError as e:
             logger.warning(f"Error: {e.error_code} - {e.reason}")
         except Exception as e:
-            logger.info(f"Exception: {e}")
+            logger.info(f"Exception: {e}" + traceback.format_exc())
 
         logger.info("Application is ready to process requests")
 
