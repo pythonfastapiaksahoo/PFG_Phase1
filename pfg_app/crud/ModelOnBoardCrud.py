@@ -555,3 +555,16 @@ async def check_duplicate(modelName, db):
             return {"status": False, "message": "not exists"}
     except BaseException:
         return {"status": False, "message": "exception"}
+
+
+
+def model_enable_disable(idDocumentModel, is_enabled, db):
+    try:
+        db.query(model.DocumentModel).filter(
+            model.DocumentModel.idDocumentModel == idDocumentModel
+        ).update({"is_enabled": is_enabled})
+        db.commit()
+        return "success"
+    except Exception:
+        logger.error(traceback.format_exc())
+        return "exception"

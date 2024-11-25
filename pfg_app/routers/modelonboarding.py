@@ -638,11 +638,13 @@ async def train_model(data: ModelTrainSchema, db: Session = Depends(get_db)):
                 prefix=folder_path + "/",
             )
             if json_resp["message"] != "success":
-                return {"message": json_resp["message"], "result": {}}
-        return {"message": json_resp["message"], "result": json_resp["result"]}
+                return {"message": json_resp["message"], "result": {}, "status":False}
+            return {"message": json_resp["message"], "result": json_resp["result"], "status":True}
+        else:
+            return {"message": "Model name already exists! Update the name and try again.", "result": json_resp["result"], "status":False}
     except Exception as e:
         print(traceback.format_exc())
-        return {"message": f"exception {e}", "result": {}, "post_resp": ""}
+        return {"message": f"exception {e}", "result": {}, "status":False}
     finally:
         db.close()
 
@@ -1263,3 +1265,16 @@ async def get_training_res_new(
         return {"message": f"exception {e}", "result": []}
     finally:
         db.close()
+
+
+
+@router.post("/model_enable_disable/{idDocumentModel}/{is_enabled}")
+async def model_enable_disable(
+    idDocumentModel: int, is_enabled: int, db: Session = Depends(get_db)
+):
+    """This route updates the status of the model.
+
+    success - if the status is updated successfully
+    exception - if there is an exception
+    """
+    return crud.model_enable_disable(idDocumentModel, is_enabled, db)
