@@ -1,5 +1,6 @@
 import base64
 import json
+import random
 import re
 import time
 import traceback
@@ -21,6 +22,7 @@ def get_open_ai_token():
     access_token = token.token
     return access_token
 
+
 def stampDataFn(blob_data, prompt):
     try:
         time.sleep(0.3)
@@ -29,7 +31,7 @@ def stampDataFn(blob_data, prompt):
         # # Read the PDF file as bytes
         # with open(blob_data, "rb") as pdf_file:
         #     pdf_data = pdf_file.read()
-            
+
         pdf_img = convert_from_bytes(blob_data)
         # pdf_img = convert_from_bytes(
         #     blob_data, poppler_path=r"C:\\poppler-24.07.0\\Library\\bin"
@@ -45,15 +47,15 @@ def stampDataFn(blob_data, prompt):
                     "image_url": {"url": f"data:image/png;base64,{encoded_image}"},
                 }
             )
-        endpoint=settings.form_recognizer_endpoint
+        endpoint = settings.form_recognizer_endpoint
         resp = analyze_form(blob_data, endpoint, "2023-07-31", "prebuilt-read")
-        if 'message' not in resp:
-            ocr_text = resp['content']
+        if "message" not in resp:
+            ocr_text = resp["content"]
         else:
-            ocr_text = ''
-        
+            ocr_text = ""
+
         # print("ocr_text: ", ocr_text)
-        
+
         # Define the regex pattern
         pattern = r"(STR#.*?Receive.{0,10})"
 
@@ -66,45 +68,36 @@ def stampDataFn(blob_data, prompt):
             logger.info("Extracted Data:")
             logger.info(extracted_data)
             data = {
-            "messages": [
-                {
-                    "role": "system",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": extracted_data},
-                        *image_content,
-                    ],
-                }
-            ],
-            "temperature": 0.1,
-            "top_p": 0.95,
-            "max_tokens": 800,
-        }
+                "messages": [
+                    {"role": "system", "content": [{"type": "text", "text": prompt}]},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": extracted_data},
+                            *image_content,
+                        ],
+                    },
+                ],
+                "temperature": 0.1,
+                "top_p": 0.95,
+                "max_tokens": 800,
+            }
         else:
             logger.info("No match found.")
             data = {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        *image_content,
-                    ],
-                }
-            ],
-            "temperature": 0.1,
-            "top_p": 0.95,
-            "max_tokens": 800,
-        }
-        
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            *image_content,
+                        ],
+                    }
+                ],
+                "temperature": 0.1,
+                "top_p": 0.95,
+                "max_tokens": 800,
+            }
 
         # Make the API call to Azure OpenAI
         access_token = get_open_ai_token()
@@ -113,19 +106,50 @@ def stampDataFn(blob_data, prompt):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
-        response = requests.post(
-            settings.open_ai_endpoint, headers=headers, json=data, timeout=600
-        )
+        retry_count = 0
+        max_retries = 5
+        while retry_count < max_retries:
+            response = requests.post(
+                settings.open_ai_endpoint, headers=headers, json=data, timeout=600
+            )
 
-        # Check and process the response
-        if response.status_code == 200:
-            result = response.json()
-            for choice in result["choices"]:
-                content = choice["message"]["content"].strip()
-                logger.info(f"Content: {content}")
-        else:
-            logger.info(f"Error: {response.status_code}, {response.text}")
-        
+            # Check and process the response
+            if response.status_code == 200:
+                result = response.json()
+                for choice in result["choices"]:
+                    content = choice["message"]["content"].strip()
+                    logger.info(f"Content: {content}")
+                break
+            elif response.status_code == 429:  # Handle rate limiting
+                retry_after = int(response.headers.get("Retry-After", 5))
+                logger.info(f"Rate limit hit. Retrying after {retry_after} seconds...")
+                time.sleep(retry_after)
+            else:
+                logger.info(f"Error: {response.status_code}, {response.text}")
+                retry_count += 1
+                wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
+                logger.info(f"Retrying in {wait_time:.2f} seconds...")
+                time.sleep(wait_time)
+        if retry_count == max_retries:
+            logger.error("Max retries reached. Exiting.")
+            content = json.dumps(
+                {
+                    "StampFound": "Max retries reached",
+                    "NumberOfPages": "Max retries reached",
+                    "MarkedDept": "Max retries reached",
+                    "MarkedStore": "Max retries reached",
+                    "MarkedInvoice": "Max retries reached",
+                    "Confirmation": "Max retries reached",
+                    "ReceivingDate": "Max retries reached",
+                    "Receiver": "Max retries reached",
+                    "Department": "Max retries reached",
+                    "Store Number": "Max retries reached",
+                    "VendorName": "Max retries reached",
+                    "InvoiceID": "Max retries reached",
+                    "Currency": "Max retries reached",
+                }
+            )
+
         cl_data = (
             content.replace("json", "")
             .replace("\n", "")
@@ -160,11 +184,12 @@ def stampDataFn(blob_data, prompt):
 
     return stampData
 
+
 # def stampDataFn(blob_data, prompt):
 #     try:
 #         time.sleep(0.3)
 #         image_content = []
-        
+
 #         pdf_img = convert_from_bytes(blob_data)
 #         # pdf_img = convert_from_bytes(
 #         #     blob_data, poppler_path=r"C:\\poppler-24.07.0\\Library\\bin"
@@ -264,25 +289,25 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
                             "type": "text",
                             "text": (
                                 f"vendor1={metaVendorName}, vendor2={doc_VendorName}, "
-                                + f"vendor1Address={metaVendorAdd}, vendor2Address={doc_VendorAddress}. "               # noqa: E501
-                                + "You are given vendor data from two sources: 'vendor1' from master data "             # noqa: E501
+                                + f"vendor1Address={metaVendorAdd}, vendor2Address={doc_VendorAddress}. "  # noqa: E501
+                                + "You are given vendor data from two sources: 'vendor1' from master data "  # noqa: E501
                                 + "and 'vendor2' from an OCR model. Your task is to: "
                                 + "1) Check if the vendor names match, ignoring case "
                                 + "sensitivity and trimming extra spaces. "
                                 + "2) Verify if the vendor2 address contains the vendor"
-                                + " store information from the master address (vendor1Address), "                   # noqa: E501
-                                + "including postal code and country if they are present. "                 # noqa: E501
-                                + "3) Confirm if the addresses correspond to the same" 
-                                + "location, even if vendor2Address is in a shorter form. "                 # noqa: E501
+                                + " store information from the master address (vendor1Address), "  # noqa: E501
+                                + "including postal code and country if they are present. "  # noqa: E501
+                                + "3) Confirm if the addresses correspond to the same"
+                                + "location, even if vendor2Address is in a shorter form. "  # noqa: E501
                                 + "Use AI to normalize the text, handle abbreviations "
                                 + "(e.g., 'Road' vs. 'Rd'), and account for possible "
                                 + "formatting differences. "
                                 + "Provide your response strictly in JSON format as: "
-                                + "{'vendorMatching': 'yes/no', 'addressMatching': 'yes/no'},"              # noqa: E501
+                                + "{'vendorMatching': 'yes/no', 'addressMatching': 'yes/no'},"  # noqa: E501
                                 + "where 'vendorMatching' "
                                 + "indicates if the names match, and 'addressMatching' "
                                 + "verifies if the addresses match, including postal code and country. "  # noqa: E501
-                                + "Return the JSON response only, without any explanation or additional information."           # noqa: E501    
+                                + "Return the JSON response only, without any explanation or additional information."  # noqa: E501
                             ),
                         }
                     ],
@@ -316,7 +341,7 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
         #                         + "the comparison without any explanation.Give me response"  # noqa: E501
         #                         + "in Json Format in {'vendorMatching': 'yes/no',"
         #                         + "'addressMatching': 'yes/no'} without any explanation",
-                            
+
         #                     ),
         #                 }
         #             ],
