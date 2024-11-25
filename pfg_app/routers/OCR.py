@@ -657,6 +657,7 @@ def runStatus(
                                 25,
                                 106,
                                 db,
+                                mail_row_key,
                             )
                             
                             logger.info(
@@ -715,6 +716,7 @@ def runStatus(
                             "UploadDocType": invoice_type,
                             "metaVendorAdd": metaVendorAdd,
                             "metaVendorName": metaVendorName,
+                            "mail_row_key": mail_row_key,
                             # "pre_data": "",
                             # "pre_status": "",
                             # "pre_model_msg": "",
@@ -753,6 +755,7 @@ def runStatus(
                                     4,
                                     7,
                                     db,
+                                    mail_row_key,
                                 )
 
                                 logger.info(
@@ -833,6 +836,7 @@ def runStatus(
                             26,
                             107,
                             db,
+                            mail_row_key,
                         )
 
                         logger.info(f" VendorUnidentified: invoice_ID: {invoId}")
@@ -1196,6 +1200,7 @@ def runStatus(
                     4,
                     7,
                     db,
+                    mail_row_key,
                 )
 
                 logger.info(
@@ -1224,20 +1229,20 @@ def runStatus(
         except Exception:
             # logger.error(f"ocr.py: {err}")
             logger.error(f" ocr.py: {traceback.format_exc()}")
-        try:
-            if len(str(invoId)) !=0:
+        # try:
+        #     if len(str(invoId)) !=0:
                     
-                db.query(model.Document).filter(
-                    model.Document.idDocument == invoId
-                ).update(
-                    {
-                        model.Document.mail_row_key: str(
-                            mail_row_key
-                        ),  # noqa: E501
+        #         db.query(model.Document).filter(
+        #             model.Document.idDocument == invoId
+        #         ).update(
+        #             {
+        #                 model.Document.mail_row_key: str(
+        #                     mail_row_key
+        #                 ),  # noqa: E501
                        
-                    }
-                )
-                db.commit()
+        #             }
+        #         )
+        #         db.commit()
 
         except Exception:
             logger.debug(f"{traceback.format_exc()}")
@@ -1378,6 +1383,7 @@ def live_model_fn_1(generatorObj):
 
     metaVendorAdd = generatorObj["metaVendorAdd"]
     metaVendorName = generatorObj["metaVendorName"]
+    mail_row_key = generatorObj["mail_row_key"]
     # OpenAI_client = generatorObj["OpenAI_client"]
 
     # pre_data = generatorObj["pre_data"]
@@ -1514,6 +1520,7 @@ def live_model_fn_1(generatorObj):
                     docStatus,
                     docsubstatus,
                     db,
+                    mail_row_key,
                 )
                 # print("invoice_ID line 504: ",invoice_ID)
                 # logger.info(f"ocr.py, line 571: InvoiceDocumentID: {invoice_ID}")
@@ -1618,6 +1625,7 @@ def push_frdata(
     docStatus,
     docsubstatus,
     db,
+    mail_row_key,
 ):
     # credit invoice processsing:
     try:
@@ -1714,6 +1722,7 @@ def push_frdata(
         "docPath": ref_url,
         "UploadDocType": UploadDocType,
         "documentsubstatusID": docsubstatus,
+        "mail_row_key": mail_row_key,
     }
 
     try:
