@@ -813,44 +813,49 @@ def postpro(
                 if "bounding_regions" in cst_dict[hd_tags]:
                     bounding_bx = cst_dict[hd_tags]["bounding_regions"]
             else:
+                if (cst_conf is not None) and (pre_conf is not None):
 
-                if cst_conf < pre_conf:
-                    if hd_tags == "VendorName":
+                    if cst_conf < pre_conf:
+                        if hd_tags == "VendorName":
+                            if "content" in cst_dict[hd_tags]:
+                                tag_val = cst_dict[hd_tags]["content"]
+                            if "bounding_regions" in cst_dict[hd_tags]:
+                                bounding_bx = cst_dict[hd_tags]["bounding_regions"]
+                        if (cst_conf + 0.2) > pre_conf:
+                            if "content" in cst_dict[hd_tags]:
+                                tag_val = cst_dict[hd_tags]["content"]
+                            if "bounding_regions" in cst_dict[hd_tags]:
+                                bounding_bx = cst_dict[hd_tags]["bounding_regions"]
+                        else:
+                            if "content" in pre_dict[hd_tags]:
+                                tag_val = pre_dict[hd_tags]["content"]
+                            if "bounding_regions" in pre_dict[hd_tags]:
+                                bounding_bx = pre_dict[hd_tags]["bounding_regions"]
+                    elif pre_conf < cst_conf:
+                        if "content" in cst_dict[hd_tags]:
+                            tag_val = cst_dict[hd_tags]["content"]
+                        if "bounding_regions" in cst_dict[hd_tags]:
+                            bounding_regions = cst_dict[hd_tags]["bounding_regions"]
+                    elif pre_conf == cst_conf:
                         if "content" in cst_dict[hd_tags]:
                             tag_val = cst_dict[hd_tags]["content"]
                         if "bounding_regions" in cst_dict[hd_tags]:
                             bounding_bx = cst_dict[hd_tags]["bounding_regions"]
-                    if (cst_conf + 0.2) > pre_conf:
-                        if "content" in cst_dict[hd_tags]:
-                            tag_val = cst_dict[hd_tags]["content"]
-                        if "bounding_regions" in cst_dict[hd_tags]:
-                            bounding_bx = cst_dict[hd_tags]["bounding_regions"]
-                    else:
-                        if "content" in pre_dict[hd_tags]:
-                            tag_val = pre_dict[hd_tags]["content"]
-                        if "bounding_regions" in pre_dict[hd_tags]:
-                            bounding_bx = pre_dict[hd_tags]["bounding_regions"]
-                elif pre_conf < cst_conf:
-                    if "content" in cst_dict[hd_tags]:
-                        tag_val = cst_dict[hd_tags]["content"]
-                    if "bounding_regions" in cst_dict[hd_tags]:
-                        bounding_regions = cst_dict[hd_tags]["bounding_regions"]
-                elif pre_conf == cst_conf:
-                    if "content" in cst_dict[hd_tags]:
-                        tag_val = cst_dict[hd_tags]["content"]
-                    if "bounding_regions" in cst_dict[hd_tags]:
-                        bounding_bx = cst_dict[hd_tags]["bounding_regions"]
-                if (pre_conf < cst_conf) and (abs(pre_conf - cst_conf) > 0.3):
-                    if (
-                        pre_conf == "" and cst_conf < field_threshold
-                    ) or cst_conf < field_threshold:
-                        tag_status = 0
-                        ovrll_conf_ck = ovrll_conf_ck * 0
-                        status_message = (
-                            "Low Confidence Detected: " + str(cst_conf * 100) + "%."
-                        )
-                    else:
-                        status_message = "Low Confidence Detected"
+                    if (pre_conf < cst_conf) and (abs(pre_conf - cst_conf) > 0.3):
+                        if (
+                            pre_conf == "" and cst_conf < field_threshold
+                        ) or cst_conf < field_threshold:
+                            tag_status = 0
+                            ovrll_conf_ck = ovrll_conf_ck * 0
+                            status_message = (
+                                "Low Confidence Detected: " + str(cst_conf * 100) + "%."
+                            )
+                        else:
+                            status_message = "Low Confidence Detected"
+                else:
+                   
+                    status_message = "No Confidence Detected"
+            
 
             tmp_fr_headers["tag"] = hd_tags
             tmp_fr_headers["data"] = {
