@@ -463,7 +463,7 @@ def runStatus(
                                     vName_lower, vendorName_lower)
                                 # logger.info("Similarity (vName_lower vs vendorName_lower):", similarity)
                                 # Check if similarity is 80% or greater
-                                if similarity * 100 >= 85:
+                                if similarity * 100 >= 80:
                                     similarity_scores[v_id] = {
                                                 "vendor_name": vendorName,
                                                 "similarity": similarity,
@@ -478,14 +478,15 @@ def runStatus(
                                 best_similarity_score = best_match_info["similarity"]
 
                                 # Check if the best similarity is 95% or greater
-                                if best_similarity_score * 100 >= 85:
+                                if best_similarity_score * 100 >= 80:
                                     vdrFound = 1
                                     vendorID = best_match_id
                                     logger.info(
                                         f"Vendor match found: {best_vendor} using Levenshtein similarity with accuracy: {best_similarity_score * 100:.2f}%"  # noqa: E501
                                     )
                                     stop = True        
-                        
+                            else:
+                                logger.info(f"Vendor Name match not found using Levenshtein model")
                         except Exception as e:
                             try:
                                 fr_trigger = db.query(model.frtrigger_tab).filter
