@@ -146,7 +146,7 @@ def stampDataFn(blob_data, prompt):
                     "Store Number": "Max retries reached",
                     "VendorName": "Max retries reached",
                     "InvoiceID": "Max retries reached",
-                    "Currency": "Max retries reached",
+                    "Currency": "CAD",
                 }
             )
 
@@ -179,7 +179,7 @@ def stampDataFn(blob_data, prompt):
             "Store Number": "Response not found",
             "VendorName": "Response not found",
             "InvoiceID": "Response not found",
-            "Currency": "Response not found",
+            "Currency": "CAD",
         }
 
     return stampData

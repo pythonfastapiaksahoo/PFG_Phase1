@@ -174,22 +174,18 @@ def IntegratedvoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
 
         # try:
         if "Currency" in docHdrDt:
-            currency_code = docHdrDt["Currency"]
+            currency_code_rw = docHdrDt["Currency"]
+
+            isCurrencyMatch = validate_currency(
+                    inv_id, currency_code_rw, db
+                )  
+
+            if isCurrencyMatch: 
+                currency_code = currency_code_rw
+            else:
+                currency_code = "CAD"
         else:
             currency_code = "CAD"
-                # isCurrencyMatch = validate_currency(
-                #     inv_id, currency_code_rw, db
-                # )  
-
-        #         if isCurrencyMatch: 
-        #             currency_code = currency_code_rw
-
-        #         else:
-        #             currency_code = ""
-        #     else:
-        #         currency_code = ""
-        # except Exception: 
-        #     currency_code = ""
 
 
         if voucher_data_status == 1:
