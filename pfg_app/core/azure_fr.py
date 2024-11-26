@@ -183,7 +183,7 @@ def analyze_form(
         result = call_form_recognizer(
             input_file, endpoint, api_version, invoice_model_id, locale
         )
-        logger.info(f"FUNC => [analyzeForm] result: {result}")
+        # logger.info(f"FUNC => [analyzeForm] result: {result}")
         return result
     except Exception:
         logger.error(f"Error in Form Recognizer: analyzeForm {traceback.format_exc()}")
