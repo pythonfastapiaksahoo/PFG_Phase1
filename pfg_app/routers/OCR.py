@@ -478,7 +478,7 @@ def runStatus(
                                 best_similarity_score = best_match_info["similarity"]
 
                                 # Check if the best similarity is 95% or greater
-                                if best_similarity_score * 100 >= 95:
+                                if best_similarity_score * 100 >= 85:
                                     vdrFound = 1
                                     vendorID = best_match_id
                                     logger.info(
