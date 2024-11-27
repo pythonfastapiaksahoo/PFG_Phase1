@@ -1093,7 +1093,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             "InvoiceDate", ""
                         )  # TODO: Unused variable
                         try:
-                            if date_string is None:
+                            if (date_string is not None):
 
                                 formatted_date, dateValCk = format_and_validate_date(
                                     date_string
