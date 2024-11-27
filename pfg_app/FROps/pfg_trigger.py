@@ -393,8 +393,16 @@ def nonIntegratedVoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
     storeType = stmpData["StoreType"]
     if "StoreNumber" in stmpData:
         storeNumber = stmpData["StoreNumber"]
+        if len(str(storeNumber))==3:
+            storeNumber = "0"+str(storeNumber)
+        elif len(str(storeNumber))==2:
+            storeNumber = "00"+str(storeNumber)
     elif "storenumber" in stmpData:
         storeNumber = stmpData["StoreNumber"]
+        if len(str(storeNumber))==3:
+            storeNumber = "0"+str(storeNumber)
+        elif len(str(storeNumber))==2:
+            storeNumber = "00"+str(storeNumber)
     else:
         voucher_data_status = 0
 
