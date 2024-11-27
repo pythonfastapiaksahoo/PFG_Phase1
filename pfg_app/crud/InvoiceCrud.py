@@ -813,23 +813,53 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                         )
 
                         if vendor_account:
-                            # Get idDocumentModel using the vendorAccountID
-                            document_model = (
-                                db.query(model.DocumentModel)
-                                .filter_by(
-                                    idVendorAccount=vendor_account.idVendorAccount
-                                )
-                                .first()
-                            )
+                            
+                            # # Get idDocumentModel using the vendorAccountID
+                            # document_model = (
+                            #     db.query(model.DocumentModel)
+                            #     .filter_by(
+                            #         idVendorAccount=vendor_account.idVendorAccount,
+                            #         is_active=1,
+                            #     )
+                            #     .first()
+                            # )
 
-                            if document_model:
+                            # if document_model:
+                            #     # Update Document's vendorAccountID and idDocumentModel
+                            #     db.query(model.Document).filter_by(
+                            #         idDocument=inv_id
+                            #     ).update(
+                            #         {
+                            #             "vendorAccountID": vendor_account.idVendorAccount,  # noqa: E501
+                            #             "documentModelID": document_model.idDocumentModel,  # noqa: E501
+                            #         }
+                            #     )
+                            #     db.flush()
+                            
+                            # Get the count of active DocumentModel for the vendorAccountID
+                            active_models_query = db.query(model.DocumentModel).filter_by(
+                                idVendorAccount=vendor_account.idVendorAccount,
+                                is_active=1
+                            )
+                            active_model_count = active_models_query.count()
+
+                            if active_model_count == 0:
+                                # No active DocumentModel found
+                                return {"message": "Vendor Not Onboarded"}
+                            elif active_model_count > 1:
+                                # More than one active DocumentModel found
+                                return {"message": "Multiple active models exist"}
+                            else:
+                                # Exactly one active DocumentModel found
+                                document_model = active_models_query.first()
+
                                 # Update Document's vendorAccountID and idDocumentModel
                                 db.query(model.Document).filter_by(
                                     idDocument=inv_id
                                 ).update(
                                     {
-                                        "vendorAccountID": vendor_account.idVendorAccount,  # noqa: E501
-                                        "documentModelID": document_model.idDocumentModel,  # noqa: E501
+                                        "vendorAccountID": vendor_account.idVendorAccount,
+                                        "documentModelID": document_model.idDocumentModel,
                                     }
                                 )
                                 db.flush()
