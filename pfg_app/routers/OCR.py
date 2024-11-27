@@ -218,7 +218,8 @@ def runStatus(
             - **Invoice Document**: Yes/No
             - **CreditNote**: Yes/No
             - **Invoice ID**: Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
-            - **Vendor Name**:  Extracted vendor address from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
+            - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections),
+                                Ensure to capture the primary vendor name typically found at the top of the document.
             - **Vendor Address**: Extracted vendor address from invoice document
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
@@ -249,7 +250,7 @@ def runStatus(
                     - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
                     - if the confirmation number is not present, return "N/A"
                 - **Receiver** : Extract it only if keyword "Receiver#" exist before the receiver code or name.
-                - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section
+                - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section. Ensure to capture the primary vendor name typically found at the top of the document.
                 - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                 - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                 - **Credit Note**:  May have 'CREDIT MEMO' written on the invoice with or without Negative Amount.
@@ -291,24 +292,43 @@ def runStatus(
 
             """
 
-        (
-            prbtHeaders,
-            grp_pages,
-            splitfileNames,
-            num_pages,
-            StampDataList,
-            rwOcrData,
-            fr_model_status,
-            fr_model_msg,
-            fileSize,
-        ) = splitDoc(
-            pdf_stream,
-            subfolder_name,
-            destination_container_name,
-            prompt,
-            settings.form_recognizer_endpoint,
-            fr_API_version,
-        )
+        try:
+            (
+                prbtHeaders,
+                grp_pages,
+                splitfileNames,
+                num_pages,
+                StampDataList,
+                rwOcrData,
+                fr_model_status,
+                fr_model_msg,
+                fileSize,
+            ) = splitDoc(
+                pdf_stream,
+                subfolder_name,
+                destination_container_name,
+                prompt,
+                settings.form_recognizer_endpoint,
+                fr_API_version,
+            )
+        except Exception as e:
+            try:
+                split_doc = db.query(model.SplitDocTab).filter
+                (model.SplitDocTab.splitdoc_id == splitdoc_id)
+
+                # Step 2: Perform the update operation
+                split_doc.update(
+                    {
+                        model.SplitDocTab.status: str(e),  # noqa: E501
+                    }
+                )
+                # Step 3: Commit the transaction
+                db.commit()
+
+            except Exception:
+                logger.error(
+                    f"Failed to update splitdoc_tab table {traceback.format_exc()}")
+            logger.error(f"Error in splitDoc: {e}")
         if fr_model_status == 1:
 
             query = db.query(
@@ -404,125 +424,203 @@ def runStatus(
 
                 try:
                     # output_data = rwOcrData[hdr]  # TODO: Unused variable
-
+                    # Dictionary to store similarity scores
+                    similarity_scores = {}
                     spltFileName = splitfileNames[fl]
+                    
                     try:
                         stop = False
-                        for syn, v_id, vendorName in zip(
-                            vendorName_df["Synonyms"],
+                        vdrFound = 0
+                        try:
+                            for v_id, vendorName in zip(
                             vendorName_df["idVendor"],
                             vendorName_df["VendorName"],
-                        ):
-                            if stop:
-                                break
-                                # print("syn: ",syn,"   v_id: ",v_id)
-
-                            vName_lower = str(stamp_inv_vendorName)
-                            vendorName_lower = str(vendorName)
-                            # Cleaned versions of the vendor names
-                            vName_lower = clean_vendor_name(vName_lower).lower()
-                            vendorName_lower = clean_vendor_name(vendorName_lower).lower()  # noqa: E501
-                            similarity = Levenshtein.ratio(
-                                vName_lower, vendorName_lower)
-                            
-                            # Check if similarity is 80% or greater
-                            if similarity * 100 >= 85:
-                                vdrFound = 1
-                                vendorID = v_id
-                                logger.info(
-                                    f"Vendor match found using Levenshtein similarity with accuracy: {similarity*100}%"   # noqa: E501
-                                )  
-                                stop = True
-
-                            if (syn is not None or str(syn) != "None") and (
-                                vdrFound == 0
                             ):
-                                synlt = json.loads(syn)
-                                if isinstance(synlt, list):
-                                    for syn1 in synlt:
-                                        if stop:
-                                            break
-                                        syn_1 = syn1.split(",")
+                                if stop:
+                                    break
+                                    # vName_lower = str(stamp_inv_vendorName)
+                                    # vendorName_lower = str(vendorName)
+                                    # # Cleaned versions of the vendor names
+                                    # vName_lower = clean_vendor_name(vName_lower).lower()
+                                    # vendorName_lower = clean_vendor_name(vendorName_lower).lower()  # noqa: E501
+                                    # similarity = Levenshtein.ratio(
+                                    #     vName_lower, vendorName_lower)
+                                    
+                                    # # Check if similarity is 80% or greater
+                                    # if similarity * 100 >= 85:
+                                    #     vdrFound = 1
+                                    #     vendorID = v_id
+                                    #     logger.info(
+                                    #         f"Vendor match found using Levenshtein similarity with accuracy: {similarity*100}%"   # noqa: E501
+                                    #     )  
+                                    #     stop = True
 
-                                        for syn2 in syn_1:
+                                vName_lower = str(stamp_inv_vendorName)
+                                vendorName_lower = str(vendorName)
+                                # Cleaned versions of the vendor names
+                                vName_lower = clean_vendor_name(vName_lower).lower()
+                                vendorName_lower = clean_vendor_name(vendorName_lower).lower()  # noqa: E501
+                                similarity = Levenshtein.ratio(
+                                    vName_lower, vendorName_lower)
+                                # logger.info("Similarity (vName_lower vs vendorName_lower):", similarity)
+                                # Check if similarity is 80% or greater
+                                if similarity * 100 >= 80:
+                                    similarity_scores[v_id] = {
+                                                "vendor_name": vendorName,
+                                                "similarity": similarity,
+                                                }
+                            # Check for the vendor with the highest similarity
+                            if similarity_scores:
+                                logger.info(f"similarity_scores: {similarity_scores}")
+                                best_match_id = max(
+                                    similarity_scores, key=lambda x: similarity_scores[x]["similarity"])   # noqa: E501
+                                best_match_info = similarity_scores[best_match_id]
+                                best_vendor = best_match_info["vendor_name"]
+                                best_similarity_score = best_match_info["similarity"]
+
+                                # Check if the best similarity is 95% or greater
+                                if best_similarity_score * 100 >= 80:
+                                    vdrFound = 1
+                                    vendorID = best_match_id
+                                    logger.info(
+                                        f"Vendor match found: {best_vendor} using Levenshtein similarity with accuracy: {best_similarity_score * 100:.2f}%"  # noqa: E501
+                                    )
+                                    stop = True        
+                            else:
+                                logger.info(f"Vendor Name match not found using Levenshtein model")
+                        except Exception as e:
+                            try:
+                                fr_trigger = db.query(model.frtrigger_tab).filter
+                                (model.frtrigger_tab.blobpath == spltFileName)
+
+                                # Step 2: Perform the update operation
+                                fr_trigger.update(
+                                    {
+                                        model.frtrigger_tab.status: "OpenAI Timeout Error",  # noqa: E501
+                                    }
+                                )
+                                # Step 3: Commit the transaction
+                                db.commit()
+
+                            except Exception:
+                                logger.error(f"{traceback.format_exc()}")
+                            
+                        
+                        try:
+                            for syn, v_id, vendorName in zip(
+                                vendorName_df["Synonyms"],
+                                vendorName_df["idVendor"],
+                                vendorName_df["VendorName"],
+                            ):
+                                if stop:
+                                    break
+                                    # print("syn: ",syn,"   v_id: ",v_id)
+
+                                if (syn is not None or str(syn) != "None") and (
+                                    vdrFound == 0
+                                ):
+                                    synlt = json.loads(syn)
+                                    if isinstance(synlt, list):
+                                        for syn1 in synlt:
                                             if stop:
                                                 break
-                                            if len(di_inv_vendorName) > 0:
-                                                tfidf_matrix_di = (
+                                            syn_1 = syn1.split(",")
+
+                                            for syn2 in syn_1:
+                                                if stop:
+                                                    break
+                                                if len(di_inv_vendorName) > 0:
+                                                    tfidf_matrix_di = (
+                                                        vectorizer.fit_transform(
+                                                            [syn2, di_inv_vendorName]
+                                                        )
+                                                    )
+                                                    cos_sim_di = cosine_similarity(
+                                                        tfidf_matrix_di[0],
+                                                        tfidf_matrix_di[1],
+                                                    )
+
+                                                tfidf_matrix_stmp = (
                                                     vectorizer.fit_transform(
-                                                        [syn2, di_inv_vendorName]
+                                                        [syn2, stamp_inv_vendorName]
                                                     )
                                                 )
-                                                cos_sim_di = cosine_similarity(
-                                                    tfidf_matrix_di[0],
-                                                    tfidf_matrix_di[1],
+                                                cos_sim_stmp = cosine_similarity(
+                                                    tfidf_matrix_stmp[0],
+                                                    tfidf_matrix_stmp[1],
                                                 )
-
-                                            tfidf_matrix_stmp = (
-                                                vectorizer.fit_transform(
-                                                    [syn2, stamp_inv_vendorName]
-                                                )
-                                            )
-                                            cos_sim_stmp = cosine_similarity(
-                                                tfidf_matrix_stmp[0],
-                                                tfidf_matrix_stmp[1],
-                                            )
-                                            if len(di_inv_vendorName) > 0:
-                                                if cos_sim_di[0][0] * 100 >= 95:
+                                                if len(di_inv_vendorName) > 0:
+                                                    if cos_sim_di[0][0] * 100 >= 95:
+                                                        vdrFound = 1
+                                                        vendorID = v_id
+                                                        logger.info(
+                                                            f"cos_sim:{cos_sim_di} , \
+                                                                vendor:{v_id}"
+                                                        )
+                                                        stop = True
+                                                        break
+                                                elif cos_sim_stmp[0][0] * 100 >= 95:
                                                     vdrFound = 1
                                                     vendorID = v_id
                                                     logger.info(
-                                                        f"cos_sim:{cos_sim_di} , \
+                                                        f"cos_sim:{cos_sim_stmp} , \
                                                             vendor:{v_id}"
                                                     )
                                                     stop = True
                                                     break
-                                            elif cos_sim_stmp[0][0] * 100 >= 95:
-                                                vdrFound = 1
-                                                vendorID = v_id
-                                                logger.info(
-                                                    f"cos_sim:{cos_sim_stmp} , \
-                                                        vendor:{v_id}"
-                                                )
-                                                stop = True
-                                                break
-                                            else:
-                                                vdrFound = 0
+                                                else:
+                                                    vdrFound = 0
 
-                                            if (vdrFound == 0) and (
-                                                di_inv_vendorName != ""
-                                            ):
-                                                if syn2 == di_inv_vendorName:
-
-                                                    vdrFound = 1
-                                                    vendorID = v_id
-                                                    stop = True
-                                                    break
-                                                elif (
-                                                    syn2.replace("\n", " ")
-                                                    == di_inv_vendorName
+                                                if (vdrFound == 0) and (
+                                                    di_inv_vendorName != ""
                                                 ):
+                                                    if syn2 == di_inv_vendorName:
 
-                                                    vdrFound = 1
-                                                    vendorID = v_id
-                                                    stop = True
-                                                    break
-                                            elif stamp_inv_vendorName != "":
-                                                if syn2 == stamp_inv_vendorName:
+                                                        vdrFound = 1
+                                                        vendorID = v_id
+                                                        stop = True
+                                                        break
+                                                    elif (
+                                                        syn2.replace("\n", " ")
+                                                        == di_inv_vendorName
+                                                    ):
 
-                                                    vdrFound = 1
-                                                    vendorID = v_id
-                                                    stop = True
-                                                    break
-                                                elif (
-                                                    syn2.replace("\n", " ")
-                                                    == stamp_inv_vendorName
-                                                ):
+                                                        vdrFound = 1
+                                                        vendorID = v_id
+                                                        stop = True
+                                                        break
+                                                elif stamp_inv_vendorName != "":
+                                                    if syn2 == stamp_inv_vendorName:
 
-                                                    vdrFound = 1
-                                                    vendorID = v_id
-                                                    stop = True
-                                                    break
+                                                        vdrFound = 1
+                                                        vendorID = v_id
+                                                        stop = True
+                                                        break
+                                                    elif (
+                                                        syn2.replace("\n", " ")
+                                                        == stamp_inv_vendorName
+                                                    ):
+
+                                                        vdrFound = 1
+                                                        vendorID = v_id
+                                                        stop = True
+                                                        break
+                        except Exception as e:
+                            try:
+                                fr_trigger = db.query(model.frtrigger_tab).filter
+                                (model.frtrigger_tab.blobpath == spltFileName)
+
+                                # Step 2: Perform the update operation
+                                fr_trigger.update(
+                                    {
+                                        model.frtrigger_tab.status: "Vendor Mapping Failed",  # noqa: E501
+                                    }
+                                )
+                                # Step 3: Commit the transaction
+                                db.commit()
+
+                            except Exception:
+                                logger.error(f"{traceback.format_exc()}")
 
                     except Exception:
                         logger.error(f"{traceback.format_exc()}")
@@ -770,7 +868,7 @@ def runStatus(
                                     # Step 2: Perform the update operation
                                     fr_trigger.update(
                                         {
-                                            model.frtrigger_tab.status: "PostProcessing Error",  # noqa: E501
+                                            model.frtrigger_tab.status: "File Processed",  # noqa: E501
                                             model.frtrigger_tab.vendorID: vendorID,
                                             model.frtrigger_tab.documentid: invoId,
                                         }
@@ -841,45 +939,42 @@ def runStatus(
 
                         logger.info(f" VendorUnidentified: invoice_ID: {invoId}")
                         status = "success"
-
-                    except Exception:
-
-                        logger.debug(traceback.format_exc())
-                        status = "fail"
-
-                    logger.info("vendor not found!!")
-                    try:
-
-                        db.query(model.frtrigger_tab).filter(
-                            model.frtrigger_tab.blobpath == spltFileName
-                        ).update(
-                            {
-                                model.frtrigger_tab.status: "VendorNotFound",
-                                model.frtrigger_tab.documentid: invoId,
-                            }
-                        )
-
-                        # Commit the transaction
-                        db.commit()
-                    except Exception as et:
-                        logger.debug(traceback.format_exc())
                         try:
-
                             db.query(model.frtrigger_tab).filter(
                                 model.frtrigger_tab.blobpath == spltFileName
                             ).update(
                                 {
-                                    model.frtrigger_tab.status: str(et),
+                                    model.frtrigger_tab.status: "VendorNotFound",
                                     model.frtrigger_tab.documentid: invoId,
                                 }
                             )
 
                             # Commit the transaction
                             db.commit()
-                        except Exception:
-                            logger.error(f"{traceback.format_exc()}")
+                        except Exception as et:
+                            try:
+                                db.query(model.frtrigger_tab).filter(
+                                    model.frtrigger_tab.blobpath == spltFileName
+                                ).update(
+                                    {
+                                        model.frtrigger_tab.status: str(et),
+                                        model.frtrigger_tab.documentid: invoId,
+                                    }
+                                )
 
-                    status = traceback.format_exc()
+                                # Commit the transaction
+                                db.commit()
+                            except Exception:
+                                logger.error(f"{traceback.format_exc()}")
+                            logger.error(traceback.format_exc())
+                    except Exception:
+
+                        logger.debug(traceback.format_exc())
+                        status = "fail"
+
+                    # logger.info("vendor not found!!")
+                    
+                    # status = traceback.format_exc()
                 if ("StampFound" in StampDataList[splt_map[fl]]) and (
                     len(str(invoId)) > 0
                 ):
@@ -1157,7 +1252,7 @@ def runStatus(
                         model.frtrigger_tab.blobpath == spltFileName
                     ).update(
                         {
-                            model.frtrigger_tab.status: "Processed",
+                            model.frtrigger_tab.status: "File Processed",
                             model.frtrigger_tab.vendorID: vendorID,
                             model.frtrigger_tab.documentid: invoId,
                         },
@@ -1172,7 +1267,22 @@ def runStatus(
                 fl = fl + 1
 
         else:
+            try:
+                split_doc = db.query(model.SplitDocTab).filter
+                (model.SplitDocTab.splitdoc_id == splitdoc_id)
 
+                # Step 2: Perform the update operation
+                split_doc.update(
+                    {
+                        model.SplitDocTab.status: str(e),  # noqa: E501
+                    }
+                )
+                # Step 3: Commit the transaction
+                db.commit()
+
+            except Exception:
+                logger.error(
+                    f"Failed to update splitdoc_tab table {traceback.format_exc()}")
             logger.error(f"DI responed error: {fr_model_status, fr_model_msg}")
             # log to DB
         try:

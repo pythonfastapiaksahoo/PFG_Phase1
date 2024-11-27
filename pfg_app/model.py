@@ -63,9 +63,10 @@ class DocumentModel(Base):
     tag_info = Column(JSON, nullable=True)
     extractiontype = Column(String(50), nullable=True)
     pagepreference = Column(JSON, nullable=True)
-    userID = Column(Integer, nullable=True)
-    update_by = Column(Integer, nullable=True)
+    userID = Column(String, nullable=True)
+    update_by = Column(String, nullable=True)
     is_active = Column(Integer, nullable=True, default=1)
+    is_enabled = Column(Integer, nullable=True, default=1)
 
     def to_dict(self):
         return {

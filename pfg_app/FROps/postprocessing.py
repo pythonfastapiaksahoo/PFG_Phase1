@@ -369,11 +369,14 @@ def cln_amt(amt):
             cl_amt = "0"
             return cl_amt
 
-        if "," in amt:
-            if amt[-3] == ",":
-                amt = amt[:-3] + "." + amt[-2:]
+        # if "," in amt:
+        #     if amt[-3] == ",":
+        #         amt = amt[:-3] + "." + amt[-2:]
 
         if len(amt) > 0:
+            if amt.startswith("$."):
+                amt ="0."+amt[2:]
+                # cl_amt = float(cl_amt)
             if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
                 cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
                 cl_amt = float(cl_amt.replace(",", ""))
@@ -412,10 +415,14 @@ def dataPrep_postprocess_prebuilt(input_data):
 
             if tgs not in ("Items"):
                 if tgs in getData_headerPg:
-                    if (getData_headerPg[tgs]["confidence"]) < (
-                        pre_pg_data[tgs]["confidence"]
-                    ):
-                        getData_headerPg.update({tgs: pre_pg_data[tgs]})
+                    try:
+                        if (getData_headerPg[tgs]["confidence"]) < (
+                            pre_pg_data[tgs]["confidence"]
+                        ):
+                            getData_headerPg.update({tgs: pre_pg_data[tgs]})
+                    except Exception:
+                        logger.debug(traceback.format_exc())    
+                        getData_headerPg[tgs] = pre_pg_data[tgs]
                 else:
                     getData_headerPg[tgs] = pre_pg_data[tgs]
 
@@ -620,10 +627,14 @@ def dataPrep_postprocess_cust(input_data):
             if tgs not in ("tab_1", "tab_2", "tab_3", "tab_3", "Items"):
                 if tgs in getData_headerPg.keys():
                     if "content" in cust_pg_data[tgs]:
-                        if (getData_headerPg[tgs]["confidence"]) < (
-                            cust_pg_data[tgs]["confidence"]
-                        ):
-                            getData_headerPg.update({tgs: cust_pg_data[tgs]})
+                        try:
+                            if (getData_headerPg[tgs]["confidence"]) < (
+                                cust_pg_data[tgs]["confidence"]
+                            ):
+                                getData_headerPg.update({tgs: cust_pg_data[tgs]})
+                        except Exception:
+                            logger.debug(traceback.format_exc())
+                            getData_headerPg[tgs] = cust_pg_data[tgs]
                 else:
                     getData_headerPg[tgs] = cust_pg_data[tgs]
 
@@ -814,7 +825,6 @@ def postpro(
                     bounding_bx = cst_dict[hd_tags]["bounding_regions"]
             else:
                 if (cst_conf is not None) and (pre_conf is not None):
-
                     if cst_conf < pre_conf:
                         if hd_tags == "VendorName":
                             if "content" in cst_dict[hd_tags]:
@@ -853,9 +863,7 @@ def postpro(
                         else:
                             status_message = "Low Confidence Detected"
                 else:
-                   
-                    status_message = "No Confidence Detected"
-            
+                    status_message = "No Confidence Score"
 
             tmp_fr_headers["tag"] = hd_tags
             tmp_fr_headers["data"] = {
