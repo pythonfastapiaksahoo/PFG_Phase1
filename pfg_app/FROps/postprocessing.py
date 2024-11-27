@@ -863,7 +863,7 @@ def postpro(
                         else:
                             status_message = "Low Confidence Detected"
                 else:
-                        status_message = "No Confidence Score"
+                    status_message = "No Confidence Score"
 
             tmp_fr_headers["tag"] = hd_tags
             tmp_fr_headers["data"] = {
