@@ -938,7 +938,11 @@ def processInvoiceVoucher(doc_id, db):
                                                 if voucherdata.recv_ln_nbr
                                                 else 0
                                             ),
-                                            "SHIPTO_ID": "",
+                                            "SHIPTO_ID": (
+                                                        voucherdata.storenumber
+                                                        if voucherdata.storenumber
+                                                        else ""
+                                                    ),
                                             "VCHR_DIST_STG": [
                                                 {
                                                     "BUSINESS_UNIT": "MERCH",

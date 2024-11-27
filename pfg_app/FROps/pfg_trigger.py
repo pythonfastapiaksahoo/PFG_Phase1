@@ -237,7 +237,7 @@ def IntegratedvoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
                     "Voucher_Line_num": 1,
                     "Image_Nbr": 1,
                     "Origin": invoice_type,
-                    "storenumber": str(storeNumber),
+                    "storenumber": str(location_rw),
                     "storetype": storeType,
                     "receiver_id": str(confNumber),
                     "status": voucher_data_status,
@@ -1093,15 +1093,24 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             "InvoiceDate", ""
                         )  # TODO: Unused variable
                         try:
-                            formatted_date, dateValCk = format_and_validate_date(
-                                date_string
-                            )
-                            if dateValCk == 1:
-                                dateCheck = 1
+                            if date_string is None:
+
+                                formatted_date, dateValCk = format_and_validate_date(
+                                    date_string
+                                )
+                                if dateValCk == 1:
+                                    dateCheck = 1
+                                else:
+                                    dateCheck = 0
+                                    dateCheck_msg = (
+                                        "Invoice date is invalid, Please review."
+                                    )
                             else:
+                                formatted_date = date_string
                                 dateCheck = 0
+                                dateValCk = 0
                                 dateCheck_msg = (
-                                    "Invoice date is invalid, Please review."
+                                    "Date missing, kindly review."
                                 )
                             if (dateValCk == 1) and (formatted_date != date_string):
                                 # updating formatted date string:
