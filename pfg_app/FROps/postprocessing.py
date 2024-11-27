@@ -369,11 +369,14 @@ def cln_amt(amt):
             cl_amt = "0"
             return cl_amt
 
-        if "," in amt:
-            if amt[-3] == ",":
-                amt = amt[:-3] + "." + amt[-2:]
+        # if "," in amt:
+        #     if amt[-3] == ",":
+        #         amt = amt[:-3] + "." + amt[-2:]
 
         if len(amt) > 0:
+            if amt.startswith("$."):
+                amt ="0."+amt[2:]
+                # cl_amt = float(cl_amt)
             if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
                 cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
                 cl_amt = float(cl_amt.replace(",", ""))
