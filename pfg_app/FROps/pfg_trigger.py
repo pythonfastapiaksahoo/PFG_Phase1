@@ -237,7 +237,7 @@ def IntegratedvoucherData(inv_id, gst_amt,payload_subtotal, db: Session):
                     "Voucher_Line_num": 1,
                     "Image_Nbr": 1,
                     "Origin": invoice_type,
-                    "storenumber": str(storeNumber),
+                    "storenumber": str(location_rw),
                     "storetype": storeType,
                     "receiver_id": str(confNumber),
                     "status": voucher_data_status,

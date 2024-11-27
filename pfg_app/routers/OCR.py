@@ -218,7 +218,8 @@ def runStatus(
             - **Invoice Document**: Yes/No
             - **CreditNote**: Yes/No
             - **Invoice ID**: Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
-            - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections).
+            - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections),
+                                Ensure to capture the primary vendor name typically found at the top of the document.
             - **Vendor Address**: Extracted vendor address from invoice document
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
