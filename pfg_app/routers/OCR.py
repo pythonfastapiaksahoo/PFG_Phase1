@@ -213,13 +213,13 @@ def runStatus(
                     }
 
             ### Instructions:
-	    1. **Orientation Correction**: Check if the invoice orientation is not straight. If so, make it straight before extracting the data
+	    1. **Orientation Correction**: Check if the invoice orientation is not straight. If so, make it straight to extract stamp data properly
             2. **Data Extraction**: Extract only the information specified:
             - **Invoice Document**: Yes/No
             - **CreditNote**: Yes/No
-            - **Invoice ID**: Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
-            - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections),
-                                Ensure to capture the primary vendor name typically found at the top of the document.
+            - **Invoice ID**: Extracted Invoice ID from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
+            - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections).
+                                Ensure to capture the primary vendor name typically found at the top of the document. If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
             - **Vendor Address**: Extracted vendor address from invoice document
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
@@ -250,7 +250,9 @@ def runStatus(
                     - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
                     - if the confirmation number is not present, return "N/A"
                 - **Receiver** : Extract it only if keyword "Receiver#" exist before the receiver code or name.
-                - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section. Ensure to capture the primary vendor name typically found at the top of the document.
+                - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section.
+                    - Ensure to capture the primary vendor name typically found at the top of the document.
+                    - If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
                 - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                 - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                 - **Credit Note**:  May have 'CREDIT MEMO' written on the invoice with or without Negative Amount.
