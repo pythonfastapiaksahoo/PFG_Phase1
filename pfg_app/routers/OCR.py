@@ -213,14 +213,14 @@ def runStatus(
                     }
 
             ### Instructions:
-	    1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly
+	    1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly.
             2. **Data Extraction**: Extract only the information specified:
             - **Invoice Document**: Yes/No
             - **CreditNote**: Yes/No
             - **Invoice ID**: Extracted Invoice ID from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
             - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections).
                                 Ensure to capture the primary vendor name typically found at the top of the document. If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
-            - **Vendor Address**: Extracted vendor address from invoice document
+            - **Vendor Address**: Extracted vendor address from invoice document.
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
             - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.
