@@ -213,7 +213,7 @@ def runStatus(
                     }
 
             ### Instructions:
-	    1. **Orientation Correction**: Check if the invoice orientation is not straight. If so, make it straight to extract stamp data properly
+	    1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly
             2. **Data Extraction**: Extract only the information specified:
             - **Invoice Document**: Yes/No
             - **CreditNote**: Yes/No
