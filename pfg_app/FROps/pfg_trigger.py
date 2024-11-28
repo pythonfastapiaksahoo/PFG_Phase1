@@ -652,6 +652,26 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
     except Exception as e:
         logger.error(f"{str(e)}")
+    DocDtHdr = (
+        db.query(model.DocumentData, model.DocumentTagDef)
+        .join(
+            model.DocumentTagDef,
+            model.DocumentData.documentTagDefID
+            == model.DocumentTagDef.idDocumentTagDef,
+        )
+        .filter(model.DocumentTagDef.idDocumentModel == docModel)
+        .filter(model.DocumentData.documentID == docID)
+        .all()
+    )
+
+    docHdrDt = {}
+    tagNames = {}
+
+    for document_data, document_tag_def in DocDtHdr:
+        docHdrDt[document_tag_def.TagLabel] = document_data.Value
+        tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+    logger.info(f"docHdrDt: {docHdrDt}")
+    logger.info(f"tagNames: {tagNames}")
 
     sentToPPlSft = {
         7: "Sent to PeopleSoft",
@@ -669,11 +689,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 "response": ["Invoice sent to peopleSoft"],
             }
     else:
-
+        
         try:
 
             try:
                 cln_invID = re.sub(r'[^a-zA-Z0-9\s]', '',invID_docTab )
+                
                 if cln_invID!=invID_docTab:
                     DocDtHdr = (
                         db.query(model.DocumentData, model.DocumentTagDef)
@@ -687,8 +708,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         .all()
                     )
 
-                    docHdrDt = {}
-                    tagNames = {}
+                    # docHdrDt = {}
+                    # tagNames = {}
 
                     for document_data, document_tag_def in DocDtHdr:
                         docHdrDt[document_tag_def.TagLabel] = document_data.Value
@@ -799,26 +820,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
             }
             return docStatusSync
         # ----------
-        DocDtHdr = (
-            db.query(model.DocumentData, model.DocumentTagDef)
-            .join(
-                model.DocumentTagDef,
-                model.DocumentData.documentTagDefID
-                == model.DocumentTagDef.idDocumentTagDef,
-            )
-            .filter(model.DocumentTagDef.idDocumentModel == docModel)
-            .filter(model.DocumentData.documentID == docID)
-            .all()
-        )
-
-        docHdrDt = {}
-        tagNames = {}
-
-        for document_data, document_tag_def in DocDtHdr:
-            docHdrDt[document_tag_def.TagLabel] = document_data.Value
-            tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
-        logger.info(f"docHdrDt: {docHdrDt}")
-        logger.info(f"tagNames: {tagNames}")
+        
 
         # ----------------
         if len(docHdrDt) > 0:
