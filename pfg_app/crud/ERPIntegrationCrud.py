@@ -1313,7 +1313,7 @@ def newbulkupdateInvoiceStatus():
         userID = 1
         # db = next(get_db())
         # Batch size for processing
-        batch_size = 100  # Define a reasonable batch size
+        batch_size = 50  # Define a reasonable batch size
 
         # # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
         # doc_query = db.query(model.Document.idDocument).filter(
@@ -1321,7 +1321,7 @@ def newbulkupdateInvoiceStatus():
         # )
         doc_query = db.query(model.Document.idDocument).filter(
                 model.Document.documentStatusID.in_([7, 14]),
-                model.Document.documentsubstatusID.in_([43, 117])
+                model.Document.documentsubstatusID.in_([43, 44, 117])
         )
         total_docs = doc_query.count()  # Total number of documents to process
         logger.info(f"Total documents to process: {total_docs}")
@@ -1516,7 +1516,7 @@ def bulkProcessVoucherData():
         userID = 1
         # db = next(get_db())
         # Batch size for processing
-        batch_size = 100  # Define a reasonable batch size
+        batch_size = 50  # Define a reasonable batch size
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
         doc_query = db.query(model.Document.idDocument).filter(
             model.Document.documentStatusID == 21
