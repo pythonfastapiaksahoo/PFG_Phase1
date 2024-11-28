@@ -16,7 +16,7 @@ DB = None
 SQLALCHEMY_DATABASE_URL = None
 SCHEMA = "pfg_schema"
 
-if settings.build_type not in ["debug"]:
+if settings.build_type in ["prod"]:
 
     # Retrieve the access token using DefaultAzureCredential
     credential = DefaultAzureCredential()
