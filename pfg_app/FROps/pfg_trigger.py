@@ -671,16 +671,47 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     else:
 
         try:
-            # docTb_docHdr_count = (
-            #     db.query(model.Document)
-            #     .filter(
-            #         model.Document.docheaderID == invID_docTab,
-            #         model.Document.documentStatusID != 10,
-            #         model.Document.vendorAccountID == vdrAccID,
-            #         (model.Document.documentStatusID ==10 and model.Document.idDocument == docID)
-            #     )
-            #     .count()
-            # )
+
+            try:
+                cln_invID = re.sub(r'[^a-zA-Z0-9\s]', '',invID_docTab )
+                if cln_invID!=invID_docTab:
+                    DocDtHdr = (
+                        db.query(model.DocumentData, model.DocumentTagDef)
+                        .join(
+                            model.DocumentTagDef,
+                            model.DocumentData.documentTagDefID
+                            == model.DocumentTagDef.idDocumentTagDef,
+                        )
+                        .filter(model.DocumentTagDef.idDocumentModel == docModel)
+                        .filter(model.DocumentData.documentID == docID)
+                        .all()
+                    )
+
+                    docHdrDt = {}
+                    tagNames = {}
+
+                    for document_data, document_tag_def in DocDtHdr:
+                        docHdrDt[document_tag_def.TagLabel] = document_data.Value
+                        tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+                        docInvoIdTag = tagNames["InvoiceId"]
+                        db.query(model.DocumentData).filter(
+                            model.DocumentData.documentID == docID,
+                            model.DocumentData.documentTagDefID
+                            == docInvoIdTag,
+                        ).update({model.DocumentData.Value: cln_invID})
+                        db.commit()
+
+                        db.query(model.Document).filter(
+                            model.Document.idDocument == docID,
+                        ).update(
+                            {model.Document.docheaderID: cln_invID}
+                        )
+                        db.commit()
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+
+
+            #
 
             docTb_docHdr_count = (
                 db.query(model.Document)
@@ -697,6 +728,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 )
                 .count()
             )
+
             if docTb_docHdr_count > 1:
                 InvodocStatus = 10
                 invoSubstatus = 12
