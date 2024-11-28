@@ -319,15 +319,7 @@ async def download_journeydoc(
 @router.get("/downloadDocumentInvoiceList")
 async def download_documents(
     ven_id: Optional[int] = None,
-    status: Optional[
-        Literal[
-            "posted",
-            "rejected",
-            "exception",
-            "VendorNotOnboarded",
-            "VendorUnidentified",
-        ]
-    ] = None,
+    status: Optional[str] = None,  # Accept a colon-separated string
     uni_search: Optional[str] = None,
     ven_status: Optional[str] = None,
     db: Session = Depends(get_db),
