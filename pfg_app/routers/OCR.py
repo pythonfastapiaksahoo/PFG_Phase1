@@ -225,7 +225,7 @@ def runStatus(
             - If a stamp is present, extract the following information:
             - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.
             - **Circled Department**: Extract the clearly circled or marked keyword "Inventory", "INV" or "Supplies" or "SUP" from the stamp image,
-                    If not circled, return "N/A".
+                    If not circled, return "N/A". Ensure that it should not extract nothing else.
             - **Department**: Extract either a department code or department name, handwritten
                     and possibly starting with "Dept"
             - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
