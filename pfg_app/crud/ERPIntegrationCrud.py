@@ -996,7 +996,7 @@ def processInvoiceVoucher(doc_id, db):
                 }
             ]
         }
-        logger.info(f"request_payload: {request_payload}")
+        logger.info(f"request_payload for doc_id: {doc_id}: {request_payload}")
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -1015,8 +1015,8 @@ def processInvoiceVoucher(doc_id, db):
             response.raise_for_status()
             # Raises an HTTPError if the response was unsuccessful
             # Log full response details
-            logger.info(f"Response Status: {response.status_code}")
-            logger.info(f"Response Headers: {response.headers}")
+            logger.info(f"Response Status for doc_id: {doc_id}: {response.status_code}")
+            logger.info(f"Response Headers for doc_id: {doc_id}: {response.headers}")
             # print("Response Content: ", response.content.decode())  # Full content
 
             # Check for success
@@ -1313,13 +1313,16 @@ def newbulkupdateInvoiceStatus():
         userID = 1
         # db = next(get_db())
         # Batch size for processing
-        batch_size = 100  # Define a reasonable batch size
+        batch_size = 50  # Define a reasonable batch size
 
-        # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
+        # # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
+        # doc_query = db.query(model.Document.idDocument).filter(
+        #     model.Document.documentStatusID == 7
+        # )
         doc_query = db.query(model.Document.idDocument).filter(
-            model.Document.documentStatusID == 7
+                model.Document.documentStatusID.in_([7, 14]),
+                model.Document.documentsubstatusID.in_([43, 44, 117])
         )
-
         total_docs = doc_query.count()  # Total number of documents to process
         logger.info(f"Total documents to process: {total_docs}")
 
@@ -1363,7 +1366,7 @@ def newbulkupdateInvoiceStatus():
                         }
                     }
                 }
-
+                logger.info(f"invoice_status_payload for doc_id: {doc_id}: {invoice_status_payload}")
                 try:
                     # Make a POST request to the external API
                     response = requests.post(
@@ -1513,7 +1516,7 @@ def bulkProcessVoucherData():
         userID = 1
         # db = next(get_db())
         # Batch size for processing
-        batch_size = 100  # Define a reasonable batch size
+        batch_size = 50  # Define a reasonable batch size
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
         doc_query = db.query(model.Document.idDocument).filter(
             model.Document.documentStatusID == 21
