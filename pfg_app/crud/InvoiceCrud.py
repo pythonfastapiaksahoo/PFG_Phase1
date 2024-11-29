@@ -1905,11 +1905,22 @@ async def read_all_doc_inv_list(
             data_query = data_query.filter(
                 model.Document.vendorAccountID.in_(sub_query)
             )
-        # Filter by document status if a status is provided
+        # # Filter by document status if a status is provided
+        # if stat:
+        #     data_query = data_query.filter(
+        #         model.Document.documentStatusID == all_status[stat]
+        #     )
+        status_list = []
         if stat:
-            data_query = data_query.filter(
-                model.Document.documentStatusID == all_status[stat]
-            )
+            # Split the status string by ':' to get a list of statuses
+            status_list = stat.split(":")
+
+            # Map status names to IDs
+            status_ids = [all_status[s] for s in status_list if s in all_status]
+            if status_ids:
+                data_query = data_query.filter(
+                    model.Document.documentStatusID.in_(status_ids)
+                )
         # Filter by vendor status (active or inactive) if provided
         if ven_status:
             if ven_status == "A":

@@ -50,7 +50,7 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
         # Add tags
         if len(invoiceData["TestResult"].keys()) > 0:
             db.query(model.DocumentModel).filter(
-                model.DocumentModel.folderPath == folderpath
+                model.DocumentModel.idDocumentModel == modelID
             ).update(
                 {
                     "is_active": 1,
@@ -61,7 +61,7 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
             )
         else:
             db.query(model.DocumentModel).filter(
-                model.DocumentModel.folderPath == folderpath
+                model.DocumentModel.idDocumentModel == modelID
             ).update(
                 {
                     "is_active": 1,
@@ -72,7 +72,7 @@ def ParseInvoiceData(modelID, userId, invoiceData, db):
         db.commit()
         all_models = (
             db.query(model.DocumentModel.idDocumentModel)
-            .filter(model.DocumentModel.folderPath == folderpath)
+            .filter(model.DocumentModel.idDocumentModel == modelID)
             .all()
         )
         idVendorAccount = (
