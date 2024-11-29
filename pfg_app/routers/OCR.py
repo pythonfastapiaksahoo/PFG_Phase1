@@ -1822,7 +1822,7 @@ def push_frdata(
         "entityID": entityID,
         "entityBodyID": entityBodyID,
         "docheaderID": doc_header["docheaderID"] if "docheaderID" in doc_header else "",
-        "totalAmount": doc_header["totalAmount"] if "totalAmount" in doc_header else "",
+        "totalAmount": doc_header["totalAmount"] if "totalAmount" in doc_header else "0",
         "documentStatusID": docStatus,
         "documentDate": (
             doc_header["documentDate"] if "documentDate" in doc_header else ""
