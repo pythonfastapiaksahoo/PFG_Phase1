@@ -466,7 +466,7 @@ def runStatus(
                                     vName_lower, vendorName_lower)
                                 # logger.info("Similarity (vName_lower vs vendorName_lower):", similarity)
                                 # Check if similarity is 80% or greater
-                                if similarity * 100 >= 80:
+                                if similarity * 100 >= 86:
                                     similarity_scores[v_id] = {
                                                 "vendor_name": vendorName,
                                                 "similarity": similarity,
@@ -481,7 +481,7 @@ def runStatus(
                                 best_similarity_score = best_match_info["similarity"]
 
                                 # Check if the best similarity is 95% or greater
-                                if best_similarity_score * 100 >= 80:
+                                if best_similarity_score * 100 >= 86:
                                     vdrFound = 1
                                     vendorID = best_match_id
                                     logger.info(
