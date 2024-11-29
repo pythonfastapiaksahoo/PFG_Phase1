@@ -1395,7 +1395,7 @@ def getModelData(vendorAccountID, db):
             .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
             .filter(model.DocumentModel.is_active == 1)
             .order_by(model.DocumentModel.UpdatedOn)
-            .first()
+            .all()
         )
         # print("modelData line 403: ", modelData)
         reqModel = None
