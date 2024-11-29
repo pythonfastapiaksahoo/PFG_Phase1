@@ -1321,7 +1321,7 @@ def newbulkupdateInvoiceStatus():
         # )
         doc_query = db.query(model.Document.idDocument).filter(
                 model.Document.documentStatusID.in_([7, 14]),
-                model.Document.documentsubstatusID.in_([43, 44, 117])
+                # model.Document.documentsubstatusID.in_([43, 44, 117])
         )
         total_docs = doc_query.count()  # Total number of documents to process
         logger.info(f"Total documents to process: {total_docs}")
@@ -1350,7 +1350,7 @@ def newbulkupdateInvoiceStatus():
             # Prepare payloads and make API requests
             updates = []
             doc_history_updates = []  # Collect history updates in bulk for the batch
-            for voucherdata, doc_id in zip(voucher_data_list, doc_ids):
+            for voucherdata in voucher_data_list:
                 dmsg = None  # Initialize dmsg to ensure it's defined
                 documentstatusid = 7
                 docsubstatusid = 43
@@ -1366,7 +1366,7 @@ def newbulkupdateInvoiceStatus():
                         }
                     }
                 }
-                logger.info(f"invoice_status_payload for doc_id: {doc_id}: {invoice_status_payload}")
+                logger.info(f"invoice_status_payload for doc_id: {voucherdata.documentID}: {invoice_status_payload}")
                 try:
                     # Make a POST request to the external API
                     response = requests.post(
@@ -1377,7 +1377,7 @@ def newbulkupdateInvoiceStatus():
                         timeout=60,  # Set a timeout of 60 seconds
                     )
                     response.raise_for_status()  # Raise an exception for HTTP errors
-                    logger.info(f"fetching status for document id: {doc_id}")
+                    logger.info(f"fetching status for document id: {voucherdata.documentID}")
                     logger.info(f"Response: {response.json()}")
                     # Process the response if the status code is 200
                     if response.status_code == 200:
@@ -1412,13 +1412,44 @@ def newbulkupdateInvoiceStatus():
                             documentstatusid = 14
                             docsubstatusid = 119
                             dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
-
+                        elif entry_status == "S":
+                            documentstatusid = 14
+                            docsubstatusid = 120
+                            dmsg = InvoiceVoucherSchema.VOUCHER_SCHEDULED
+                        elif entry_status == "C":
+                            documentstatusid = 14
+                            docsubstatusid = 121
+                            dmsg = InvoiceVoucherSchema.VOUCHER_COMPLETED
+                        elif entry_status == "D":
+                            documentstatusid = 14
+                            docsubstatusid = 122
+                            dmsg = InvoiceVoucherSchema.VOUCHER_DEFAULTED
+                        elif entry_status == "E":
+                            documentstatusid = 14
+                            docsubstatusid = 123
+                            dmsg = InvoiceVoucherSchema.VOUCHER_EDITED
+                        elif entry_status == "L":
+                            documentstatusid = 14
+                            docsubstatusid = 124
+                            dmsg = InvoiceVoucherSchema.VOUCHER_REVIEWED
+                        elif entry_status == "M":
+                            documentstatusid = 14
+                            docsubstatusid = 125
+                            dmsg = InvoiceVoucherSchema.VOUCHER_MODIFIED
+                        elif entry_status == "O":
+                            documentstatusid = 14
+                            docsubstatusid = 126
+                            dmsg = InvoiceVoucherSchema.VOUCHER_OPEN
+                        elif entry_status == "T":
+                            documentstatusid = 14
+                            docsubstatusid = 127
+                            dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
                         # If there's a valid document status update,
                         # add it to the bulk update list
                         if documentstatusid:
                             updates.append(
                                 {
-                                    "idDocument": doc_id[0],
+                                    "idDocument": voucherdata.documentID,
                                     "documentStatusID": documentstatusid,
                                     "documentsubstatusID": docsubstatusid,
                                     "voucher_id": voucher_id,
@@ -1427,7 +1458,7 @@ def newbulkupdateInvoiceStatus():
                             # Collect doc history update data
                             doc_history_updates.append(
                                 {
-                                    "documentID": doc_id[0],
+                                    "documentID": voucherdata.documentID,
                                     "userID": userID,
                                     "documentStatusID": documentstatusid,
                                     "documentdescription": dmsg,
@@ -1440,7 +1471,7 @@ def newbulkupdateInvoiceStatus():
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
                     # but don't interrupt the batch
-                    logger.error(f"Error for doc_id {doc_id[0]}: {str(e)}")
+                    logger.error(f"Error for doc_id {voucherdata.documentID}: {str(e)}")
 
             try:
                 # Perform bulk database update for the batch
