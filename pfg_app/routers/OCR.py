@@ -1425,6 +1425,7 @@ def getEntityData(vendorAccountID, db):
 
 def getMetaData(vendorAccountID, db):
     try:
+        
         metadata = (
             db.query(model.FRMetaData)
             .join(
