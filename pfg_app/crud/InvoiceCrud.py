@@ -845,7 +845,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
 
                             if active_model_count == 0:
                                 # No active DocumentModel found
-                                return {"message": "Vendor Not Onboarded"}
+                                return {"message": "Vendor Onboarding is not done"}
                             elif active_model_count > 1:
                                 # More than one active DocumentModel found
                                 return {"message": "Multiple active models exist"}
