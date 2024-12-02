@@ -432,6 +432,8 @@ def dataPrep_postprocess_prebuilt(input_data):
 
 def getFrData_MNF(input_data):
 
+    vendorNameCk = 0
+
     req_lt_prBlt = [
         "CustomerName",
         "InvoiceDate",
