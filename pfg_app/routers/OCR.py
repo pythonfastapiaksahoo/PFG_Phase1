@@ -233,7 +233,7 @@ def runStatus(
             - **Receiver**: The name or code of the person who received the goods (may appear as "Receiver#" or by name).
             - **Confirmation Number**: A 9-digit number, usually handwritten and labeled as "Confirmation"., if it is visible.
                     If not, leave it as "N/A".
-            - **Currency**: Identified by currency symbols (e.g., CAD, USD).
+            - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
 
             3. **Special Notes**:
             - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
