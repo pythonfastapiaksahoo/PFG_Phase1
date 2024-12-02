@@ -466,7 +466,7 @@ def runStatus(
                                     vName_lower, vendorName_lower)
                                 # logger.info("Similarity (vName_lower vs vendorName_lower):", similarity)
                                 # Check if similarity is 80% or greater
-                                if similarity * 100 >= 80:
+                                if similarity * 100 >= 90:
                                     similarity_scores[v_id] = {
                                                 "vendor_name": vendorName,
                                                 "similarity": similarity,
@@ -481,7 +481,7 @@ def runStatus(
                                 best_similarity_score = best_match_info["similarity"]
 
                                 # Check if the best similarity is 95% or greater
-                                if best_similarity_score * 100 >= 80:
+                                if best_similarity_score * 100 >= 90:
                                     vdrFound = 1
                                     vendorID = best_match_id
                                     logger.info(
@@ -1425,6 +1425,7 @@ def getEntityData(vendorAccountID, db):
 
 def getMetaData(vendorAccountID, db):
     try:
+        
         metadata = (
             db.query(model.FRMetaData)
             .join(
@@ -1821,7 +1822,7 @@ def push_frdata(
         "entityID": entityID,
         "entityBodyID": entityBodyID,
         "docheaderID": doc_header["docheaderID"] if "docheaderID" in doc_header else "",
-        "totalAmount": doc_header["totalAmount"] if "totalAmount" in doc_header else "",
+        "totalAmount": doc_header["totalAmount"] if "totalAmount" in doc_header else "0",
         "documentStatusID": docStatus,
         "documentDate": (
             doc_header["documentDate"] if "documentDate" in doc_header else ""

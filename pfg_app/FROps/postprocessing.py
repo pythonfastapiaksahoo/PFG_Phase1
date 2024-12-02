@@ -573,6 +573,38 @@ def getFrData_MNF(input_data):
     except Exception:
         logger.debug(f" {traceback.format_exc()}")
         preBltFrdata_status = 0
+    try:
+        vndr_tg = {'tag': 'VendorName',
+            'data': {'value': '',
+            'prebuilt_confidence': '',
+            'custom_confidence': '0.00'},
+            'bounding_regions': {'x': '0', 'y': '0', 'w': '0', 'h': '0'},
+            'status': 0,
+            'status_message': 'Vendor Name is unavailable.'}
+        if len(preBltFrdata) > 0:
+            if 'header' in preBltFrdata:
+                for tgck_vrdNm in preBltFrdata['header']:
+                    if 'tag' in tgck_vrdNm:
+                        if tgck_vrdNm['tag']=='VendorName':
+                            vendorNameCk = 1
+                if vendorNameCk == 0:
+                    preBltFrdata['header'].append(vndr_tg)
+            else:
+                preBltFrdata['header'] = [vndr_tg]
+                if 'tab' not in preBltFrdata:
+                    preBltFrdata['tab'] = []
+                if 'overall_status' not in preBltFrdata:
+                    preBltFrdata['overall_status'] = 0
+                if 'prebuilt_header' not in preBltFrdata:    
+                    preBltFrdata['prebuilt_header'] = []
+                
+        else:
+            preBltFrdata['header'] = [vndr_tg]
+            preBltFrdata['tab'] = []
+            preBltFrdata['overall_status'] = 0
+            preBltFrdata['prebuilt_header'] = []
+    except Exception:
+        logger.debug(f" {traceback.format_exc()}")
 
     return preBltFrdata, preBltFrdata_status
 
@@ -1410,11 +1442,14 @@ def postpro(
             if dt["header"][tg]["tag"] == "InvoiceId":
                 doc_invID = dt["header"][tg]["data"]["value"]
                 if doc_invID is not None and len(doc_invID) > 1:
-                    while doc_invID[0].isalnum() == 0:
-                        doc_invID = doc_invID[1:]
-                    while doc_invID[-1].isalnum() == 0:
-                        doc_invID = doc_invID[:-1]
-                    doc_invID = re.sub(r'[^a-zA-Z0-9\s]', '', doc_invID)
+                    # while doc_invID[0].isalnum() == 0:
+                    #     doc_invID = doc_invID[1:]
+                    # while doc_invID[-1].isalnum() == 0:
+                    #     doc_invID = doc_invID[:-1]
+                    try:
+                        doc_invID = re.sub(r'[^a-zA-Z0-9\s]', '', doc_invID)
+                    except Exception:
+                        logger.error(f"{traceback.format_exc()}")
                     
                     dt["header"][tg]["data"]["value"] = doc_invID
                     vendor = model.Vendor
