@@ -797,19 +797,46 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
             }
         try:
             if customCall == 1 or (documentModelID == 999999 and vdrAccID != 0):
-                customModelCall(docID)
-                docTb = (
-                    db.query(model.Document)
-                    .filter(model.Document.idDocument == docID)
-                    .all()
+                model_count = (
+                    db.query(model.DocumentModel)
+                    .filter(model.DocumentModel.idVendorAccount == vdrAccID)
+                    .filter(model.DocumentModel.is_active == 1)
+                    .order_by(model.DocumentModel.UpdatedOn)  # This line is optional; ordering isn't needed for a count
+                    .count()
                 )
+                if model_count > 1:
+                    #multiple active models found
+                    docStatusSync["Status overview"] = {
+                            "status": 0,
+                            "response": ["Multiple active models detected. Please combine the models and try again."],
+                        }
+                    return docStatusSync
+                
 
-                for dtb_rw in docTb:
-                    InvodocStatus = dtb_rw.documentStatusID
-                    filePath = dtb_rw.docPath
-                    invID_docTab = dtb_rw.docheaderID
-                    vdrAccID = dtb_rw.vendorAccountID
-                    documentModelID = dtb_rw.documentModelID
+                elif model_count == 0:
+                    #no active models found
+                    docStatusSync["Status overview"] = {
+                            "status": 0,
+                            "response": ["No active models found. Please train the model to onboard the vendor"],
+                        }
+                    return docStatusSync
+
+                else:
+
+
+                    customModelCall(docID)
+                    docTb = (
+                        db.query(model.Document)
+                        .filter(model.Document.idDocument == docID)
+                        .all()
+                    )
+
+                    for dtb_rw in docTb:
+                        InvodocStatus = dtb_rw.documentStatusID
+                        filePath = dtb_rw.docPath
+                        invID_docTab = dtb_rw.docheaderID
+                        vdrAccID = dtb_rw.vendorAccountID
+                        documentModelID = dtb_rw.documentModelID
         except Exception:
             logger.error(f"{traceback.format_exc()}")
 
