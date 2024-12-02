@@ -1,6 +1,5 @@
 # from sqlalchemy.orm import
 import json
-import os
 import traceback
 from datetime import datetime
 
@@ -13,8 +12,7 @@ from pfg_app import settings
 from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
 
-tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
-tz_region = tz.timezone(tz_region_name)
+tz_region = tz.timezone("US/Pacific")
 
 
 def getOcrParameters(customerID, db):
@@ -555,7 +553,6 @@ async def check_duplicate(modelName, db):
             return {"status": False, "message": "not exists"}
     except BaseException:
         return {"status": False, "message": "exception"}
-
 
 
 def model_enable_disable(idDocumentModel, is_enabled, db):

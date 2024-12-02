@@ -1,4 +1,3 @@
-import os
 import traceback
 from datetime import datetime, timedelta
 
@@ -10,8 +9,7 @@ from sqlalchemy.orm import load_only
 import pfg_app.model as models
 from pfg_app.logger_module import logger
 
-tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
-tz_region = tz.timezone(tz_region_name)
+tz_region = tz.timezone("US/Pacific")
 
 
 async def read_galadhari_summary(u_id, ftdate, sp_id, fentity, db):

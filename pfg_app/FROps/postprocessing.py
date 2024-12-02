@@ -1,4 +1,3 @@
-import os
 import re
 import traceback
 from collections import Counter
@@ -17,8 +16,7 @@ from pfg_app.core.stampData import VndMatchFn
 from pfg_app.logger_module import logger
 from pfg_app.session.session import SCHEMA, SQLALCHEMY_DATABASE_URL
 
-tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
-tz_region = tz.timezone(tz_region_name)
+tz_region = tz.timezone("US/Pacific")
 
 
 def date_cnv(doc_date, date_format):
@@ -375,7 +373,7 @@ def cln_amt(amt):
 
         if len(amt) > 0:
             if amt.startswith("$."):
-                amt ="0."+amt[2:]
+                amt = "0." + amt[2:]
                 # cl_amt = float(cl_amt)
             if len(re.findall(r"\d+\,\d+\d+\.\d+", amt)) > 0:
                 cl_amt = re.findall(r"\d+\,\d+\d+\.\d+", amt)[0]
@@ -421,7 +419,7 @@ def dataPrep_postprocess_prebuilt(input_data):
                         ):
                             getData_headerPg.update({tgs: pre_pg_data[tgs]})
                     except Exception:
-                        logger.debug(traceback.format_exc())    
+                        logger.debug(traceback.format_exc())
                         getData_headerPg[tgs] = pre_pg_data[tgs]
                 else:
                     getData_headerPg[tgs] = pre_pg_data[tgs]
@@ -502,7 +500,7 @@ def getFrData_MNF(input_data):
 
                         if prTg in [
                             "InvoiceTotal",
-                           "SubTotal",
+                            "SubTotal",
                             "TotalTax",
                             "GST",
                             "PST",
@@ -520,7 +518,7 @@ def getFrData_MNF(input_data):
                             "Other Credit Charges",
                             "ShipmentCharges",
                             "TotalDiscount",
-                            "Usage Charges"
+                            "Usage Charges",
                         ]:
 
                             if isinstance(
@@ -576,35 +574,39 @@ def getFrData_MNF(input_data):
         logger.debug(f" {traceback.format_exc()}")
         preBltFrdata_status = 0
     try:
-        vndr_tg = {'tag': 'VendorName',
-            'data': {'value': '',
-            'prebuilt_confidence': '',
-            'custom_confidence': '0.00'},
-            'bounding_regions': {'x': '0', 'y': '0', 'w': '0', 'h': '0'},
-            'status': 0,
-            'status_message': 'Vendor Name is unavailable.'}
+        vndr_tg = {
+            "tag": "VendorName",
+            "data": {
+                "value": "",
+                "prebuilt_confidence": "",
+                "custom_confidence": "0.00",
+            },
+            "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
+            "status": 0,
+            "status_message": "Vendor Name is unavailable.",
+        }
         if len(preBltFrdata) > 0:
-            if 'header' in preBltFrdata:
-                for tgck_vrdNm in preBltFrdata['header']:
-                    if 'tag' in tgck_vrdNm:
-                        if tgck_vrdNm['tag']=='VendorName':
+            if "header" in preBltFrdata:
+                for tgck_vrdNm in preBltFrdata["header"]:
+                    if "tag" in tgck_vrdNm:
+                        if tgck_vrdNm["tag"] == "VendorName":
                             vendorNameCk = 1
                 if vendorNameCk == 0:
-                    preBltFrdata['header'].append(vndr_tg)
+                    preBltFrdata["header"].append(vndr_tg)
             else:
-                preBltFrdata['header'] = [vndr_tg]
-                if 'tab' not in preBltFrdata:
-                    preBltFrdata['tab'] = []
-                if 'overall_status' not in preBltFrdata:
-                    preBltFrdata['overall_status'] = 0
-                if 'prebuilt_header' not in preBltFrdata:    
-                    preBltFrdata['prebuilt_header'] = []
-                
+                preBltFrdata["header"] = [vndr_tg]
+                if "tab" not in preBltFrdata:
+                    preBltFrdata["tab"] = []
+                if "overall_status" not in preBltFrdata:
+                    preBltFrdata["overall_status"] = 0
+                if "prebuilt_header" not in preBltFrdata:
+                    preBltFrdata["prebuilt_header"] = []
+
         else:
-            preBltFrdata['header'] = [vndr_tg]
-            preBltFrdata['tab'] = []
-            preBltFrdata['overall_status'] = 0
-            preBltFrdata['prebuilt_header'] = []
+            preBltFrdata["header"] = [vndr_tg]
+            preBltFrdata["tab"] = []
+            preBltFrdata["overall_status"] = 0
+            preBltFrdata["prebuilt_header"] = []
     except Exception:
         logger.debug(f" {traceback.format_exc()}")
 
@@ -897,7 +899,7 @@ def postpro(
                         else:
                             status_message = "Low Confidence Detected"
                 else:
-                        status_message = "No Confidence Score"
+                    status_message = "No Confidence Score"
 
             tmp_fr_headers["tag"] = hd_tags
             tmp_fr_headers["data"] = {
@@ -952,7 +954,7 @@ def postpro(
                         "Other Credit Charges",
                         "ShipmentCharges",
                         "TotalDiscount",
-                        "Usage Charges"
+                        "Usage Charges",
                     ]:
                         if isinstance(tb_cln_amt(cst_dict[ct_tag]["content"]), float):
                             tag_status = 1
@@ -1449,10 +1451,10 @@ def postpro(
                     # while doc_invID[-1].isalnum() == 0:
                     #     doc_invID = doc_invID[:-1]
                     try:
-                        doc_invID = re.sub(r'[^a-zA-Z0-9\s]', '', doc_invID)
+                        doc_invID = re.sub(r"[^a-zA-Z0-9\s]", "", doc_invID)
                     except Exception:
                         logger.error(f"{traceback.format_exc()}")
-                    
+
                     dt["header"][tg]["data"]["value"] = doc_invID
                     vendor = model.Vendor
                     vendor_account = model.VendorAccount
@@ -1460,7 +1462,9 @@ def postpro(
 
                     # Join Vendor and VendorAccount tables on vendorID
                     vendor_vendor_account_join = join(
-                        vendor, vendor_account, vendor.idVendor == vendor_account.vendorID
+                        vendor,
+                        vendor_account,
+                        vendor.idVendor == vendor_account.vendorID,
                     )
 
                     # Construct the final query
@@ -1579,7 +1583,7 @@ def postpro(
                             ] = "Vendor Name Matching with Master Data"
                             dt["header"][tg]["status"] = 1
                         else:
-                           
+
                             if doc_VendorName is not None:
                                 vectorizer = TfidfVectorizer()
                                 tfidf_matrix_di = vectorizer.fit_transform(
@@ -1602,11 +1606,11 @@ def postpro(
                                         "status_message"
                                     ] = "Vendor Name Mismatch with Master Data"
                                     dt["header"][tg]["status"] = 0
-                            else:   
+                            else:
                                 dt["header"][tg][
                                     "status_message"
-                                ]   = "Vendor Name Mismatch with Master Data"
-                                dt["header"][tg]["status"] = 0      
+                                ] = "Vendor Name Mismatch with Master Data"
+                                dt["header"][tg]["status"] = 0
                     except Exception:
                         logger.debug(f" {traceback.format_exc()}")
                         dt["header"][tg][
@@ -1690,7 +1694,7 @@ def postpro(
                 "Other Credit Charges",
                 "ShipmentCharges",
                 "TotalDiscount",
-                "Usage Charges"
+                "Usage Charges",
             ]:
                 try:
                     dt["header"][tg]["data"]["value"] = cln_amt(

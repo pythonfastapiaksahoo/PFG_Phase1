@@ -28,8 +28,7 @@ po_tag_map = {
     "Qty": "Quantity",
     "POLineNumber": "PO_LINE_ID",
 }
-tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
-tz_region = tz.timezone(tz_region_name)
+tz_region = tz.timezone("US/Pacific")
 
 
 # hello world

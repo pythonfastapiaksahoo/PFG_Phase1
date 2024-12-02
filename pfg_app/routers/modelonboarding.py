@@ -331,12 +331,12 @@ async def get_result(
             #  to old format
             if "status" not in json_result:
                 # This is the new format, convert it to the old format
-                # Get the current time in UTC
-                utc_timezone = pytz.utc
-                current_time_utc = datetime.now(utc_timezone)
+                # Get the current time in PST
+                pst_timezone = pytz.timezone("US/Pacific")
+                current_time_pst = datetime.now(pst_timezone)
 
                 # Format the time in ISO 8601 format, similar to your example
-                timestamp = current_time_utc.isoformat()
+                timestamp = current_time_pst.isoformat()
 
                 # Example old_structure using dynamic time zone-aware timestamps
                 old_structure = {
@@ -390,12 +390,12 @@ async def get_result(
             # required old top-level fields like status, createdDateTime,
             # lastUpdatedDateTime, and analyzeResult
 
-            # Get the current time in UTC
-            utc_timezone = pytz.utc
-            current_time_utc = datetime.now(utc_timezone)
+            # Get the current time in PST
+            pst_timezone = pytz.timezone("US/Pacific")
+            current_time_pst = datetime.now(pst_timezone)
 
             # Format the time in ISO 8601 format, similar to your example
-            timestamp = current_time_utc.isoformat()
+            timestamp = current_time_pst.isoformat()
 
             # Example old_structure using dynamic time zone-aware timestamps
             old_structure = {
@@ -638,13 +638,21 @@ async def train_model(data: ModelTrainSchema, db: Session = Depends(get_db)):
                 prefix=folder_path + "/",
             )
             if json_resp["message"] != "success":
-                return {"message": json_resp["message"], "result": {}, "status":False}
-            return {"message": json_resp["message"], "result": json_resp["result"], "status":True}
+                return {"message": json_resp["message"], "result": {}, "status": False}
+            return {
+                "message": json_resp["message"],
+                "result": json_resp["result"],
+                "status": True,
+            }
         else:
-            return {"message": "Model name already exists! Update the name and try again.", "result": json_resp["result"], "status":False}
+            return {
+                "message": "Model name already exists! Update the name and try again.",
+                "result": json_resp["result"],
+                "status": False,
+            }
     except Exception as e:
         print(traceback.format_exc())
-        return {"message": f"exception {e}", "result": {}, "status":False}
+        return {"message": f"exception {e}", "result": {}, "status": False}
     finally:
         db.close()
 
@@ -863,7 +871,7 @@ def getlabels(filedata, document_name, db, keyfields, ocr_engine):
         table_name = "tab_1"
         for f in fields:
             line_number = 0
-            if fields[f]["value_type"] == "list" and f == 'Items':
+            if fields[f]["value_type"] == "list" and f == "Items":
                 value_list = fields[f]["value"]
                 for v in value_list:
                     obj = v["value"]
@@ -1265,7 +1273,6 @@ async def get_training_res_new(
         return {"message": f"exception {e}", "result": []}
     finally:
         db.close()
-
 
 
 @router.post("/model_enable_disable/{idDocumentModel}/{is_enabled}")
