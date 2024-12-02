@@ -223,7 +223,7 @@ def runStatus(
             - **Vendor Address**: Extracted vendor address from invoice document.
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
-            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.
+            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.Ensure the store number can be three or four digits only. If it is more than four digits, return "N/A"
             - **Circled Department**: Extract the clearly circled or marked keyword "Inventory", "INV" or "Supplies" or "SUP" from the stamp image,
                     If not circled, return "N/A". Ensure that it should not extract nothing else.
             - **Department**: Extract either a department code or department name, handwritten
