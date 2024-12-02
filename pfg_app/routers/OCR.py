@@ -1,6 +1,5 @@
 import io
 import json
-import os
 import re
 import traceback
 from datetime import datetime, timezone
@@ -42,11 +41,9 @@ from pfg_app.logger_module import logger
 # from logModule import email_sender
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 
-import re
 # model.Base.metadata.create_all(bind=engine)
 auth_handler = AuthHandler()
-tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
-tz_region = tz.timezone(tz_region_name)
+tz_region = tz.timezone("US/Pacific")
 
 router = APIRouter(
     prefix="/apiv1.1/ocr",
@@ -67,14 +64,15 @@ status_stream_delay = 1  # second
 status_stream_retry_timeout = 30000  # milisecond
 
 common_terms = {
-                "ltd",
-                "inc",
-                "co",
-                "corp",
-                "corporation",
-                "company",
-                "limited",
-                }
+    "ltd",
+    "inc",
+    "co",
+    "corp",
+    "corporation",
+    "company",
+    "limited",
+}
+
 
 # Clean the vendor names by removing punctuation, converting to lowercase, and filtering out common terms
 def clean_vendor_name(name):
@@ -85,6 +83,7 @@ def clean_vendor_name(name):
     # Split name into words, remove common terms, and rejoin
     name = " ".join(word for word in name.split() if word not in common_terms)
     return name
+
 
 @router.post("/status/stream_pfg")
 def runStatus(
@@ -121,6 +120,7 @@ def runStatus(
             email_subject=subject,
             sender=sender,
             mail_row_key=mail_row_key,
+            updated_on=datetime.now(tz_region),
         )
 
         # Add the new entry to the session
@@ -165,7 +165,7 @@ def runStatus(
 
             if split_doc:
                 split_doc.status = "Unsupported File Format: " + fl_type
-                split_doc.updated_on = datetime.now()  # Update the timestamp
+                split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
 
                 # Commit the update
                 db.commit()
@@ -174,7 +174,7 @@ def runStatus(
         modelData = None
         IsUpdated = 0
         invoId = ""
-        customerID = 1
+        # customerID = 1
         userID = 1
         # logger.info(f"userID: {userID}")
         """'file_path': blob_url, 'filename': blob_name, 'file_type':
@@ -197,23 +197,23 @@ def runStatus(
             including a receiver's stamp. Extract the relevant information and format it as a list of JSON objects, adhering strictly to the structure provided below:
 
             {
-                        "StampFound": "Yes/No",
-                        "CreditNote": "Yes/No",
-                        "NumberOfPages": "Total number of pages in the document",
-                        "MarkedDept": "Extracted Circled department only",
-                        "Confirmation": "Extracted confirmation number",
-                        "ReceivingDate": "Extracted receiving date",
-                        "Receiver": "Extracted receiver information",
-                        "Department": "Extracted department code or name",
-                        "Store Number": "Extracted store number",
-                        "VendorName": "Extracted vendor name",
-                        "VendorAddress": "Extracted vendor address",
-                        "InvoiceID": "Extracted invoice ID",
-                        "Currency": "Extracted currency"
-                    }
+                "StampFound": "Yes/No",
+                "CreditNote": "Yes/No",
+                "NumberOfPages": "Total number of pages in the document",
+                "MarkedDept": "Extracted Circled department only",
+                "Confirmation": "Extracted confirmation number",
+                "ReceivingDate": "Extracted receiving date",
+                "Receiver": "Extracted receiver information",
+                "Department": "Extracted department code or name",
+                "Store Number": "Extracted store number",
+                "VendorName": "Extracted vendor name",
+                "VendorAddress": "Extracted vendor address",
+                "InvoiceID": "Extracted invoice ID",
+                "Currency": "Extracted currency"
+            }
 
             ### Instructions:
-	    1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly.
+            1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly.
             2. **Data Extraction**: Extract only the information specified:
             - **Invoice Document**: Yes/No
             - **CreditNote**: Yes/No
@@ -244,7 +244,7 @@ def runStatus(
                     - If the circle encloses the word "INV," return "Inventory."
                     - If the circle encloses the word "SUP," return "Supplies."
                 - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
-                    - The confirmation number must be a handwritten number only. 
+                    - The confirmation number must be a handwritten number only.
                     - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
                     - Apply image enhancement techniques such as increasing contrast to clarify obscured digits.
                     - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
@@ -329,7 +329,8 @@ def runStatus(
 
             except Exception:
                 logger.error(
-                    f"Failed to update splitdoc_tab table {traceback.format_exc()}")
+                    f"Failed to update splitdoc_tab table {traceback.format_exc()}"
+                )
             logger.error(f"Error in splitDoc: {e}")
         if fr_model_status == 1:
 
@@ -363,7 +364,7 @@ def runStatus(
                 split_doc.status = "File Received"
                 split_doc.totalpagecount = num_pages
                 split_doc.num_pages = num_pages
-                split_doc.updated_on = datetime.now()  # Update the timestamp
+                split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
 
                 # Commit the update
                 db.commit()
@@ -429,53 +430,64 @@ def runStatus(
                     # Dictionary to store similarity scores
                     similarity_scores = {}
                     spltFileName = splitfileNames[fl]
-                    
+
                     try:
                         stop = False
                         vdrFound = 0
                         try:
                             for v_id, vendorName in zip(
-                            vendorName_df["idVendor"],
-                            vendorName_df["VendorName"],
+                                vendorName_df["idVendor"],
+                                vendorName_df["VendorName"],
                             ):
                                 if stop:
                                     break
                                     # vName_lower = str(stamp_inv_vendorName)
                                     # vendorName_lower = str(vendorName)
                                     # # Cleaned versions of the vendor names
-                                    # vName_lower = clean_vendor_name(vName_lower).lower()
-                                    # vendorName_lower = clean_vendor_name(vendorName_lower).lower()  # noqa: E501
+                                    # vName_lower = clean_vendor_name(vName_lower)
+                                    # .lower()
+                                    # vendorName_lower =
+                                    # clean_vendor_name(vendorName_lower).lower()
+                                    #  # noqa: E501
                                     # similarity = Levenshtein.ratio(
                                     #     vName_lower, vendorName_lower)
-                                    
+
                                     # # Check if similarity is 80% or greater
                                     # if similarity * 100 >= 85:
                                     #     vdrFound = 1
                                     #     vendorID = v_id
                                     #     logger.info(
-                                    #         f"Vendor match found using Levenshtein similarity with accuracy: {similarity*100}%"   # noqa: E501
-                                    #     )  
+                                    #         f"Vendor match found using Levenshtein
+                                    # similarity with accuracy: {similarity*100}%"
+                                    #  # noqa: E501
+                                    #     )
                                     #     stop = True
 
                                 vName_lower = str(stamp_inv_vendorName)
                                 vendorName_lower = str(vendorName)
                                 # Cleaned versions of the vendor names
                                 vName_lower = clean_vendor_name(vName_lower).lower()
-                                vendorName_lower = clean_vendor_name(vendorName_lower).lower()  # noqa: E501
+                                vendorName_lower = clean_vendor_name(
+                                    vendorName_lower
+                                ).lower()  # noqa: E501
                                 similarity = Levenshtein.ratio(
-                                    vName_lower, vendorName_lower)
-                                # logger.info("Similarity (vName_lower vs vendorName_lower):", similarity)
+                                    vName_lower, vendorName_lower
+                                )
+                                # logger.info("Similarity
+                                # (vName_lower vs vendorName_lower):", similarity)
                                 # Check if similarity is 80% or greater
                                 if similarity * 100 >= 90:
                                     similarity_scores[v_id] = {
-                                                "vendor_name": vendorName,
-                                                "similarity": similarity,
-                                                }
+                                        "vendor_name": vendorName,
+                                        "similarity": similarity,
+                                    }
                             # Check for the vendor with the highest similarity
                             if similarity_scores:
                                 logger.info(f"similarity_scores: {similarity_scores}")
                                 best_match_id = max(
-                                    similarity_scores, key=lambda x: similarity_scores[x]["similarity"])   # noqa: E501
+                                    similarity_scores,
+                                    key=lambda x: similarity_scores[x]["similarity"],
+                                )  # noqa: E501
                                 best_match_info = similarity_scores[best_match_id]
                                 best_vendor = best_match_info["vendor_name"]
                                 best_similarity_score = best_match_info["similarity"]
@@ -487,10 +499,12 @@ def runStatus(
                                     logger.info(
                                         f"Vendor match found: {best_vendor} using Levenshtein similarity with accuracy: {best_similarity_score * 100:.2f}%"  # noqa: E501
                                     )
-                                    stop = True        
+                                    stop = True
                             else:
-                                logger.info(f"Vendor Name match not found using Levenshtein model")
-                        except Exception as e:
+                                logger.info(
+                                    "Vendor Name match not found using Levenshtein model"
+                                )
+                        except Exception:
                             try:
                                 fr_trigger = db.query(model.frtrigger_tab).filter
                                 (model.frtrigger_tab.blobpath == spltFileName)
@@ -506,8 +520,7 @@ def runStatus(
 
                             except Exception:
                                 logger.error(f"{traceback.format_exc()}")
-                            
-                        
+
                         try:
                             for syn, v_id, vendorName in zip(
                                 vendorName_df["Synonyms"],
@@ -607,7 +620,7 @@ def runStatus(
                                                         vendorID = v_id
                                                         stop = True
                                                         break
-                        except Exception as e:
+                        except Exception:
                             try:
                                 fr_trigger = db.query(model.frtrigger_tab).filter
                                 (model.frtrigger_tab.blobpath == spltFileName)
@@ -689,12 +702,18 @@ def runStatus(
                                 if vndMth_address_ck == 1:
                                     vendorID = matched_id_vendor
                                     vdrFound = 1
-                                    logger.info("Vendor Address Matching with Master Data")
+                                    logger.info(
+                                        "Vendor Address Matching with Master Data"
+                                    )
                                 else:
                                     vdrFound = 0
-                                    logger.info("Vendor Address MisMatched with Master Data")
+                                    logger.info(
+                                        "Vendor Address MisMatched with Master Data"
+                                    )
                         else:
-                            logger.warning(f"'VendorAddress' missing in StampDataList[splt_map[fl]]")
+                            logger.warning(
+                                "'VendorAddress' missing in StampDataList[splt_map[fl]]"
+                            )
                     except Exception as e:
                         logger.error(f"Unexpected error: {e}")
                 if vdrFound == 1:
@@ -709,11 +728,15 @@ def runStatus(
                     except Exception:
                         logger.error(f"{traceback.format_exc()}")
                         metaVendorAdd = ""
-                        
+
                     try:
                         # Filter the DataFrame for rows matching vendorID
-                        vendorName_list = list(vendorName_df[vendorName_df["idVendor"] == vendorID]["VendorName"])
-                        
+                        vendorName_list = list(
+                            vendorName_df[vendorName_df["idVendor"] == vendorID][
+                                "VendorName"
+                            ]
+                        )
+
                         # Check if the list is not empty
                         if vendorName_list:
                             metaVendorName = vendorName_list[0]
@@ -721,7 +744,7 @@ def runStatus(
                             # Handle the case where no match is found
                             metaVendorName = ""
 
-                    except Exception as e:
+                    except Exception:
                         logger.error(f"Error occurred: {traceback.format_exc()}")
                     vendorAccountID = vendorID
                     poNumber = "nonPO"
@@ -759,7 +782,7 @@ def runStatus(
                                 db,
                                 mail_row_key,
                             )
-                            
+
                             logger.info(
                                 f" Onboard vendor Pending: invoice_ID: {invoId}"
                             )
@@ -786,7 +809,6 @@ def runStatus(
                         inv_model_id = modelData.modelID
                         API_version = settings.api_version
                         # API_version = configs.ApiVersion
-
 
                         generatorObj = {
                             "spltFileName": spltFileName,
@@ -975,7 +997,7 @@ def runStatus(
                         status = "fail"
 
                     # logger.info("vendor not found!!")
-                    
+
                     # status = traceback.format_exc()
                 if ("StampFound" in StampDataList[splt_map[fl]]) and (
                     len(str(invoId)) > 0
@@ -1241,10 +1263,14 @@ def runStatus(
                             gst_amt = 0
                             if store_type == "Integrated":
                                 payload_subtotal = ""
-                                IntegratedvoucherData(invoId, gst_amt,payload_subtotal, db)
+                                IntegratedvoucherData(
+                                    invoId, gst_amt, payload_subtotal, db
+                                )
                             elif store_type == "Non-Integrated":
                                 payload_subtotal = ""
-                                nonIntegratedVoucherData(invoId, gst_amt,payload_subtotal, db)
+                                nonIntegratedVoucherData(
+                                    invoId, gst_amt, payload_subtotal, db
+                                )
                         except Exception:
                             logger.debug(f"{traceback.format_exc()}")
 
@@ -1276,7 +1302,7 @@ def runStatus(
                 # Step 2: Perform the update operation
                 split_doc.update(
                     {
-                        model.SplitDocTab.status: str(e),  # noqa: E501
+                        model.SplitDocTab.status: str("Not Sure Error"),  # noqa: E501
                     }
                 )
                 # Step 3: Commit the transaction
@@ -1284,7 +1310,8 @@ def runStatus(
 
             except Exception:
                 logger.error(
-                    f"Failed to update splitdoc_tab table {traceback.format_exc()}")
+                    f"Failed to update splitdoc_tab table {traceback.format_exc()}"
+                )
             logger.error(f"DI responed error: {fr_model_status, fr_model_msg}")
             # log to DB
         try:
@@ -1343,7 +1370,7 @@ def runStatus(
             logger.error(f" ocr.py: {traceback.format_exc()}")
         # try:
         #     if len(str(invoId)) !=0:
-                    
+
         #         db.query(model.Document).filter(
         #             model.Document.idDocument == invoId
         #         ).update(
@@ -1351,7 +1378,7 @@ def runStatus(
         #                 model.Document.mail_row_key: str(
         #                     mail_row_key
         #                 ),  # noqa: E501
-                       
+
         #             }
         #         )
         #         db.commit()
@@ -1425,7 +1452,7 @@ def getEntityData(vendorAccountID, db):
 
 def getMetaData(vendorAccountID, db):
     try:
-        
+
         metadata = (
             db.query(model.FRMetaData)
             .join(
@@ -1742,53 +1769,59 @@ def push_frdata(
 ):
     # credit invoice processsing:
     try:
-        hdr_ck_list = ["SubTotal","InvoiceTotal","GST",
-        "HST",
-        "PST",
-        "HST",
-        "TotalTax",
-        "LitterDeposit",
-        "BottleDeposit",
-        "Discount",
-        "FreightCharges",
-        "Fuel surcharge",
-        "Credit_Card_Surcharge",
-        "Deposit",
-        "EcoFees",
-        "EnviroFees",
-        "OtherCharges",
-        "Other Credit Charges",
-        "ShipmentCharges",
-        "TotalDiscount",
-        "Usage Charges"
+        hdr_ck_list = [
+            "SubTotal",
+            "InvoiceTotal",
+            "GST",
+            "HST",
+            "PST",
+            "HST",
+            "TotalTax",
+            "LitterDeposit",
+            "BottleDeposit",
+            "Discount",
+            "FreightCharges",
+            "Fuel surcharge",
+            "Credit_Card_Surcharge",
+            "Deposit",
+            "EcoFees",
+            "EnviroFees",
+            "OtherCharges",
+            "Other Credit Charges",
+            "ShipmentCharges",
+            "TotalDiscount",
+            "Usage Charges",
         ]
 
-        tab_ck_list = ["Quantity","UnitPrice","Amount","AmountExcTax"]
-
+        tab_ck_list = ["Quantity", "UnitPrice", "Amount", "AmountExcTax"]
 
         credit_note = 0
-        for tg in data['header']:
-            if tg['tag'] =="Credit Identifier":
+        for tg in data["header"]:
+            if tg["tag"] == "Credit Identifier":
                 if "credit" in tg["data"]["value"].lower():
-                    credit_note=1
+                    credit_note = 1
                     break
 
-        if credit_note==1:        
-            for crt_tg in data['header']:
-                if crt_tg['tag'] in hdr_ck_list:
+        if credit_note == 1:
+            for crt_tg in data["header"]:
+                if crt_tg["tag"] in hdr_ck_list:
                     try:
-                        crt_tg["data"]["value"] = str(float(crt_tg["data"]["value"])*-1)
-                    except:
-                        logger.info(f"Invalid {crt_tg['tag']} : {crt_tg['data']['value']} ")
+                        crt_tg["data"]["value"] = str(
+                            float(crt_tg["data"]["value"]) * -1
+                        )
+                    except Exception:
+                        logger.info(
+                            f"Invalid {crt_tg['tag']} : {crt_tg['data']['value']} "
+                        )
 
-            for line_cr_tg in data['tab']:
+            for line_cr_tg in data["tab"]:
                 for cr_rw in line_cr_tg:
-                    if cr_rw['tag'] in tab_ck_list:
+                    if cr_rw["tag"] in tab_ck_list:
                         try:
-                            cr_rw['data'] = str(float(cr_rw['data'])*-1)
-                        except:
+                            cr_rw["data"] = str(float(cr_rw["data"]) * -1)
+                        except Exception:
                             logger.info(f"invalid {cr_rw['tag']} : {cr_rw['data']}")
-                            crt_tg['status'] = 0
+                            crt_tg["status"] = 0
     except Exception:
         logger.error("Credit Note Error")
         logger.error(traceback.format_exc())
@@ -1822,7 +1855,9 @@ def push_frdata(
         "entityID": entityID,
         "entityBodyID": entityBodyID,
         "docheaderID": doc_header["docheaderID"] if "docheaderID" in doc_header else "",
-        "totalAmount": doc_header["totalAmount"] if "totalAmount" in doc_header else "0",
+        "totalAmount": (
+            doc_header["totalAmount"] if "totalAmount" in doc_header else "0"
+        ),
         "documentStatusID": docStatus,
         "documentDate": (
             doc_header["documentDate"] if "documentDate" in doc_header else ""

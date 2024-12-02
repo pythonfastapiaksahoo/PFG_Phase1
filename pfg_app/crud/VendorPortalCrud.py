@@ -1,4 +1,3 @@
-import os
 import traceback
 from datetime import datetime
 
@@ -8,8 +7,7 @@ from fastapi.responses import Response
 import pfg_app.model as model
 from pfg_app.logger_module import logger
 
-tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
-tz_region = tz.timezone(tz_region_name)
+tz_region = tz.timezone("US/Pacific")
 
 
 async def read_po_numbers(u_id, vendorAccountID, ent_id, db):
