@@ -346,8 +346,8 @@ def createInvoiceModel(userID, user, invoiceModel, db):
         invoiceModel["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         invoiceModel["UpdatedOn"] = invoiceModel["CreatedOn"]
         try:
-            invoiceModel["userID"] = user.name
-            invoiceModel["update_by"] = user.name
+            invoiceModel["userID"] = user.firstName if user.firstName else user.name
+            invoiceModel["update_by"] = user.firstName if user.firstName else user.name
         except Exception:
             invoiceModel["userID"] = None
             invoiceModel["update_by"] = None

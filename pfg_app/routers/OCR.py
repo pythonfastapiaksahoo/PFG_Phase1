@@ -223,7 +223,7 @@ def runStatus(
             - **Vendor Address**: Extracted vendor address from invoice document.
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
-            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.
+            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.Ensure the store number can be three or four digits only. If it is more than four digits, return "N/A"
             - **Circled Department**: Extract the clearly circled or marked keyword "Inventory", "INV" or "Supplies" or "SUP" from the stamp image,
                     If not circled, return "N/A". Ensure that it should not extract nothing else.
             - **Department**: Extract either a department code or department name, handwritten
@@ -233,7 +233,7 @@ def runStatus(
             - **Receiver**: The name or code of the person who received the goods (may appear as "Receiver#" or by name).
             - **Confirmation Number**: A 9-digit number, usually handwritten and labeled as "Confirmation"., if it is visible.
                     If not, leave it as "N/A".
-            - **Currency**: Identified by currency symbols (e.g., CAD, USD).
+            - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
 
             3. **Special Notes**:
             - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
@@ -466,7 +466,7 @@ def runStatus(
                                     vName_lower, vendorName_lower)
                                 # logger.info("Similarity (vName_lower vs vendorName_lower):", similarity)
                                 # Check if similarity is 80% or greater
-                                if similarity * 100 >= 80:
+                                if similarity * 100 >= 90:
                                     similarity_scores[v_id] = {
                                                 "vendor_name": vendorName,
                                                 "similarity": similarity,
@@ -481,7 +481,7 @@ def runStatus(
                                 best_similarity_score = best_match_info["similarity"]
 
                                 # Check if the best similarity is 95% or greater
-                                if best_similarity_score * 100 >= 80:
+                                if best_similarity_score * 100 >= 90:
                                     vdrFound = 1
                                     vendorID = best_match_id
                                     logger.info(
@@ -1425,6 +1425,7 @@ def getEntityData(vendorAccountID, db):
 
 def getMetaData(vendorAccountID, db):
     try:
+        
         metadata = (
             db.query(model.FRMetaData)
             .join(
@@ -1821,7 +1822,7 @@ def push_frdata(
         "entityID": entityID,
         "entityBodyID": entityBodyID,
         "docheaderID": doc_header["docheaderID"] if "docheaderID" in doc_header else "",
-        "totalAmount": doc_header["totalAmount"] if "totalAmount" in doc_header else "",
+        "totalAmount": doc_header["totalAmount"] if "totalAmount" in doc_header else "0",
         "documentStatusID": docStatus,
         "documentDate": (
             doc_header["documentDate"] if "documentDate" in doc_header else ""
