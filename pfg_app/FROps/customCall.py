@@ -164,9 +164,16 @@ def getModelData(vendorAccountID, db):
         modelData = (
             db.query(model.DocumentModel)
             .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
+            .filter(model.DocumentModel.is_active == 1)
             .order_by(model.DocumentModel.UpdatedOn)
             .all()
         )
+        # modelData = (
+        #     db.query(model.DocumentModel)
+        #     .filter(model.DocumentModel.idVendorAccount == vendorAccountID)
+        #     .order_by(model.DocumentModel.UpdatedOn)
+        #     .all()
+        # )
         # print("modelData line 403: ", modelData)
         reqModel = None
         for m in modelData:

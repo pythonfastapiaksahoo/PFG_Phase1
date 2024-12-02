@@ -1321,7 +1321,7 @@ def newbulkupdateInvoiceStatus():
         # )
         doc_query = db.query(model.Document.idDocument).filter(
                 model.Document.documentStatusID.in_([7, 14]),
-                # model.Document.documentsubstatusID.in_([43, 44, 117])
+                model.Document.documentsubstatusID.in_([43, 44, 117])
         )
         total_docs = doc_query.count()  # Total number of documents to process
         logger.info(f"Total documents to process: {total_docs}")

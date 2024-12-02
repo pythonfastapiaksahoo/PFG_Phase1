@@ -506,7 +506,7 @@ async def update_invoicemodel(
         ).update(
             {
                 "UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                "update_by": user.name,
+                "update_by": user.firstName if user.firstName else user.name,
             }
         )
         db.commit()
