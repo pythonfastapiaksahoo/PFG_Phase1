@@ -4,11 +4,14 @@ import concurrent.futures
 import time
 import traceback
 from datetime import date, datetime
+from http.client import RemoteDisconnected
 from io import BytesIO
 
 from azure.storage.blob import BlobServiceClient
 from pypdf import PdfWriter
 from rapidfuzz import fuzz
+from requests.exceptions import ConnectionError
+from urllib3.exceptions import ProtocolError
 
 from pfg_app import settings
 from pfg_app.core.azure_fr import call_form_recognizer
@@ -195,10 +198,144 @@ def splitDoc(
                 output_data_dt[pg_cnt] = result
                 output_data.append(result)
                 pg_cnt = pg_cnt + 1
-
+            except ConnectionError as e:
+                if isinstance(e.args[0], ProtocolError) and isinstance(
+                    e.args[0].args[1], RemoteDisconnected
+                ):
+                    retry = 1
+                    while retry <= 3:
+                        logger.info(f"Retrying page {pg_cnt}...")
+                        try:
+                            writer = PdfWriter()
+                            writer.add_page(pdf.pages[pg_cnt - 1])
+                            tmp = BytesIO()
+                            writer.write(tmp)
+                            result = call_form_recognizer(
+                                tmp.getvalue(), fr_endpoint, fr_api_version
+                            )
+                            output_data_dt[pg_cnt] = result
+                            output_data.append(result)
+                            pg_cnt = pg_cnt + 1
+                            break  # TO make sure , it was a success
+                        except ConnectionError as e:
+                            logger.info(f"Retry {retry}: {e}")
+                            retry = retry + 1
+                        except Exception as e:
+                            logger.error(f"Error processing a page: {e}")
+                            logger.error(f"{traceback.format_exc()}")
+                            output_data_dt[pg_cnt] = {
+                                "documents": [
+                                    {
+                                        "fields": {
+                                            "InvoiceId": {
+                                                "content": "**FAILED**",
+                                                "confidence": 0.0,
+                                            },
+                                            "VendorName": {
+                                                "content": "**FAILED**",
+                                                "confidence": 0.0,
+                                            },
+                                        }
+                                    }
+                                ]
+                            }
+                            output_data.append(
+                                {
+                                    "documents": [
+                                        {
+                                            "fields": {
+                                                "InvoiceId": {
+                                                    "content": "**FAILED**",
+                                                    "confidence": 0.0,
+                                                },
+                                                "VendorName": {
+                                                    "content": "**FAILED**",
+                                                    "confidence": 0.0,
+                                                },
+                                            }
+                                        }
+                                    ]
+                                }
+                            )
+                            pg_cnt = pg_cnt + 1
+                            break
+                    else:
+                        logger.error(
+                            f"Failed to process page {pg_cnt} after 3 retries."
+                        )
+                        output_data_dt[pg_cnt] = {
+                            "documents": [
+                                {
+                                    "fields": {
+                                        "InvoiceId": {
+                                            "content": "**FAILED**",
+                                            "confidence": 0.0,
+                                        },
+                                        "VendorName": {
+                                            "content": "**FAILED**",
+                                            "confidence": 0.0,
+                                        },
+                                    }
+                                }
+                            ]
+                        }
+                        output_data.append(
+                            {
+                                "documents": [
+                                    {
+                                        "fields": {
+                                            "InvoiceId": {
+                                                "content": "**FAILED**",
+                                                "confidence": 0.0,
+                                            },
+                                            "VendorName": {
+                                                "content": "**FAILED**",
+                                                "confidence": 0.0,
+                                            },
+                                        }
+                                    }
+                                ]
+                            }
+                        )
+                        pg_cnt = pg_cnt + 1
             except Exception as e:
                 logger.error(f"Error processing a page: {e}")
                 logger.error(f"{traceback.format_exc()}")
+                output_data_dt[pg_cnt] = {
+                    "documents": [
+                        {
+                            "fields": {
+                                "InvoiceId": {
+                                    "content": "**FAILED**",
+                                    "confidence": 0.0,
+                                },
+                                "VendorName": {
+                                    "content": "**FAILED**",
+                                    "confidence": 0.0,
+                                },
+                            }
+                        }
+                    ]
+                }
+                output_data.append(
+                    {
+                        "documents": [
+                            {
+                                "fields": {
+                                    "InvoiceId": {
+                                        "content": "**FAILED**",
+                                        "confidence": 0.0,
+                                    },
+                                    "VendorName": {
+                                        "content": "**FAILED**",
+                                        "confidence": 0.0,
+                                    },
+                                }
+                            }
+                        ]
+                    }
+                )
+                pg_cnt = pg_cnt + 1
 
     pageInvoData = {}
     # data_serialized = serialize_dates(output_data)
@@ -300,7 +437,7 @@ def splitDoc(
         for item in input_list:
             if len(item) == 2:
                 output_list.append((item[0], item[1]))
-            elif len(item)>2:
+            elif len(item) > 2:
                 output_list.append((item[0], item[-1]))
             else:
                 output_list.append((item[0], item[0]))
@@ -350,7 +487,9 @@ def splitDoc(
 
         elif sndChk == 1:
             try:
-                split_list =  [(x[0], x[1]) if len(x) == 2 else (x[0], x[0]) for x in output_list]    # noqa: E501
+                split_list = [
+                    (x[0], x[1]) if len(x) == 2 else (x[0], x[0]) for x in output_list
+                ]  # noqa: E501
             except Exception:
                 logger.error(f"{traceback.format_exc()}")
                 grouped_pages = group_pages(prbtHeaders)
@@ -424,50 +563,51 @@ def splitDoc(
             cnt_dt = 0
             tmpLt = []
             for inv, data in pageInvoVendorData.items():
-                if cnt_dt ==0:
+                if cnt_dt == 0:
                     nwPg = 1
                     cnt_dt = 1
                     tmpLt.append(inv)
                     continue
-                    
-                if cnt_dt !=0:
-                    crtInv = pageInvoVendorData[inv]['InvoiceId']
-                    crtVrd = pageInvoVendorData[inv]['VendorName']
-                    prvInv = pageInvoVendorData[inv-1]['InvoiceId']
-                    prvVrd = pageInvoVendorData[inv-1]['VendorName']
 
-                    if prvInv[0]==crtInv[0]:
-                        #same invoice
+                if cnt_dt != 0:
+                    crtInv = pageInvoVendorData[inv]["InvoiceId"]
+                    crtVrd = pageInvoVendorData[inv]["VendorName"]
+                    prvInv = pageInvoVendorData[inv - 1]["InvoiceId"]
+                    prvVrd = pageInvoVendorData[inv - 1]["VendorName"]
+
+                    if prvInv[0] == crtInv[0]:
+                        # same invoice
                         nwPg = 0
                         tmpLt.append(inv)
                     else:
                         if crtInv[1] >= 0.90:
-                            #new page
+                            # new page
                             spltLtmain.append(tmpLt)
-                            
-                            tmpLt= []
+
+                            tmpLt = []
                             tmpLt.append(inv)
                             nwPg = 1
                         # else crtInv[1] <0.90 and (crtVdr[0]=='' or crtVdr[1]<70):
                         elif crtInv[1] < 0.90 and (crtVrd[0] == "" or crtVrd[1] < 70):
-                            chk_vdr = fuzz.token_set_ratio(prvVrd[0], crtVrd[0])> threshold
+                            chk_vdr = (
+                                fuzz.token_set_ratio(prvVrd[0], crtVrd[0]) > threshold
+                            )
                             if chk_vdr:
                                 spltLtmain.append(tmpLt)
-                                tmpLt= []
+                                tmpLt = []
                                 tmpLt.append(inv)
                                 nwPg = 1
                             else:
-                                #same page
+                                # same page
                                 tmpLt.append(inv)
-                        else: 
-                            
+                        else:
+
                             spltLtmain.append(tmpLt)
-                            tmpLt= []
+                            tmpLt = []
                             tmpLt.append(inv)
                 groupInvo[inv] = nwPg
-                    
-            spltLtmain.append(tmpLt)
 
+            spltLtmain.append(tmpLt)
 
             # Transform each sublist to the desired tuple format
             split_list = [(item[0], item[-1]) for item in spltLtmain]

@@ -1,6 +1,6 @@
 import io
 import os
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, BackgroundTasks, Depends

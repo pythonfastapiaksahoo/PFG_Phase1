@@ -157,9 +157,12 @@ async def updateDepartmentMaster(Departmentdata, db):
                 response.append(new_department)
 
         await SyncDepartmentMaster(db, Departmentdata)
+        logger.info(f"Department Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(
+            f"Error occurred while updating department master: { traceback.format_exc()}"
+        )  # noqa: E501
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -207,8 +210,9 @@ async def updateStoreMaster(Storedata, db):
                 db.commit()
                 db.refresh(new_store)
                 response.append(new_store)
-
+        logger.info(f"Store Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
+
     except SQLAlchemyError:
         logger.error(f"Error: { traceback.format_exc()}")
         db.rollback()
@@ -399,6 +403,7 @@ async def updateVendorMaster(vendordata, db):
 
         # Call SyncVendorMaster with the processed vendor data
         await SyncVendorMaster(db, processed_vendordata)
+        logger.info(f"Supplier Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": len(vendordata)}
 
     except SQLAlchemyError as e:
@@ -452,7 +457,7 @@ async def updateAccountMaster(Accountdata, db):
                 db.commit()
                 db.refresh(new_account)
                 response.append(new_account)
-
+        logger.info(f"Account Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
         logger.error(f"Error: { traceback.format_exc()}")
@@ -503,7 +508,7 @@ async def updateProjectMaster(Projectdata, db):
                 db.commit()
                 db.refresh(new_project)
                 response.append(new_project)
-
+        logger.info(f"Project Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
         logger.error(f"Error: { traceback.format_exc()}")
@@ -555,7 +560,7 @@ async def updateProjectActivityMaster(ProjectActivitydata, db):
                 db.commit()
                 db.refresh(new_project_activity)
                 response.append(new_project_activity)
-
+        logger.info(f"ProjectActivity Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
         logger.error(f"Error: { traceback.format_exc()}")
@@ -585,7 +590,7 @@ async def updateReceiptMaster(Receiptdata, db):
                         loc.RECEIVER_ID,
                         loc.RECV_LN_NBR,
                         loc.RECV_SHIP_SEQ_NBR,
-                        loc.DISTRIB_LN_NUM,
+                        loc.DISTRIB_LINE_NUM,
                     ]
                 ):
                     raise HTTPException(
@@ -612,7 +617,7 @@ async def updateReceiptMaster(Receiptdata, db):
 
             # Find existing record by unique combination of
             # BUSINESS_UNIT, RECEIVER_ID,
-            # RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LN_NUM
+            # RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LINE_NUM
             existing_receipt = (
                 db.query(model.PFGReceipt)
                 .filter(
@@ -622,7 +627,7 @@ async def updateReceiptMaster(Receiptdata, db):
                     model.PFGReceipt.RECV_SHIP_SEQ_NBR
                     == data.RECV_LN_DISTRIB.RECV_SHIP_SEQ_NBR,
                     model.PFGReceipt.DISTRIB_LINE_NUM
-                    == data.RECV_LN_DISTRIB.DISTRIB_LN_NUM,
+                    == data.RECV_LN_DISTRIB.DISTRIB_LINE_NUM,
                 )
                 .first()
             )
@@ -646,7 +651,7 @@ async def updateReceiptMaster(Receiptdata, db):
                 db.add(new_receipt)
                 db.commit()
                 db.refresh(new_receipt)
-
+        logger.info(f"Receipt Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Receipt Master Data Updated"}
 
     except Exception:
@@ -774,7 +779,7 @@ async def SyncVendorMaster(db, vendordata):
 
             primary_loc = row.VENDOR_LOC[0] if row.VENDOR_LOC else {}
             currency_cd = primary_loc.get("CURRENCY_CD", "").strip()
-            
+
             if existing_vendor:
                 # Update existing vendor record
                 existing_vendor.VendorName = row.NAME1
@@ -939,10 +944,10 @@ def processInvoiceVoucher(doc_id, db):
                                                 else 0
                                             ),
                                             "SHIPTO_ID": (
-                                                        voucherdata.storenumber
-                                                        if voucherdata.storenumber
-                                                        else ""
-                                                    ),
+                                                voucherdata.storenumber
+                                                if voucherdata.storenumber
+                                                else ""
+                                            ),
                                             "VCHR_DIST_STG": [
                                                 {
                                                     "BUSINESS_UNIT": "MERCH",
@@ -1320,8 +1325,8 @@ def newbulkupdateInvoiceStatus():
         #     model.Document.documentStatusID == 7
         # )
         doc_query = db.query(model.Document.idDocument).filter(
-                model.Document.documentStatusID.in_([7, 14]),
-                model.Document.documentsubstatusID.in_([43, 44, 117])
+            model.Document.documentStatusID.in_([7, 14]),
+            model.Document.documentsubstatusID.in_([43, 44, 117]),
         )
         total_docs = doc_query.count()  # Total number of documents to process
         logger.info(f"Total documents to process: {total_docs}")
@@ -1366,7 +1371,9 @@ def newbulkupdateInvoiceStatus():
                         }
                     }
                 }
-                logger.info(f"invoice_status_payload for doc_id: {voucherdata.documentID}: {invoice_status_payload}")
+                logger.info(
+                    f"invoice_status_payload for doc_id: {voucherdata.documentID}: {invoice_status_payload}"
+                )  # noqa: E501
                 try:
                     # Make a POST request to the external API
                     response = requests.post(
@@ -1377,7 +1384,9 @@ def newbulkupdateInvoiceStatus():
                         timeout=60,  # Set a timeout of 60 seconds
                     )
                     response.raise_for_status()  # Raise an exception for HTTP errors
-                    logger.info(f"fetching status for document id: {voucherdata.documentID}")
+                    logger.info(
+                        f"fetching status for document id: {voucherdata.documentID}"
+                    )
                     logger.info(f"Response: {response.json()}")
                     # Process the response if the status code is 200
                     if response.status_code == 200:

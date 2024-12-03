@@ -1,5 +1,4 @@
 import json
-import os
 
 # FRMetaData
 import time
@@ -17,8 +16,7 @@ import pfg_app.model as model
 from pfg_app.logger_module import logger
 from pfg_app.session.session import DB, SQLALCHEMY_DATABASE_URL
 
-tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
-tz_region = tz.timezone(tz_region_name)
+tz_region = tz.timezone("US/Pacific")
 
 
 async def getFRConfig(userID, db):
@@ -293,7 +291,7 @@ async def updateMetadata(documentId, frmetadata, db):
         )
         if meta is not None:
             db.query(model.FRMetaData).filter(
-                model.FRMetaData.FolderPath == frmetadata["FolderPath"]
+                model.FRMetaData.idInvoiceModel == documentId
             ).update(frmetadata)
         else:
             frmetadata["idInvoiceModel"] = documentId
