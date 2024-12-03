@@ -560,7 +560,7 @@ class Vendor(Base):
     vendorType = Column(String(100), nullable=True)
     miscellaneous = Column(JSONB, nullable=True)
     currency = Column(String, nullable=True)
-    account = Column(String(30),nullable=True)
+    account = Column(String(30), nullable=True)
 
     # __mapper_args__ = {"eager_defaults": True}
 
@@ -1309,7 +1309,7 @@ class PFGVendor(Base):
     DEFAULT_LOC = Column(String(10), nullable=True)
     VENDOR_LOC = Column(JSON, nullable=True)
     VENDOR_ADDR = Column(JSON, nullable=True)
-    VNDR_FIELD_C30_B = Column(String(30),nullable=True)
+    VNDR_FIELD_C30_B = Column(String(30), nullable=True)
 
 
 # class PFGVendor(Base):
