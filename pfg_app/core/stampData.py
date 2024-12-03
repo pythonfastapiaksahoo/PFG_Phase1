@@ -356,19 +356,39 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
-        response = requests.post(
-            settings.open_ai_endpoint, headers=headers, json=data, timeout=60
-        )
+        retry_count = 0
+        max_retries = 5
+        while retry_count < max_retries:
+            response = requests.post(
+                settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+            )
 
-        # Check and process the response
-        if response.status_code == 200:
-            result = response.json()
-            for choice in result["choices"]:
-                content = choice["message"]["content"].strip()
-                logger.info(f"Content: {content}")
-                # TODO not sure how do we handle when we get multiple choices
-        else:
-            logger.error(f"Error: {response.status_code}, {response.text}")
+            # Check and process the response
+            if response.status_code == 200:
+                result = response.json()
+                for choice in result["choices"]:
+                    content = choice["message"]["content"].strip()
+                    logger.info(f"Content: {content}")
+                break
+            elif response.status_code == 429:  # Handle rate limiting
+                retry_after = int(response.headers.get("Retry-After", 5))
+                logger.info(f"Rate limit hit. Retrying after {retry_after} seconds...")
+                time.sleep(retry_after)
+            else:
+                logger.info(f"Error: {response.status_code}, {response.text}")
+                retry_count += 1
+                wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
+                logger.info(f"Retrying in {wait_time:.2f} seconds...")
+                time.sleep(wait_time)
+
+        if retry_count == max_retries:
+            logger.error("Max retries reached. Exiting.")
+            content = json.dumps(
+                {
+                    "vendorMatching": "Max retries reached",
+                    "addressMatching": "Max retries reached",
+                }
+            )
 
         cl_mtch = (
             content.replace("json", "")
@@ -441,18 +461,39 @@ def VndMatchFn_2(doc_VendorAddress, metaVendorAdd):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
-        response = requests.post(
-            settings.open_ai_endpoint, headers=headers, json=data, timeout=60
-        )
+        retry_count = 0
+        max_retries = 5
+        while retry_count < max_retries:
+            response = requests.post(
+                settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+            )
 
-        # Check and process the response
-        if response.status_code == 200:
-            result = response.json()
-            for choice in result["choices"]:
-                content = choice["message"]["content"].strip()
-                logger.info(f"Content: {content}")
-        else:
-            logger.error(f"Error: {response.status_code}, {response.text}")
+            # Check and process the response
+            if response.status_code == 200:
+                result = response.json()
+                for choice in result["choices"]:
+                    content = choice["message"]["content"].strip()
+                    logger.info(f"Content: {content}")
+                break
+            elif response.status_code == 429:  # Handle rate limiting
+                retry_after = int(response.headers.get("Retry-After", 5))
+                logger.info(f"Rate limit hit. Retrying after {retry_after} seconds...")
+                time.sleep(retry_after)
+            else:
+                logger.info(f"Error: {response.status_code}, {response.text}")
+                retry_count += 1
+                wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
+                logger.info(f"Retrying in {wait_time:.2f} seconds...")
+                time.sleep(wait_time)
+
+        if retry_count == max_retries:
+            logger.error("Max retries reached. Exiting.")
+            content = json.dumps(
+                {
+                    "addressMatching": "Max retries reached",
+                    "idVendor": "Max retries reached",
+                }
+            )
 
         # Process JSON response
         cl_mtch = (
