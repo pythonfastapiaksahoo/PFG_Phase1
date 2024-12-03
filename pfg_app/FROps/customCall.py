@@ -231,7 +231,6 @@ def customModelCall(docID):
         # preprocess the file and get binary data
         fr_preprocessing_status, fr_preprocessing_msg, input_data, ui_status = (
             fr_preprocessing(
-                
                 vendorAccountID,
                 entityID,
                 file_path,
@@ -378,7 +377,7 @@ def customModelCall(docID):
                             "Other Credit Charges",
                             "ShipmentCharges",
                             "TotalDiscount",
-                            "Usage Charges"
+                            "Usage Charges",
                         ]:
                             clnAnt = clean_amount(val)
                             if clnAnt is not None:

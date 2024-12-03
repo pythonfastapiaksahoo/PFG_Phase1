@@ -43,8 +43,17 @@ substatus = [
 
 
 async def read_paginate_doc_inv_list_with_ln_items(
-    u_id, ven_id, inv_type, stat, off_limit, db, uni_api_filter, ven_status, date_range,
-    sort_column,sort_order,
+    u_id,
+    ven_id,
+    inv_type,
+    stat,
+    off_limit,
+    db,
+    uni_api_filter,
+    ven_status,
+    date_range,
+    sort_column,
+    sort_order,
 ):
     """Function to read the paginated document invoice list.
 
@@ -254,7 +263,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                     ),
                 )
                 data_query = data_query.filter(filter_condition)
-                
+
         # Get the total count of records before applying limit and offset
         total_count = data_query.distinct(model.Document.idDocument).count()
         # Apply sorting
@@ -270,14 +279,14 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "Amount": model.Document.totalAmount,
             "Upload Date": model.Document.CreatedOn,
         }
-        
+
         if sort_column in sort_columns_map:
             sort_field = sort_columns_map[sort_column]
             if sort_order.lower() == "desc":
                 data_query = data_query.order_by(sort_field.desc())
             else:
                 data_query = data_query.order_by(sort_field.asc())
-                
+
         # # Get the total count of records before applying limit and offset
         # total_count = data_query.distinct(model.Document.idDocument).count()
 
@@ -813,7 +822,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                         )
 
                         if vendor_account:
-                            
+
                             # # Get idDocumentModel using the vendorAccountID
                             # document_model = (
                             #     db.query(model.DocumentModel)
@@ -835,11 +844,13 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                             #         }
                             #     )
                             #     db.flush()
-                            
+
                             # Get the count of active DocumentModel for the vendorAccountID
-                            active_models_query = db.query(model.DocumentModel).filter_by(
+                            active_models_query = db.query(
+                                model.DocumentModel
+                            ).filter_by(
                                 idVendorAccount=vendor_account.idVendorAccount,
-                                is_active=1
+                                is_active=1,
                             )
                             active_model_count = active_models_query.count()
 
@@ -858,8 +869,8 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                                     idDocument=inv_id
                                 ).update(
                                     {
-                                        "vendorAccountID": vendor_account.idVendorAccount,
-                                        "documentModelID": document_model.idDocumentModel,
+                                        "vendorAccountID": vendor_account.idVendorAccount,  # noqa: E501
+                                        "documentModelID": document_model.idDocumentModel,  # noqa: E501
                                     }
                                 )
                                 db.flush()

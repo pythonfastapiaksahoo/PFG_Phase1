@@ -1,4 +1,3 @@
-import os
 import re
 import traceback
 
@@ -10,8 +9,7 @@ from sqlalchemy.orm import Load
 import pfg_app.model as model
 from pfg_app.logger_module import logger
 
-tz_region_name = os.getenv("serina_tz", "Asia/Dubai")
-tz_region = tz.timezone(tz_region_name)
+tz_region = tz.timezone("US/Pacific")
 
 
 async def readvendorname(db):

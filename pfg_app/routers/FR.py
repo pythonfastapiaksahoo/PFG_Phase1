@@ -126,10 +126,9 @@ async def get_entity_levelTaggedInfo(
 # Checked - used in the frontend
 @router.put("/update_metadata/{documentId}")
 async def update_metadata(
-    request: Request, documentId: int, db: Session = Depends(get_db)
+    frmetadata:dict, documentId: int, db: Session = Depends(get_db)
 ):
     try:
-        frmetadata = await request.json()
         blb_fldr = frmetadata["FolderPath"]
         mandatoryheadertags = (
             frmetadata["mandatoryheadertags"].split(",")
@@ -633,8 +632,7 @@ async def check_duplicate_synonyms(synonym: str, db: Session = Depends(get_db)):
 # check duplicate synonyms
 @router.get("/checkduplicatemodel")
 async def check_duplicate_model(model_name: str, db: Session = Depends(get_db)):
-    """
-    Check if the given model_name already exists in the DocumentModel table.
+    """Check if the given model_name already exists in the DocumentModel table.
 
     Args:
         db (Session): SQLAlchemy database session.
@@ -645,8 +643,12 @@ async def check_duplicate_model(model_name: str, db: Session = Depends(get_db)):
     """
     try:
         # Query the DocumentModel table using db.query
-        existing_model = db.query(model.DocumentModel).filter(model.DocumentModel.modelName == model_name).first()
-        
+        existing_model = (
+            db.query(model.DocumentModel)
+            .filter(model.DocumentModel.modelName == model_name)
+            .first()
+        )
+
         if existing_model:
             return True
         else:
