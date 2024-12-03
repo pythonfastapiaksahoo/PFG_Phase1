@@ -126,10 +126,9 @@ async def get_entity_levelTaggedInfo(
 # Checked - used in the frontend
 @router.put("/update_metadata/{documentId}")
 async def update_metadata(
-    request: Request, documentId: int, db: Session = Depends(get_db)
+    frmetadata:dict, documentId: int, db: Session = Depends(get_db)
 ):
     try:
-        frmetadata = await request.json()
         blb_fldr = frmetadata["FolderPath"]
         mandatoryheadertags = (
             frmetadata["mandatoryheadertags"].split(",")
