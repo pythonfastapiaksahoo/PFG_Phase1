@@ -991,7 +991,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                             if "InvoiceTotal" in docHdrDt:
                                 invoTotal = clean_amount(docHdrDt["InvoiceTotal"])
-                                if (invoTotal is not None) and (invoTotal > 0):
+                                if (invoTotal is not None) and (invoTotal >= 0):
 
                                     try:
 
