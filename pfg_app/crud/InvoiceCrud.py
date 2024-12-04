@@ -2154,23 +2154,24 @@ async def get_email_row_associated_files(
                 logger.error(
                     f"Error processing column filter: {str(traceback.format_exc())}"
                 )
+        
+        # # Alias for the SplitDocTab model
+        SplitDocTabAlias = aliased(model.SplitDocTab)
         # Sorting logic
         sort_columns_map = {
-            "Sender": model.SplitDocTab.sender,
-            "Mail Row Key": model.SplitDocTab.mail_row_key,
-            "Total Page Count": model.SplitDocTab.totalpagecount,
-            "Created On": model.SplitDocTab.updated_on,
-            "Email Subject": model.SplitDocTab.email_subject,
+            "Sender": SplitDocTabAlias.sender,
+            "Mail Row Key": SplitDocTabAlias.mail_row_key,
+            "Created On": SplitDocTabAlias.updated_on,
+            "Email Subject": SplitDocTabAlias.email_subject,
         }
+        if sort_column and sort_column in sort_columns_map:
+            column_to_sort = sort_columns_map[sort_column]
+            order_by_clause = (
+                column_to_sort.desc() if sort_order.lower() == "desc" else column_to_sort.asc()
+            )
+        else:
+            order_by_clause = SplitDocTabAlias.splitdoc_id.desc()  # Default sorting
 
-        if sort_column in sort_columns_map:
-            sort_field = sort_columns_map[sort_column]
-            if sort_order.lower() == "desc":
-                data_query = data_query.order_by(sort_field.desc())
-            else:
-                data_query = data_query.order_by(sort_field.asc())
-        
-        
         # Extract offset and limit for pagination
         try:
             offset, limit = off_limit
@@ -2188,8 +2189,7 @@ async def get_email_row_associated_files(
             data_query.with_entities(model.SplitDocTab.mail_row_key).distinct().count()
         )
 
-        # Alias for the SplitDocTab model
-        SplitDocTabAlias = aliased(model.SplitDocTab)
+        
 
         # Subquery to get the latest splitdoc_id per mail_row_key, with filters applied
         latest_splitdoc_subquery = (
@@ -2200,8 +2200,23 @@ async def get_email_row_associated_files(
             .group_by(model.SplitDocTab.mail_row_key)
             .subquery()
         )
+        
+        
 
-        # Main query to get latest unique mail_row_keys with pagination
+        # # Main query to get latest unique mail_row_keys with pagination
+        # unique_mail_keys_query = (
+        #     db.query(SplitDocTabAlias.mail_row_key)
+        #     .join(
+        #         latest_splitdoc_subquery,
+        #         latest_splitdoc_subquery.c.latest_splitdoc_id
+        #         == SplitDocTabAlias.splitdoc_id,
+        #     )
+        #     .order_by(SplitDocTabAlias.splitdoc_id.desc())
+        #     .offset(off_val)
+        #     .limit(limit)
+        # )
+        
+        # Main query to get latest unique mail_row_keys with sorting and pagination
         unique_mail_keys_query = (
             db.query(SplitDocTabAlias.mail_row_key)
             .join(
@@ -2209,11 +2224,11 @@ async def get_email_row_associated_files(
                 latest_splitdoc_subquery.c.latest_splitdoc_id
                 == SplitDocTabAlias.splitdoc_id,
             )
-            .order_by(SplitDocTabAlias.splitdoc_id.desc())
+            .order_by(order_by_clause)
             .offset(off_val)
             .limit(limit)
         )
-
+        
         unique_mail_keys = unique_mail_keys_query.all()
         # Step 2: Retrieve all splitdoc_ids for the selected unique mail_row_keys
         if unique_mail_keys:
