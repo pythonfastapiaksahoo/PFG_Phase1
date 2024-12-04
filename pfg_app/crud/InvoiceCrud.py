@@ -2010,7 +2010,7 @@ async def read_all_doc_inv_list(
 
 
 async def get_email_row_associated_files(
-    u_id, off_limit, uni_api_filter, column_filter, db
+    u_id, off_limit, uni_api_filter, column_filter, db, sort_column, sort_order
 ):
     """Function to retrieve SplitDocTab data for a specific splitdoc_id with
     exception handling, grouping by mail_number if multiple entries exist.
@@ -2154,7 +2154,23 @@ async def get_email_row_associated_files(
                 logger.error(
                     f"Error processing column filter: {str(traceback.format_exc())}"
                 )
+        # Sorting logic
+        sort_columns_map = {
+            "Sender": model.SplitDocTab.sender,
+            "Mail Row Key": model.SplitDocTab.mail_row_key,
+            "Total Page Count": model.SplitDocTab.totalpagecount,
+            "Created On": model.SplitDocTab.updated_on,
+            "Email Subject": model.SplitDocTab.email_subject,
+        }
 
+        if sort_column in sort_columns_map:
+            sort_field = sort_columns_map[sort_column]
+            if sort_order.lower() == "desc":
+                data_query = data_query.order_by(sort_field.desc())
+            else:
+                data_query = data_query.order_by(sort_field.asc())
+        
+        
         # Extract offset and limit for pagination
         try:
             offset, limit = off_limit
