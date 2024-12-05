@@ -655,7 +655,8 @@ async def updateReceiptMaster(Receiptdata, db):
                 db.commit()
                 db.refresh(new_receipt)
                 inserted_count += 1  # Increment counter for new records
-        logger.info(f"Receipt Master Data Updated at {datetime.datetime.now()}")
+        logger.info(f"Receipt Master Data Updated at {datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}")
+        logger.info(f"Receipt data Inserted Count: {inserted_count}")
         return {
             "result": "Receipt Master Data Updated",
             "inserted_count": inserted_count
