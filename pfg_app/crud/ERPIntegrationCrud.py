@@ -575,6 +575,7 @@ async def updateProjectActivityMaster(ProjectActivitydata, db):
 
 async def updateReceiptMaster(Receiptdata, db):
     try:
+        inserted_count = 0  # Initialize counter for inserted rows
         for data in Receiptdata:
             # Validate required fields
             if not all([data.BUSINESS_UNIT, data.RECEIVER_ID]):
@@ -653,8 +654,12 @@ async def updateReceiptMaster(Receiptdata, db):
                 db.add(new_receipt)
                 db.commit()
                 db.refresh(new_receipt)
+                inserted_count += 1  # Increment counter for new records
         logger.info(f"Receipt Master Data Updated at {datetime.datetime.now()}")
-        return {"result": "Receipt Master Data Updated"}
+        return {
+            "result": "Receipt Master Data Updated",
+            "inserted_count": inserted_count
+            }
 
     except Exception:
         logger.error(f"Error: { traceback.format_exc()}")
