@@ -291,7 +291,7 @@ async def updateMetadata(documentId, frmetadata, db):
         )
         if meta is not None:
             db.query(model.FRMetaData).filter(
-                model.FRMetaData.FolderPath == frmetadata["FolderPath"]
+                model.FRMetaData.idInvoiceModel == documentId
             ).update(frmetadata)
         else:
             frmetadata["idInvoiceModel"] = documentId
