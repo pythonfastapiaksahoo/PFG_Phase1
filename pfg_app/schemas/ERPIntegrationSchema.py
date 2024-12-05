@@ -139,7 +139,7 @@ class RECV_LN_DISTRIB(BaseModel):
     RECEIVER_ID: str = Field(max_length=10)
     RECV_LN_NBR: int
     RECV_SHIP_SEQ_NBR: int
-    DISTRIB_LINE_NUM: int
+    DISTRIB_LN_NUM: int
     MERCHANDISE_AMT: Optional[float]
     ACCOUNT: Optional[str] = Field(max_length=10)
     DEPTID: Optional[str] = Field(max_length=10)

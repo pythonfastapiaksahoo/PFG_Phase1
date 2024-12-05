@@ -590,7 +590,7 @@ async def updateReceiptMaster(Receiptdata, db):
                         loc.RECEIVER_ID,
                         loc.RECV_LN_NBR,
                         loc.RECV_SHIP_SEQ_NBR,
-                        loc.DISTRIB_LINE_NUM,
+                        loc.DISTRIB_LN_NUM,
                     ]
                 ):
                     raise HTTPException(
@@ -609,25 +609,27 @@ async def updateReceiptMaster(Receiptdata, db):
                     )
 
             # Flatten the combined PFGReceipt and RECV_LN_DISTRIB into one dictionary
-            receipt_data = data.dict()
+            receipt_data = data.dict()  # Convert Pydantic model to dictionary
             distrib_data = data.RECV_LN_DISTRIB.dict() if data.RECV_LN_DISTRIB else {}
 
             # Merge RECV_LN_DISTRIB into receipt_data for a flattened structure
             receipt_data.update(distrib_data)
 
+            # Map DISTRIB_LN_NUM correctly to DISTRIB_LINE_NUM
+            if "DISTRIB_LN_NUM" in receipt_data:
+                receipt_data["DISTRIB_LINE_NUM"] = receipt_data.pop("DISTRIB_LN_NUM")
+
             # Find existing record by unique combination of
             # BUSINESS_UNIT, RECEIVER_ID,
-            # RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LINE_NUM
+            # RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LN_NUM
             existing_receipt = (
                 db.query(model.PFGReceipt)
                 .filter(
-                    model.PFGReceipt.BUSINESS_UNIT == data.BUSINESS_UNIT,
-                    model.PFGReceipt.RECEIVER_ID == data.RECEIVER_ID,
-                    model.PFGReceipt.RECV_LN_NBR == data.RECV_LN_DISTRIB.RECV_LN_NBR,
-                    model.PFGReceipt.RECV_SHIP_SEQ_NBR
-                    == data.RECV_LN_DISTRIB.RECV_SHIP_SEQ_NBR,
-                    model.PFGReceipt.DISTRIB_LINE_NUM
-                    == data.RECV_LN_DISTRIB.DISTRIB_LINE_NUM,
+                    model.PFGReceipt.BUSINESS_UNIT == receipt_data["BUSINESS_UNIT"],
+                    model.PFGReceipt.RECEIVER_ID == receipt_data["RECEIVER_ID"],
+                    model.PFGReceipt.RECV_LN_NBR == receipt_data["RECV_LN_NBR"],
+                    model.PFGReceipt.RECV_SHIP_SEQ_NBR == receipt_data["RECV_SHIP_SEQ_NBR"],
+                    model.PFGReceipt.DISTRIB_LINE_NUM == receipt_data["DISTRIB_LINE_NUM"],
                 )
                 .first()
             )
