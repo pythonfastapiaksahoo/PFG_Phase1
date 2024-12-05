@@ -491,3 +491,42 @@ async def get_dept_names_list(db: Session = Depends(get_db)):
     List of active department names.
     """
     return await crud.readdeptname(db)
+
+
+@router.post("/documents/{doc_id}/lineitems")
+async def insert_lineitems_api(
+    doc_id: int,
+    data: schema.InsertLineItemsRequest,
+    db: Session = Depends(get_db)
+    ):
+    """
+    API to insert line items into the DocumentLineItems table for a given document ID.
+    
+    Parameters:
+    -----------
+    doc_id : int
+        The document ID provided as a path parameter.
+    data : InsertLineItemsRequest
+        The input data containing a list of line items to be inserted.
+    db : Session
+        The database session used to interact with the backend database.
+    
+    Returns:
+    --------
+    dict
+        A message indicating the success or failure of the operation.
+    """
+    try:
+        # Convert Pydantic objects to list of dictionaries
+        line_items_data = [item.dict() for item in data.lineItems]
+        
+        # Call the insert function
+        result_message = crud.insert_lineitems(doc_id, line_items_data, db)
+        
+        return {"message": result_message}
+    
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error in downloading journey document: {e}",
+        }

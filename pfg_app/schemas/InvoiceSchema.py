@@ -271,3 +271,20 @@ class UpdateStampData(BaseModel):
     stamptagname: str
     OldValue: str
     NewValue: str
+
+
+class LineItemInput(BaseModel):
+    lineItemTagID: int
+    Value: str = None
+    IsUpdated: int
+    isError: int
+    ErrorDesc: str
+    Xcord: float = None
+    Ycord: float = None
+    Width: float = None
+    Height: float = None
+    Fuzzy_scr: int
+    itemCode: str 
+
+class InsertLineItemsRequest(BaseModel):
+    lineItems: List[LineItemInput]

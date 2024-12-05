@@ -823,27 +823,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
 
                         if vendor_account:
 
-                            # # Get idDocumentModel using the vendorAccountID
-                            # document_model = (
-                            #     db.query(model.DocumentModel)
-                            #     .filter_by(
-                            #         idVendorAccount=vendor_account.idVendorAccount,
-                            #         is_active=1,
-                            #     )
-                            #     .first()
-                            # )
-
-                            # if document_model:
-                            #     # Update Document's vendorAccountID and idDocumentModel
-                            #     db.query(model.Document).filter_by(
-                            #         idDocument=inv_id
-                            #     ).update(
-                            #         {
-                            #             "vendorAccountID": vendor_account.idVendorAccount,  # noqa: E501
-                            #             "documentModelID": document_model.idDocumentModel,  # noqa: E501
-                            #         }
-                            #     )
-                            #     db.flush()
+                            
 
                             # Get the count of active DocumentModel for the vendorAccountID
                             active_models_query = db.query(
@@ -2313,3 +2293,50 @@ async def readdeptname(db):
         )
     finally:
         db.close()
+
+
+
+def insert_lineitems(doc_id, line_items, db):
+    """
+    Inserts line item data into the DocumentLineItems table for a given document ID.
+    
+    Parameters:
+    -----------
+    doc_id : int
+        The document ID to which the line items belong.
+    line_items : List[dict]
+        A list of dictionaries containing line item data.
+    db : Session
+        The database session used to interact with the backend database.
+    
+    Returns:
+    --------
+    str
+        A success message indicating the operation was successful.
+    """
+    try:
+        new_lineitems = []
+        for item in line_items:
+            new_lineitem = model.DocumentLineItems(
+                documentID=doc_id,
+                lineItemtagID=item["lineItemTagID"],
+                Value=item.get("Value"),
+                IsUpdated=item.get("IsUpdated", False),
+                isError=item.get("isError", False),
+                ErrorDesc=item.get("ErrorDesc"),
+                Xcord=item.get("Xcord"),
+                Ycord=item.get("Ycord"),
+                Width=item.get("Width"),
+                Height=item.get("Height"),
+                itemCode=item.get("itemCode"),
+            )
+            new_lineitems.append(new_lineitem)
+        
+        db.add_all(new_lineitems)
+        db.commit()
+        
+        return "Line items inserted successfully"
+    
+    except Exception as e:
+        db.rollback()
+        raise Exception(f"Failed to insert line items: {str(e)}")
