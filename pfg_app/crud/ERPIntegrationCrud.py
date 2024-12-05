@@ -576,6 +576,7 @@ async def updateProjectActivityMaster(ProjectActivitydata, db):
 async def updateReceiptMaster(Receiptdata, db):
     try:
         inserted_count = 0  # Initialize counter for inserted rows
+        updated_count = 0  # Initialize counter for updated rows
         for data in Receiptdata:
             # Validate required fields
             if not all([data.BUSINESS_UNIT, data.RECEIVER_ID]):
@@ -637,12 +638,16 @@ async def updateReceiptMaster(Receiptdata, db):
 
             if existing_receipt:
                 # Update existing record
+                updated = False
+                # Update existing record
                 for key, value in receipt_data.items():
                     if hasattr(existing_receipt, key):  # Ensure the key exists in model
                         setattr(existing_receipt, key, value)
-                db.commit()
-                db.refresh(existing_receipt)
-
+                        updated = True
+                if updated:  # Commit only if there's an actual update
+                    db.commit()
+                    db.refresh(existing_receipt)
+                    updated_count += 1  # Increment counter for updated records
             else:
                 # Insert new record
                 valid_data = {
@@ -659,9 +664,11 @@ async def updateReceiptMaster(Receiptdata, db):
         logger.info(f"Receipt Master Data Updated at {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
 
         logger.info(f"Receipt data Inserted Count: {inserted_count}")
+        logger.info(f"Receipt data Updated Count: {updated_count}")
         return {
             "result": "Receipt Master Data Updated",
-            "inserted_count": inserted_count
+            "inserted_count": inserted_count,
+            "updated_count": updated_count,
             }
 
     except Exception:
