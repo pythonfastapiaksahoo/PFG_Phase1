@@ -214,7 +214,7 @@ async def updateStoreMaster(Storedata, db):
         return {"result": "Updated", "records": response}
 
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Store Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -335,7 +335,7 @@ async def updateVendorMaster(vendordata, db):
                     else:
                         # Append loc to existing_vendor.VENDOR_LOC
                         # if it doesn't already exist
-                        print(f"Appending new location: {loc}")
+                        # logger.info(f"Appending new location: {loc}")
                         existing_vendor_loc.append(loc)
 
                 existing_vendor.VENDOR_LOC = existing_vendor_loc
@@ -375,10 +375,7 @@ async def updateVendorMaster(vendordata, db):
                     }
                 )
 
-                print(
-                    "Updating VENDOR_LOC and VENDOR_ADDR "
-                    + f"for existing vendor_id: {existing_vendor.VENDOR_ID}"
-                )
+                logger.info(f"Updating VENDOR_LOC and VENDOR_ADDR for existing vendor_id: {existing_vendor.VENDOR_ID}")
                 db.commit()
                 db.refresh(existing_vendor)
             else:
@@ -407,7 +404,7 @@ async def updateVendorMaster(vendordata, db):
         return {"result": "Updated", "records": len(vendordata)}
 
     except SQLAlchemyError as e:
-        print("error:", e)
+        logger.info(f"Error while updating Supplier Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -460,7 +457,7 @@ async def updateAccountMaster(Accountdata, db):
         logger.info(f"Account Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Account Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -511,7 +508,7 @@ async def updateProjectMaster(Projectdata, db):
         logger.info(f"Project Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Project Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -563,7 +560,7 @@ async def updateProjectActivityMaster(ProjectActivitydata, db):
         logger.info(f"ProjectActivity Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Project Activity Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -672,7 +669,7 @@ async def updateReceiptMaster(Receiptdata, db):
             }
 
     except Exception:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Receipt Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -730,7 +727,8 @@ async def SyncDepartmentMaster(db, Departmentdata):
         return {"result": "Synchronization completed"}
 
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(
+            f"Error while syncing department master: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,
@@ -745,7 +743,7 @@ async def SyncVendorMaster(db, vendordata):
     try:
         # Get the maximum value of idVendor from the Vendor3 table
         latest_vendor_id = db.query(func.max(model.Vendor.idVendor)).scalar() or 0
-        print("latest_vendor_id: ", latest_vendor_id)
+        logger.info(f"latest_vendor_id: {latest_vendor_id}")
         vendor_id = latest_vendor_id + 1
 
         new_vendors = []
@@ -850,11 +848,11 @@ async def SyncVendorMaster(db, vendordata):
 
         # Commit once after processing all data
         db.commit()
-
+        logger.info(f"Vendor table Sync completed")
         return {"result": "Vendor table updation completed"}
 
     except SQLAlchemyError:
-        logger.error(f"error: { traceback.format_exc()}")
+        logger.error(f"error while syncing vendor table: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,
@@ -1070,7 +1068,8 @@ def processInvoiceVoucher(doc_id, db):
             "message": "InternalError",
             "data": {"Http Response": "500", "Status": "Fail"},
         }
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(
+            f"Error while processing invoice voucher: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
@@ -1536,7 +1535,7 @@ def newbulkupdateInvoiceStatus():
         )
 
     except Exception:
-        logger.error(f"Error: {traceback.format_exc()}")
+        logger.error(f"Error while updating invoice status: {traceback.format_exc()}")
         # raise HTTPException(
         #     status_code=500, detail=f"Error updating invoice status: {str(e)}"
         # )
