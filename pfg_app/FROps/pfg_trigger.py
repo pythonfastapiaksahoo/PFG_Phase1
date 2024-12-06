@@ -7,6 +7,7 @@ from typing import Union
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import case
 
 import pfg_app.model as model
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
@@ -28,14 +29,30 @@ def clean_amount(amount_str):
         return None
     return 0.0
 
+def crd_clean_amount(amount_str):
+    if isinstance(amount_str, float):
+        amount_str = str(amount_str)
+    try:
+        cleaned_amount = re.findall(r"[\d.]+", amount_str)
+        if cleaned_amount:
+            return round(float("".join(cleaned_amount)), 2)*-1
+    except Exception:
+        return None
+    return 0.0
+
+
 
 # db = SCHEMA
-def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, db: Session):
+def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Session):
     voucher_data_status = 1
     intStatus = 0
     recvLineNum = 0
     intStatusMsg = ""
-
+    if "credit" in CreditNote.lower():
+        crt_ck_status = 1
+        gst_amt = crd_clean_amount(gst_amt)
+    else:
+        crt_ck_status = 0
     stmp_dt = (
         db.query(model.StampDataValidation)
         .filter(model.StampDataValidation.documentid == inv_id)
@@ -143,23 +160,43 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, db: Session):
         freight_charges = 0
         misc_amt = 0
         if "InvoiceTotal" in docHdrDt:
-            invo_total = clean_amount(docHdrDt["InvoiceTotal"])
+            if crt_ck_status==1:
+                invo_total = crd_clean_amount(docHdrDt["InvoiceTotal"])
+            else:
+                invo_total = clean_amount(docHdrDt["InvoiceTotal"])
             if payload_subtotal == "":
                 if "SubTotal" in docHdrDt:
-                    invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
+                    if crt_ck_status==1:
+                        invo_SubTotal = crd_clean_amount(docHdrDt["SubTotal"])
+                    else:
+                        invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
                 else:
                     if "GST" in docHdrDt:
-                        invo_SubTotal = clean_amount(
-                            docHdrDt["InvoiceTotal"]
-                        ) - clean_amount(docHdrDt["GST"])
+                        if crt_ck_status==1:
+                            invo_SubTotal = crd_clean_amount(
+                                docHdrDt["InvoiceTotal"]
+                            ) - crd_clean_amount(docHdrDt["GST"])
+                        else:
+                            invo_SubTotal = clean_amount(
+                                docHdrDt["InvoiceTotal"]
+                            ) - clean_amount(docHdrDt["GST"])
+                        
                     elif "TotalTax" in docHdrDt:
-                        invo_SubTotal = clean_amount(
-                            docHdrDt["InvoiceTotal"]
-                        ) - clean_amount(docHdrDt["TotalTax"])
+                        if crt_ck_status==1:
+                            invo_SubTotal = crd_clean_amount(
+                                docHdrDt["InvoiceTotal"]
+                            ) - crd_clean_amount(docHdrDt["TotalTax"])
+                        else:
+                            invo_SubTotal = clean_amount(
+                                docHdrDt["InvoiceTotal"]
+                            ) - clean_amount(docHdrDt["TotalTax"])  
                     else:
                         invo_SubTotal = invo_total
             else:
-                invo_SubTotal = clean_amount(payload_subtotal)
+                if crt_ck_status==1:
+                    invo_SubTotal = crd_clean_amount(payload_subtotal)
+                else:
+                    invo_SubTotal = clean_amount(payload_subtotal)
 
         else:
             voucher_data_status = 0
@@ -173,7 +210,10 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, db: Session):
             voucher_data_status = 0
 
         if "FreightCharges" in docHdrDt:
-            freight_charges = clean_amount(docHdrDt["FreightCharges"])
+            if crt_ck_status==1:
+                freight_charges = crd_clean_amount(docHdrDt["FreightCharges"])
+            else:
+                freight_charges = clean_amount(docHdrDt["FreightCharges"])
 
         # try:
         if "Currency" in docHdrDt:
@@ -255,7 +295,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, db: Session):
     return intStatus, intStatusMsg
 
 
-def nonIntegratedVoucherData(inv_id, gst_amt, payload_subtotal, db: Session):
+def nonIntegratedVoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Session):
     nonIntStatus = 1
     nonIntStatusMsg = ""
     voucher_data_status = 1
@@ -263,6 +303,12 @@ def nonIntegratedVoucherData(inv_id, gst_amt, payload_subtotal, db: Session):
     docTabData = (
         db.query(model.Document).filter(model.Document.idDocument == inv_id).first()
     )
+
+    if "credit" in CreditNote.lower():
+        crt_ck_status = 1
+        gst_amt = crd_clean_amount(gst_amt)
+    else:
+        crt_ck_status = 0
 
     if docTabData:
         docPath = docTabData.docPath
@@ -293,24 +339,42 @@ def nonIntegratedVoucherData(inv_id, gst_amt, payload_subtotal, db: Session):
     freight_charges = 0
     misc_amt = 0
     if "InvoiceTotal" in docHdrDt:
-        invo_total = clean_amount(docHdrDt["InvoiceTotal"])
+        if crt_ck_status==1:
+            invo_total = crd_clean_amount(docHdrDt["InvoiceTotal"])
+        else:
+            invo_total = clean_amount(docHdrDt["InvoiceTotal"])
         if payload_subtotal == "":
             if "SubTotal" in docHdrDt:
-                invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
+                if crt_ck_status==1:
+                    invo_SubTotal = crd_clean_amount(docHdrDt["SubTotal"])
+                else:
+                    invo_SubTotal = clean_amount(docHdrDt["SubTotal"])
             else:
                 if "GST" in docHdrDt:
-                    invo_SubTotal = clean_amount(
-                        docHdrDt["InvoiceTotal"]
-                    ) - clean_amount(docHdrDt["GST"])
+                    if crt_ck_status==1:
+                        invo_SubTotal = crd_clean_amount(
+                            docHdrDt["InvoiceTotal"]
+                        ) - crd_clean_amount(docHdrDt["GST"])
+                    else:
+                        invo_SubTotal = clean_amount(
+                            docHdrDt["InvoiceTotal"]
+                        ) - clean_amount(docHdrDt["GST"])
                 elif "TotalTax" in docHdrDt:
-                    invo_SubTotal = clean_amount(
-                        docHdrDt["InvoiceTotal"]
-                    ) - clean_amount(docHdrDt["TotalTax"])
+                    if crt_ck_status==1:
+                        invo_SubTotal = crd_clean_amount(
+                            docHdrDt["InvoiceTotal"]
+                        ) - crd_clean_amount(docHdrDt["TotalTax"])
+                    else:
+                        invo_SubTotal = clean_amount(
+                            docHdrDt["InvoiceTotal"]
+                        )   - clean_amount(docHdrDt["TotalTax"])
                 else:
                     invo_SubTotal = invo_total
         else:
-
-            invo_SubTotal = clean_amount(payload_subtotal)
+            if crt_ck_status==1:
+                invo_SubTotal = crd_clean_amount(payload_subtotal)
+            else:    
+                invo_SubTotal = clean_amount(payload_subtotal)
 
     else:
         voucher_data_status = 0
@@ -607,7 +671,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
 
     logger.info(f"tagNames: {tagNames}")
-
+    CreditNote = "Invoice Document"
     invTotalMth = 0
     dateCheck = 0
     docStatusSync: dict[str, dict[str, Union[int, list[str]]]] = {}
@@ -634,6 +698,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     documentModelID = ""
     otrChgsCk = 0
     credit_note = 0
+    blank_id = 0
     try:
 
         docTb = (
@@ -696,7 +761,19 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         try:
 
             try:
-                cln_invID = re.sub(r"[^a-zA-Z0-9\s]", "", invID_docTab)
+                if (invID_docTab == None):
+                    blank_id = 1
+                else:
+                    cln_invID = re.sub(r"[^a-zA-Z0-9\s]", "", invID_docTab)
+                    if len(cln_invID)==0:
+                        blank_id = 1
+                if blank_id == 1:
+                    docStatusSync["Invoice ID"] = {
+                            "status": 0,
+                            "response": ["Invoice ID not found"],
+                        }
+                    return docStatusSync
+
 
                 if cln_invID != invID_docTab:
                     DocDtHdr = (
@@ -863,6 +940,16 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 except Exception:
                     logger.debug(traceback.format_exc())
                 try:
+                    InvStmDt = (
+                        db.query(model.StampDataValidation)
+                        .filter(model.StampDataValidation.documentid == docID)
+                        .all()
+                    )
+                    stmpData = {}
+                    for stDt in InvStmDt:
+                        stmpData[stDt.stamptagname] = {
+                            stDt.stampvalue: stDt.is_error
+                        }
 
                     try:
 
@@ -890,79 +977,131 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             logger.info(f"dmsg: {dmsg}")
                         except Exception:
                             logger.debug(f"Error occurred: {traceback.format_exc()}")
-                        # Invoice Total Approval Check
-                        # try:
-                        #     if float(docHdrDt["InvoiceTotal"]) < dsdApprovalCheck_msg:
-                        #         dsdApprovalCheck = 1
-                        #         dmsg = "Success"
-                        #  elif float(docHdrDt["InvoiceTotal"]) > dsdApprovalCheck_msg:
-                        #         try:
-                        #             docStatus = 6
-                        #             docSubStatus = 113
-                        #             dmsg = f"Invoice Amount:{
-                        #                 float(docHdrDt['InvoiceTotal'])
-                        #                 }, Approval Needed."  # noqa: E501
+                        try:
+                            if "Credit Identifier" in docHdrDt:
+                                hdr_ck_list = [
+                                    "SubTotal",
+                                    "InvoiceTotal",
+                                    "GST",
+                                    "HST",
+                                    "PST",
+                                    "HST",
+                                    "TotalTax",
+                                    "LitterDeposit",
+                                    "BottleDeposit",
+                                    "Discount",
+                                    "FreightCharges",
+                                    "Fuel surcharge",
+                                    "Credit_Card_Surcharge",
+                                    "Deposit",
+                                    "EcoFees",
+                                    "EnviroFees",
+                                    "OtherCharges",
+                                    "Other Credit Charges",
+                                    "ShipmentCharges",
+                                    "TotalDiscount",
+                                    "Usage Charges",
+                                ]
 
-                        #             try:
-                        #                 update_docHistory(
-                        #                     docID, userID, docStatus, dmsg, db
-                        #                 )
-                        #             except Exception as e:
-                        #                 logger.error(f"pfg_sync line 534: {str(e)}")
-                        #                 dmsg = str(e)
+                                tab_ck_list = ["Quantity", "UnitPrice", "Amount", "AmountExcTax"]
+                                if "credit" in docHdrDt["Credit Identifier"].lower():
+                                    if InvStmDt and len(stmpData) > 0:
+ 
+                                        strCk_msg = []
+                                        strCk = 0
+                                        if "Credit Identifier" in stmpData:
+                                            opnAi_crd_info = list(stmpData["Credit Identifier"].keys())[0]
+                                            if  "credit" in opnAi_crd_info:
 
-                        #             try:
-                        #                 db.query(model.Document).filter(
-                        #                     model.Document.idDocument == docID
-                        #                 ).update(
-                        #                     {
-                        #                         model.Document.documentStatusID: docStatus,  # noqa: E501
-                        #                         model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
-                        #                     }
-                        #                 )
-                        #                 db.commit()
-                        #             except Exception as err:
-                        #               logger.info(f"ErrorUpdatingPostingData: {err}")
-                        #                 dmsg = str(err)
+                                                credit_note = 1
+                                                CreditNote = "Credit Note"
+                                                update_crdVal = {}
+                                                for crt_tg in docHdrDt:
+                                                    if crt_tg in hdr_ck_list:
+                                                        cngTgId = tagNames["InvoiceDate"]
+                                                        if len(str(cngTgId)) > 0:
+                                                            update_crdVal[crt_tg] = docHdrDt[crt_tg]
+                                                if len(update_crdVal)>0:
+                                                    for upd_tg in update_crdVal:
+                                                        if str(update_crdVal[upd_tg])[0]!='-':
+                                                            update_crdVal[upd_tg] = '-'+str(update_crdVal[upd_tg])
 
-                        #         except Exception as e:
-                        #             logger.error(
-                        #                 f"pfg_sync amount validations: {str(e)}"
-                        #             )
-                        #             dmsg = "Invoice Amount Invalid" + str(e)
-                        #     else:
-                        #         dsdApprovalCheck = 0
-                        #         dmsg = "Invoice Amount Invalid"
+                                if credit_note==0:
+                                    # credit_note = 0
+                                    update_crdVal = {}
+                                    for crt_tg in docHdrDt:
+                                        if crt_tg in hdr_ck_list:
+                                            cngTgId = tagNames["InvoiceDate"]
+                                            if len(str(cngTgId)) > 0:
+                                                update_crdVal[crt_tg] = docHdrDt[crt_tg]
+                                    if len(update_crdVal)>0:
+                                        for upd_tg in update_crdVal:
+                                            if str(update_crdVal[upd_tg])[0]=='-':
+                                                update_crdVal[upd_tg] = str(update_crdVal[upd_tg])[1:]
+                                if len(update_crdVal)>0:
+                                    case_statement = case(
+                                        {tag: date for tag, date in update_crdVal},  # Mapping docDateTag to formatted_date
+                                        value=model.DocumentData.documentTagDefID,  # Column to evaluate for CASE
+                                    )
 
-                        # except Exception as e:
-                        #     logger.error(f"pfg_sync amount validations: {str(e)}")
-                        #     dmsg = str(e)
+                                    # Perform the update query
+                                    db.query(model.DocumentData).filter(
+                                        model.DocumentData.documentID == docID,
+                                        model.DocumentData.documentTagDefID.in_([tag for tag, _ in update_crdVal]),
+                                    ).update(
+                                        {model.DocumentData.Value: case_statement}, synchronize_session=False
+                                    )
 
-                        # docStatusSync["Amount Approval Validation"] = {
-                        #     "status": dsdApprovalCheck,
-                        #     "response": [dmsg],
-                        # }
-
-                        # Invoice Total check
+                                    # Commit the transaction
+                                    db.commit()
+                        except Exception:
+                            logger.debug(f"Error occurred: {traceback.format_exc()}")
 
                         invTotalMth = 0
                         invTotalMth_msg = "Invoice total mismatch, please review."
                         # if dsdApprovalCheck == 1:
-                        if "Credit Identifier" in docHdrDt:
-                            # if docHdrDt["Credit Identifier"]:
-                            if "credit" in docHdrDt["Credit Identifier"].lower():
-                                credit_note = 1
-                                if credit_note == 1:
-                                    docStatusSync["Status overview"] = {
-                                        "status": 0,
-                                        "response": [
-                                            "The Credit Note process is currently in progress. Please try again later."
-                                        ],
-                                    }
-                                    return docStatusSync
+                        # if "Credit Identifier" in docHdrDt:
+                        #     # if docHdrDt["Credit Identifier"]:
+                        #     if "credit" in docHdrDt["Credit Identifier"].lower():
+                        #         credit_note = 1
+                        #         if credit_note == 1:
+                        #             docStatusSync["Status overview"] = {
+                        #                 "status": 0,
+                        #                 "response": [
+                        #                     "The Credit Note process is currently in progress. Please try again later."
+                        #                 ],
+                        #             }
+                        #             return docStatusSync
                                 # check if amount is negative
                                 # read data from document table where idDocument = inv_id
                                 # 1. Check if values are negative, if not make it negative
+                        
+                        # if credit_note==1:
+                        #     if "PST" in docHdrDt:
+                        #         pst = crd_clean_amount(docHdrDt["PST"])
+                        #         if (pst is not None) and pst < 0:
+                        #             invTotalMth = 0
+                        #             invTotalMth_msg = "PST found:" + str(pst)
+                        #             tax_isErr = 1
+                        #     elif "HST" in docHdrDt:
+                        #         hst = crd_clean_amount(docHdrDt["HST"])
+                        #         if (hst is not None) and hst > 0:
+                        #             invTotalMth = 0
+                        #             invTotalMth_msg = "HST found:" + str(hst)
+                        #             tax_isErr = 1
+                        #     if "GST" in docHdrDt:
+                        #         gst_amt = crd_clean_amount(docHdrDt["GST"])
+                        #         if gst_amt is None:
+                        #             gst_amt = 0
+                        #     elif "TotalTax" in docHdrDt:
+                        #         gst_amt = crd_clean_amount(docHdrDt["TotalTax"])
+                        #         if gst_amt is None:
+                        #             gst_amt = 0
+                        #     else:
+                        #         gst_amt = 0
+                        #     if tax_isErr == 0:
+
+
 
                         # TAX validations:
                         if "PST" in docHdrDt:
@@ -1246,7 +1385,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             "Failed to validate the invoice date,Please review."
                         )
 
-                    if dateCheck == 1:
+                    if len(invID_docTab) == 0:
+                         ocrCheck = 0 
+                         ocrCheck_msg.append("No invoice number found")
+
+                    elif dateCheck == 1:
                         ocrCheck = 1
                         ocrCheck_msg.append("Success")
                     else:
@@ -1302,16 +1445,16 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         except Exception:
                             logger.error(traceback.format_exc())
 
-                        InvStmDt = (
-                            db.query(model.StampDataValidation)
-                            .filter(model.StampDataValidation.documentid == docID)
-                            .all()
-                        )
-                        stmpData = {}
-                        for stDt in InvStmDt:
-                            stmpData[stDt.stamptagname] = {
-                                stDt.stampvalue: stDt.is_error
-                            }
+                        # InvStmDt = (
+                        #     db.query(model.StampDataValidation)
+                        #     .filter(model.StampDataValidation.documentid == docID)
+                        #     .all()
+                        # )
+                        # stmpData = {}
+                        # for stDt in InvStmDt:
+                        #     stmpData[stDt.stamptagname] = {
+                        #         stDt.stampvalue: stDt.is_error
+                        #     }
                         if InvStmDt and len(stmpData) > 0:
 
                             strCk_msg = []
@@ -1440,7 +1583,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             logger.debug(traceback.format_exc())
                                         skipValidationCK, skipValidationStatusMsg = (
                                             nonIntegratedVoucherData(
-                                                docID, gst_amt, payload_subtotal, db
+                                                docID, gst_amt, payload_subtotal,CreditNote, db
                                             )
                                         )
                                         if skipValidationCK == 1:
@@ -1530,7 +1673,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         if confirmation_ck == 1:
                                             intStatus, intStatusMsg = (
                                                 IntegratedvoucherData(
-                                                    docID, gst_amt, payload_subtotal, db
+                                                    docID, gst_amt, payload_subtotal,CreditNote, db
                                                 )
                                             )
                                             if intStatus == 0:
@@ -1548,7 +1691,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                                         nonIntStatus, nonIntStatusMsg = (
                                             nonIntegratedVoucherData(
-                                                docID, gst_amt, payload_subtotal, db
+                                                docID, gst_amt, payload_subtotal,CreditNote, db
                                             )
                                         )
                                         if nonIntStatus == 1:
