@@ -214,7 +214,7 @@ async def updateStoreMaster(Storedata, db):
         return {"result": "Updated", "records": response}
 
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Store Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -335,7 +335,7 @@ async def updateVendorMaster(vendordata, db):
                     else:
                         # Append loc to existing_vendor.VENDOR_LOC
                         # if it doesn't already exist
-                        print(f"Appending new location: {loc}")
+                        # logger.info(f"Appending new location: {loc}")
                         existing_vendor_loc.append(loc)
 
                 existing_vendor.VENDOR_LOC = existing_vendor_loc
@@ -375,10 +375,7 @@ async def updateVendorMaster(vendordata, db):
                     }
                 )
 
-                print(
-                    "Updating VENDOR_LOC and VENDOR_ADDR "
-                    + f"for existing vendor_id: {existing_vendor.VENDOR_ID}"
-                )
+                logger.info(f"Updating VENDOR_LOC and VENDOR_ADDR for existing vendor_id: {existing_vendor.VENDOR_ID}")
                 db.commit()
                 db.refresh(existing_vendor)
             else:
@@ -407,7 +404,7 @@ async def updateVendorMaster(vendordata, db):
         return {"result": "Updated", "records": len(vendordata)}
 
     except SQLAlchemyError as e:
-        print("error:", e)
+        logger.info(f"Error while updating Supplier Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -460,7 +457,7 @@ async def updateAccountMaster(Accountdata, db):
         logger.info(f"Account Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Account Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -511,7 +508,7 @@ async def updateProjectMaster(Projectdata, db):
         logger.info(f"Project Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Project Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -563,7 +560,7 @@ async def updateProjectActivityMaster(ProjectActivitydata, db):
         logger.info(f"ProjectActivity Master Data Updated at {datetime.datetime.now()}")
         return {"result": "Updated", "records": response}
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Project Activity Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -575,6 +572,8 @@ async def updateProjectActivityMaster(ProjectActivitydata, db):
 
 async def updateReceiptMaster(Receiptdata, db):
     try:
+        inserted_count = 0  # Initialize counter for inserted rows
+        updated_count = 0  # Initialize counter for updated rows
         for data in Receiptdata:
             # Validate required fields
             if not all([data.BUSINESS_UNIT, data.RECEIVER_ID]):
@@ -590,7 +589,7 @@ async def updateReceiptMaster(Receiptdata, db):
                         loc.RECEIVER_ID,
                         loc.RECV_LN_NBR,
                         loc.RECV_SHIP_SEQ_NBR,
-                        loc.DISTRIB_LINE_NUM,
+                        loc.DISTRIB_LN_NUM,
                     ]
                 ):
                     raise HTTPException(
@@ -609,37 +608,43 @@ async def updateReceiptMaster(Receiptdata, db):
                     )
 
             # Flatten the combined PFGReceipt and RECV_LN_DISTRIB into one dictionary
-            receipt_data = data.dict()
+            receipt_data = data.dict()  # Convert Pydantic model to dictionary
             distrib_data = data.RECV_LN_DISTRIB.dict() if data.RECV_LN_DISTRIB else {}
 
             # Merge RECV_LN_DISTRIB into receipt_data for a flattened structure
             receipt_data.update(distrib_data)
 
+            # Map DISTRIB_LN_NUM correctly to DISTRIB_LINE_NUM
+            if "DISTRIB_LN_NUM" in receipt_data:
+                receipt_data["DISTRIB_LINE_NUM"] = receipt_data.pop("DISTRIB_LN_NUM")
+
             # Find existing record by unique combination of
             # BUSINESS_UNIT, RECEIVER_ID,
-            # RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LINE_NUM
+            # RECV_LN_NBR, RECV_SHIP_SEQ_NBR, DISTRIB_LN_NUM
             existing_receipt = (
                 db.query(model.PFGReceipt)
                 .filter(
-                    model.PFGReceipt.BUSINESS_UNIT == data.BUSINESS_UNIT,
-                    model.PFGReceipt.RECEIVER_ID == data.RECEIVER_ID,
-                    model.PFGReceipt.RECV_LN_NBR == data.RECV_LN_DISTRIB.RECV_LN_NBR,
-                    model.PFGReceipt.RECV_SHIP_SEQ_NBR
-                    == data.RECV_LN_DISTRIB.RECV_SHIP_SEQ_NBR,
-                    model.PFGReceipt.DISTRIB_LINE_NUM
-                    == data.RECV_LN_DISTRIB.DISTRIB_LINE_NUM,
+                    model.PFGReceipt.BUSINESS_UNIT == receipt_data["BUSINESS_UNIT"],
+                    model.PFGReceipt.RECEIVER_ID == receipt_data["RECEIVER_ID"],
+                    model.PFGReceipt.RECV_LN_NBR == receipt_data["RECV_LN_NBR"],
+                    model.PFGReceipt.RECV_SHIP_SEQ_NBR == receipt_data["RECV_SHIP_SEQ_NBR"],
+                    model.PFGReceipt.DISTRIB_LINE_NUM == receipt_data["DISTRIB_LINE_NUM"],
                 )
                 .first()
             )
 
             if existing_receipt:
                 # Update existing record
+                updated = False
+                # Update existing record
                 for key, value in receipt_data.items():
                     if hasattr(existing_receipt, key):  # Ensure the key exists in model
                         setattr(existing_receipt, key, value)
-                db.commit()
-                db.refresh(existing_receipt)
-
+                        updated = True
+                if updated:  # Commit only if there's an actual update
+                    db.commit()
+                    db.refresh(existing_receipt)
+                    updated_count += 1  # Increment counter for updated records
             else:
                 # Insert new record
                 valid_data = {
@@ -651,11 +656,20 @@ async def updateReceiptMaster(Receiptdata, db):
                 db.add(new_receipt)
                 db.commit()
                 db.refresh(new_receipt)
-        logger.info(f"Receipt Master Data Updated at {datetime.datetime.now()}")
-        return {"result": "Receipt Master Data Updated"}
+                inserted_count += 1  # Increment counter for new records
+        
+        logger.info(f"Receipt Master Data Updated at {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+
+        logger.info(f"Receipt data Inserted Count: {inserted_count}")
+        logger.info(f"Receipt data Updated Count: {updated_count}")
+        return {
+            "result": "Receipt Master Data Updated",
+            "inserted_count": inserted_count,
+            "updated_count": updated_count,
+            }
 
     except Exception:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(f"Error while updating Receipt Master: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
@@ -713,7 +727,8 @@ async def SyncDepartmentMaster(db, Departmentdata):
         return {"result": "Synchronization completed"}
 
     except SQLAlchemyError:
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(
+            f"Error while syncing department master: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,
@@ -728,7 +743,7 @@ async def SyncVendorMaster(db, vendordata):
     try:
         # Get the maximum value of idVendor from the Vendor3 table
         latest_vendor_id = db.query(func.max(model.Vendor.idVendor)).scalar() or 0
-        print("latest_vendor_id: ", latest_vendor_id)
+        logger.info(f"latest_vendor_id: {latest_vendor_id}")
         vendor_id = latest_vendor_id + 1
 
         new_vendors = []
@@ -833,11 +848,11 @@ async def SyncVendorMaster(db, vendordata):
 
         # Commit once after processing all data
         db.commit()
-
+        logger.info(f"Vendor table Sync completed")
         return {"result": "Vendor table updation completed"}
 
     except SQLAlchemyError:
-        logger.error(f"error: { traceback.format_exc()}")
+        logger.error(f"error while syncing vendor table: { traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,
@@ -1053,7 +1068,8 @@ def processInvoiceVoucher(doc_id, db):
             "message": "InternalError",
             "data": {"Http Response": "500", "Status": "Fail"},
         }
-        logger.error(f"Error: { traceback.format_exc()}")
+        logger.error(
+            f"Error while processing invoice voucher: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
@@ -1519,7 +1535,7 @@ def newbulkupdateInvoiceStatus():
         )
 
     except Exception:
-        logger.error(f"Error: {traceback.format_exc()}")
+        logger.error(f"Error while updating invoice status: {traceback.format_exc()}")
         # raise HTTPException(
         #     status_code=500, detail=f"Error updating invoice status: {str(e)}"
         # )
