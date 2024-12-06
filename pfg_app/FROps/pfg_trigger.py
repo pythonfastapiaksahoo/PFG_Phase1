@@ -698,6 +698,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     documentModelID = ""
     otrChgsCk = 0
     credit_note = 0
+    blank_id = 0
     try:
 
         docTb = (
@@ -760,7 +761,19 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         try:
 
             try:
-                cln_invID = re.sub(r"[^a-zA-Z0-9\s]", "", invID_docTab)
+                if (invID_docTab == None):
+                    blank_id = 1
+                else:
+                    cln_invID = re.sub(r"[^a-zA-Z0-9\s]", "", invID_docTab)
+                    if len(cln_invID)==0:
+                        blank_id = 1
+                if blank_id == 1:
+                    docStatusSync["Invoice ID"] = {
+                            "status": 0,
+                            "response": ["Invoice ID not found"],
+                        }
+                    return docStatusSync
+
 
                 if cln_invID != invID_docTab:
                     DocDtHdr = (
@@ -1372,7 +1385,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             "Failed to validate the invoice date,Please review."
                         )
 
-                    if dateCheck == 1:
+                    if len(invID_docTab) == 0:
+                         ocrCheck = 0 
+                         ocrCheck_msg.append("No invoice number found")
+
+                    elif dateCheck == 1:
                         ocrCheck = 1
                         ocrCheck_msg.append("Success")
                     else:
