@@ -1481,8 +1481,9 @@ def postpro(
                         )
                         .all()
                     )
-
-                    if len(query) > 0:
+                    if doc_invID =="":
+                        duplicate_status = 1
+                    elif len(query) > 0:
                         for d in query:
                             if d[0] not in [10, 0]:
                                 duplicate_status = 0
@@ -1490,6 +1491,10 @@ def postpro(
                             # elif d[0] in [7, 14]:
                             #     # posted_status = 0  # TODO: Unused variable
                             #     break
+                else:
+                    if doc_invID =="":
+                        duplicate_status = 1
+
 
             if dt["header"][tg]["tag"] == "InvoiceDate":
                 invo_date = dt["header"][tg]["data"]["value"]
