@@ -446,6 +446,8 @@ async def get_email_row_associated_files(
     limit: int = 10,
     uni_api_filter: Optional[str] = None,
     column_filter: Optional[str] = None,
+    sort_column: Optional[str] = None,  # New parameter for sorting column
+    sort_order: Optional[str] = None,  # New parameter for sorting order
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
 ):
@@ -470,7 +472,8 @@ async def get_email_row_associated_files(
     """
 
     docs = await crud.get_email_row_associated_files(
-        user.idUser, (offset, limit), uni_api_filter, column_filter, db
+        user.idUser, (offset, limit), uni_api_filter, column_filter, db,
+        sort_column,sort_order
     )
     return docs
 
