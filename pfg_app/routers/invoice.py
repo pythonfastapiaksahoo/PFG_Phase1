@@ -496,40 +496,35 @@ async def get_dept_names_list(db: Session = Depends(get_db)):
     return await crud.readdeptname(db)
 
 
-@router.post("/documents/{doc_id}/lineitems")
-async def insert_lineitems_api(
-    doc_id: int,
-    data: schema.InsertLineItemsRequest,
-    db: Session = Depends(get_db)
-    ):
-    """
-    API to insert line items into the DocumentLineItems table for a given document ID.
-    
+# Checked - used in the frontend
+@router.post("/upsertLineItemData/idInvoice/{inv_id}")
+async def upsert_line_item_data(
+    inv_id: int,
+    inv_data: List[schema.UpsertLineItemData],
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """API route to update invoice line item data.
+
     Parameters:
-    -----------
-    doc_id : int
-        The document ID provided as a path parameter.
-    data : InsertLineItemsRequest
-        The input data containing a list of line items to be inserted.
+    ----------
+    inv_id : int
+        Invoice ID provided as a path parameter to identify
+        which document to update.
+    inv_data : List[UpsertLineItemData]
+        Body parameter containing a list of updated invoice
+        line itemdata represented as a Pydantic model.
     db : Session
-        The database session used to interact with the backend database.
-    
+        Database session object used to interact with the
+        backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
     Returns:
-    --------
+    -------
     dict
-        A message indicating the success or failure of the operation.
+        A dictionary containing the result of the update
+        operation, indicating success or failure.
     """
-    try:
-        # Convert Pydantic objects to list of dictionaries
-        line_items_data = [item.dict() for item in data.lineItems]
-        
-        # Call the insert function
-        result_message = crud.insert_lineitems(doc_id, line_items_data, db)
-        
-        return {"message": result_message}
-    
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Error in downloading journey document: {e}",
-        }
+    return await crud.upsert_line_items(user.idUser, inv_id, inv_data, db)

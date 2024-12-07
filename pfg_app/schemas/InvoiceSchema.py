@@ -273,18 +273,9 @@ class UpdateStampData(BaseModel):
     NewValue: str
 
 
-class LineItemInput(BaseModel):
-    lineItemTagID: int
-    Value: str = None
-    IsUpdated: int
-    isError: int
-    ErrorDesc: str
-    Xcord: float = None
-    Ycord: float = None
-    Width: float = None
-    Height: float = None
-    Fuzzy_scr: int
-    itemCode: str 
-
-class InsertLineItemsRequest(BaseModel):
-    lineItems: List[LineItemInput]
+class UpsertLineItemData(BaseModel):
+    documentLineItemID: Optional[int] = None
+    OldValue: Optional[str] = None
+    NewValue: str
+    lineItemTagID: Optional[int] = None
+    itemCode: Optional[str] = None  
