@@ -494,3 +494,37 @@ async def get_dept_names_list(db: Session = Depends(get_db)):
     List of active department names.
     """
     return await crud.readdeptname(db)
+
+
+# Checked - used in the frontend
+@router.post("/upsertLineItemData/idInvoice/{inv_id}")
+async def upsert_line_item_data(
+    inv_id: int,
+    inv_data: List[schema.UpsertLineItemData],
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """API route to update invoice line item data.
+
+    Parameters:
+    ----------
+    inv_id : int
+        Invoice ID provided as a path parameter to identify
+        which document to update.
+    inv_data : List[UpsertLineItemData]
+        Body parameter containing a list of updated invoice
+        line itemdata represented as a Pydantic model.
+    db : Session
+        Database session object used to interact with the
+        backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update
+        operation, indicating success or failure.
+    """
+    return await crud.upsert_line_items(user.idUser, inv_id, inv_data, db)

@@ -823,27 +823,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
 
                         if vendor_account:
 
-                            # # Get idDocumentModel using the vendorAccountID
-                            # document_model = (
-                            #     db.query(model.DocumentModel)
-                            #     .filter_by(
-                            #         idVendorAccount=vendor_account.idVendorAccount,
-                            #         is_active=1,
-                            #     )
-                            #     .first()
-                            # )
-
-                            # if document_model:
-                            #     # Update Document's vendorAccountID and idDocumentModel
-                            #     db.query(model.Document).filter_by(
-                            #         idDocument=inv_id
-                            #     ).update(
-                            #         {
-                            #             "vendorAccountID": vendor_account.idVendorAccount,  # noqa: E501
-                            #             "documentModelID": document_model.idDocumentModel,  # noqa: E501
-                            #         }
-                            #     )
-                            #     db.flush()
+                            
 
                             # Get the count of active DocumentModel for the vendorAccountID
                             active_models_query = db.query(
@@ -2344,3 +2324,100 @@ async def readdeptname(db):
         )
     finally:
         db.close()
+
+
+
+async def upsert_line_items(u_id, inv_id, inv_data, db):
+    """
+    Upserts (updates or inserts) line items for a given document ID.
+
+    Args:
+        db (Session): SQLAlchemy database session.
+        document_id (int): ID of the document.
+        line_data (list): List of dictionaries containing line item data.
+            Each item should have keys:
+                - "documentLineItemID" (int)
+                - "line_item_tag_id" (int) 
+                - "item_code" (str)
+                - "NewValue" (str)
+                
+    Returns:
+        dict: Result containing 'inserted' and 'updated' counts.
+    """
+    inserted_count = 0
+    updated_count = 0
+
+    try:
+        # avoid data updates by other users if in lock
+        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for row in inv_data:
+            if row.documentLineItemID:
+                try:
+                    # Check if the line item exists for this tag ID and document ID
+                    db.query(model.DocumentLineItems).filter_by(
+                            idDocumentLineItems=row.documentLineItemID,
+                            documentID=inv_id,
+                        ).scalar()
+                except Exception:
+                    logger.error(traceback.format_exc())
+                    return Response(
+                        status_code=403,
+                        headers={"ClientError": "invoice and line value mismatch"},
+                    )
+                inv_up_line_id = (
+                    db.query(model.DocumentUpdates.idDocumentUpdates)
+                    .filter_by(documentLineItemID=row.documentLineItemID)
+                    .all()
+                )
+                if len(inv_up_line_id) > 0:
+                    db.query(model.DocumentUpdates).filter_by(
+                        documentLineItemID=row.documentLineItemID, IsActive=1
+                    ).update({"IsActive": 0})
+                    db.flush()
+                # Prepare data for new update
+                update_data = {
+                    "documentLineItemID": row.documentLineItemID,
+                    "NewValue": row.NewValue,
+                    "IsActive": 1,
+                    "UpdatedOn": dt,
+                }
+                new_update  = model.DocumentUpdates(**update_data)
+                db.add(new_update )
+                db.flush()
+                
+                # Update DocumentLineItems for line item updates
+                db.query(model.DocumentLineItems).filter_by(
+                    idDocumentLineItems=row.documentLineItemID
+                ).update({"IsUpdated": 1, "isError": 0, "Value": row.NewValue})
+
+                updated_count += 1
+            else:
+                # Insert a new line item
+                new_line = model.DocumentLineItems(
+                    documentID = inv_id,
+                    lineItemtagID = row.lineItemTagID,
+                    Value = row.NewValue,
+                    isError = 0,
+                    itemCode = row.itemCode,
+                    invoice_itemcode = row.itemCode,
+                    IsUpdated = 0,
+                    CreatedOn = dt
+                )
+                db.add(new_line)
+                inserted_count += 1
+
+        # Commit the changes
+        db.commit()
+        return {
+        "inserted": inserted_count,
+        "updated": updated_count,
+    }
+        
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return Response(status_code=500, headers={"Error": "Server error"})
+
+    finally:
+        db.close()
+    

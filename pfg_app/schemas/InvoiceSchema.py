@@ -271,3 +271,11 @@ class UpdateStampData(BaseModel):
     stamptagname: str
     OldValue: str
     NewValue: str
+
+
+class UpsertLineItemData(BaseModel):
+    documentLineItemID: Optional[int] = None
+    OldValue: Optional[str] = None
+    NewValue: str
+    lineItemTagID: Optional[int] = None
+    itemCode: Optional[str] = None  
