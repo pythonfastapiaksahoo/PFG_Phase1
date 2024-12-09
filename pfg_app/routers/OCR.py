@@ -1661,7 +1661,7 @@ def live_model_fn_1(generatorObj):
                 metaVendorAdd,
             )
             if duplicate_status == 0:
-                docStatus = 10
+                docStatus = 4
                 docsubstatus = 12
             elif sts_hdr_ck == 0:
                 docStatus = 4
