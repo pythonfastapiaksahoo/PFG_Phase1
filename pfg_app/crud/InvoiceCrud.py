@@ -87,6 +87,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
+            "Duplicate Invoice" : 32,
         }
 
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
@@ -399,18 +400,23 @@ async def read_invoice_data(u_id, inv_id, db):
                 == model.DocumentTagDef.idDocumentTagDef,
                 model.DocumentData.documentID == inv_id,
             )
-            .join(
-                model.DocumentUpdates,
-                model.DocumentUpdates.documentDataID
-                == model.DocumentData.idDocumentData,
-                isouter=True,
+            .outerjoin(
+            model.DocumentUpdates,
+            (model.DocumentUpdates.documentDataID == model.DocumentData.idDocumentData) &
+            (model.DocumentUpdates.IsActive == 1)
             )
-            .filter(
-                or_(
-                    model.DocumentData.IsUpdated == 0,
-                    model.DocumentUpdates.IsActive == 1,
-                )
-            )
+            # .join(
+            #     model.DocumentUpdates,
+            #     model.DocumentUpdates.documentDataID
+            #     == model.DocumentData.idDocumentData,
+            #     isouter=True,
+            # )
+            # .filter(
+            #     or_(
+            #         model.DocumentData.IsUpdated == 0,
+            #         model.DocumentUpdates.IsActive == 1,
+            #     )
+            # )
         )
         headerdata = headerdata.all()
         # provide linedetails of invoice, add this later , "isError", "IsUpdated"
@@ -823,27 +829,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
 
                         if vendor_account:
 
-                            # # Get idDocumentModel using the vendorAccountID
-                            # document_model = (
-                            #     db.query(model.DocumentModel)
-                            #     .filter_by(
-                            #         idVendorAccount=vendor_account.idVendorAccount,
-                            #         is_active=1,
-                            #     )
-                            #     .first()
-                            # )
-
-                            # if document_model:
-                            #     # Update Document's vendorAccountID and idDocumentModel
-                            #     db.query(model.Document).filter_by(
-                            #         idDocument=inv_id
-                            #     ).update(
-                            #         {
-                            #             "vendorAccountID": vendor_account.idVendorAccount,  # noqa: E501
-                            #             "documentModelID": document_model.idDocumentModel,  # noqa: E501
-                            #         }
-                            #     )
-                            #     db.flush()
+                            
 
                             # Get the count of active DocumentModel for the vendorAccountID
                             active_models_query = db.query(
@@ -1820,29 +1806,9 @@ async def read_all_doc_inv_list(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
+            "Duplicate Invoice" : 32,
         }
-        # Case statement for determining the document status based on substatus/status
-        doc_status = case(
-            [
-                (model.Document.documentsubstatusID == value[0], value[1])
-                for value in substatus
-            ]
-            + [
-                (model.Document.documentStatusID == value[0] + 1, value[1])
-                for value in enumerate(status)
-            ]
-            + [
-                (
-                    model.Document.documentStatusID == all_status["VendorUnidentified"],
-                    "VendorUnidentified",
-                ),
-                (
-                    model.Document.documentStatusID == all_status["VendorNotOnboarded"],
-                    "VendorNotOnboarded",
-                ),
-            ],
-            else_="",
-        ).label("docstatus")
+        
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
         inv_choice = {
             "ser": (
@@ -1862,7 +1828,7 @@ async def read_all_doc_inv_list(
         data_query = (
             db.query(
                 model.Document,
-                doc_status,
+                model.DocumentStatus,
                 model.DocumentSubStatus,
                 inv_choice[inv_type][0],
                 inv_choice[inv_type][1],
@@ -1881,8 +1847,10 @@ async def read_all_doc_inv_list(
                     "dept",
                     "documentDate",
                     "voucher_id",
+                    "mail_row_key",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
+                Load(model.DocumentStatus).load_only("status", "description"),
                 inv_choice[inv_type][2],
                 inv_choice[inv_type][3],
             )
@@ -1902,6 +1870,12 @@ async def read_all_doc_inv_list(
                 model.Vendor.idVendor == model.VendorAccount.vendorID,
                 isouter=True,
             )
+            .join(
+                model.DocumentStatus,
+                model.DocumentStatus.idDocumentstatus
+                == model.Document.documentStatusID,
+                isouter=True,
+            )
             .filter(
                 model.Document.idDocumentType == 3,
                 model.Document.vendorAccountID.isnot(None),
@@ -1916,11 +1890,7 @@ async def read_all_doc_inv_list(
             data_query = data_query.filter(
                 model.Document.vendorAccountID.in_(sub_query)
             )
-        # # Filter by document status if a status is provided
-        # if stat:
-        #     data_query = data_query.filter(
-        #         model.Document.documentStatusID == all_status[stat]
-        #     )
+
         status_list = []
         if stat:
             # Split the status string by ':' to get a list of statuses
@@ -1979,9 +1949,13 @@ async def read_all_doc_inv_list(
                     normalize_string(model.Document.UploadDocType).ilike(pattern),
                     normalize_string(model.Document.store).ilike(pattern),
                     normalize_string(model.Document.dept).ilike(pattern),
+                    normalize_string(model.Document.voucher_id).ilike(pattern),
+                    normalize_string(model.Document.mail_row_key).ilike(pattern),
                     normalize_string(model.Vendor.VendorName).ilike(pattern),
                     normalize_string(model.Vendor.Address).ilike(pattern),
                     normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.description).ilike(pattern),
                     normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
                     # Check if any related DocumentLineItems.Value matches the filter
                     exists().where(
@@ -2342,5 +2316,163 @@ async def readdeptname(db):
         return Response(
             status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
         )
+    finally:
+        db.close()
+
+
+
+async def upsert_line_items(u_id, inv_id, inv_data, db):
+    """
+    Upserts (updates or inserts) line items for a given document ID.
+
+    Args:
+        db (Session): SQLAlchemy database session.
+        document_id (int): ID of the document.
+        line_data (list): List of dictionaries containing line item data.
+            Each item should have keys:
+                - "documentLineItemID" (int)
+                - "line_item_tag_id" (int) 
+                - "item_code" (str)
+                - "NewValue" (str)
+                
+    Returns:
+        dict: Result containing 'inserted' and 'updated' counts.
+    """
+    inserted_count = 0
+    updated_count = 0
+
+    try:
+        # avoid data updates by other users if in lock
+        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for row in inv_data:
+            if row.documentLineItemID:
+                try:
+                    # Check if the line item exists for this tag ID and document ID
+                    db.query(model.DocumentLineItems).filter_by(
+                            idDocumentLineItems=row.documentLineItemID,
+                            documentID=inv_id,
+                        ).scalar()
+                except Exception:
+                    logger.error(traceback.format_exc())
+                    return Response(
+                        status_code=403,
+                        headers={"ClientError": "invoice and line value mismatch"},
+                    )
+                inv_up_line_id = (
+                    db.query(model.DocumentUpdates.idDocumentUpdates)
+                    .filter_by(documentLineItemID=row.documentLineItemID)
+                    .all()
+                )
+                if len(inv_up_line_id) > 0:
+                    db.query(model.DocumentUpdates).filter_by(
+                        documentLineItemID=row.documentLineItemID, IsActive=1
+                    ).update({"IsActive": 0})
+                    db.flush()
+                # Prepare data for new update
+                update_data = {
+                    "documentLineItemID": row.documentLineItemID,
+                    "NewValue": row.NewValue,
+                    "IsActive": 1,
+                    "UpdatedOn": dt,
+                }
+                new_update  = model.DocumentUpdates(**update_data)
+                db.add(new_update )
+                db.flush()
+                
+                # Update DocumentLineItems for line item updates
+                db.query(model.DocumentLineItems).filter_by(
+                    idDocumentLineItems=row.documentLineItemID
+                ).update({"IsUpdated": 1, "isError": 0, "Value": row.NewValue})
+
+                updated_count += 1
+            else:
+                # Insert a new line item
+                new_line = model.DocumentLineItems(
+                    documentID = inv_id,
+                    lineItemtagID = row.lineItemTagID,
+                    Value = row.NewValue,
+                    isError = 0,
+                    itemCode = row.itemCode,
+                    invoice_itemcode = row.itemCode,
+                    IsUpdated = 0,
+                    CreatedOn = dt
+                )
+                db.add(new_line)
+                inserted_count += 1
+
+        # Commit the changes
+        db.commit()
+        return {
+        "inserted": inserted_count,
+        "updated": updated_count,
+    }
+        
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return Response(status_code=500, headers={"Error": "Server error"})
+
+    finally:
+        db.close()
+
+
+async def delete_line_items(u_id, inv_id, line_item_objects, db):
+    """
+    Deletes one or more line items for a given invoice ID.
+
+    Args:
+        inv_id (int): ID of the invoice.
+        line_item_objects (list): List of objects containing line item IDs to delete.
+        Each object should have an attribute `documentLineItemID`.
+        db (Session): SQLAlchemy database session.
+
+    Returns:
+        dict: Result containing 'deleted_count' or an error message.
+    """
+    deleted_count = 0
+
+    try:
+        # Extract IDs from the objects
+        line_item_ids = [obj.documentLineItemID for obj in line_item_objects]
+
+        if not line_item_ids:
+            return {
+                "error": "No valid line item IDs provided."
+            }
+            
+        # Delete related records in documentupdates first
+        db.query(model.DocumentUpdates).filter(
+            model.DocumentUpdates.documentLineItemID.in_(line_item_ids)
+        ).delete(synchronize_session=False)
+        
+        # Fetch and delete line items
+        line_items_to_delete = db.query(model.DocumentLineItems).filter(
+            model.DocumentLineItems.idDocumentLineItems.in_(line_item_ids),
+            model.DocumentLineItems.documentID == inv_id
+        ).all()
+
+        if not line_items_to_delete:
+            return {
+                "error": "No matching line items found for the provided invoice ID."
+            }
+
+        deleted_count = len(line_items_to_delete)
+        for line_item in line_items_to_delete:
+            db.delete(line_item)
+
+        # Commit the deletion
+        db.commit()
+
+        return {
+            "deleted_count": deleted_count
+        }
+
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {
+            "error": "An error occurred while deleting line items."
+        }
+
     finally:
         db.close()
