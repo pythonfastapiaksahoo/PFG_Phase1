@@ -41,13 +41,14 @@ def crd_clean_amount(amount_str):
     return 0.0
 
 
-
 # db = SCHEMA
 def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Session):
     voucher_data_status = 1
     intStatus = 0
     recvLineNum = 0
     intStatusMsg = ""
+    vdrMatchStatus = 0
+    vdrStatusMsg = ""
     if "credit" in CreditNote.lower():
         crt_ck_status = 1
         gst_amt = crd_clean_amount(gst_amt)
@@ -86,7 +87,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Sess
     )
     BUSINESS_UNIT = ""  # type: ignore
     VENDOR_SETID = ""  # type: ignore
-    VENDOR_ID = ""  # type: ignore
+    vendor_id = ""  # type: ignore
     ACCOUNT = ""  # type: ignore
     DEPTID = ""  # type: ignore
     location = ""  # type: ignore
@@ -96,12 +97,34 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Sess
     for invRpt in invo_recp:
         BUSINESS_UNIT = invRpt.BUSINESS_UNIT
         VENDOR_SETID = invRpt.VENDOR_SETID
-        VENDOR_ID = invRpt.VENDOR_ID
+        Supplier_id = invRpt.VENDOR_ID
         ACCOUNT = invRpt.ACCOUNT
         DEPTID = invRpt.DEPTID
         location_rw = invRpt.LOCATION
         recvLineNum = invRpt.RECV_LN_NBR
 
+    result = (
+        db.query(model.Document)
+        .join(
+            model.VendorAccount,
+            model.Document.vendorAccountID == model.VendorAccount.idVendorAccount,
+        )
+        .join(model.Vendor, model.VendorAccount.vendorID == model.Vendor.idVendor)
+        .filter(model.Document.idDocument == inv_id)
+        .with_entities(model.Vendor.VendorCode)
+        .first()
+    )
+
+    if result:
+        vendor_id = result[0]
+    
+    if Supplier_id == vendor_id:
+        vdrMatchStatus = 1
+        vdrStatusMsg = "Success"
+    else:
+        vdrMatchStatus = 0
+        vdrStatusMsg = "Incorrect vendor code. Supplier ID in ReceiptMaster: "+str(Supplier_id)+" Extracted Supplier ID: "+str(vendor_id)
+    
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
         recvLineNum = 0
@@ -124,7 +147,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Sess
         intStatus = 0
         intStatusMsg = "Incorrect store number"
 
-    if intStatus == 1:
+    if intStatus == 1 and vdrMatchStatus == 1:
 
         # ---------------------------------------------
         docTabData = (
@@ -240,7 +263,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Sess
                 existing_record.Invoice_Id = invo_ID
                 existing_record.Invoice_Dt = invo_Date
                 existing_record.Vendor_Setid = VENDOR_SETID
-                existing_record.Vendor_ID = VENDOR_ID
+                existing_record.Vendor_ID = vendor_id
                 existing_record.Deptid = DEPTID
                 existing_record.Account = ACCOUNT
                 existing_record.Gross_Amt = invo_total
@@ -267,7 +290,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Sess
                     "Invoice_Id": invo_ID,
                     "Invoice_Dt": invo_Date,
                     "Vendor_Setid": VENDOR_SETID,
-                    "Vendor_ID": VENDOR_ID,
+                    "Vendor_ID": vendor_id,
                     "Deptid": DEPTID,
                     "Account": ACCOUNT,
                     "Gross_Amt": invo_total,
@@ -292,7 +315,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Sess
 
             # Commit the changes to the database
             db.commit()
-    return intStatus, intStatusMsg
+    return intStatus, intStatusMsg, vdrMatchStatus, vdrStatusMsg
 
 
 def nonIntegratedVoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Session):
@@ -1679,11 +1702,19 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         strCk = 1
                                         strCk_msg = ["Success"]
                                         if confirmation_ck == 1:
-                                            intStatus, intStatusMsg = (
+                                            intStatus, intStatusMsg, vdrMatchStatus, vdrStatusMsg = (
                                                 IntegratedvoucherData(
                                                     docID, gst_amt, payload_subtotal,CreditNote, db
                                                 )
                                             )
+                                            
+                                            if vdrMatchStatus == 0:
+                                                docStatusSync[
+                                                    "Supplier ID validation"
+                                                ] = {
+                                                    "status": 0,
+                                                    "response": [vdrStatusMsg],
+                                                }
                                             if intStatus == 0:
                                                 docStatusSync[
                                                     "Storetype validation"
