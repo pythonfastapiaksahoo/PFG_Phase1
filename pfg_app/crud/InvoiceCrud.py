@@ -87,6 +87,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
+            "Duplicate Invoice" : 32,
         }
 
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
@@ -1800,29 +1801,9 @@ async def read_all_doc_inv_list(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
+            "Duplicate Invoice" : 32,
         }
-        # Case statement for determining the document status based on substatus/status
-        doc_status = case(
-            [
-                (model.Document.documentsubstatusID == value[0], value[1])
-                for value in substatus
-            ]
-            + [
-                (model.Document.documentStatusID == value[0] + 1, value[1])
-                for value in enumerate(status)
-            ]
-            + [
-                (
-                    model.Document.documentStatusID == all_status["VendorUnidentified"],
-                    "VendorUnidentified",
-                ),
-                (
-                    model.Document.documentStatusID == all_status["VendorNotOnboarded"],
-                    "VendorNotOnboarded",
-                ),
-            ],
-            else_="",
-        ).label("docstatus")
+        
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
         inv_choice = {
             "ser": (
@@ -1842,7 +1823,7 @@ async def read_all_doc_inv_list(
         data_query = (
             db.query(
                 model.Document,
-                doc_status,
+                model.DocumentStatus,
                 model.DocumentSubStatus,
                 inv_choice[inv_type][0],
                 inv_choice[inv_type][1],
@@ -1861,8 +1842,10 @@ async def read_all_doc_inv_list(
                     "dept",
                     "documentDate",
                     "voucher_id",
+                    "mail_row_key",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
+                Load(model.DocumentStatus).load_only("status", "description"),
                 inv_choice[inv_type][2],
                 inv_choice[inv_type][3],
             )
@@ -1882,6 +1865,12 @@ async def read_all_doc_inv_list(
                 model.Vendor.idVendor == model.VendorAccount.vendorID,
                 isouter=True,
             )
+            .join(
+                model.DocumentStatus,
+                model.DocumentStatus.idDocumentstatus
+                == model.Document.documentStatusID,
+                isouter=True,
+            )
             .filter(
                 model.Document.idDocumentType == 3,
                 model.Document.vendorAccountID.isnot(None),
@@ -1896,11 +1885,7 @@ async def read_all_doc_inv_list(
             data_query = data_query.filter(
                 model.Document.vendorAccountID.in_(sub_query)
             )
-        # # Filter by document status if a status is provided
-        # if stat:
-        #     data_query = data_query.filter(
-        #         model.Document.documentStatusID == all_status[stat]
-        #     )
+
         status_list = []
         if stat:
             # Split the status string by ':' to get a list of statuses
@@ -1959,9 +1944,13 @@ async def read_all_doc_inv_list(
                     normalize_string(model.Document.UploadDocType).ilike(pattern),
                     normalize_string(model.Document.store).ilike(pattern),
                     normalize_string(model.Document.dept).ilike(pattern),
+                    normalize_string(model.Document.voucher_id).ilike(pattern),
+                    normalize_string(model.Document.mail_row_key).ilike(pattern),
                     normalize_string(model.Vendor.VendorName).ilike(pattern),
                     normalize_string(model.Vendor.Address).ilike(pattern),
                     normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.description).ilike(pattern),
                     normalize_string(inv_choice[inv_type][1].Account).ilike(pattern),
                     # Check if any related DocumentLineItems.Value matches the filter
                     exists().where(
@@ -2445,7 +2434,12 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
             return {
                 "error": "No valid line item IDs provided."
             }
-
+            
+        # Delete related records in documentupdates first
+        db.query(model.DocumentUpdates).filter(
+            model.DocumentUpdates.documentLineItemID.in_(line_item_ids)
+        ).delete(synchronize_session=False)
+        
         # Fetch and delete line items
         line_items_to_delete = db.query(model.DocumentLineItems).filter(
             model.DocumentLineItems.idDocumentLineItems.in_(line_item_ids),

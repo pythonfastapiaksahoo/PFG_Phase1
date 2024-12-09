@@ -379,7 +379,9 @@ async def download_documents(
                 "Confirmation Number": doc.Document.JournalNumber,
                 "Invoice Type": doc.Document.UploadDocType,
                 "Invoice Date": doc.Document.documentDate,
-                "Status": doc.docstatus,
+                "Status": (
+                    doc.DocumentStatus.status if doc.DocumentStatus else None
+                ),
                 "Sub Status": (
                     doc.DocumentSubStatus.status if doc.DocumentSubStatus else None
                 ),
