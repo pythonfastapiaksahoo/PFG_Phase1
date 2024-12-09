@@ -400,18 +400,23 @@ async def read_invoice_data(u_id, inv_id, db):
                 == model.DocumentTagDef.idDocumentTagDef,
                 model.DocumentData.documentID == inv_id,
             )
-            .join(
-                model.DocumentUpdates,
-                model.DocumentUpdates.documentDataID
-                == model.DocumentData.idDocumentData,
-                isouter=True,
+            .outerjoin(
+            model.DocumentUpdates,
+            (model.DocumentUpdates.documentDataID == model.DocumentData.idDocumentData) &
+            (model.DocumentUpdates.IsActive == 1)
             )
-            .filter(
-                or_(
-                    model.DocumentData.IsUpdated == 0,
-                    model.DocumentUpdates.IsActive == 1,
-                )
-            )
+            # .join(
+            #     model.DocumentUpdates,
+            #     model.DocumentUpdates.documentDataID
+            #     == model.DocumentData.idDocumentData,
+            #     isouter=True,
+            # )
+            # .filter(
+            #     or_(
+            #         model.DocumentData.IsUpdated == 0,
+            #         model.DocumentUpdates.IsActive == 1,
+            #     )
+            # )
         )
         headerdata = headerdata.all()
         # provide linedetails of invoice, add this later , "isError", "IsUpdated"
