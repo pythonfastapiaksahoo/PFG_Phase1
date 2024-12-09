@@ -1101,27 +1101,19 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         #         gst_amt = 0
                         #     if tax_isErr == 0:
 
-                        pst = 0
-                        hst = 0
-                        gst_amt = 0
-
                         # TAX validations:
                         if "PST" in docHdrDt:
                             pst = clean_amount(docHdrDt["PST"])
-                            if pst is None:
-                                pst = 0
-                            # if (pst is not None) and pst > 0:
-                            #     invTotalMth = 0
-                            #     invTotalMth_msg = "PST found:" + str(pst)
-                            #     tax_isErr = 1
+                            if (pst is not None) and pst > 0:
+                                invTotalMth = 0
+                                invTotalMth_msg = "PST found:" + str(pst)
+                                tax_isErr = 1
                         elif "HST" in docHdrDt:
                             hst = clean_amount(docHdrDt["HST"])
-                            if hst is None:
-                                hst = 0
-                            # if (hst is not None) and hst > 0:
-                            #     invTotalMth = 0
-                            #     invTotalMth_msg = "HST found:" + str(hst)
-                            #     tax_isErr = 1
+                            if (hst is not None) and hst > 0:
+                                invTotalMth = 0
+                                invTotalMth_msg = "HST found:" + str(hst)
+                                tax_isErr = 1
                         if "GST" in docHdrDt:
                             gst_amt = clean_amount(docHdrDt["GST"])
                             if gst_amt is None:
@@ -1147,35 +1139,34 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                                             if subTotal is not None:
 
-                                                # if (
-                                                #     gst_amt is not None
-                                                # ) and gst_amt > 0:  # noqa: E501
-                                                gst_sm = clean_amount(
-                                                    subTotal + gst_amt + pst + hst
-                                                )
-                                                if gst_sm is not None:
-                                                    if gst_sm == invoTotal:
-                                                        invTotalMth = 1
-                                                        docHdrDt["SubTotal"] = gst_sm - gst_amt  # noqa: E501
+                                                if (
+                                                    gst_amt is not None
+                                                ) and gst_amt > 0:  # noqa: E501
+                                                    gst_sm = clean_amount(
+                                                        subTotal + gst_amt
+                                                    )
+                                                    if gst_sm is not None:
+                                                        if gst_sm == invoTotal:
+                                                            invTotalMth = 1
 
-                                                    elif (
-                                                        round(
-                                                            abs(
-                                                                gst_sm - invoTotal
-                                                            ),  # noqa: E501
-                                                            2,
-                                                        )
-                                                        < 0.09
-                                                    ):  # noqa: E501
-                                                        invTotalMth = 1
-                                                        docHdrDt["SubTotal"] = gst_sm - gst_amt   # noqa: E501
-                                                    else:
-                                                        # tax_isErr = 1
-                                                        invTotalMth = 0
-                                                        invTotalMth_msg = (
-                                                            "GST mismatch:"
-                                                            + str(gst_amt)
-                                                        )
+                                                        elif (
+                                                            round(
+                                                                abs(
+                                                                    gst_sm - invoTotal
+                                                                ),  # noqa: E501
+                                                                2,
+                                                            )
+                                                            < 0.09
+                                                        ):  # noqa: E501
+                                                            invTotalMth = 1
+
+                                                        else:
+                                                            # tax_isErr = 1
+                                                            invTotalMth = 0
+                                                            invTotalMth_msg = (
+                                                                "GST mismatch:"
+                                                                + str(gst_amt)
+                                                            )
                                                 if tax_isErr == 0:
                                                     if invoTotal == subTotal:
                                                         invTotalMth = 1
