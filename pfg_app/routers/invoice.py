@@ -379,7 +379,9 @@ async def download_documents(
                 "Confirmation Number": doc.Document.JournalNumber,
                 "Invoice Type": doc.Document.UploadDocType,
                 "Invoice Date": doc.Document.documentDate,
-                "Status": doc.docstatus,
+                "Status": (
+                    doc.DocumentStatus.status if doc.DocumentStatus else None
+                ),
                 "Sub Status": (
                     doc.DocumentSubStatus.status if doc.DocumentSubStatus else None
                 ),
@@ -528,3 +530,39 @@ async def upsert_line_item_data(
         operation, indicating success or failure.
     """
     return await crud.upsert_line_items(user.idUser, inv_id, inv_data, db)
+
+
+# Checked - used in the frontend
+@router.post("/deleteLineItemData/idInvoice/{inv_id}")
+async def delete_line_items(
+    inv_id: int,
+    inv_data: List[schema.DeleteLineItemData],
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """API route to update invoice line item data.
+
+    Parameters:
+    ----------
+    inv_id : int
+        Invoice ID provided as a path parameter to identify
+        which document to update.
+    inv_data : List[UpsertLineItemData]
+        Body parameter containing a list of updated invoice
+        line itemdata represented as a Pydantic model.
+    db : Session
+        Database session object used to interact with the
+        backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update
+        operation, indicating success or failure.
+    """
+    return await crud.delete_line_items(user.idUser, inv_id, inv_data, db)
+
+

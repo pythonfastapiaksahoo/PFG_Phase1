@@ -279,3 +279,7 @@ class UpsertLineItemData(BaseModel):
     NewValue: str
     lineItemTagID: Optional[int] = None
     itemCode: Optional[str] = None  
+
+
+class DeleteLineItemData(BaseModel):
+    documentLineItemID: int
