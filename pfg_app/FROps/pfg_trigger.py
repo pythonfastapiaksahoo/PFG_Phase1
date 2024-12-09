@@ -123,7 +123,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Sess
         vdrStatusMsg = "Success"
     else:
         vdrMatchStatus = 0
-        vdrStatusMsg = "Incorrect vendor code. Supplier ID in ReceiptMaster: "+str(Supplier_id)+" Extracted Supplier ID: "+str(vendor_id)
+        vdrStatusMsg = "Supplier ID Mismatch.\nReceiptMaster's Supplier ID: " + str(Supplier_id) + "\nMapped Supplier ID: " + str(vendor_id)        # noqa: E501
     
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
@@ -912,7 +912,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                     docStatusSync["Status overview"] = {
                         "status": 0,
                         "response": [
-                            "Multiple active models detected. Please combine the models and try again."
+                            "Multiple active models detected. Please combine the models and try again."   # noqa: E501
                         ],
                     }
                     return docStatusSync
@@ -922,7 +922,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                     docStatusSync["Status overview"] = {
                         "status": 0,
                         "response": [
-                            "No active models found. Please train the model to onboard the vendor"
+                            "No active models found. Please train the model to onboard the vendor"        # noqa: E501
                         ],
                     }
                     return docStatusSync
@@ -1026,14 +1026,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     "Usage Charges",
                                 ]
 
-                                tab_ck_list = ["Quantity", "UnitPrice", "Amount", "AmountExcTax"]
+                                tab_ck_list = ["Quantity", "UnitPrice", "Amount", "AmountExcTax"]                # noqa: E501
                                 if "credit" in docHdrDt["Credit Identifier"].lower():
                                     if InvStmDt and len(stmpData) > 0:
  
                                         strCk_msg = []
                                         strCk = 0
                                         if "Credit Identifier" in stmpData:
-                                            opnAi_crd_info = list(stmpData["Credit Identifier"].keys())[0]
+                                            opnAi_crd_info = list(stmpData["Credit Identifier"].keys())[0]         # noqa: E501
                                             if  "credit" in opnAi_crd_info:
 
                                                 credit_note = 1
@@ -1043,11 +1043,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                     if crt_tg in hdr_ck_list:
                                                         cngTgId = tagNames["InvoiceDate"]
                                                         if len(str(cngTgId)) > 0:
-                                                            update_crdVal[crt_tg] = docHdrDt[crt_tg]
+                                                            update_crdVal[crt_tg] = docHdrDt[crt_tg]                 # noqa: E501
                                                 if len(update_crdVal)>0:
                                                     for upd_tg in update_crdVal:
-                                                        if str(update_crdVal[upd_tg])[0]!='-':
-                                                            update_crdVal[upd_tg] = '-'+str(update_crdVal[upd_tg])
+                                                        if str(update_crdVal[upd_tg])[0]!='-':                       # noqa: E501
+                                                            update_crdVal[upd_tg] = '-'+str(update_crdVal[upd_tg])   # noqa: E501
 
                                 if credit_note==0:
                                     # credit_note = 0
