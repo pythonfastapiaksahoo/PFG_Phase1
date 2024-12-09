@@ -1485,7 +1485,7 @@ def postpro(
                         duplicate_status = 1
                     elif len(query) > 0:
                         for d in query:
-                            if d[0] not in [10, 0]:
+                            if d[0] not in [10, 0,128]:
                                 duplicate_status = 0
                                 break
                             # elif d[0] in [7, 14]:

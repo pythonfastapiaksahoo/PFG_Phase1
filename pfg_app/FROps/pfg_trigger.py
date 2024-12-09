@@ -818,9 +818,9 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                     model.Document.docheaderID == invID_docTab,
                     model.Document.vendorAccountID == vdrAccID,
                     or_(
-                        model.Document.documentStatusID != 10,  # First condition
+                        model.Document.documentStatusID not in (10,0),  # First condition
                         and_(
-                            model.Document.documentStatusID == 10,  # Second condition
+                            model.Document.documentStatusID == 32,  # Second condition
                             model.Document.idDocument == docID,
                         ),
                     ),
@@ -829,8 +829,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
             )
 
             if docTb_docHdr_count > 1:
-                InvodocStatus = 10
-                invoSubstatus = 12
+                InvodocStatus = 32
+                invoSubstatus = 128
                 try:
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
@@ -852,7 +852,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         except Exception as e:
             logger.debug(f" {str(e)}")
 
-        if InvodocStatus == 10:
+        if InvodocStatus == 32:
             duplicate_status_ck = 0
             duplicate_status_ck_msg = "Invoice already exists"
             docStatusSync["Invoice duplicate check"] = {
