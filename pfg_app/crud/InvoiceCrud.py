@@ -2420,4 +2420,60 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
 
     finally:
         db.close()
-    
+
+
+async def delete_line_items(u_id, inv_id, line_item_objects, db):
+    """
+    Deletes one or more line items for a given invoice ID.
+
+    Args:
+        inv_id (int): ID of the invoice.
+        line_item_objects (list): List of objects containing line item IDs to delete.
+        Each object should have an attribute `documentLineItemID`.
+        db (Session): SQLAlchemy database session.
+
+    Returns:
+        dict: Result containing 'deleted_count' or an error message.
+    """
+    deleted_count = 0
+
+    try:
+        # Extract IDs from the objects
+        line_item_ids = [obj.documentLineItemID for obj in line_item_objects]
+
+        if not line_item_ids:
+            return {
+                "error": "No valid line item IDs provided."
+            }
+
+        # Fetch and delete line items
+        line_items_to_delete = db.query(model.DocumentLineItems).filter(
+            model.DocumentLineItems.idDocumentLineItems.in_(line_item_ids),
+            model.DocumentLineItems.documentID == inv_id
+        ).all()
+
+        if not line_items_to_delete:
+            return {
+                "error": "No matching line items found for the provided invoice ID."
+            }
+
+        deleted_count = len(line_items_to_delete)
+        for line_item in line_items_to_delete:
+            db.delete(line_item)
+
+        # Commit the deletion
+        db.commit()
+
+        return {
+            "deleted_count": deleted_count
+        }
+
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {
+            "error": "An error occurred while deleting line items."
+        }
+
+    finally:
+        db.close()
