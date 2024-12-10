@@ -730,6 +730,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
         for dtb_rw in docTb:
             InvodocStatus = dtb_rw.documentStatusID
+            invoSubStatus = dtb_rw.documentsubstatusID
             filePath = dtb_rw.docPath
             invID_docTab = dtb_rw.docheaderID
             vdrAccID = dtb_rw.vendorAccountID
@@ -779,6 +780,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 "status": 1,
                 "response": ["Invoice sent to peopleSoft"],
             }
+    elif InvodocStatus == 10 and invoSubStatus==13:
+        # if invoSubStatus == 13:
+        docStatusSync["Rejected"] = {
+            "status": 1,
+            "response": ["Invoice rejected by user"],
+        }
+
+    
     else:
 
         try:
@@ -830,30 +839,41 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             model.Document.idDocument == docID,
                         ).update({model.Document.docheaderID: cln_invID})
                         db.commit()
+                        invID_docTab = cln_invID
             except Exception:
                 logger.error(f"{traceback.format_exc()}")
 
             #
 
+            # docTb_docHdr_count = (
+            #     db.query(model.Document)
+            #     .filter(
+            #         model.Document.docheaderID == invID_docTab,
+            #         model.Document.vendorAccountID == vdrAccID,
+            #         or_(
+            #             model.Document.documentStatusID not in (10),  # First condition
+            #             and_(
+            #                 model.Document.documentStatusID ==32 ,  # Second condition
+            #                 model.Document.idDocument == docID,
+            #             ),
+            #         ),
+            #     )
+            #     .count()
+            # )
             docTb_docHdr_count = (
-                db.query(model.Document)
-                .filter(
-                    model.Document.docheaderID == invID_docTab,
-                    model.Document.vendorAccountID == vdrAccID,
-                    or_(
-                        model.Document.documentStatusID != 10,  # First condition
-                        and_(
-                            model.Document.documentStatusID == 10,  # Second condition
-                            model.Document.idDocument == docID,
-                        ),
-                    ),
+                    db.query(model.Document)
+                    .filter(
+                        model.Document.docheaderID == invID_docTab,
+                        model.Document.vendorAccountID == vdrAccID,
+                        model.Document.documentStatusID.notin_((10, 0)),  # Filter for statuses not in (10, 0)
+                    )
+                    .count()
                 )
-                .count()
-            )
+
 
             if docTb_docHdr_count > 1:
-                InvodocStatus = 10
-                invoSubstatus = 12
+                InvodocStatus = 32
+                invoSubstatus = 128
                 try:
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
@@ -875,13 +895,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         except Exception as e:
             logger.debug(f" {str(e)}")
 
-        if InvodocStatus == 10:
+        if InvodocStatus == 32:
             duplicate_status_ck = 0
             duplicate_status_ck_msg = "Invoice already exists"
             docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
                 "response": [duplicate_status_ck_msg],
             }
+            return docStatusSync
+        elif InvodocStatus == 10:
+            duplicate_status_ck = 0
+            duplicate_status_ck_msg = "Invoice rejected by user"
+            docStatusSync["Invoice rejected"] = {
+                "status": duplicate_status_ck,
+                "response": [duplicate_status_ck_msg],
+            }
+            return docStatusSync
         elif InvodocStatus == 0:
             duplicate_status_ck = 0
             duplicate_status_ck_msg = "InvoiceId not found"
@@ -1061,6 +1090,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         for upd_tg in update_crdVal:
                                             if str(update_crdVal[upd_tg])[0]=='-':
                                                 update_crdVal[upd_tg] = str(update_crdVal[upd_tg])[1:]
+                                                
                                 if len(update_crdVal)>0:
                                     case_statement = case(
                                         {tag: date for tag, date in update_crdVal},  # Mapping docDateTag to formatted_date
@@ -1127,16 +1157,20 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         # TAX validations:
                         if "PST" in docHdrDt:
                             pst = clean_amount(docHdrDt["PST"])
-                            if (pst is not None) and pst > 0:
-                                invTotalMth = 0
-                                invTotalMth_msg = "PST found:" + str(pst)
-                                tax_isErr = 1
+                            # if (pst is not None) and pst > 0:
+                            #     invTotalMth = 0
+                            #     invTotalMth_msg = "PST found:" + str(pst)
+                            #     tax_isErr = 1
+                            if pst is None:
+                                pst = 0
                         elif "HST" in docHdrDt:
                             hst = clean_amount(docHdrDt["HST"])
-                            if (hst is not None) and hst > 0:
-                                invTotalMth = 0
-                                invTotalMth_msg = "HST found:" + str(hst)
-                                tax_isErr = 1
+                            # if (hst is not None) and hst > 0:
+                            #     invTotalMth = 0
+                            #     invTotalMth_msg = "HST found:" + str(hst)
+                            #     tax_isErr = 1
+                            if hst is None:
+                                hst = 0
                         if "GST" in docHdrDt:
                             gst_amt = clean_amount(docHdrDt["GST"])
                             if gst_amt is None:
@@ -1255,6 +1289,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                     #     else:
                                                     #         gst_amt = 0.0
                                                     OtherChargesList = [
+                                                        "PST",
+                                                        "HST",
                                                         "LitterDeposit",
                                                         "BottleDeposit",
                                                         "Discount",  # noqa: E501
