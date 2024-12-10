@@ -111,6 +111,7 @@ def runStatus(
         # subject = ""
         vendorAccountID = 0
         vendorID = 0
+        CreditNote = "Invoice Document"
         db = next(get_db())
         # Create a new instance of the SplitDocTab model
         new_split_doc = model.SplitDocTab(
@@ -1023,6 +1024,37 @@ def runStatus(
                         "%Y-%m-%d %H:%M:%S"
                     )
                     if StampFound == "Yes":
+                        if "CreditNote" in StampDataList[splt_map[fl]]:
+                            CreditNote_chk = StampDataList[splt_map[fl]]["CreditNote"]
+                            if CreditNote_chk == "Yes":
+                                CreditNote = "credit note"
+                            else:
+                                CreditNote = "Invoice Document"
+                            
+                            CreditNoteCk_isErr = 1
+                            CreditNoteCk_msg = "Response from OpenAI."
+
+                        else:
+                            CreditNote = "Invoice Document"
+                            CreditNoteCk_isErr = 0
+                            CreditNoteCk_msg = "No response from OpenAI."
+
+                        #-----------------
+
+                        stampdata: dict[str, int | str] = {}
+                        stampdata["documentid"] = invoId
+                        stampdata["stamptagname"] = "Credit Identifier"
+                        stampdata["stampvalue"] = CreditNote
+                        stampdata["is_error"] = CreditNoteCk_isErr
+                        stampdata["errordesc"] = CreditNoteCk_msg
+                        stampdata["created_on"] = stmp_created_on
+                        stampdata["IsUpdated"] = IsUpdated
+                        db.add(model.StampDataValidation(**stampdata))
+                        db.commit()
+
+
+                        #-----------------
+
                         if "MarkedDept" in StampDataList[splt_map[fl]]:
                             MarkedDept = StampDataList[splt_map[fl]]["MarkedDept"]
                             if MarkedDept == "Inventory" or MarkedDept == "Supplies":
@@ -1264,12 +1296,12 @@ def runStatus(
                             if store_type == "Integrated":
                                 payload_subtotal = ""
                                 IntegratedvoucherData(
-                                    invoId, gst_amt, payload_subtotal, db
+                                    invoId, gst_amt, payload_subtotal,CreditNote, db
                                 )
                             elif store_type == "Non-Integrated":
                                 payload_subtotal = ""
                                 nonIntegratedVoucherData(
-                                    invoId, gst_amt, payload_subtotal, db
+                                    invoId, gst_amt, payload_subtotal,CreditNote, db
                                 )
                         except Exception:
                             logger.debug(f"{traceback.format_exc()}")
@@ -1629,8 +1661,8 @@ def live_model_fn_1(generatorObj):
                 metaVendorAdd,
             )
             if duplicate_status == 0:
-                docStatus = 10
-                docsubstatus = 12
+                docStatus = 32
+                docsubstatus = 128
             elif sts_hdr_ck == 0:
                 docStatus = 4
                 docsubstatus = 2

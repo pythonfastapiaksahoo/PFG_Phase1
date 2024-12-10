@@ -1481,8 +1481,9 @@ def postpro(
                         )
                         .all()
                     )
-
-                    if len(query) > 0:
+                    if doc_invID =="":
+                        duplicate_status = 1
+                    elif len(query) > 0:
                         for d in query:
                             if d[0] not in [10, 0]:
                                 duplicate_status = 0
@@ -1490,6 +1491,10 @@ def postpro(
                             # elif d[0] in [7, 14]:
                             #     # posted_status = 0  # TODO: Unused variable
                             #     break
+                else:
+                    if doc_invID =="":
+                        duplicate_status = 1
+
 
             if dt["header"][tg]["tag"] == "InvoiceDate":
                 invo_date = dt["header"][tg]["data"]["value"]
@@ -1737,21 +1742,40 @@ def postpro(
             # (str(e))
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
+        if ("Credit Identifier" in mandatory_header) or ("Credit Identifier" in present_header):
+            logger.debug("Credit Identifier is present")
+        else:
+            missing_header.append("Credit Identifier")
+
         for msg_itm_ck in missing_header:
             if msg_itm_ck == "Credit Identifier":
-                continue
+                tp_tg = {
+                    "tag": msg_itm_ck,
+                    "data": {
+                        "value": "Invoice Document",
+                        "prebuilt_confidence": "0.0",
+                        "custom_confidence": "0.0",
+                    },
+                    "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+                    "status": 1,
+                    "status_message": "Defaulting document to Invoice",
+                }
+            # fr_data["header"].append(tp_tg)
+
+                # continue
             # notification missing header = msg_itm_ck
-            tp_tg = {
-                "tag": msg_itm_ck,
-                "data": {
-                    "value": "",
-                    "prebuilt_confidence": "0.0",
-                    "custom_confidence": "0.0",
-                },
-                "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
-                "status": 0,
-                "status_message": "Mandatory Headers Missing",
-            }
+            else:
+                tp_tg = {
+                    "tag": msg_itm_ck,
+                    "data": {
+                        "value": "",
+                        "prebuilt_confidence": "0.0",
+                        "custom_confidence": "0.0",
+                    },
+                    "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+                    "status": 0,
+                    "status_message": "Mandatory Headers Missing",
+                }
             fr_data["header"].append(tp_tg)
 
         if len(missing_header) >= (len(mandatory_header)):
