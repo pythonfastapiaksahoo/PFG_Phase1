@@ -711,6 +711,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     duplicate_status_ck = 0
     duplicate_status_ck_msg = ""
     InvodocStatus = 0
+    InvodocStatus_bu = 0
     fileSizeThreshold = 10
     confirmation_ck = 0
     confirmation_ck_msg = ""
@@ -730,6 +731,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
         for dtb_rw in docTb:
             InvodocStatus = dtb_rw.documentStatusID
+            InvodocStatus_bu = dtb_rw.documentStatusID
             invoSubStatus = dtb_rw.documentsubstatusID
             filePath = dtb_rw.docPath
             invID_docTab = dtb_rw.docheaderID
@@ -890,6 +892,21 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 # logger.error(f"Duplicate Document Header ID: {invID_docTab}")
             else:
                 InvodocStatus = 4
+                if InvodocStatus_bu != 4:
+                    InvodocStatus = 4
+                    invoSubstatus = 27
+                    try:
+                        db.query(model.Document).filter(
+                            model.Document.idDocument == docID
+                        ).update(
+                            {
+                                model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                                model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                            }
+                        )
+                        db.commit()
+                    except Exception as err:
+                        logger.debug(f"ErrorUpdatingPostingData: {err}")
 
             print(f"Count of rows: {docTb_docHdr_count}")
         except Exception as e:
