@@ -1305,7 +1305,40 @@ def runStatus(
                                 )
                         except Exception:
                             logger.debug(f"{traceback.format_exc()}")
+                    else:
+                        try:
+                            if "CreditNote" in StampDataList[splt_map[fl]]:
+                                CreditNote_chk = StampDataList[splt_map[fl]]["CreditNote"]
+                                if CreditNote_chk == "Yes":
+                                    CreditNote = "credit note"
+                                else:
+                                    CreditNote = "Invoice Document"
+                                
+                                CreditNoteCk_isErr = 1
+                                CreditNoteCk_msg = "Response from OpenAI."
 
+                            else:
+                                CreditNote = "Invoice Document"
+                                CreditNoteCk_isErr = 0
+                                CreditNoteCk_msg = "No response from OpenAI."
+
+                            #-----------------
+
+                            stampdata: dict[str, int | str] = {}
+                            stampdata["documentid"] = invoId
+                            stampdata["stamptagname"] = "Credit Identifier"
+                            stampdata["stampvalue"] = CreditNote
+                            stampdata["is_error"] = CreditNoteCk_isErr
+                            stampdata["errordesc"] = CreditNoteCk_msg
+                            stampdata["created_on"] = stmp_created_on
+                            stampdata["IsUpdated"] = IsUpdated
+                            db.add(model.StampDataValidation(**stampdata))
+                            db.commit()
+
+                        except Exception:
+                            logger.debug(f"No response from OpenAI.")
+                            logger.debug(f"{traceback.format_exc()}")
+                    
                 try:
 
                     db.query(model.frtrigger_tab).filter(

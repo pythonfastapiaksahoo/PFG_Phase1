@@ -1094,7 +1094,48 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                     for upd_tg in update_crdVal:
                                                         if str(update_crdVal[upd_tg])[0]!='-':                       # noqa: E501
                                                             update_crdVal[upd_tg] = '-'+str(update_crdVal[upd_tg])   # noqa: E501
+                                            else:
 
+                                                InvodocStatus = 4
+                                                invoSubstatus = 129
+                                                try:
+                                                    db.query(model.Document).filter(
+                                                        model.Document.idDocument == docID
+                                                    ).update(
+                                                        {
+                                                            model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                                                            model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                                                        }
+                                                    )
+                                                    db.commit()
+                                                except Exception as err:
+                                                    logger.debug(f"ErrorUpdatingPostingData: {err}")
+                                                docStatusSync["Status overview"] = {
+                                                    "status": 0,
+                                                    "response": ["Please review document type."],
+                                                }
+                                                return docStatusSync
+                                            
+                                    else:
+                                        InvodocStatus = 4
+                                        invoSubstatus = 129
+                                        try:
+                                            db.query(model.Document).filter(
+                                                model.Document.idDocument == docID
+                                            ).update(
+                                                {
+                                                    model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                                                    model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                                                }
+                                            )
+                                            db.commit()
+                                        except Exception as err:
+                                            logger.debug(f"ErrorUpdatingPostingData: {err}")
+                                        docStatusSync["Status overview"] = {
+                                            "status": 0,
+                                            "response": ["Please review document type."],
+                                        }
+                                        return docStatusSync
                                 if credit_note==0:
                                     # credit_note = 0
                                     update_crdVal = {}
