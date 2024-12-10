@@ -1090,6 +1090,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         for upd_tg in update_crdVal:
                                             if str(update_crdVal[upd_tg])[0]=='-':
                                                 update_crdVal[upd_tg] = str(update_crdVal[upd_tg])[1:]
+                                                
                                 if len(update_crdVal)>0:
                                     case_statement = case(
                                         {tag: date for tag, date in update_crdVal},  # Mapping docDateTag to formatted_date
@@ -1156,16 +1157,20 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         # TAX validations:
                         if "PST" in docHdrDt:
                             pst = clean_amount(docHdrDt["PST"])
-                            if (pst is not None) and pst > 0:
-                                invTotalMth = 0
-                                invTotalMth_msg = "PST found:" + str(pst)
-                                tax_isErr = 1
+                            # if (pst is not None) and pst > 0:
+                            #     invTotalMth = 0
+                            #     invTotalMth_msg = "PST found:" + str(pst)
+                            #     tax_isErr = 1
+                            if pst is None:
+                                pst = 0
                         elif "HST" in docHdrDt:
                             hst = clean_amount(docHdrDt["HST"])
-                            if (hst is not None) and hst > 0:
-                                invTotalMth = 0
-                                invTotalMth_msg = "HST found:" + str(hst)
-                                tax_isErr = 1
+                            # if (hst is not None) and hst > 0:
+                            #     invTotalMth = 0
+                            #     invTotalMth_msg = "HST found:" + str(hst)
+                            #     tax_isErr = 1
+                            if hst is None:
+                                hst = 0
                         if "GST" in docHdrDt:
                             gst_amt = clean_amount(docHdrDt["GST"])
                             if gst_amt is None:
@@ -1284,6 +1289,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                     #     else:
                                                     #         gst_amt = 0.0
                                                     OtherChargesList = [
+                                                        "PST",
+                                                        "HST",
                                                         "LitterDeposit",
                                                         "BottleDeposit",
                                                         "Discount",  # noqa: E501
