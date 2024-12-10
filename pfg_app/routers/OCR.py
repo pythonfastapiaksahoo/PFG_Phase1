@@ -654,8 +654,9 @@ def runStatus(
                         metaVendorName = vendorName_df.loc[
                             vendorName_df["idVendor"] == vendorID, "VendorName"
                         ].values[0]
-                    except IndexError:
-                        logger.error(f"Vendor with ID {vendorID} not found.")
+                    except Exception:
+                        logger.error(
+                            f"Vendor with ID {vendorID} not found. {traceback.format_exc()}")
                         metaVendorName = ""
 
                     # Proceed only if vendor name was found
@@ -682,9 +683,9 @@ def runStatus(
                     # Extract the required values from StampDataList
                     try:
                         doc_VendorAddress = StampDataList[splt_map[fl]]["VendorAddress"]
-                    except (KeyError, IndexError) as e:
+                    except Exception:
                         logger.error(
-                            f"Error retrieving VendorAddress from StampDataList: {e}"
+                            f"Error retrieving VendorAddress from StampDataList: {traceback.format_exc()}"
                         )
                         doc_VendorAddress = ""
 
@@ -716,7 +717,7 @@ def runStatus(
                                 "'VendorAddress' missing in StampDataList[splt_map[fl]]"
                             )
                     except Exception as e:
-                        logger.error(f"Unexpected error: {e}")
+                        logger.error(f"Unexpected error: {traceback.format_exc()}")
                 if vdrFound == 1:
 
                     try:
