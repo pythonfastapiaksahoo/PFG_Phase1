@@ -730,6 +730,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
         for dtb_rw in docTb:
             InvodocStatus = dtb_rw.documentStatusID
+            invoSubStatus = dtb_rw.documentsubstatusID
             filePath = dtb_rw.docPath
             invID_docTab = dtb_rw.docheaderID
             vdrAccID = dtb_rw.vendorAccountID
@@ -779,6 +780,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 "status": 1,
                 "response": ["Invoice sent to peopleSoft"],
             }
+    elif InvodocStatus == 10:
+        if invoSubStatus == 13:
+             docStatusSync["Rejected"] = {
+                "status": 1,
+                "response": ["Invoice rejected by user"],
+            }
+
+    
     else:
 
         try:
