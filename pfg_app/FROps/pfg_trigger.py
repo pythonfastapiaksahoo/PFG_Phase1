@@ -1093,14 +1093,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 
                                 if len(update_crdVal)>0:
                                     case_statement = case(
-                                        {tag: date for tag, date in update_crdVal},  # Mapping docDateTag to formatted_date
-                                        value=model.DocumentData.documentTagDefID,  # Column to evaluate for CASE
+                                        [(model.DocumentData.documentTagDefID == tagNames[tag], value) for tag, value in update_crdVal.items()],
+                                        else_=model.DocumentData.Value  # Optional: Retain the current value if no match
                                     )
 
                                     # Perform the update query
                                     db.query(model.DocumentData).filter(
                                         model.DocumentData.documentID == docID,
-                                        model.DocumentData.documentTagDefID.in_([tag for tag, _ in update_crdVal]),
+                                        model.DocumentData.documentTagDefID.in_(tagNames[tag] for tag in update_crdVal)
                                     ).update(
                                         {model.DocumentData.Value: case_statement}, synchronize_session=False
                                     )
