@@ -780,12 +780,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 "status": 1,
                 "response": ["Invoice sent to peopleSoft"],
             }
-    elif InvodocStatus == 10:
-        if invoSubStatus == 13:
-             docStatusSync["Rejected"] = {
-                "status": 1,
-                "response": ["Invoice rejected by user"],
-            }
+    elif InvodocStatus == 10 and invoSubStatus==13:
+        # if invoSubStatus == 13:
+        docStatusSync["Rejected"] = {
+            "status": 1,
+            "response": ["Invoice rejected by user"],
+        }
 
     
     else:
