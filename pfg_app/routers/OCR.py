@@ -210,7 +210,9 @@ def runStatus(
                 "VendorName": "Extracted vendor name",
                 "VendorAddress": "Extracted vendor address",
                 "InvoiceID": "Extracted invoice ID",
-                "Currency": "Extracted currency"
+                "Currency": "Extracted currency",
+                "GST_HST_Found": "Yes",  
+                "GST_HST_Amount": "6.01"
             }
 
             ### Instructions:
@@ -235,6 +237,9 @@ def runStatus(
             - **Confirmation Number**: A 9-digit number, usually handwritten and labeled as "Confirmation"., if it is visible.
                     If not, leave it as "N/A".
             - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
+            - **GST_HST_Found** : Yes/No
+            - **GST_HST_Amount**: extract the value listed next to 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice .
+                For example, if the line 'GST/HST 44.69 @ 5%' is present, extract the value '2.23'. Note that the amount before '@ 5%'  and next to it can vary.
 
             3. **Special Notes**:
             - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
@@ -261,6 +266,10 @@ def runStatus(
                     - If the invoice does not have 'CREDIT MEMO' written on it, return 'No'
                     - If the invoice has 'CREDIT MEMO' written on it, but the amount is negative, return 'Yes'
                     - Don't consider Discounts as it is not a Credit Note.
+                - **GST_HST_Found** : Only if Vendor Name is 'Starbucks Coffee Canada, Inc' then identify if 'GST/HST [any amount] @ 5%' is present in the bottom left side of the Starbucks's invoice return 'Yes'.
+                    -  if its other than @ 5% then return 'No'. For example, 'GST/HST [any amount] @ 0%' or 'GST/HST [any amount] @ 10%'.
+            	    - **GST_HST_Amount**: extract the value listed next to 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice . For example, if the line 'GST/HST 44.69 @ 5%' is present, extract the value '2.23'.
+		            - Note that the amount before '@ 5%'  and next to it can vary.
             4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
             ### Example Output:
@@ -275,6 +284,8 @@ def runStatus(
             - VendorAddress: "123 Main St, Anytown CANADA"
             - InvoiceID: "INV-12345"
             - Currency: "CAD"
+            - GST_HST_Found: "No"  
+            - GST_HST_Amount: "0.0" 
 
             The expected output should be:
             {
@@ -290,7 +301,9 @@ def runStatus(
                 "VendorName": "ABC Company",
                 "VendorAddress": "123 Main St, Anytown USA",
                 "InvoiceID": "INV-12345",
-                "Currency": "CAD"
+                "Currency": "CAD",
+                "GST_HST_Found": "No",  
+                "GST_HST_Amount": "0.0" 
             }
 
             """
@@ -442,27 +455,6 @@ def runStatus(
                             ):
                                 if stop:
                                     break
-                                    # vName_lower = str(stamp_inv_vendorName)
-                                    # vendorName_lower = str(vendorName)
-                                    # # Cleaned versions of the vendor names
-                                    # vName_lower = clean_vendor_name(vName_lower)
-                                    # .lower()
-                                    # vendorName_lower =
-                                    # clean_vendor_name(vendorName_lower).lower()
-                                    #  # noqa: E501
-                                    # similarity = Levenshtein.ratio(
-                                    #     vName_lower, vendorName_lower)
-
-                                    # # Check if similarity is 80% or greater
-                                    # if similarity * 100 >= 85:
-                                    #     vdrFound = 1
-                                    #     vendorID = v_id
-                                    #     logger.info(
-                                    #         f"Vendor match found using Levenshtein
-                                    # similarity with accuracy: {similarity*100}%"
-                                    #  # noqa: E501
-                                    #     )
-                                    #     stop = True
 
                                 vName_lower = str(stamp_inv_vendorName)
                                 vendorName_lower = str(vendorName)
@@ -1055,7 +1047,36 @@ def runStatus(
 
 
                         #-----------------
+                        
+                        # Check if VendorID matches 282 and proceed accordingly
+                        if vendorAccountID == 282:
+                            if "GST_HST_Found" in StampDataList[splt_map[fl]] and "GST_HST_Amount" in StampDataList[splt_map[fl]]:
+                                Gst_Hst_Check = StampDataList[splt_map[fl]]["GST_HST_Found"]
+                                if Gst_Hst_Check == "Yes":
+                                    GST_HST_Amount = StampDataList[splt_map[fl]]["GST_HST_Amount"]
+                                    gst_hst_isErr = 0
+                                    gst_hst_Ck_msg = ""
+                                else:
+                                    GST_HST_Amount = "0.0"
+                                    gst_hst_isErr = 1
+                                    gst_hst_Ck_msg = "Response from OpenAI."
+                            else:
+                                GST_HST_Amount = "0.0"
+                                gst_hst_isErr = 1
+                                gst_hst_Ck_msg = "No response from OpenAI."
 
+                            stampdata["documentid"] = invoId
+                            stampdata["stamptagname"] = "GST"
+                            stampdata["stampvalue"] = GST_HST_Amount
+                            stampdata["is_error"] = gst_hst_isErr
+                            stampdata["errordesc"] = gst_hst_Ck_msg
+                            stampdata["created_on"] = stmp_created_on
+                            stampdata["IsUpdated"] = IsUpdated
+                            db.add(model.StampDataValidation(**stampdata))
+                            db.commit()
+                            
+                            store_gst_hst_amount(invoId, GST_HST_Amount, gst_hst_isErr, gst_hst_Ck_msg, IsUpdated, db)
+                            
                         if "MarkedDept" in StampDataList[splt_map[fl]]:
                             MarkedDept = StampDataList[splt_map[fl]]["MarkedDept"]
                             if MarkedDept == "Inventory" or MarkedDept == "Supplies":
@@ -2176,3 +2197,63 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         logger.error(traceback.format_exc())
         db.rollback()
         return {"DB error": "Error while inserting document history"}
+
+
+def store_gst_hst_amount(invoId, GST_HST_Amount, gst_hst_isErr, gst_hst_Ck_msg, IsUpdated, db):
+    # Get documentModelID for the given document
+    doc_model_id = (
+        db.query(model.Document.documentModelID)
+        .filter(model.Document.idDocument == invoId)
+        .scalar()
+    )
+
+    # Fetch or create 'GST/HST Amount' tag definition
+    gst_hst_tag_def = (
+        db.query(model.DocumentTagDef)
+        .filter(
+            model.DocumentTagDef.idDocumentModel == doc_model_id,
+            model.DocumentTagDef.TagLabel == "GST",
+        )
+        .first()
+    )
+
+    if not gst_hst_tag_def:
+        gst_hst_tag_def = model.DocumentTagDef(
+            idDocumentModel=doc_model_id,
+            TagLabel="GST",
+            CreatedOn=func.now(),
+        )
+        db.add(gst_hst_tag_def)
+        db.commit()  # Commit to get the ID of the newly inserted DocumentTagDef
+
+    # Check if the corresponding entry in DocumentData exists
+    document_data = (
+        db.query(model.DocumentData)
+        .filter(
+            model.DocumentData.documentID == invoId,
+            model.DocumentData.documentTagDefID == gst_hst_tag_def.idDocumentTagDef,
+        )
+        .first()
+    )
+
+    # Set the values based on the existing data or create a new entry
+    if document_data:
+        document_data.Value = GST_HST_Amount  # GST/HST Amount
+        document_data.isError = gst_hst_isErr  # Error status
+        document_data.ErrorDesc = gst_hst_Ck_msg  # Error description
+        document_data.IsUpdated = IsUpdated  # Update flag
+    else:
+        # Insert new DocumentData entry if it does not exist
+        document_data = model.DocumentData(
+            documentID=invoId,
+            documentTagDefID=gst_hst_tag_def.idDocumentTagDef,
+            Value=GST_HST_Amount,
+            isError=gst_hst_isErr,
+            ErrorDesc=gst_hst_Ck_msg,
+            IsUpdated=IsUpdated,
+            CreatedOn=func.now(),
+        )
+        db.add(document_data)
+
+    # Commit the changes for DocumentData
+    db.commit()
