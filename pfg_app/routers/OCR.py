@@ -211,8 +211,8 @@ def runStatus(
                 "VendorAddress": "Extracted vendor address",
                 "InvoiceID": "Extracted invoice ID",
                 "Currency": "Extracted currency",
-                "GST_HST_Found": "Yes",  
-                "GST_HST_Amount": "6.01"
+                "GST_HST_Found": "Yes/No",  
+                "GST_HST_Amount": "extracted amount"
             }
 
             ### Instructions:
@@ -223,6 +223,8 @@ def runStatus(
             - **Invoice ID**: Extracted Invoice ID from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
             - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections).
                                 Ensure to capture the primary vendor name typically found at the top of the document. If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
+                                If "Starbucks Coffee Canada, Inc" is not present on the invoice, do not guess or assume it.
+                                Return "N/A" if the vendor name is not present in the invoice document.
             - **Vendor Address**: Extracted vendor address from invoice document.
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
@@ -259,6 +261,8 @@ def runStatus(
                 - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section.
                     - Ensure to capture the primary vendor name typically found at the top of the document.
                     - If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
+                    - If "Starbucks Coffee Canada, Inc" is not present on the invoice, do not guess or assume it.
+                    - Return "N/A" if the vendor name is not present in the invoice document.
                 - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                 - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                 - **Credit Note**:  May have 'CREDIT MEMO' written on the invoice with or without Negative Amount.
