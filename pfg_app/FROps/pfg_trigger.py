@@ -182,6 +182,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal,CreditNote, db: Sess
         currency_code = ""
         freight_charges = 0
         misc_amt = 0
+        # 
         if "InvoiceTotal" in docHdrDt:
             if crt_ck_status==1:
                 invo_total = crd_clean_amount(docHdrDt["InvoiceTotal"])
@@ -723,6 +724,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     otrChgsCk = 0
     credit_note = 0
     blank_id = 0
+    vdrAccId = ''
     try:
 
         docTb = (
@@ -737,6 +739,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
             invID_docTab = dtb_rw.docheaderID
             vdrAccID = dtb_rw.vendorAccountID
             documentModelID = dtb_rw.documentModelID
+            vdrAccId = dtb_rw.vendorAccountID
         logger.info(
             f"InvodocStatus:{InvodocStatus},"
             + "filePath:{filePath},"
@@ -1248,11 +1251,30 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     try:
 
                                         if "SubTotal" in docHdrDt:
+                                      
                                             subTotal = clean_amount(
                                                 docHdrDt["SubTotal"]
                                             )  # noqa: E501
 
                                             if subTotal is not None:
+                                                VdrCk_tb = db.query(model.Vendor).filter_by(idVendor=vdrAccID).first()
+                                                if VdrCk_tb:
+                                                    vrdNm = VdrCk_tb.VendorName
+                                                    if vrdNm == "STARBUCKS COFFEE CANADA INC":
+                                                        if "TotalTax" in docHdrDt:
+                                                            total_tx = clean_amount(
+                                                                docHdrDt["TotalTax"]
+                                                            )  # noqa: E501
+                                                            if gst_amt > total_tx:
+                                                                docStatusSync["Status overview"] = {
+                                                                    "status": 0,
+                                                                    "response": ["Total tax mismatch"],
+                                                                }
+                                                                return docStatusSync
+                                                            else:
+                                                                if gst_amt < total_tx:
+                                                                    subTotal=subTotal-(total_tx-gst_amt)
+                                                                
 
                                                 if (
                                                     gst_amt is not None
@@ -1279,7 +1301,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                             # tax_isErr = 1
                                                             invTotalMth = 0
                                                             invTotalMth_msg = (
-                                                                "GST mismatch:"
+                                                                "Invoicetotal mismatch: GST-"
                                                                 + str(gst_amt)
                                                             )
                                                 if tax_isErr == 0:
@@ -1673,7 +1695,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     payload_subtotal = othCrgs_sm
 
                                 elif "SubTotal" in docHdrDt:
-                                    payload_subtotal = docHdrDt["SubTotal"]
+                                    if vrdNm == "STARBUCKS COFFEE CANADA INC":
+                                        payload_subtotal = subTotal
+                                    else:
+                                        payload_subtotal = docHdrDt["SubTotal"]
                                 else:
                                     payload_subtotal = invoTotal
 
