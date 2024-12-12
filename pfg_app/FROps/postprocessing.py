@@ -1,7 +1,7 @@
 import re
 import traceback
 from collections import Counter
-
+from sqlalchemy import func
 import pandas as pd
 import pytz as tz
 
@@ -1740,6 +1740,25 @@ def postpro(
         except Exception:
             logger.debug(f" {traceback.format_exc()}")
             # (str(e))
+        #----
+        credit_tag_def = (
+        db.query(model.DocumentTagDef)
+            .filter(
+                model.DocumentTagDef.idDocumentModel == invo_model_id,
+                model.DocumentTagDef.TagLabel == "Credit Identifier",
+            )
+            .first()
+        )
+
+        if not credit_tag_def:
+            credit_tag_def = model.DocumentTagDef(
+                idDocumentModel=invo_model_id,
+                TagLabel="Credit Identifier",
+                CreatedOn=func.now(),
+            )
+            db.add(credit_tag_def)
+            db.commit()
+        #----
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
         if ("Credit Identifier" in mandatory_header) or ("Credit Identifier" in present_header):
