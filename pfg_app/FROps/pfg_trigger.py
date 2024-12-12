@@ -1083,7 +1083,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         strCk = 0
                                         if "Credit Identifier" in stmpData:
                                             opnAi_crd_info = list(stmpData["Credit Identifier"].keys())[0]         # noqa: E501
-                                            if  "credit" in opnAi_crd_info:
+                                            if "credit" in opnAi_crd_info.lower():
 
                                                 credit_note = 1
                                                 CreditNote = "Credit Note"
@@ -1096,11 +1096,26 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 if len(update_crdVal)>0:
                                                     for upd_tg in update_crdVal:
                                                         if str(update_crdVal[upd_tg])[0]!='-':                       # noqa: E501
-                                                            update_crdVal[upd_tg] = '-'+str(update_crdVal[upd_tg])   # noqa: E501
+                                                            if str(update_crdVal[upd_tg])=='0':
+                                                                update_crdVal[upd_tg] = str(update_crdVal[upd_tg])
+                                                            else:
+                                                                update_crdVal[upd_tg] = '-'+str(update_crdVal[upd_tg])   # noqa: E501
                                             else:
 
                                                 InvodocStatus = 4
                                                 invoSubstatus = 129
+                                                documentdesc = "Please review document type."
+                                                try:
+                                                    update_docHistory(
+                                                        docID,
+                                                        userID,
+                                                        InvodocStatus,
+                                                        documentdesc,
+                                                        db,  # noqa: E501
+                                                    )
+                                                except Exception:
+                                                    logger.debug(f"{traceback.format_exc()}")
+
                                                 try:
                                                     db.query(model.Document).filter(
                                                         model.Document.idDocument == docID
@@ -1122,6 +1137,17 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     else:
                                         InvodocStatus = 4
                                         invoSubstatus = 129
+                                        documentdesc = "Please review document type."
+                                        try:
+                                            update_docHistory(
+                                                docID,
+                                                userID,
+                                                InvodocStatus,
+                                                documentdesc,
+                                                db,  # noqa: E501
+                                            )
+                                        except Exception:
+                                            logger.debug(f"{traceback.format_exc()}")
                                         try:
                                             db.query(model.Document).filter(
                                                 model.Document.idDocument == docID
@@ -1133,6 +1159,42 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             )
                                             db.commit()
                                         except Exception as err:
+                                            logger.debug(f"ErrorUpdatingPostingData: {err}")
+                                        docStatusSync["Status overview"] = {
+                                            "status": 0,
+                                            "response": ["Please review document type."],
+                                        }
+                                        return docStatusSync
+                                else:
+                                    if  ("credit" in opnAi_crd_info.lower()) or ("NA" in opnAi_crd_info):
+                                        InvodocStatus = 4
+                                        invoSubstatus = 129
+                                        documentdesc = "Please review document type."
+                                        try:
+                                            update_docHistory(
+                                                docID,
+                                                userID,
+                                                InvodocStatus,
+                                                documentdesc,
+                                                db,  # noqa: E501
+                                            )
+                                        except Exception:
+                                            logger.debug(f"{traceback.format_exc()}")
+
+                                        try:
+                                            # Updating the document's status and substatus
+                                            db.query(model.Document).filter(
+                                                model.Document.idDocument == docID
+                                            ).update(
+                                                {
+                                                    model.Document.documentStatusID: InvodocStatus,
+                                                    model.Document.documentsubstatusID: invoSubstatus,
+                                                }
+                                            )
+                                            db.commit()
+                                        
+                                        except Exception as err:
+                                            db.rollback() 
                                             logger.debug(f"ErrorUpdatingPostingData: {err}")
                                         docStatusSync["Status overview"] = {
                                             "status": 0,

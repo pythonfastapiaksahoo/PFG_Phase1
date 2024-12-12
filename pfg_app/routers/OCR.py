@@ -266,7 +266,7 @@ def runStatus(
                 - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                 - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                 - **Credit Note**:  May have 'CREDIT MEMO' written on the invoice with or without Negative Amount.
-                    - If the invoice has 'CREDIT MEMO' written on it, return 'Yes'
+                    - If the invoice has 'CREDIT MEMO' written on it or if total amounts are negative, return 'Yes'
                     - If the invoice does not have 'CREDIT MEMO' written on it, return 'No'
                     - If the invoice has 'CREDIT MEMO' written on it, but the amount is negative, return 'Yes'
                     - Don't consider Discounts as it is not a Credit Note.
@@ -1337,14 +1337,16 @@ def runStatus(
                                 CreditNote_chk = StampDataList[splt_map[fl]]["CreditNote"]
                                 if CreditNote_chk == "Yes":
                                     CreditNote = "credit note"
-                                else:
+                                elif CreditNote_chk=="No":
                                     CreditNote = "Invoice Document"
+                                else:
+                                    CreditNote = "NA"
                                 
                                 CreditNoteCk_isErr = 1
                                 CreditNoteCk_msg = "Response from OpenAI."
 
                             else:
-                                CreditNote = "Invoice Document"
+                                CreditNote = "NA"
                                 CreditNoteCk_isErr = 0
                                 CreditNoteCk_msg = "No response from OpenAI."
 
