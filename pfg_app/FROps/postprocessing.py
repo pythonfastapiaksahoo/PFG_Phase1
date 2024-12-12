@@ -655,9 +655,9 @@ def dataPrep_postprocess_cust(input_data):
                 else []
             )
 
-        for pg_rw in cust_tab_pg_data:
-            cnt = cnt + 1
-            getData_TabPg.append(pg_rw)
+            for pg_rw in cust_tab_pg_data:
+                cnt = cnt + 1
+                getData_TabPg.append(pg_rw)
 
         for tgs in cust_pg_data:
             if tgs not in ("tab_1", "tab_2", "tab_3", "tab_3", "Items"):
