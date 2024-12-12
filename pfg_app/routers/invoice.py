@@ -566,3 +566,39 @@ async def delete_line_items(
     return await crud.delete_line_items(user.idUser, inv_id, inv_data, db)
 
 
+
+@router.put("/updateIdentifierToStampData/{inv_id}")
+async def update_identifier_to_stamp_data(
+    inv_id: int,
+    update_data: schema.UpdateStampData,  # Use the schema directly to parse JSON input
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+):
+    """
+    API route to update or insert a single stamp data record for a given document.
+
+    Parameters:
+    ----------
+    inv_id : int
+        Document ID used to filter the stamp data for updating or inserting.
+    update_data : UpdateStampData
+        Data object containing `stamptagname`, `NewValue`, and `OldValue`.
+    db : Session
+        Database session object, used to interact with the backend database.
+    user : AzureUser
+        Authenticated user object making the request.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the response message with the result of the operation.
+    """
+    try:
+        updated_stamp_data = await crud.update_credit_identifier_to_stamp_data(
+            user.idUser, inv_id, update_data, db
+        )
+
+        # Return the updated or newly inserted record
+        return {"response": updated_stamp_data}
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}

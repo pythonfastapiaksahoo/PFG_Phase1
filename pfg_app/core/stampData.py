@@ -180,6 +180,8 @@ def stampDataFn(blob_data, prompt):
             "VendorName": "Response not found",
             "InvoiceID": "Response not found",
             "Currency": "CAD",
+            "CreditNote": "NA",
+
         }
 
     return stampData
