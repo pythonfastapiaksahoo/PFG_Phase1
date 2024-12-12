@@ -107,7 +107,7 @@ def stampDataFn(blob_data, prompt):
             "Content-Type": "application/json",
         }
         retry_count = 0
-        max_retries = 5
+        max_retries = 20
         while retry_count < max_retries:
             response = requests.post(
                 settings.open_ai_endpoint, headers=headers, json=data, timeout=600
@@ -357,7 +357,7 @@ def VndMatchFn(metaVendorName, doc_VendorName, metaVendorAdd, doc_VendorAddress)
             "Content-Type": "application/json",
         }
         retry_count = 0
-        max_retries = 5
+        max_retries = 20
         while retry_count < max_retries:
             response = requests.post(
                 settings.open_ai_endpoint, headers=headers, json=data, timeout=60
@@ -462,7 +462,7 @@ def VndMatchFn_2(doc_VendorAddress, metaVendorAdd):
             "Content-Type": "application/json",
         }
         retry_count = 0
-        max_retries = 5
+        max_retries = 20
         while retry_count < max_retries:
             response = requests.post(
                 settings.open_ai_endpoint, headers=headers, json=data, timeout=60

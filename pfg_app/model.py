@@ -1,3 +1,5 @@
+import datetime
+
 from sqlalchemy import (
     JSON,
     TEXT,
@@ -7,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     SmallInteger,
@@ -1493,3 +1496,19 @@ class SplitDocTab(Base):
     sender = Column(String, nullable=True)
     updated_on = Column(DateTime, nullable=True)
     mail_row_key = Column(String, nullable=True)
+
+
+class QueueTask(Base):
+    __tablename__ = "queue_tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    request_data = Column(JSONB, nullable=False, index=False)  # JSONB column
+    status = Column(String(50), nullable=False, default="queued")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
+
+    # Define a GIN index on the request_data column
+    __table_args__ = (
+        Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
+    )

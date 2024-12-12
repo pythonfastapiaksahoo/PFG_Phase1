@@ -1,15 +1,17 @@
 import io
 import json
 import re
+import time
 import traceback
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import Levenshtein
 import pandas as pd
 
 # import psycopg2
 import pytz as tz
-from fastapi import APIRouter, File, Form, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from PIL import Image
 
 # from psycopg2 import extras
@@ -27,6 +29,7 @@ from pfg_app.auth import AuthHandler
 # from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.azure_fr import get_fr_data
 from pfg_app.core.stampData import VndMatchFn_2, is_valid_date
+from pfg_app.core.utils import get_blob_securely
 from pfg_app.FROps.pfg_trigger import (
     IntegratedvoucherData,
     nonIntegratedVoucherData,
@@ -37,6 +40,7 @@ from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.FROps.SplitDoc import splitDoc
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
+from pfg_app.model import QueueTask
 
 # from logModule import email_sender
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
@@ -97,7 +101,73 @@ def runStatus(
     email_path: str = Form("Test Path"),
     subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
+    db=Depends(get_db),
 ):
+    try:
+        request_data = {
+            "file_path": file_path,
+            "filename": filename,
+            "file_type": file_type,
+            "source": source,
+            "invoice_type": invoice_type,
+            "sender": sender,
+            "email_path": email_path,
+            "subject": subject,
+        }
+        new_task = QueueTask(request_data=request_data, status="queued")
+        db.add(new_task)
+        db.commit()
+        db.refresh(new_task)  # Get the ID of the inserted task
+        return {
+            "message": "QueueTask submitted successfully",
+            "queue_task_id": new_task.id,
+        }
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        return {"message": "Failed to submit QueueTask"}
+
+
+@router.get("/task_status/{queue_task_id}")
+def get_task_status(queue_task_id: int, db=Depends(get_db)):
+
+    try:
+        queue_task = db.query(QueueTask).filter(QueueTask.id == queue_task_id).first()
+        if not queue_task:
+            raise HTTPException(status_code=404, detail="QueueTask not found")
+        return {
+            "task_id": queue_task.id,
+            "status": queue_task.status,
+            "updated_at": queue_task.updated_at,
+        }
+    finally:
+        db.close()
+
+
+def queue_process_task(queue_task: QueueTask):
+    # Simulate task processing
+
+    logger.info(f"Starting Queue task: {queue_task.id}")
+
+    # from the request data of queue_task, extract the file_path and other required data
+    file_path = queue_task.request_data["file_path"]
+    filename = queue_task.request_data["filename"]
+    file_type = queue_task.request_data["file_type"]
+    source = queue_task.request_data["source"]
+    invoice_type = queue_task.request_data["invoice_type"]
+    sender = queue_task.request_data["sender"]
+    email_path = queue_task.request_data["email_path"]
+    subject = queue_task.request_data["subject"]
+
+    # Download the file from the blob storage using get_blob_securely function
+    # Parse the URL
+    parsed_url = urlparse(file_path)
+    # Extract the path and split it
+    path_parts = parsed_url.path.strip("/").split("/", 1)
+    # Get the container name and the rest of the path
+    container_name = path_parts[0]
+    rest_of_path = path_parts[1] if len(path_parts) > 1 else ""
+    blob_data, content_type = get_blob_securely(container_name, rest_of_path)
+
     try:
         try:
             # Regular expression pattern to find "DSD-" followed by digits
@@ -140,7 +210,7 @@ def runStatus(
         # -------------------------
 
         if fl_type in ["png", "jpg", "jpeg", "jpgx"]:
-            image = Image.open(file.file)
+            image = Image.open(io.BytesIO(blob_data))
 
             # Convert the image to RGB if it's not in RGB mode
             # (important for saving as PDF)
@@ -155,7 +225,7 @@ def runStatus(
             # Read the PDF using PyPDF2 (or any PDF reader you prefer)
             pdf_stream = PdfReader(pdf_bytes)
         elif fl_type in ["pdf"]:
-            pdf_stream = PdfReader(file.file)
+            pdf_stream = PdfReader(io.BytesIO(blob_data))
         else:
             splitdoc_id = new_split_doc.splitdoc_id
             split_doc = (
@@ -211,7 +281,7 @@ def runStatus(
                 "VendorAddress": "Extracted vendor address",
                 "InvoiceID": "Extracted invoice ID",
                 "Currency": "Extracted currency",
-                "GST_HST_Found": "Yes",  
+                "GST_HST_Found": "Yes",
                 "GST_HST_Amount": "6.01"
             }
 
@@ -284,8 +354,8 @@ def runStatus(
             - VendorAddress: "123 Main St, Anytown CANADA"
             - InvoiceID: "INV-12345"
             - Currency: "CAD"
-            - GST_HST_Found: "No"  
-            - GST_HST_Amount: "0.0" 
+            - GST_HST_Found: "No"
+            - GST_HST_Amount: "0.0"
 
             The expected output should be:
             {
@@ -302,8 +372,8 @@ def runStatus(
                 "VendorAddress": "123 Main St, Anytown USA",
                 "InvoiceID": "INV-12345",
                 "Currency": "CAD",
-                "GST_HST_Found": "No",  
-                "GST_HST_Amount": "0.0" 
+                "GST_HST_Found": "No",
+                "GST_HST_Amount": "0.0"
             }
 
             """
@@ -648,7 +718,8 @@ def runStatus(
                         ].values[0]
                     except Exception:
                         logger.error(
-                            f"Vendor with ID {vendorID} not found. {traceback.format_exc()}")
+                            f"Vendor with ID {vendorID} not found. {traceback.format_exc()}"
+                        )
                         metaVendorName = ""
 
                     # Proceed only if vendor name was found
@@ -1023,7 +1094,7 @@ def runStatus(
                                 CreditNote = "credit note"
                             else:
                                 CreditNote = "Invoice Document"
-                            
+
                             CreditNoteCk_isErr = 1
                             CreditNoteCk_msg = "Response from OpenAI."
 
@@ -1032,7 +1103,7 @@ def runStatus(
                             CreditNoteCk_isErr = 0
                             CreditNoteCk_msg = "No response from OpenAI."
 
-                        #-----------------
+                        # -----------------
 
                         stampdata: dict[str, int | str] = {}
                         stampdata["documentid"] = invoId
@@ -1045,15 +1116,21 @@ def runStatus(
                         db.add(model.StampDataValidation(**stampdata))
                         db.commit()
 
+                        # -----------------
 
-                        #-----------------
-                        
                         # Check if VendorID matches 282 and proceed accordingly
                         if vendorAccountID == 282:
-                            if "GST_HST_Found" in StampDataList[splt_map[fl]] and "GST_HST_Amount" in StampDataList[splt_map[fl]]:
-                                Gst_Hst_Check = StampDataList[splt_map[fl]]["GST_HST_Found"]
+                            if (
+                                "GST_HST_Found" in StampDataList[splt_map[fl]]
+                                and "GST_HST_Amount" in StampDataList[splt_map[fl]]
+                            ):
+                                Gst_Hst_Check = StampDataList[splt_map[fl]][
+                                    "GST_HST_Found"
+                                ]
                                 if Gst_Hst_Check == "Yes":
-                                    GST_HST_Amount = StampDataList[splt_map[fl]]["GST_HST_Amount"]
+                                    GST_HST_Amount = StampDataList[splt_map[fl]][
+                                        "GST_HST_Amount"
+                                    ]
                                     gst_hst_isErr = 0
                                     gst_hst_Ck_msg = ""
                                 else:
@@ -1074,9 +1151,16 @@ def runStatus(
                             stampdata["IsUpdated"] = IsUpdated
                             db.add(model.StampDataValidation(**stampdata))
                             db.commit()
-                            
-                            store_gst_hst_amount(invoId, GST_HST_Amount, gst_hst_isErr, gst_hst_Ck_msg, IsUpdated, db)
-                            
+
+                            store_gst_hst_amount(
+                                invoId,
+                                GST_HST_Amount,
+                                gst_hst_isErr,
+                                gst_hst_Ck_msg,
+                                IsUpdated,
+                                db,
+                            )
+
                         if "MarkedDept" in StampDataList[splt_map[fl]]:
                             MarkedDept = StampDataList[splt_map[fl]]["MarkedDept"]
                             if MarkedDept == "Inventory" or MarkedDept == "Supplies":
@@ -1318,24 +1402,26 @@ def runStatus(
                             if store_type == "Integrated":
                                 payload_subtotal = ""
                                 IntegratedvoucherData(
-                                    invoId, gst_amt, payload_subtotal,CreditNote, db
+                                    invoId, gst_amt, payload_subtotal, CreditNote, db
                                 )
                             elif store_type == "Non-Integrated":
                                 payload_subtotal = ""
                                 nonIntegratedVoucherData(
-                                    invoId, gst_amt, payload_subtotal,CreditNote, db
+                                    invoId, gst_amt, payload_subtotal, CreditNote, db
                                 )
                         except Exception:
                             logger.debug(f"{traceback.format_exc()}")
                     else:
                         try:
                             if "CreditNote" in StampDataList[splt_map[fl]]:
-                                CreditNote_chk = StampDataList[splt_map[fl]]["CreditNote"]
+                                CreditNote_chk = StampDataList[splt_map[fl]][
+                                    "CreditNote"
+                                ]
                                 if CreditNote_chk == "Yes":
                                     CreditNote = "credit note"
                                 else:
                                     CreditNote = "Invoice Document"
-                                
+
                                 CreditNoteCk_isErr = 1
                                 CreditNoteCk_msg = "Response from OpenAI."
 
@@ -1344,7 +1430,7 @@ def runStatus(
                                 CreditNoteCk_isErr = 0
                                 CreditNoteCk_msg = "No response from OpenAI."
 
-                            #-----------------
+                            # -----------------
 
                             stampdata: dict[str, int | str] = {}
                             stampdata["documentid"] = invoId
@@ -1360,7 +1446,7 @@ def runStatus(
                         except Exception:
                             logger.debug(f"No response from OpenAI.")
                             logger.debug(f"{traceback.format_exc()}")
-                    
+
                 try:
 
                     db.query(model.frtrigger_tab).filter(
@@ -1489,6 +1575,56 @@ def runStatus(
         logger.debug(f"{traceback.format_exc()}")
 
     return status
+
+
+def queue_worker():
+    while True:
+        db = next(get_db())
+        try:
+            # Fetch a queue_task with status 'queued' and lock it
+            queue_task = (
+                db.query(QueueTask)
+                .filter(QueueTask.status == "queued")
+                .with_for_update(skip_locked=True)
+                .first()
+            )
+
+            if queue_task:
+                # Update the queue_task status to 'processing'
+                queue_task.status = "processing"
+                db.commit()
+                db.refresh(queue_task)
+
+                # Process the queue_task
+                try:
+                    status = queue_process_task(queue_task)
+                    logger.info(f"QueueTask {queue_task.id} => {status}")
+                    if status == "success":
+                        queue_task.status = "completed"
+                    else:
+                        queue_task.status = "failed"
+                    db.add(queue_task)
+                    db.commit()
+                    # load the queue task from db again to check if reflected
+                    queue_task_db = (
+                        db.query(QueueTask)
+                        .filter(QueueTask.id == queue_task.id)
+                        .first()
+                    )
+                    logger.info(
+                        f"QueueTask {queue_task.id} => {queue_task.status} <= {queue_task_db.status}"
+                    )
+
+                except Exception:
+                    queue_task.status = "failed"
+                    db.add(queue_task)
+                    db.commit()
+                    logger.error(
+                        f"QueueTask {queue_task.id} failed: {traceback.format_exc()}"
+                    )
+        except Exception:
+            logger.info(f"QueueWorker failed: {traceback.format_exc()}")
+        time.sleep(1)  # Polling interval
 
 
 def nomodelfound():
@@ -2199,7 +2335,9 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         return {"DB error": "Error while inserting document history"}
 
 
-def store_gst_hst_amount(invoId, GST_HST_Amount, gst_hst_isErr, gst_hst_Ck_msg, IsUpdated, db):
+def store_gst_hst_amount(
+    invoId, GST_HST_Amount, gst_hst_isErr, gst_hst_Ck_msg, IsUpdated, db
+):
     # Get documentModelID for the given document
     doc_model_id = (
         db.query(model.Document.documentModelID)
