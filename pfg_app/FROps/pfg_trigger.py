@@ -32,11 +32,14 @@ def clean_amount(amount_str):
 def crd_clean_amount(amount_str):
     if isinstance(amount_str, float):
         amount_str = str(amount_str)
+    elif isinstance(amount_str, int):
+        amount_str = str(amount_str)
     try:
         cleaned_amount = re.findall(r"[\d.]+", amount_str)
         if cleaned_amount:
             return round(float("".join(cleaned_amount)), 2)*-1
     except Exception:
+        logger.info(traceback.format_exc())
         return None
     return 0.0
 
@@ -1585,7 +1588,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                     else:
                                                         invTotalMth = 0
                                                         invTotalMth_msg = (
-                                                          "Invoice total mismatch:" + str(e)
+                                                          "Invoice total mismatch"
                                                             )
                                                 # elif gst_amt > 0:
                                                 #     if
@@ -1600,7 +1603,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 logger.debug(traceback.format_exc())
                                                 invTotalMth = 0
                                                 invTotalMth_msg = (
-                                                    "Invoice total mismatch:" + str(e)
+                                                    "Invoice total mismatch"
                                                 )
                                         else:
                                             invTotalMth = 0
@@ -1611,7 +1614,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                     except Exception as e:
                         logger.debug(traceback.format_exc())
                         invTotalMth = 0
-                        invTotalMth_msg = "Invoice total mismatch:" + str(e)
+                        invTotalMth_msg = "Invoice total mismatch"
 
                     try:
                         date_string = docHdrDt.get(
