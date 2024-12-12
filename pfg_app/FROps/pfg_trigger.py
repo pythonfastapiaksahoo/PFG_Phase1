@@ -1335,7 +1335,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                 return docStatusSync
                                                             else:
                                                                 if gst_amt < total_tx:
-                                                                    subTotal=subTotal-(total_tx-gst_amt)
+                                                                    subTotal=subTotal+(total_tx-gst_amt)
                                                                 
 
                                                 if (
