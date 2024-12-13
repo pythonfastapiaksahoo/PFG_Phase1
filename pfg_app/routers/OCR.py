@@ -4,6 +4,7 @@ import re
 import time
 import traceback
 from datetime import datetime, timezone
+from functools import wraps
 from urllib.parse import urlparse
 
 import Levenshtein
@@ -19,6 +20,7 @@ from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy import func
+from sqlalchemy.exc import InvalidRequestError, OperationalError
 from sqlalchemy.orm import Load
 
 import pfg_app.model as model
@@ -89,6 +91,42 @@ def clean_vendor_name(name):
     return name
 
 
+def retry_on_exception(max_retries=3, delay=2):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except (OperationalError, InvalidRequestError) as e:
+                    retries += 1
+                    logger.warning(
+                        f"Retry {retries}/{max_retries} after exception: {e}"
+                    )
+                    time.sleep(delay)
+                    if retries == max_retries:
+                        raise
+
+        return wrapper
+
+    return decorator
+
+
+@retry_on_exception(max_retries=3, delay=2)
+def save_to_database(db, new_task):
+    try:
+        db.add(new_task)
+        db.flush()  # Generate the ID without committing
+        task_id = new_task.id
+        db.commit()  # Commit transaction
+        db.refresh(new_task)  # Refresh to get updated fields
+        return task_id
+    except Exception:
+        db.rollback()
+        raise
+
+
 @router.post("/status/stream_pfg")
 def runStatus(
     file_path: str = Form(...),
@@ -115,16 +153,19 @@ def runStatus(
             "subject": subject,
         }
         new_task = QueueTask(request_data=request_data, status="queued")
-        db.add(new_task)
-        db.commit()
-        db.refresh(new_task)  # Get the ID of the inserted task
+        # Retry logic encapsulated in save_to_database
+        task_id = save_to_database(db, new_task)
         return {
             "message": "QueueTask submitted successfully",
-            "queue_task_id": new_task.id,
+            "queue_task_id": task_id,
         }
-    except Exception:
-        logger.error(f"{traceback.format_exc()}")
-        return {"message": "Failed to submit QueueTask"}
+    except (OperationalError, InvalidRequestError) as e:
+        logger.error(f"Database error: {str(e)}")
+        return {"message": "Failed to submit QueueTask due to a database issue"}
+
+    except Exception as exc:
+        logger.error(f"Unexpected error: {traceback.format_exc()}")
+        return {"message": f"Failed to submit QueueTask: {str(exc)}"}
 
 
 @router.get("/task_status/{queue_task_id}")
@@ -139,8 +180,9 @@ def get_task_status(queue_task_id: int, db=Depends(get_db)):
             "status": queue_task.status,
             "updated_at": queue_task.updated_at,
         }
-    finally:
-        db.close()
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+        return {"message": "Failed to get QueueTask status"}
 
 
 def queue_process_task(queue_task: QueueTask):
@@ -281,7 +323,7 @@ def queue_process_task(queue_task: QueueTask):
                 "VendorAddress": "Extracted vendor address",
                 "InvoiceID": "Extracted invoice ID",
                 "Currency": "Extracted currency",
-                "GST_HST_Found": "Yes/No",  
+                "GST_HST_Found": "Yes/No",
                 "GST_HST_Amount": "extracted amount"
             }
 
@@ -1423,11 +1465,11 @@ def queue_process_task(queue_task: QueueTask):
                                 ]
                                 if CreditNote_chk == "Yes":
                                     CreditNote = "credit note"
-                                elif CreditNote_chk=="No":
+                                elif CreditNote_chk == "No":
                                     CreditNote = "Invoice Document"
                                 else:
                                     CreditNote = "NA"
-                                
+
                                 CreditNoteCk_isErr = 1
                                 CreditNoteCk_msg = "Response from OpenAI."
 
@@ -1915,7 +1957,6 @@ def live_model_fn_1(generatorObj):
                     # logger.error(f"ocr.py line 594: exception:{str(ep)}")
                     # {"DB error": "Error while inserting data"}
 
-                db.close()
                 # live_model_status = 1  # TODO: Unused variable
                 # live_model_msg = "Data extracted"  # TODO: Unused variable
                 current_status = {"percentage": 75, "status": "Post-Processing ⌛"}
