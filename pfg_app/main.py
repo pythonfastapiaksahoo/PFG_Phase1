@@ -136,17 +136,27 @@ async def app_startup():
         except Exception as e:
             logger.info(f"Exception: {e}" + traceback.format_exc())
 
-    logger.info("Resetting all queues before starting the application")
-    db = next(get_db())
-    db.query(QueueTask).filter(QueueTask.status == "processing").update(
-        {"status": "queued"}
-    )
-    db.commit()
-    logger.info("All queues reset to queued state")
-    worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
-    worker_thread.start()
-    logger.info("OCR Worker thread started")
-
+        logger.info("Resetting all queues before starting the application")
+        db = next(get_db())
+        db.query(QueueTask).filter(QueueTask.status == "processing").update(
+            {"status": "queued"}
+        )
+        db.commit()
+        logger.info("All queues reset to queued state")
+        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
+        worker_thread.start()
+        logger.info("OCR Worker thread started")
+    else:
+        logger.info("Resetting all queues before starting the application")
+        db = next(get_db())
+        db.query(QueueTask).filter(
+            QueueTask.status == f"{settings.local_user_name}-processing"
+        ).update({"status": f"{settings.local_user_name}-queued"})
+        db.commit()
+        logger.info("All queues reset to queued state")
+        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
+        worker_thread.start()
+        logger.info("OCR Worker thread started")
     logger.info("Application is ready to process requests")
 
 
@@ -190,7 +200,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.86"
+            response.headers["api-version"] = "0.87"
 
             logger.info(
                 "Sending response from FastAPI"
