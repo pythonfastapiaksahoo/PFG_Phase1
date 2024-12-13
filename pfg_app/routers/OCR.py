@@ -99,7 +99,7 @@ def retry_on_exception(max_retries=3, delay=2):
             while retries < max_retries:
                 try:
                     return func(*args, **kwargs)
-                except (OperationalError, InvalidRequestError) as e:
+                except Exception as e:
                     retries += 1
                     logger.warning(
                         f"Retry {retries}/{max_retries} after exception: {e}"
