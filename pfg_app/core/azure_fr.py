@@ -21,10 +21,20 @@ def get_fr_data(
     fr_status = "Fail"
     isComposed = False
     template = ""
+    # Create a custom retry policy
+    custom_retry_policy = RetryPolicy(
+        retry_on_status_codes=[429],  # Retry on HTTP 429 Too Many Requests
+        retry_total=20,  # Maximum retries
+        retry_backoff_factor=1,  # Exponential backoff factor
+        retry_backoff_max=60,  # Max backoff time in seconds
+    )
 
     # Initialize the Form Recognizer client
     document_analysis_client = DocumentAnalysisClient(
-        endpoint, get_credential(), api_version=API_version
+        endpoint,
+        get_credential(),
+        api_version=API_version,
+        retry_policy=custom_retry_policy,
     )
     # if model_type is custom, then we use the inv_model_id to get the data
     # else we use the prebuilt-invoice model
@@ -141,7 +151,7 @@ def call_form_recognizer(
     # Create a custom retry policy
     custom_retry_policy = RetryPolicy(
         retry_on_status_codes=[429],  # Retry on HTTP 429 Too Many Requests
-        retry_total=10,  # Maximum retries
+        retry_total=20,  # Maximum retries
         retry_backoff_factor=1,  # Exponential backoff factor
         retry_backoff_max=60,  # Max backoff time in seconds
     )
