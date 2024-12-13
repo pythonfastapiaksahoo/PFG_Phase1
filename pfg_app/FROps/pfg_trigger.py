@@ -1401,12 +1401,41 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 if (invoTotal is not None) and (abs(invoTotal) > 0):
 
                                     if "SubTotal" in docHdrDt:
+                                        
 
                                         subTotal = crd_clean_amount(
                                             docHdrDt["SubTotal"]
                                         )  # noqa: E501
-
+                                        
                                         if subTotal is not None and (abs(subTotal) > 0):
+                                            if strbucks == 1:
+
+                                                if "TotalTax" in docHdrDt:
+                                                    total_tx = crd_clean_amount(
+                                                        docHdrDt["TotalTax"]
+                                                    )  # noqa: E501
+                                                else:
+                                                    total_tx = 0
+                                                if gst_amt > total_tx:
+                                                    docStatusSync[
+                                                        "Status overview"
+                                                    ] = {
+                                                        "status": 0,
+                                                        "response": [
+                                                            "Total tax mismatch"
+                                                        ],
+                                                    }
+                                                    return docStatusSync
+                                                else:
+                                                    if gst_amt <= total_tx:
+                                                        subTotal = (
+                                                            subTotal
+                                                            + (
+                                                                total_tx
+                                                                - gst_amt
+                                                            )
+                                                        )
+                                        
 
                                             if (gst_amt is not None) and abs(
                                                 gst_amt
@@ -1435,7 +1464,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                         invTotalMth_msg = (
                                                             "Invoicetotal mismatch"
                                                         )
-                                            if tax_isErr == 0:
+                                            if tax_isErr == 0 and invTotalMth!=1:
                                                 if invoTotal == subTotal:
                                                     invTotalMth = 1
                                                     gst_amt = 0
@@ -1498,7 +1527,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                     break
                                         else:
                                             # else:
-
+                                            logger.info("subTotal: {}")
                                             invTotalMth = 0
                                             invTotalMth_msg = "Invalid invoice total."
                                     else:
