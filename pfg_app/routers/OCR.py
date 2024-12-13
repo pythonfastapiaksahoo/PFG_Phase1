@@ -200,15 +200,20 @@ def queue_process_task(queue_task: QueueTask):
     email_path = queue_task.request_data["email_path"]
     subject = queue_task.request_data["subject"]
 
-    # Download the file from the blob storage using get_blob_securely function
-    # Parse the URL
-    parsed_url = urlparse(file_path)
-    # Extract the path and split it
-    path_parts = parsed_url.path.strip("/").split("/", 1)
-    # Get the container name and the rest of the path
-    container_name = path_parts[0]
-    rest_of_path = path_parts[1] if len(path_parts) > 1 else ""
-    blob_data, content_type = get_blob_securely(container_name, rest_of_path)
+    # if the execution is from `debug` mode, then get the file from the local path
+    if settings.build_type == "debug":
+        with open(file_path, "rb") as f:
+            blob_data = f.read()
+    else:
+        # Download the file from the blob storage using get_blob_securely function
+        # Parse the URL
+        parsed_url = urlparse(file_path)
+        # Extract the path and split it
+        path_parts = parsed_url.path.strip("/").split("/", 1)
+        # Get the container name and the rest of the path
+        container_name = path_parts[0]
+        rest_of_path = path_parts[1] if len(path_parts) > 1 else ""
+        blob_data, content_type = get_blob_securely(container_name, rest_of_path)
 
     try:
         try:
@@ -1640,9 +1645,8 @@ def queue_worker():
             if queue_task:
                 # Update the queue_task status to 'processing'
                 queue_task.status = "processing"
+                db.add(queue_task)
                 db.commit()
-                db.refresh(queue_task)
-
                 # Process the queue_task
                 try:
                     status = queue_process_task(queue_task)
