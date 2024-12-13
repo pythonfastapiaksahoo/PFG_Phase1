@@ -152,7 +152,11 @@ def runStatus(
             "email_path": email_path,
             "subject": subject,
         }
-        new_task = QueueTask(request_data=request_data, status="queued")
+        if settings.build_type == "debug":
+            queued_status = f"{settings.local_user_name}-queued"
+        else:
+            queued_status = "queued"
+        new_task = QueueTask(request_data=request_data, status=queued_status)
         # Retry logic encapsulated in save_to_database
         task_id = save_to_database(db, new_task)
         return {
