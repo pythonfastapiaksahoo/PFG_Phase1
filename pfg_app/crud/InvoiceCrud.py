@@ -1500,7 +1500,9 @@ async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
         )
 
         # Check if records exists or not
-        if not stamp_data_records:
+        if not stamp_data_records or (
+            len(stamp_data_records) == 1 and stamp_data_records[0].stamptagname == 'Credit Identifier'
+        ):
             static_stamp_data_records = [
                 {
                     "stamptagname": "SelectedDept",
