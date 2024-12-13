@@ -1634,17 +1634,29 @@ def queue_worker():
     while True:
         db = next(get_db())
         try:
+            # get the correct queue sattus for `queued` and lock it
+            if settings.build_type == "debug":
+                queued_status = f"{settings.local_user_name}-queued"
+                processing_status = f"{settings.local_user_name}-processing"
+                completed_status = f"{settings.local_user_name}-completed"
+                failed_status = f"{settings.local_user_name}-failed"
+            else:
+                queued_status = "queued"
+                processing_status = "processing"
+                completed_status = "completed"
+                failed_status = "failed"
+
             # Fetch a queue_task with status 'queued' and lock it
             queue_task = (
                 db.query(QueueTask)
-                .filter(QueueTask.status == "queued")
+                .filter(QueueTask.status == queued_status)
                 .with_for_update(skip_locked=True)
                 .first()
             )
 
             if queue_task:
                 # Update the queue_task status to 'processing'
-                queue_task.status = "processing"
+                queue_task.status = processing_status
                 db.add(queue_task)
                 db.commit()
                 # Process the queue_task
@@ -1652,9 +1664,9 @@ def queue_worker():
                     status = queue_process_task(queue_task)
                     logger.info(f"QueueTask {queue_task.id} => {status}")
                     if status == "success":
-                        queue_task.status = "completed"
+                        queue_task.status = completed_status
                     else:
-                        queue_task.status = "failed"
+                        queue_task.status = failed_status
                     db.add(queue_task)
                     db.commit()
                     # load the queue task from db again to check if reflected
@@ -1668,7 +1680,7 @@ def queue_worker():
                     )
 
                 except Exception:
-                    queue_task.status = "failed"
+                    queue_task.status = failed_status
                     db.add(queue_task)
                     db.commit()
                     logger.error(
