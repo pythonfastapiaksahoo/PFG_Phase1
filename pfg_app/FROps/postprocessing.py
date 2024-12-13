@@ -1747,7 +1747,7 @@ def postpro(
             .filter(
                 model.DocumentTagDef.idDocumentModel == invo_model_id,
                 model.DocumentTagDef.TagLabel.in_(
-                    ["Credit Identifier", "Subtotal", "GST"]
+                    ["Credit Identifier", "SubTotal", "GST"]
                 ),
             )
             .all()
