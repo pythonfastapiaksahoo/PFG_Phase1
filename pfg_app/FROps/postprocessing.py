@@ -1767,11 +1767,11 @@ def postpro(
                 )
             )
 
-        if "Subtotal" not in existing_tag_labels:
+        if "SubTotal" not in existing_tag_labels:
             missing_tags.append(
                 model.DocumentTagDef(
                     idDocumentModel=invo_model_id,
-                    TagLabel="Subtotal",
+                    TagLabel="SubTotal",
                     CreatedOn=func.now(),
                 )
             )
