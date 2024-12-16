@@ -114,17 +114,19 @@ def retry_on_exception(max_retries=3, delay=2):
 
 
 @retry_on_exception(max_retries=3, delay=2)
-def save_to_database(db, new_task):
-    try:
-        db.add(new_task)
-        db.flush()  # Generate the ID without committing
-        task_id = new_task.id
-        db.commit()  # Commit transaction
-        db.refresh(new_task)  # Refresh to get updated fields
-        return task_id
-    except Exception:
-        db.rollback()
-        raise
+def save_to_database(new_task):
+    while True:
+        db = next(get_db())
+        try:
+            db.add(new_task)
+            db.flush()  # Generate the ID without committing
+            task_id = new_task.id
+            db.commit()  # Commit transaction
+            db.refresh(new_task)  # Refresh to get updated fields
+            return task_id
+        except Exception:
+            db.rollback()
+            raise
 
 
 @router.post("/status/stream_pfg")
@@ -139,8 +141,9 @@ def runStatus(
     email_path: str = Form("Test Path"),
     subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
-    db=Depends(get_db),
+    # db=Depends(get_db),
 ):
+    
     try:
         request_data = {
             "file_path": file_path,
@@ -158,7 +161,7 @@ def runStatus(
             queued_status = "queued"
         new_task = QueueTask(request_data=request_data, status=queued_status)
         # Retry logic encapsulated in save_to_database
-        task_id = save_to_database(db, new_task)
+        task_id = save_to_database(new_task)
         return {
             "message": "QueueTask submitted successfully",
             "queue_task_id": task_id,
@@ -170,6 +173,7 @@ def runStatus(
     except Exception as exc:
         logger.error(f"Unexpected error: {traceback.format_exc()}")
         return {"message": f"Failed to submit QueueTask: {str(exc)}"}
+        
 
 
 @router.get("/task_status/{queue_task_id}")
