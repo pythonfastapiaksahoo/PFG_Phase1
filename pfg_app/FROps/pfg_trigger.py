@@ -1,3 +1,4 @@
+#pfg_sync
 import json
 import re
 import traceback
@@ -511,7 +512,9 @@ def nonIntegratedVoucherData(
         voucher_data_status = 0
 
     # Determine ACCOUNT based on account existence or emptiness
-    if account and len(str(account))>0:
+    if " " in str(account):
+        account = account.replace(" ","")
+    if account and len(str(account))>3:
         ACCOUNT = account
 
     else:
