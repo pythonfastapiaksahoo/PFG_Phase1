@@ -574,6 +574,39 @@ def getFrData_MNF(input_data):
         logger.debug(f" {traceback.format_exc()}")
         preBltFrdata_status = 0
     try:
+        subTotal_tg = {
+            "tag": "SubTotal",
+            "data": {
+                "value": "",
+                "prebuilt_confidence": "",
+                "custom_confidence": "0.00",
+            },
+            "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
+            "status": 0,
+            "status_message": "SubTotal is unavailable.",
+        }
+        credit_tg = {
+            "tag": "Credit Identifier",
+            "data": {
+                "value": "",
+                "prebuilt_confidence": "",
+                "custom_confidence": "0.00",
+            },
+            "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
+            "status": 0,
+            "status_message": "Credit Identifier is unavailable.",
+        }
+        gst_tg = {
+            "tag": "GST",
+            "data": {
+                "value": "",
+                "prebuilt_confidence": "",
+                "custom_confidence": "0.00",
+            },
+            "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
+            "status": 0,
+            "status_message": "GST is unavailable.",
+        }
         vndr_tg = {
             "tag": "VendorName",
             "data": {
@@ -585,16 +618,32 @@ def getFrData_MNF(input_data):
             "status": 0,
             "status_message": "Vendor Name is unavailable.",
         }
+        creditCk = 0
+        subTotalCk = 0
+        gstCk = 0
+
         if len(preBltFrdata) > 0:
             if "header" in preBltFrdata:
                 for tgck_vrdNm in preBltFrdata["header"]:
                     if "tag" in tgck_vrdNm:
                         if tgck_vrdNm["tag"] == "VendorName":
                             vendorNameCk = 1
+                        if tgck_vrdNm["tag"] == "SubTotal":
+                            subTotalCk = 1
+                        if tgck_vrdNm["tag"] == "Credit Identifier":
+                            creditCk = 1
+                        if tgck_vrdNm["tag"] == "GST":
+                            gstCk = 1
                 if vendorNameCk == 0:
                     preBltFrdata["header"].append(vndr_tg)
+                if subTotalCk == 0:
+                    preBltFrdata["header"].append(subTotal_tg)
+                if creditCk == 0:
+                    preBltFrdata["header"].append(credit_tg)
+                if gstCk == 0:
+                    preBltFrdata["header"].append(gst_tg)
             else:
-                preBltFrdata["header"] = [vndr_tg]
+                preBltFrdata["header"] = [vndr_tg, subTotal_tg, credit_tg, gst_tg]
                 if "tab" not in preBltFrdata:
                     preBltFrdata["tab"] = []
                 if "overall_status" not in preBltFrdata:
