@@ -1,3 +1,4 @@
+#cust_call
 import re
 import traceback
 
@@ -9,6 +10,7 @@ from pfg_app.core.azure_fr import get_fr_data
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.logger_module import logger
 from pfg_app.session.session import get_db
+from sqlalchemy import func
 
 # from sqlalchemy.dialects.postgresql import insert
 
@@ -542,6 +544,146 @@ def customModelCall(docID):
             custcall_status = 0
             db.rollback()
 
+        
+        # do mandatory check on tags: 
+        existing_tags = (
+            db.query(model.DocumentTagDef.TagLabel)
+            .filter(
+                model.DocumentTagDef.idDocumentModel == InvoModelId,
+                model.DocumentTagDef.TagLabel.in_(
+                    ["Credit Identifier", "SubTotal", "GST"]
+                ),
+            )
+            .all()
+        )
+
+        # Extract existing tag labels from the result
+        existing_tag_labels = {tag.TagLabel for tag in existing_tags}
+
+        # Prepare missing tags
+        missing_tags = []
+        if "Credit Identifier" not in existing_tag_labels:
+            missing_tags.append(
+                model.DocumentTagDef(
+                    idDocumentModel=InvoModelId,
+                    TagLabel="Credit Identifier",
+                    CreatedOn=func.now(),
+                )
+            )
+
+        if "SubTotal" not in existing_tag_labels:
+            missing_tags.append(
+                model.DocumentTagDef(
+                    idDocumentModel=InvoModelId,
+                    TagLabel="SubTotal",
+                    CreatedOn=func.now(),
+                )
+            )
+
+        if "GST" not in existing_tag_labels:
+            missing_tags.append(
+                model.DocumentTagDef(
+                    idDocumentModel=InvoModelId,
+                    TagLabel="GST",
+                    CreatedOn=func.now(),
+                )
+            )
+
+        # Add missing tags if any
+        if missing_tags:
+            db.add_all(missing_tags)
+            db.commit()
+
+        # check for missing values in the invoice data:
+        DocDtHdr = (
+            db.query(model.DocumentData, model.DocumentTagDef)
+            .join(
+                model.DocumentTagDef,
+                model.DocumentData.documentTagDefID
+                == model.DocumentTagDef.idDocumentTagDef,
+            )
+            .filter(model.DocumentTagDef.idDocumentModel == InvoModelId)
+            .filter(model.DocumentData.documentID == docID)
+            .all()
+        )
+
+        docHdrDt = {}
+        tagNames = {}
+
+        for document_data, document_tag_def in DocDtHdr:
+            docHdrDt[document_tag_def.TagLabel] = document_data.Value
+            tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+        logger.info(f"customcall docHdrDt: {docHdrDt}")
+        logger.info(f"customcall tagNames: {tagNames}")
+        custHdrDt_insert_missing = []
+        if "SubTotal" not in docHdrDt:
+
+            try:
+                if "GST" in docHdrDt:
+                    subtotal = clean_amount(docHdrDt["GST"]) - clean_amount(invo_total)
+
+                else:
+                    subtotal = invo_total 
+                custHdrDt_insert_missing.append(
+                                        {
+                                            "documentID": docID,
+                                            "documentTagDefID": hdr_tags["SubTotal"],
+                                            "Value": subtotal,
+                                            "IsUpdated": 0,
+                                            "isError": 0,
+                                            "ErrorDesc": "Defaulting to invoice total",
+                                        }
+                                    )
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+
+        if "Credit Identifier" not in docHdrDt:
+            try:
+                custHdrDt_insert_missing.append(
+                                        {
+                                            "documentID": docID,
+                                            "documentTagDefID": hdr_tags["Credit Identifier"],
+                                            "Value": "Invoice Document",
+                                            "IsUpdated": 0,
+                                            "isError": 0,
+                                            "ErrorDesc": "Defaulting to Invoice Document",
+                                        }
+                                    )
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+
+        if "GST" not in docHdrDt:
+            try:
+                custHdrDt_insert_missing.append(
+                                        {
+                                            "documentID": docID,
+                                            "documentTagDefID": hdr_tags["GST"],
+                                            "Value": 0,
+                                            "IsUpdated": 0,
+                                            "isError": 0,
+                                            "ErrorDesc": "Defaulting to 0",
+                                        }
+                                    )
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+
+        # add missing values to the invoice data:
+        for entry in custHdrDt_insert_missing:
+            new_record = model.DocumentData(
+                documentID=entry["documentID"],
+                documentTagDefID=entry["documentTagDefID"],
+                Value=entry["Value"],
+                IsUpdated=entry["IsUpdated"],
+                isError=entry["isError"],
+                ErrorDesc=entry["ErrorDesc"],
+            )
+
+            db.add(new_record)
+
+        try:
+            db.commit()
+        except Exception as err:
+            logger.debug(f"ErrorUpdatingPostingData: {err}")
         # table data to insert
         try:
             for tb_rw in tab_data:
@@ -603,7 +745,7 @@ def customModelCall(docID):
                 model.Document.documentsubstatusID: documentSubstatus,  # noqa: E501
                 model.Document.documentDate: invoDate,
                 model.Document.docheaderID: invo_id,
-                model.Document.totalAmount: documentSubstatus,
+                model.Document.totalAmount: invo_total,
             }
         )
         db.commit()
