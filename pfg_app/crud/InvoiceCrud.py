@@ -483,6 +483,7 @@ async def read_invoice_data(u_id, inv_id, db):
                 "uploadtime": invdat.Document.uploadtime,
                 "documentstatusid": invdat.Document.documentStatusID,
                 "documentstatus": invdat.status,  # Return status
+                "documentsubstatusid": invdat.Document.documentsubstatusID,
             }
         }
 
