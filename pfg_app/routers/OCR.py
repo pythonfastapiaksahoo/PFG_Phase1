@@ -1317,20 +1317,20 @@ def runStatus(
                         except Exception:
                             logger.debug(f"{traceback.format_exc()}")
 
-                        try:
-                            gst_amt = 0
-                            if store_type == "Integrated":
-                                payload_subtotal = ""
-                                IntegratedvoucherData(
-                                    invoId, gst_amt, payload_subtotal,CreditNote, db
-                                )
-                            elif store_type == "Non-Integrated":
-                                payload_subtotal = ""
-                                nonIntegratedVoucherData(
-                                    invoId, gst_amt, payload_subtotal,CreditNote, db
-                                )
-                        except Exception:
-                            logger.debug(f"{traceback.format_exc()}")
+                        # try:
+                        #     gst_amt = 0
+                        #     # if store_type == "Integrated":
+                        #     #     payload_subtotal = ""
+                        #     #     IntegratedvoucherData(
+                        #     #         invoId, gst_amt, payload_subtotal,CreditNote, db
+                        #     #     )
+                        #     # elif store_type == "Non-Integrated":
+                        #     #     payload_subtotal = ""
+                        #     #     nonIntegratedVoucherData(
+                        #     #         invoId, gst_amt, payload_subtotal,CreditNote, db
+                        #     #     )
+                        # except Exception:
+                        #     logger.debug(f"{traceback.format_exc()}")
                     else:
                         try:
                             if "CreditNote" in StampDataList[splt_map[fl]]:
