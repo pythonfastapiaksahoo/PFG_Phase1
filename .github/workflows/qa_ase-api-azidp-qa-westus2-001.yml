@@ -5,9 +5,9 @@
 name: Build and deploy Python app to Azure Web App - ase-api-azidp-qa-westus2-001
 
 on:
-  push:
-    branches:
-      - qa
+  # push:
+  #   branches:
+  #     - qa
   workflow_dispatch:
 
 jobs:
