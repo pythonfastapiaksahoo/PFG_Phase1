@@ -483,6 +483,7 @@ def nonIntegratedVoucherData(
 
     else:
         VENDOR_ID = ""
+        account = ""
 
     InvStmDt = (
         db.query(model.StampDataValidation)
@@ -510,7 +511,7 @@ def nonIntegratedVoucherData(
         voucher_data_status = 0
 
     # Determine ACCOUNT based on account existence or emptiness
-    if account:
+    if account and len(str(account))>0:
         ACCOUNT = account
 
     else:
