@@ -191,6 +191,9 @@ def getModelData(vendorAccountID, db):
 def customModelCall(docID):
     # Custom Model Call for unidentified invoices:
     custcall_status = 1
+    invoDate = ""
+    invo_id = ""
+    invo_total = "0"
     try:
         accepted_file_type = "application/pdf"
         file_size_accepted = 100
@@ -350,12 +353,16 @@ def customModelCall(docID):
                             errorDesc = "The specified value could not be retrieved."
                         if hdr == "InvoiceDate":
                             val, status = date_cnv(val, DateFormat)
+                            invoDate = val
                             if status == 0:
                                 iserror = 1
                                 errorDesc = "Invalid Date Format"
                             else:
                                 iserror = 0
                                 errorDesc = "NA"
+                        
+                        if hdr =="InvoiceId":
+                            invo_id = val
                         if hdr in [
                             "InvoiceTotal",
                             "SubTotal",
@@ -380,6 +387,12 @@ def customModelCall(docID):
                             "Usage Charges",
                         ]:
                             clnAnt = clean_amount(val)
+                            if hdr=="InvoiceTotal":
+                                if clnAnt is not None:
+                                    invo_total = str(clnAnt)
+                                else:
+                                    invo_total = "0"
+                                invo_total = clnAnt
                             if clnAnt is not None:
                                 val = str(clnAnt)
                             else:
@@ -582,10 +595,15 @@ def customModelCall(docID):
         documentSubstatus = 7
 
     try:
+    #     invoDate = ""
+    # invo_id = ""
         db.query(model.Document).filter(model.Document.idDocument == docID).update(
             {
                 model.Document.documentStatusID: documentstatus,  # noqa: E501
                 model.Document.documentsubstatusID: documentSubstatus,  # noqa: E501
+                model.Document.documentDate: invoDate,
+                model.Document.docheaderID: invo_id,
+                model.Document.totalAmount: documentSubstatus,
             }
         )
         db.commit()

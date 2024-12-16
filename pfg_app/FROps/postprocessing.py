@@ -1,7 +1,7 @@
 import re
 import traceback
 from collections import Counter
-from sqlalchemy import func
+
 import pandas as pd
 import pytz as tz
 
@@ -9,7 +9,7 @@ import pytz as tz
 from fuzzywuzzy import fuzz
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from sqlalchemy import join
+from sqlalchemy import func, join
 
 import pfg_app.model as model
 from pfg_app.core.stampData import VndMatchFn
@@ -1481,7 +1481,7 @@ def postpro(
                         )
                         .all()
                     )
-                    if doc_invID =="":
+                    if doc_invID == "":
                         duplicate_status = 1
                     elif len(query) > 0:
                         for d in query:
@@ -1492,9 +1492,8 @@ def postpro(
                             #     # posted_status = 0  # TODO: Unused variable
                             #     break
                 else:
-                    if doc_invID =="":
+                    if doc_invID == "":
                         duplicate_status = 1
-
 
             if dt["header"][tg]["tag"] == "InvoiceDate":
                 invo_date = dt["header"][tg]["data"]["value"]
@@ -1740,33 +1739,126 @@ def postpro(
         except Exception:
             logger.debug(f" {traceback.format_exc()}")
             # (str(e))
-        #----
-        credit_tag_def = (
-        db.query(model.DocumentTagDef)
+        # ----
+        # change below query to check subtotal is
+        # Query for "Credit Identifier", "Subtotal", and "GST"
+        existing_tags = (
+            db.query(model.DocumentTagDef.TagLabel)
             .filter(
                 model.DocumentTagDef.idDocumentModel == invo_model_id,
-                model.DocumentTagDef.TagLabel == "Credit Identifier",
+                model.DocumentTagDef.TagLabel.in_(
+                    ["Credit Identifier", "SubTotal", "GST"]
+                ),
             )
-            .first()
+            .all()
         )
 
-        if not credit_tag_def:
-            credit_tag_def = model.DocumentTagDef(
-                idDocumentModel=invo_model_id,
-                TagLabel="Credit Identifier",
-                CreatedOn=func.now(),
+        # Extract existing tag labels from the result
+        existing_tag_labels = {tag.TagLabel for tag in existing_tags}
+
+        # Prepare missing tags
+        missing_tags = []
+        if "Credit Identifier" not in existing_tag_labels:
+            missing_tags.append(
+                model.DocumentTagDef(
+                    idDocumentModel=invo_model_id,
+                    TagLabel="Credit Identifier",
+                    CreatedOn=func.now(),
+                )
             )
-            db.add(credit_tag_def)
+
+        if "SubTotal" not in existing_tag_labels:
+            missing_tags.append(
+                model.DocumentTagDef(
+                    idDocumentModel=invo_model_id,
+                    TagLabel="SubTotal",
+                    CreatedOn=func.now(),
+                )
+            )
+
+        if "GST" not in existing_tag_labels:
+            missing_tags.append(
+                model.DocumentTagDef(
+                    idDocumentModel=invo_model_id,
+                    TagLabel="GST",
+                    CreatedOn=func.now(),
+                )
+            )
+
+        # Add missing tags if any
+        if missing_tags:
+            db.add_all(missing_tags)
             db.commit()
-        #----
+
+        # credit_tag_def = (
+        # db.query(model.DocumentTagDef)
+        #     .filter(
+        #         model.DocumentTagDef.idDocumentModel == invo_model_id,
+        #         model.DocumentTagDef.TagLabel  =="Credit Identifier",
+        #     )
+        #     .first()
+        # )
+
+        # if not credit_tag_def:
+        #     credit_tag_def = model.DocumentTagDef(
+        #         idDocumentModel=invo_model_id,
+        #         TagLabel="Credit Identifier",
+        #         CreatedOn=func.now(),
+        #     )
+        #     db.add(credit_tag_def)
+        #     db.commit()
+        # ----
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
-        if ("Credit Identifier" in mandatory_header) or ("Credit Identifier" in present_header):
-            logger.debug("Credit Identifier is present")
+        chk_tgs = ["Credit Identifier", "SubTotal", "GST"]
+        for chk_tg in chk_tgs:
+            if (chk_tg in mandatory_header) or (chk_tg in present_header):
+                logger.debug(f"{chk_tg} is present")
+            else:
+                missing_header.append(chk_tg)
+        if "GST" in missing_header:
+            gst_nt = 1
         else:
-            missing_header.append("Credit Identifier")
-
+            gst_nt = 0
         for msg_itm_ck in missing_header:
+            if msg_itm_ck == "SubTotal":
+                if gst_nt == 1:
+                    tp_tg = {
+                        "tag": msg_itm_ck,
+                        "data": {
+                            "value": str(invoiceTotal_rw),
+                            "prebuilt_confidence": "0.0",
+                            "custom_confidence": "0.0",
+                        },
+                        "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+                        "status": "0",
+                        "status_message": "Mandatory Value Missing",
+                    }
+                else:
+                    tp_tg = {
+                        "tag": msg_itm_ck,
+                        "data": {
+                            "value": str(invoiceTotal_rw),
+                            "prebuilt_confidence": "0.0",
+                            "custom_confidence": "0.0",
+                        },
+                        "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+                        "status": "1",
+                        "status_message": "Please review subtotal",
+                    }
+
+            if msg_itm_ck == "GST":
+                tp_tg = {
+                    "tag": msg_itm_ck,
+                    "data": {
+                        "value": str(0.0),
+                        "prebuilt_confidence": "0.0",
+                        "custom_confidence": "0.0",
+                    },
+                    "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+                    "status": "0",
+                    "status_message": "Defaulting to 0",
+                }
             if msg_itm_ck == "Credit Identifier":
                 tp_tg = {
                     "tag": msg_itm_ck,
@@ -1781,7 +1873,7 @@ def postpro(
                 }
             # fr_data["header"].append(tp_tg)
 
-                # continue
+            # continue
             # notification missing header = msg_itm_ck
             else:
                 tp_tg = {
