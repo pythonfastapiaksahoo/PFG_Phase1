@@ -483,6 +483,7 @@ def nonIntegratedVoucherData(
 
     else:
         VENDOR_ID = ""
+        account = ""
 
     InvStmDt = (
         db.query(model.StampDataValidation)
@@ -510,7 +511,7 @@ def nonIntegratedVoucherData(
         voucher_data_status = 0
 
     # Determine ACCOUNT based on account existence or emptiness
-    if account:
+    if account and len(str(account))>0:
         ACCOUNT = account
 
     else:
@@ -1462,7 +1463,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                         # tax_isErr = 1
                                                         invTotalMth = 0
                                                         invTotalMth_msg = (
-                                                            "Invoicetotal mismatch"
+                                                            "Invoice total mismatch"
                                                         )
                                             if tax_isErr == 0 and invTotalMth!=1:
                                                 if invoTotal == subTotal:
@@ -1529,12 +1530,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             # else:
                                             logger.info("subTotal: {}")
                                             invTotalMth = 0
-                                            invTotalMth_msg = "Invalid invoice total."
+                                            invTotalMth_msg = "Invalid invoice subtotal,Please review."
                                     else:
                                         subTotal = invoTotal - gst_amt
                                 else:
                                     invTotalMth = 0
-                                    invTotalMth_msg = "Invalid invoice total."
+                                    invTotalMth_msg = "Invalid subtotal,Please review."
 
                             else:
                                 invTotalMth = 0
@@ -1739,8 +1740,25 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             invTotalMth = 0
                                             invTotalMth_msg = "Invoice total mismatch"
                                     else:
-                                        invTotalMth = 0
-                                        invTotalMth_msg = "Invalid invoice total."
+                                        if "SubTotal" in docHdrDt:
+
+                                            subTotal = clean_amount(
+                                                docHdrDt["SubTotal"]
+                                            )  # noqa: E501
+
+                                            if subTotal==0:
+                                                invTotalMth = 1
+                                                invTotalMth_msg = "Zero $ invoice"
+                                            else:
+                                                invTotalMth = 0
+                                                invTotalMth_msg = "Invalid invoice total, Please review."
+                                        else:
+                                            invTotalMth = 1
+                                            invTotalMth_msg = "Zero $ invoice"
+                                                
+                                                    
+                                        # invTotalMth = 0
+                                        # invTotalMth_msg = "Invalid invoice total."
                                 else:
                                     invTotalMth = 0
                                     invTotalMth_msg = "Invalid invoice total."
@@ -1877,6 +1895,39 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         #         stDt.stampvalue: stDt.is_error
                         #     }
                         if InvStmDt and len(stmpData) > 0:
+                            try:
+                                if  "SelectedDept" in stmpData:
+                                    itm_cat = list(stmpData["SelectedDept"].keys())[0]
+                                    if itm_cat not in ("Inventory", "Supplies"):
+                                        docStatusSync[
+                                                                        "Status overview"
+                                                                    ] = {
+                                                                        "status": 0,
+                                                                        "response": [
+                                                                            "Please select item category."
+                                                                        ],
+                                                                    }
+                                        return docStatusSync
+                                else:
+                                    docStatusSync["Item category validation"] = {
+                                    "status": 0,
+                                    "response": ["Please select item category."],
+                                }
+                            except Exception:
+                                logger.debug(f"{traceback.format_exc()}")
+                                docStatusSync["Item category validation"] = {
+                                    "status": 0,
+                                    "response": ["Please select item category."],
+                                }
+                                    
+
+                            # #---------------------
+                            # itmSelected = stmpData["SelectedDept"]
+                            # if itmSelected == "Inventory":
+                            #     ACCOUNT = "14100"
+                            # elif itmSelected == "Supplies":
+
+                            # #-------------------
 
                             strCk_msg = []
                             strCk = 0
