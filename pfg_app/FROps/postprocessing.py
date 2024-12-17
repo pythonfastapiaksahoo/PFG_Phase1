@@ -1910,7 +1910,7 @@ def postpro(
                     "status": "0",
                     "status_message": "Defaulting to 0",
                 }
-            if msg_itm_ck == "Credit Identifier":
+            elif msg_itm_ck == "Credit Identifier":
                 tp_tg = {
                     "tag": msg_itm_ck,
                     "data": {

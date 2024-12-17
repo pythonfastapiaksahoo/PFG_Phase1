@@ -1873,13 +1873,13 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             )  # noqa: E501
 
                                             if subTotal==0:
-                                                invTotalMth = 1
+                                                invTotalMth = 0
                                                 invTotalMth_msg = "Zero $ invoice"
                                             else:
                                                 invTotalMth = 0
                                                 invTotalMth_msg = "Invalid invoice total, Please review."
                                         else:
-                                            invTotalMth = 1
+                                            invTotalMth = 0
                                             invTotalMth_msg = "Zero $ invoice"
                                                 
                                                     
