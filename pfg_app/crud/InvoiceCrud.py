@@ -1500,7 +1500,9 @@ async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
         )
 
         # Check if records exists or not
-        if not stamp_data_records:
+        if not stamp_data_records or (
+            len(stamp_data_records) == 1 and stamp_data_records[0].stamptagname == 'Credit Identifier'
+        ):
             static_stamp_data_records = [
                 {
                     "stamptagname": "SelectedDept",
@@ -2476,3 +2478,69 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
 
     finally:
         db.close()
+        
+
+
+
+async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
+    """
+    Function to update or insert a single stamp data record based on document ID.
+
+    :param u_id: User ID of the requestor.
+    :param inv_id: Document ID to filter the stamp data for updating or inserting.
+    :param update_data: Data object containing `stamptagname`, `NewValue`, and `OldValue`.
+    :param db: Session to interact with the database.
+    :return: Updated or newly inserted StampDataValidation object or error details.
+    """
+    dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
+    try:
+        # Extract data from the update_data object
+        stamptagname = update_data.stamptagname
+        new_value = update_data.NewValue
+        old_value = update_data.OldValue
+
+        # Query the database for an existing record
+        stamp_data = (
+            db.query(model.StampDataValidation)
+            .filter(
+                model.StampDataValidation.documentid == inv_id,
+                model.StampDataValidation.stamptagname == stamptagname,
+            )
+            .first()
+        )
+
+        if not stamp_data:
+            # If no record exists, insert a new record
+            new_stamp_data = model.StampDataValidation(
+                documentid=inv_id,
+                stamptagname=stamptagname,
+                stampvalue=new_value,
+                is_error=0,
+                skipconfig_ck=0,
+                IsUpdated=1,
+                OldValue=old_value,
+                UpdatedOn=dt,
+            )
+            db.add(new_stamp_data)  # Add to session for insertion
+            db.commit()  # Commit the changes
+            db.refresh(new_stamp_data)  # Refresh to get updated instance
+            return new_stamp_data
+        else:
+            # If the record exists, update it
+            stamp_data.OldValue = old_value
+            stamp_data.stampvalue = new_value
+            stamp_data.is_error = 0
+            stamp_data.skipconfig_ck = 0
+            stamp_data.IsUpdated = 1
+            stamp_data.UpdatedOn = dt
+
+            db.commit()  # Commit the changes
+            db.refresh(stamp_data)  # Refresh to get updated instance
+            return stamp_data
+
+    except SQLAlchemyError as e:
+        logger.error(traceback.format_exc())
+        return {
+            "stamptagname": stamptagname,
+            "error": f"Database error occurred: {str(e)}",
+        }
