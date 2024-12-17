@@ -602,3 +602,30 @@ async def update_identifier_to_stamp_data(
         return {"response": updated_stamp_data}
     except Exception as e:
         return {"error": f"An error occurred: {str(e)}"}
+    
+    
+    
+    
+# Checked - used in the frontend
+@router.get("/getVoucherDataByDocumentID/{inv_id}", response_model=List[dict])
+async def get_voucher_data_by_doc_id(
+    inv_id: int, db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
+):
+    """API route to retrieve stamp data fields based on the document ID.
+
+    Parameters:
+    ----------
+    inv_id : int
+        Document ID used to select and return the voucher data.
+    db : Session
+        Database session object, used to interact with the backend database.
+    user : Depends(get_user)
+        User object retrieved from the authentication system
+        to identify the user making the request.
+
+    Returns:
+    -------
+    dict
+        Returns the invoice stamp data fields.
+    """
+    return await crud.get_voucher_data_by_document_id(user.idUser, inv_id, db)

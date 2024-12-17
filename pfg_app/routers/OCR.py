@@ -364,8 +364,8 @@ def queue_process_task(queue_task: QueueTask):
                         If not, leave it as "N/A".
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
                 - **GST_HST_Found** : Yes/No
-                - **GST_HST_Amount**: extract the value listed next to 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice .
-                    For example, if the line 'GST/HST 44.69 @ 5%' is present, extract the value '2.23'. Note that the amount before '@ 5%'  and next to it can vary.
+                - **GST_HST_Amount**: extract the value listed in the same row as 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice .
+                    For example, if the line 'GST/HST 44.69 @ 5%  2.23' is present, extract the value '2.23'. Note that the amount before '@ 5%'  and next to it can vary.
 
                 3. **Special Notes**:
                 - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
@@ -396,7 +396,7 @@ def queue_process_task(queue_task: QueueTask):
                         - Don't consider Discounts as it is not a Credit Note.
                     - **GST_HST_Found** : Only if Vendor Name is 'Starbucks Coffee Canada, Inc' then identify if 'GST/HST [any amount] @ 5%' is present in the bottom left side of the Starbucks's invoice return 'Yes'.
                         -  if its other than @ 5% then return 'No'. For example, 'GST/HST [any amount] @ 0%' or 'GST/HST [any amount] @ 10%'.
-                        - **GST_HST_Amount**: extract the value listed next to 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice . For example, if the line 'GST/HST 44.69 @ 5%' is present, extract the value '2.23'.
+                        - **GST_HST_Amount**: extract the value listed in the same row as 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice . For example, if the line 'GST/HST 44.69 @ 5%  2.23' is present, extract the value '2.23'.
                         - Note that the amount before '@ 5%'  and next to it can vary.
                 4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
