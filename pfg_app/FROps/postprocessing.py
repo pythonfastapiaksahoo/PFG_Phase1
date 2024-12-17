@@ -333,7 +333,7 @@ def tb_cln_amt(amt):
 
 def getBBox(data):
     try:
-        if len(data) == 0:
+        if len(str(data)) == 0:
             return {"x": "", "y": "", "w": "", "h": ""}
         else:
             if isinstance(data, list):
@@ -352,6 +352,7 @@ def getBBox(data):
             # logger.info(f"x: {x}, y: {y}, width: {w}, height: {h}")
             return {"x": x, "y": y, "w": w, "h": h}
     except Exception:
+        logger.debug(f"Error in getBBox: {data}")
         logger.debug(f" {traceback.format_exc()}")
         x = ""
         y = ""
