@@ -1456,7 +1456,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 update_crdVal[crt_tg] = docHdrDt[crt_tg]
                                     if len(update_crdVal) > 0:
                                         for upd_tg in update_crdVal:
-                                            if str(update_crdVal[upd_tg])[0] == "-":
+                                            if update_crdVal[upd_tg]=="":
+                                                update_crdVal[upd_tg] = "-0.00"
+                                                
+
+                                            elif str(update_crdVal[upd_tg])[0] == "-":
                                                 update_crdVal[upd_tg] = str(
                                                     update_crdVal[upd_tg]
                                                 )[1:]
