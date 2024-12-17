@@ -1657,6 +1657,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             invTotalMth_msg = "Invalid invoice subtotal,Please review."
                                     else:
                                         subTotal = invoTotal - gst_amt
+                                        logger.info(" crd subTotal: {subTotal}")
                                         invTotalMth = 1
                                         invTotalMth_msg = "Default invoice subtotal."
                                 else:
@@ -2151,17 +2152,29 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 except Exception:
                                     logger.debug(traceback.format_exc)
                                 # subtotal for payload:
-                                if otrChgsCk == 1:
-                                    payload_subtotal = othCrgs_sm
+                                # if otrChgsCk == 1:
+                                #     # if gst_amt !=0:
+                                #     #     if (invoTotal - gst_amt) == othCrgs_sm:
+                                #     payload_subtotal = othCrgs_sm
+                                #         # else:
 
-                                elif "SubTotal" in docHdrDt:
 
-                                    if vrdNm == "STARBUCKS COFFEE CANADA INC":
-                                        payload_subtotal = subTotal
-                                    else:
-                                        payload_subtotal = docHdrDt["SubTotal"]
-                                else:
-                                    payload_subtotal = invoTotal
+                                # elif "SubTotal" in docHdrDt:
+
+                                #     if vrdNm == "STARBUCKS COFFEE CANADA INC":
+                                #         payload_subtotal = subTotal
+                                #     else:
+                                #         payload_subtotal = docHdrDt["SubTotal"]
+                                # else:
+                                #     payload_subtotal = subTotal
+                                try:
+                                    payload_subtotal = invoTotal-gst_amt
+                                    logger.info(f"invoTotal: {invoTotal}, gst_amt: {gst_amt}")
+                                except Exception:
+                                    logger.info(f"Exception- invoTotal: {invoTotal}, gst_amt: {gst_amt}")
+                                                
+                                    payload_subtotal = subTotal
+                                    logger.debug(traceback.format_exc)
 
                                 try:
                                     if (
