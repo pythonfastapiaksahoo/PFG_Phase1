@@ -599,7 +599,7 @@ def getFrData_MNF(input_data):
         gst_tg = {
             "tag": "GST",
             "data": {
-                "value": "",
+                "value": "0",
                 "prebuilt_confidence": "",
                 "custom_confidence": "0.00",
             },
