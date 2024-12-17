@@ -2545,3 +2545,70 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
             "stamptagname": stamptagname,
             "error": f"Database error occurred: {str(e)}",
         }
+        
+        
+        
+async def get_voucher_data_by_document_id(u_id, document_id, db):
+    """
+    Retrieve voucher data filtered by documentID.
+
+    Parameters:
+    -----------
+    user_id : int
+        ID of the user requesting the data.
+    document_id : int
+        Document ID to filter the voucher data.
+    db : Session
+        Database session object.
+
+    Returns:
+    --------
+    List[dict]
+        List of voucher data rows matching the given document ID.
+    """
+    try:
+        # Check if the document ID exists
+        exists = db.query(model.VoucherData).filter(model.VoucherData.documentID == document_id).first()
+        
+        if not exists:
+            # Return message if documentID does not exist
+            return {"error": f"Document ID: {document_id} does not exist in the voucherdata table."}
+        
+        # Query to retrieve all data matching the documentID
+        results = db.query(model.VoucherData).filter(model.VoucherData.documentID == document_id).all()
+        
+        # Format and return the result
+        return [
+            {
+                "voucherdataID": row.voucherdataID,
+                "documentID": row.documentID,
+                "Business_unit": row.Business_unit,
+                "Invoice_Id": row.Invoice_Id,
+                "Invoice_Dt": row.Invoice_Dt,
+                "Vendor_Setid": row.Vendor_Setid,
+                "Vendor_ID": row.Vendor_ID,
+                "Origin": row.Origin,
+                "Gross_Amt": row.Gross_Amt,
+                "Voucher_Line_num": row.Voucher_Line_num,
+                "Merchandise_Amt": row.Merchandise_Amt,
+                "Distrib_Line_num": row.Distrib_Line_num,
+                "Account": row.Account,
+                "Deptid": row.Deptid,
+                "Image_Nbr": row.Image_Nbr,
+                "File_Name": row.File_Name,
+                "storenumber": row.storenumber,
+                "storetype": row.storetype,
+                "receiver_id": row.receiver_id,
+                "status": row.status,
+                "recv_ln_nbr": row.recv_ln_nbr,
+                "gst_amt": row.gst_amt,
+                "currency_code": row.currency_code,
+                "freight_amt": row.freight_amt,
+                "misc_amt": row.misc_amt,
+            }
+            for row in results
+        ]
+    except Exception as e:
+        # Log and handle exceptions
+        print(f"Error while fetching voucher data: {e}")
+        return {"error": "An error occurred while fetching the data."}
