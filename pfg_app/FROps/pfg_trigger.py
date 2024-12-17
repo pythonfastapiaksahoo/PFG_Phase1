@@ -1661,7 +1661,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         invTotalMth_msg = "Default invoice subtotal."
                                 else:
                                     invTotalMth = 0
-                                    invTotalMth_msg = "Invalid subtotal,Please review."
+                                    invTotalMth_msg = "Zero $ invoice total."
 
                             else:
                                 invTotalMth = 0
