@@ -3,7 +3,7 @@ import re
 import traceback
 from datetime import datetime
 from typing import Union
-
+from sqlalchemy import func
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -742,6 +742,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     vrdNm = ""
     crdVal_ck = 0
     strbucks = 0
+    credit_found = 0
+    gst_found = 0
     try:
         hdr_ck_list = [
             "SubTotal",
@@ -809,6 +811,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
     except Exception as e:
         logger.error(f"{str(e)}")
+    
     DocDtHdr = (
         db.query(model.DocumentData, model.DocumentTagDef)
         .join(
@@ -829,6 +832,120 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
     logger.info(f"docHdrDt: {docHdrDt}")
     logger.info(f"tagNames: {tagNames}")
+
+    #-------------
+    try:
+        missing_val = []
+
+        if "GST" in docHdrDt:
+            gst_found = 1
+        else:
+            missing_val.append("GST")
+            gst_found = 0
+        if "Credit Identifier" in docHdrDt:
+            credit_found = 1
+        else:
+            missing_val.append("Credit Identifier")
+            credit_found = 0
+        if missing_val:
+            existing_tags = (
+                db.query(model.DocumentTagDef.TagLabel)
+                .filter(
+                    model.DocumentTagDef.idDocumentModel == documentModelID,
+                    model.DocumentTagDef.TagLabel.in_(
+                        ["Credit Identifier"]
+                    ),
+                )
+                .all()
+            )
+
+            # Extract existing tag labels from the result
+            existing_tag_labels = {tag.TagLabel for tag in existing_tags}
+
+            # Prepare missing tags
+            missing_tags = []
+            if "Credit Identifier" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=documentModelID,
+                        TagLabel="Credit Identifier",
+                        CreatedOn=func.now(),
+                    )
+                )
+
+            if "GST" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=documentModelID,
+                        TagLabel="GST",
+                        CreatedOn=func.now(),
+                    )
+                )
+
+            if missing_tags:
+                db.add_all(missing_tags)
+                db.commit()
+        custHdrDt_insert_missing=[]
+        documenttagdef = (
+            db.query(model.DocumentTagDef)
+            .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
+            .all()
+        )
+
+        hdr_tags = {}
+        for hdrTags in documenttagdef:
+            hdr_tags[hdrTags.TagLabel] = hdrTags.idDocumentTagDef
+        if "Credit Identifier" not in docHdrDt:
+            try:
+                custHdrDt_insert_missing.append(
+                                        {
+                                            "documentID": docID,
+                                            "documentTagDefID": hdr_tags["Credit Identifier"],
+                                            "Value": "Invoice Document",
+                                            "IsUpdated": 0,
+                                            "isError": 0,
+                                            "ErrorDesc": "Defaulting to Invoice Document",
+                                        }
+                                    )
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+
+        if "GST" not in docHdrDt:
+            try:
+                custHdrDt_insert_missing.append(
+                                        {
+                                            "documentID": docID,
+                                            "documentTagDefID": hdr_tags["GST"],
+                                            "Value": 0,
+                                            "IsUpdated": 0,
+                                            "isError": 0,
+                                            "ErrorDesc": "Defaulting to 0",
+                                        }
+                                    )
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+
+        # add missing values to the invoice data:
+        for entry in custHdrDt_insert_missing:
+            new_record = model.DocumentData(
+                documentID=entry["documentID"],
+                documentTagDefID=entry["documentTagDefID"],
+                Value=entry["Value"],
+                IsUpdated=entry["IsUpdated"],
+                isError=entry["isError"],
+                ErrorDesc=entry["ErrorDesc"],
+            )
+
+            db.add(new_record)
+
+        try:
+            db.commit()
+        except Exception as err:
+            logger.debug(f"ErrorUpdatingPostingData: {err}")
+
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+    #-------------
 
     sentToPPlSft = {
         7: "Sent to PeopleSoft",
@@ -1530,6 +1647,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                     break
                                         else:
                                             # else:
+
                                             logger.info("subTotal: {}")
                                             invTotalMth = 0
                                             invTotalMth_msg = "Invalid invoice subtotal,Please review."

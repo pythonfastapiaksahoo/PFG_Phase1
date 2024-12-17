@@ -570,14 +570,14 @@ def customModelCall(docID):
                 )
             )
 
-        if "SubTotal" not in existing_tag_labels:
-            missing_tags.append(
-                model.DocumentTagDef(
-                    idDocumentModel=InvoModelId,
-                    TagLabel="SubTotal",
-                    CreatedOn=func.now(),
-                )
-            )
+        # if "SubTotal" not in existing_tag_labels:
+        #     missing_tags.append(
+        #         model.DocumentTagDef(
+        #             idDocumentModel=InvoModelId,
+        #             TagLabel="SubTotal",
+        #             CreatedOn=func.now(),
+        #         )
+        #     )
 
         if "GST" not in existing_tag_labels:
             missing_tags.append(
@@ -615,26 +615,26 @@ def customModelCall(docID):
         logger.info(f"customcall docHdrDt: {docHdrDt}")
         logger.info(f"customcall tagNames: {tagNames}")
         custHdrDt_insert_missing = []
-        if "SubTotal" not in docHdrDt:
+        # if "SubTotal" not in docHdrDt:
 
-            try:
-                if "GST" in docHdrDt:
-                    subtotal = clean_amount(docHdrDt["GST"]) - clean_amount(invo_total)
+        #     try:
+        #         if "GST" in docHdrDt:
+        #             subtotal = clean_amount(docHdrDt["GST"]) - clean_amount(invo_total)
 
-                else:
-                    subtotal = invo_total 
-                custHdrDt_insert_missing.append(
-                                        {
-                                            "documentID": docID,
-                                            "documentTagDefID": hdr_tags["SubTotal"],
-                                            "Value": subtotal,
-                                            "IsUpdated": 0,
-                                            "isError": 0,
-                                            "ErrorDesc": "Defaulting to invoice total",
-                                        }
-                                    )
-            except Exception:
-                logger.error(f"{traceback.format_exc()}")
+        #         else:
+        #             subtotal = invo_total 
+        #         custHdrDt_insert_missing.append(
+        #                                 {
+        #                                     "documentID": docID,
+        #                                     "documentTagDefID": hdr_tags["SubTotal"],
+        #                                     "Value": subtotal,
+        #                                     "IsUpdated": 0,
+        #                                     "isError": 0,
+        #                                     "ErrorDesc": "Defaulting to invoice total",
+        #                                 }
+        #                             )
+        #     except Exception:
+        #         logger.error(f"{traceback.format_exc()}")
 
         if "Credit Identifier" not in docHdrDt:
             try:
