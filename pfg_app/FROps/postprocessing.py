@@ -574,17 +574,17 @@ def getFrData_MNF(input_data):
         logger.debug(f" {traceback.format_exc()}")
         preBltFrdata_status = 0
     try:
-        subTotal_tg = {
-            "tag": "SubTotal",
-            "data": {
-                "value": "",
-                "prebuilt_confidence": "",
-                "custom_confidence": "0.00",
-            },
-            "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
-            "status": 0,
-            "status_message": "SubTotal is unavailable.",
-        }
+        # subTotal_tg = {
+        #     "tag": "SubTotal",
+        #     "data": {
+        #         "value": "",
+        #         "prebuilt_confidence": "",
+        #         "custom_confidence": "0.00",
+        #     },
+        #     "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
+        #     "status": 0,
+        #     "status_message": "SubTotal is unavailable.",
+        # }
         credit_tg = {
             "tag": "Credit Identifier",
             "data": {
@@ -619,7 +619,7 @@ def getFrData_MNF(input_data):
             "status_message": "Vendor Name is unavailable.",
         }
         creditCk = 0
-        subTotalCk = 0
+        # subTotalCk = 0
         gstCk = 0
 
         if len(preBltFrdata) > 0:
@@ -628,22 +628,23 @@ def getFrData_MNF(input_data):
                     if "tag" in tgck_vrdNm:
                         if tgck_vrdNm["tag"] == "VendorName":
                             vendorNameCk = 1
-                        if tgck_vrdNm["tag"] == "SubTotal":
-                            subTotalCk = 1
+                        # if tgck_vrdNm["tag"] == "SubTotal":
+                        #     subTotalCk = 1
                         if tgck_vrdNm["tag"] == "Credit Identifier":
                             creditCk = 1
                         if tgck_vrdNm["tag"] == "GST":
                             gstCk = 1
                 if vendorNameCk == 0:
                     preBltFrdata["header"].append(vndr_tg)
-                if subTotalCk == 0:
-                    preBltFrdata["header"].append(subTotal_tg)
+                # if subTotalCk == 0:
+                #     preBltFrdata["header"].append(subTotal_tg)
                 if creditCk == 0:
                     preBltFrdata["header"].append(credit_tg)
                 if gstCk == 0:
                     preBltFrdata["header"].append(gst_tg)
             else:
-                preBltFrdata["header"] = [vndr_tg, subTotal_tg, credit_tg, gst_tg]
+                # preBltFrdata["header"] = [vndr_tg, subTotal_tg, credit_tg, gst_tg]
+                preBltFrdata["header"] = [vndr_tg, credit_tg, gst_tg]
                 if "tab" not in preBltFrdata:
                     preBltFrdata["tab"] = []
                 if "overall_status" not in preBltFrdata:
@@ -1796,7 +1797,7 @@ def postpro(
             .filter(
                 model.DocumentTagDef.idDocumentModel == invo_model_id,
                 model.DocumentTagDef.TagLabel.in_(
-                    ["Credit Identifier", "SubTotal", "GST"]
+                    ["Credit Identifier"]
                 ),
             )
             .all()
@@ -1816,14 +1817,14 @@ def postpro(
                 )
             )
 
-        if "SubTotal" not in existing_tag_labels:
-            missing_tags.append(
-                model.DocumentTagDef(
-                    idDocumentModel=invo_model_id,
-                    TagLabel="SubTotal",
-                    CreatedOn=func.now(),
-                )
-            )
+        # if "SubTotal" not in existing_tag_labels:
+        #     missing_tags.append(
+        #         model.DocumentTagDef(
+        #             idDocumentModel=invo_model_id,
+        #             TagLabel="SubTotal",
+        #             CreatedOn=func.now(),
+        #         )
+        #     )
 
         if "GST" not in existing_tag_labels:
             missing_tags.append(
@@ -1859,7 +1860,7 @@ def postpro(
         # ----
         if not set(mandatory_header).issubset(set(present_header)):
             missing_header = list(set(mandatory_header) - set(present_header))
-        chk_tgs = ["Credit Identifier", "SubTotal", "GST"]
+        chk_tgs = ["Credit Identifier","GST"]
         for chk_tg in chk_tgs:
             if (chk_tg in mandatory_header) or (chk_tg in present_header):
                 logger.debug(f"{chk_tg} is present")
@@ -1870,31 +1871,31 @@ def postpro(
         else:
             gst_nt = 0
         for msg_itm_ck in missing_header:
-            if msg_itm_ck == "SubTotal":
-                if gst_nt == 1:
-                    tp_tg = {
-                        "tag": msg_itm_ck,
-                        "data": {
-                            "value": str(invoiceTotal_rw),
-                            "prebuilt_confidence": "0.0",
-                            "custom_confidence": "0.0",
-                        },
-                        "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
-                        "status": "0",
-                        "status_message": "Mandatory Value Missing",
-                    }
-                else:
-                    tp_tg = {
-                        "tag": msg_itm_ck,
-                        "data": {
-                            "value": str(invoiceTotal_rw),
-                            "prebuilt_confidence": "0.0",
-                            "custom_confidence": "0.0",
-                        },
-                        "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
-                        "status": "1",
-                        "status_message": "Please review subtotal",
-                    }
+            # if msg_itm_ck == "SubTotal":
+            #     if gst_nt == 1:
+            #         tp_tg = {
+            #             "tag": msg_itm_ck,
+            #             "data": {
+            #                 "value": str(invoiceTotal_rw),
+            #                 "prebuilt_confidence": "0.0",
+            #                 "custom_confidence": "0.0",
+            #             },
+            #             "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+            #             "status": "0",
+            #             "status_message": "Mandatory Value Missing",
+            #         }
+            #     else:
+            #         tp_tg = {
+            #             "tag": msg_itm_ck,
+            #             "data": {
+            #                 "value": str(invoiceTotal_rw),
+            #                 "prebuilt_confidence": "0.0",
+            #                 "custom_confidence": "0.0",
+            #             },
+            #             "bounding_regions": {"x": "", "y": "", "w": "", "h": ""},
+            #             "status": "1",
+            #             "status_message": "Please review subtotal",
+            #         }
 
             if msg_itm_ck == "GST":
                 tp_tg = {
