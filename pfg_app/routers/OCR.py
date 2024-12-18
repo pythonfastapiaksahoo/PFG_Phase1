@@ -232,6 +232,8 @@ def queue_process_task(queue_task: QueueTask):
                 mail_row_key = match.group(0).strip("/") if match else None
             except Exception:
                 logger.error(f"Error in file path: {str(traceback.format_exc())}")
+                
+            # mail_row_key = "DSD1002test"
             # email_path = ""
             # subject = ""
             vendorAccountID = 0
@@ -353,8 +355,9 @@ def queue_process_task(queue_task: QueueTask):
                 - **Stamp Present**: Yes/No
                 - If a stamp is present, extract the following information:
                 - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.Ensure the store number can be three or four digits only. If it is more than four digits, return "N/A"
-                - **Circled Department**: Extract the clearly circled or marked keyword "Inventory", "INV" or "Supplies" or "SUP" from the stamp image,
-                        If not circled, return "N/A". Ensure that it should not extract nothing else.
+                - **MarkedDept**: EExtract the clearly circled marked keyword "Inventory" or "INV" or "Supplies" or "SUP" from the stamp image.
+                            Ensure that it must return either "Inventory" or "Supplies" and should not extract anything else.
+                            If no department is circled or it's missing, then return "Inventory" as the default only. Ensure not to return "N/A" or any other value.
                 - **Department**: Extract either a department code or department name, handwritten
                         and possibly starting with "Dept"
                 - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
@@ -368,13 +371,13 @@ def queue_process_task(queue_task: QueueTask):
                     For example, if the line 'GST/HST 44.69 @ 5%  2.23' is present, extract the value '2.23'. Note that the amount before '@ 5%'  and next to it can vary.
 
                 3. **Special Notes**:
-                - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
+                - *MarkedDept*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
                         - If the circle starts with the word "Inventory" and ends with the starting character of "Supplies", extract "Inventory".
                         - If the circle starts with the last character of "Inventory" and covers "Supplies" completely, extract "Supplies".
-                        - If the circle exactly encloses the word "Inventory" or "INV," return "Inventory."
-                        - If the circle exactly encloses the word "Supplies" or "SUP," return "Supplies."
-                        - If the circle encloses the word "INV," return "Inventory."
-                        - If the circle encloses the word "SUP," return "Supplies."
+                        - If the circle exactly encloses the word "Inventory" return "Inventory"
+                        - If the circle exactly encloses the word "Supplies" return "Supplies"
+                        - If the circle encloses the word "INV" return "Inventory"
+                        - If the circle encloses the word "SUP" return "Supplies"
                     - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
                         - The confirmation number must be a handwritten number only.
                         - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
@@ -905,7 +908,22 @@ def queue_process_task(queue_task: QueueTask):
                                     db,
                                     mail_row_key,
                                 )
-
+                                
+                                if len(str(invoId)) == 0:
+                                    logger.error(f"push_frdata returned None for invoId")
+                                    try:
+                                        fr_trigger = db.query(model.frtrigger_tab).filter(
+                                            model.frtrigger_tab.blobpath == spltFileName
+                                        )
+                                        fr_trigger.update(
+                                            {
+                                                model.frtrigger_tab.status: "Error",
+                                            }
+                                        )
+                                        db.commit()
+                                    except Exception:
+                                        logger.error(f"Failed to update error status in frtrigger_tab: {traceback.format_exc()}")
+                                                
                                 logger.info(
                                     f" Onboard vendor Pending: invoice_ID: {invoId}"
                                 )
@@ -979,57 +997,89 @@ def queue_process_task(queue_task: QueueTask):
                                     preBltFrdata, preBltFrdata_status = getFrData_MNF(
                                         rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                                     )
-                                    # Postprocessing Failed
-                                    invoId = push_frdata(
-                                        preBltFrdata,
-                                        inv_model_id,
-                                        spltFileName,
-                                        entityID,
-                                        entityBodyID,
-                                        vendorAccountID,
-                                        "nonPO",
-                                        spltFileName,
-                                        userID,
-                                        0,
-                                        num_pages,
-                                        source,
-                                        sender,
-                                        filename,
-                                        file_type,
-                                        invoice_type,
-                                        4,
-                                        7,
-                                        db,
-                                        mail_row_key,
-                                    )
-
-                                    logger.info(
-                                        f" Onboard vendor Pending: invoice_ID: {invoId}"
-                                    )
-                                    status = "success"
                                     try:
-
-                                        fr_trigger = db.query(model.frtrigger_tab).filter
-                                        (model.frtrigger_tab.blobpath == spltFileName)
-
-                                        # Step 2: Perform the update operation
-                                        fr_trigger.update(
-                                            {
-                                                model.frtrigger_tab.status: "File Processed",  # noqa: E501
-                                                model.frtrigger_tab.vendorID: vendorID,
-                                                model.frtrigger_tab.documentid: invoId,
-                                            }
+                                        # Postprocessing Failed
+                                        invoId = push_frdata(
+                                            preBltFrdata,
+                                            inv_model_id,
+                                            spltFileName,
+                                            entityID,
+                                            entityBodyID,
+                                            vendorAccountID,
+                                            "nonPO",
+                                            spltFileName,
+                                            userID,
+                                            0,
+                                            num_pages,
+                                            source,
+                                            sender,
+                                            filename,
+                                            file_type,
+                                            invoice_type,
+                                            4,
+                                            7,
+                                            db,
+                                            mail_row_key,
                                         )
-                                        # Step 3: Commit the transaction
-                                        db.commit()
 
-                                    except Exception:
-                                        logger.error(f"{traceback.format_exc()}")
+                                        if len(str(invoId)) == 0:
+                                            logger.error(f"push_frdata returned None for invoId")
+                                            try:
+                                                fr_trigger = db.query(model.frtrigger_tab).filter(
+                                                    model.frtrigger_tab.blobpath == spltFileName
+                                                )
+                                                fr_trigger.update(
+                                                    {
+                                                        model.frtrigger_tab.status: "Error",
+                                                    }
+                                                )
+                                                db.commit()
+                                            except Exception:
+                                                logger.error(f"Failed to update error status in frtrigger_tab: {traceback.format_exc()}")
 
+                                        logger.info(f" Onboard vendor Pending: invoice_ID: {invoId}")
+                                        status = "success"
+
+                                        try:
+                                            fr_trigger = db.query(model.frtrigger_tab).filter(
+                                                model.frtrigger_tab.blobpath == spltFileName
+                                            )
+
+                                            # Step 2: Perform the update operation
+                                            fr_trigger.update(
+                                                {
+                                                    model.frtrigger_tab.status: "Processed",
+                                                    model.frtrigger_tab.vendorID: vendorID,
+                                                    model.frtrigger_tab.documentid: invoId,
+                                                }
+                                            )
+                                            # Step 3: Commit the transaction
+                                            db.commit()
+
+                                        except Exception:
+                                            logger.error(f"Database update error: {traceback.format_exc()}")
+
+                                    except Exception as e:
+                                        error_message = f"Error in push_frdata or postprocessing: {str(e)}"
+                                        logger.error(error_message)
+
+                                        # Update the frtrigger_tab with the error status
+                                        try:
+                                            fr_trigger = db.query(model.frtrigger_tab).filter(
+                                                model.frtrigger_tab.blobpath == spltFileName
+                                            )
+                                            fr_trigger.update(
+                                                {
+                                                    model.frtrigger_tab.status: "Error",
+                                                }
+                                            )
+                                            db.commit()
+                                        except Exception:
+                                            logger.error(f"Failed to update error status in frtrigger_tab: {traceback.format_exc()}")
                             except Exception:
-                                logger.error(f"{traceback.format_exc()}")
+                                logger.error(f"Unexpected error at line 1051: {traceback.format_exc()}")
                                 status = traceback.format_exc()
-
+                                
                             try:
                                 if "Currency" in StampDataList[splt_map[fl]]:
                                     Currency = StampDataList[splt_map[fl]]["Currency"]
@@ -1083,7 +1133,22 @@ def queue_process_task(queue_task: QueueTask):
                                 db,
                                 mail_row_key,
                             )
-
+                            
+                            if len(str(invoId)) == 0:
+                                logger.error(f"push_frdata returned None for invoId")
+                                try:
+                                    fr_trigger = db.query(model.frtrigger_tab).filter(
+                                        model.frtrigger_tab.blobpath == spltFileName
+                                    )
+                                    fr_trigger.update(
+                                        {
+                                            model.frtrigger_tab.status: "Error",
+                                        }
+                                    )
+                                    db.commit()
+                                except Exception:
+                                    logger.error(f"Failed to update error status in frtrigger_tab: {traceback.format_exc()}")
+                                    
                             logger.info(f" VendorUnidentified: invoice_ID: {invoId}")
                             status = "success"
                             try:
@@ -1099,25 +1164,23 @@ def queue_process_task(queue_task: QueueTask):
                                 # Commit the transaction
                                 db.commit()
                             except Exception as et:
-                                try:
-                                    db.query(model.frtrigger_tab).filter(
-                                        model.frtrigger_tab.blobpath == spltFileName
-                                    ).update(
-                                        {
-                                            model.frtrigger_tab.status: str(et),
-                                            model.frtrigger_tab.documentid: invoId,
-                                        }
-                                    )
-
-                                    # Commit the transaction
-                                    db.commit()
-                                except Exception:
-                                    logger.error(f"{traceback.format_exc()}")
-                                logger.error(traceback.format_exc())
+                                logger.error(f"Error while updating frtrigger_tab: {traceback.format_exc()}")
                         except Exception:
-
                             logger.debug(traceback.format_exc())
                             status = "fail"
+                            try:
+                                db.query(model.frtrigger_tab).filter(
+                                    model.frtrigger_tab.blobpath == spltFileName
+                                ).update(
+                                    {
+                                        model.frtrigger_tab.status: str(et),
+                                    }
+                                )
+
+                                # Commit the transaction
+                                db.commit()
+                            except Exception:
+                                logger.error(f"Error while updating frtrigger_tab: {traceback.format_exc()}")
 
                         # logger.info("vendor not found!!")
 
@@ -1513,7 +1576,7 @@ def queue_process_task(queue_task: QueueTask):
                             model.frtrigger_tab.blobpath == spltFileName
                         ).update(
                             {
-                                model.frtrigger_tab.status: "File Processed",
+                                model.frtrigger_tab.status: "Processed",
                                 model.frtrigger_tab.vendorID: vendorID,
                                 model.frtrigger_tab.documentid: invoId,
                             },
@@ -1574,7 +1637,21 @@ def queue_process_task(queue_task: QueueTask):
                         db,
                         mail_row_key,
                     )
-
+                    if len(str(invoId)) == 0:
+                        logger.error(f"push_frdata returned None for invoId")
+                        try:
+                            fr_trigger = db.query(model.frtrigger_tab).filter(
+                                model.frtrigger_tab.blobpath == spltFileName
+                            )
+                            fr_trigger.update(
+                                {
+                                    model.frtrigger_tab.status: "Error",
+                                }
+                            )
+                            db.commit()
+                        except Exception:
+                            logger.error(f"Failed to update error status in frtrigger_tab: {traceback.format_exc()}")
+                            
                     logger.info(
                         f" PostProcessing Error, systemcheckinvoice: invoice_ID: {invoId}"
                     )
@@ -1587,7 +1664,7 @@ def queue_process_task(queue_task: QueueTask):
                             model.frtrigger_tab.blobpath == spltFileName
                         ).update(
                             {
-                                model.frtrigger_tab.status: "PostProcessing Error",
+                                model.frtrigger_tab.status: "Error",
                                 model.frtrigger_tab.sender: sender,
                                 model.frtrigger_tab.vendorID: vendorID,
                                 model.frtrigger_tab.documentid: invoId,
