@@ -832,6 +832,19 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
     logger.info(f"docHdrDt: {docHdrDt}")
     logger.info(f"tagNames: {tagNames}")
+    try:
+        if "InvoiceId" in docHdrDt:
+            if invID_docTab !=docHdrDt["InvoiceId"]:
+
+                db.query(model.Document).filter(
+                                model.Document.idDocument == docID,
+                ).update({model.Document.docheaderID: docHdrDt["InvoiceId"]})
+                db.commit()
+                invID_docTab = docHdrDt["InvoiceId"]
+                logger.info(f"updated docHeader: docID: {docID} invID_docTab: {invID_docTab}")
+    except Exception:
+        logger.info(f"exception: {invID_docTab}")
+
 
     #-------------
     try:
