@@ -229,8 +229,8 @@ def runStatus(
             - **Stamp Present**: Yes/No
             - If a stamp is present, extract the following information:
             - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.Ensure the store number can be three or four digits only. If it is more than four digits, return "N/A"
-            - **Circled Department**: Extract the clearly circled or marked keyword "Inventory", "INV" or "Supplies" or "SUP" from the stamp image,
-                    If not circled, return "N/A". Ensure that it should not extract nothing else.
+            - **MarkedDept**: Extract the clearly circled marked keyword "Inventory" or "INV" or "Supplies" or "SUP" from the stamp image.
+            Ensure that it must return either "Inventory" or "Supplies" and should not extract anything else. If no department is circled, return "Inventory" as the default value.
             - **Department**: Extract either a department code or department name, handwritten
                     and possibly starting with "Dept"
             - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
@@ -247,10 +247,10 @@ def runStatus(
             - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
                     - If the circle starts with the word "Inventory" and ends with the starting character of "Supplies", extract "Inventory".
                     - If the circle starts with the last character of "Inventory" and covers "Supplies" completely, extract "Supplies".
-                    - If the circle exactly encloses the word "Inventory" or "INV," return "Inventory."
-                    - If the circle exactly encloses the word "Supplies" or "SUP," return "Supplies."
-                    - If the circle encloses the word "INV," return "Inventory."
-                    - If the circle encloses the word "SUP," return "Supplies."
+                    - If the circle exactly encloses the word "Inventory" extract "Inventory"
+                    - If the circle exactly encloses the word "Supplies" extract "Supplies"
+                    - If the circle encloses the word "INV," extract "Inventory"
+                    - If the circle encloses the word "SUP," extract "Supplies"
                 - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
                     - The confirmation number must be a handwritten number only.
                     - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
