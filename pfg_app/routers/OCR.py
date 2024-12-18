@@ -355,7 +355,7 @@ def queue_process_task(queue_task: QueueTask):
                 - **Stamp Present**: Yes/No
                 - If a stamp is present, extract the following information:
                 - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.Ensure the store number can be three or four digits only. If it is more than four digits, return "N/A"
-                - **MarkedDept**: EExtract the clearly circled marked keyword "Inventory" or "INV" or "Supplies" or "SUP" from the stamp image.
+                - **MarkedDept**: Extract the clearly circled marked keyword "Inventory" or "INV" or "Supplies" or "SUP" from the stamp image.
                             Ensure that it must return either "Inventory" or "Supplies" and should not extract anything else.
                             If no department is circled or it's missing, then return "Inventory" as the default only. Ensure not to return "N/A" or any other value.
                 - **Department**: Extract either a department code or department name, handwritten
