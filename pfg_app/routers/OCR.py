@@ -233,7 +233,7 @@ def queue_process_task(queue_task: QueueTask):
             except Exception:
                 logger.error(f"Error in file path: {str(traceback.format_exc())}")
                 
-            # mail_row_key = "DSD1002test"
+            # mail_row_key = "DSD1005test"
             # email_path = ""
             # subject = ""
             vendorAccountID = 0
@@ -460,17 +460,19 @@ def queue_process_task(queue_task: QueueTask):
                 )
             except Exception as e:
                 try:
-                    split_doc = db.query(model.SplitDocTab).filter
-                    (model.SplitDocTab.splitdoc_id == splitdoc_id)
-
-                    # Step 2: Perform the update operation
-                    split_doc.update(
-                        {
-                            model.SplitDocTab.status: str(e),  # noqa: E501
-                        }
+                    splitdoc_id = new_split_doc.splitdoc_id
+                    split_doc = (
+                        db.query(model.SplitDocTab)
+                        .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                        .first()
                     )
-                    # Step 3: Commit the transaction
-                    db.commit()
+
+                    if split_doc:
+                        split_doc.status = "Error"
+                        split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+
+                        # Commit the update
+                        db.commit()
 
                 except Exception:
                     logger.error(
@@ -1710,7 +1712,23 @@ def queue_process_task(queue_task: QueueTask):
 
         except Exception:
             logger.debug(f"{traceback.format_exc()}")
-        
+
+        try:
+            splitdoc_id = new_split_doc.splitdoc_id
+            split_doc = (
+                db.query(model.SplitDocTab)
+                .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                .first()
+            )
+
+            if split_doc:
+                split_doc.status = "Processed-Completed"
+                split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+
+                # Commit the update
+                db.commit()
+        except Exception as e:
+            logger.error(f"Exception in splitDoc: {e}")
         return status
     finally:
         db.close()
