@@ -701,6 +701,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
     else:
         skipConf = 0
     invo_StatusCode = 0
+
     logger.info(f"start on the pfg_sync,DocID{docID}, skipVal: {skipConf}")
 
     docModel = (
@@ -825,6 +826,28 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
     except Exception as e:
         logger.error(f"{str(e)}")
+
+    try:
+        if skipConf==1:
+            documentdesc = "Confirmation validations were bypassed by the user."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+        if zero_dollar==1:
+            documentdesc = "Attempting to process a zero-dollar invoice."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+        if skip_supplierCk==1:
+            documentdesc = "Skipping the validation for Supplier ID."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+
+    except Exception:
+        logger.error(traceback.format_exc())
+    
+
     
     DocDtHdr = (
         db.query(model.DocumentData, model.DocumentTagDef)
