@@ -144,6 +144,11 @@ def runStatus(
 ):
     
     try:
+        # Regular expression pattern to find "DSD-" followed by digits
+        match = re.search(r"/DSD-\d+/", file_path)
+        # Extract mail_row_key if pattern is found, else assign None
+        mail_row_key = match.group(0).strip("/") if match else None
+
         request_data = {
             "file_path": file_path,
             "filename": filename,
@@ -152,6 +157,7 @@ def runStatus(
             "invoice_type": invoice_type,
             "sender": sender,
             "email_path": email_path,
+            "mail_row_key": mail_row_key,
             "subject": subject,
         }
         if settings.build_type == "debug":
