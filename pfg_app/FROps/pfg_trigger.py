@@ -124,7 +124,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
 
     if Supplier_id == vendor_id:
         vdrMatchStatus = 1
-        vdrStatusMsg = "Success"
+        vdrStatusMsg = "Supplier ID Match success"
     else:
         vdrMatchStatus = 0
         vdrStatusMsg = (
@@ -151,7 +151,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
 
     if location == storeNumber and location != "" and location != 0:
         intStatus = 1
-        intStatusMsg = "Success"
+        intStatusMsg = "Store match Success"
     else:
         intStatus = 0
         intStatusMsg = "Incorrect store number"
@@ -700,6 +700,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         skipConf = 1
     else:
         skipConf = 0
+    invo_StatusCode = 0
+
     logger.info(f"start on the pfg_sync,DocID{docID}, skipVal: {skipConf}")
 
     docModel = (
@@ -824,6 +826,28 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
     except Exception as e:
         logger.error(f"{str(e)}")
+
+    try:
+        if skipConf==1:
+            documentdesc = "Confirmation validations were bypassed by the user."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+        if zero_dollar==1:
+            documentdesc = "Attempting to process a zero-dollar invoice."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+        if skip_supplierCk==1:
+            documentdesc = "Skipping the validation for Supplier ID."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+
+    except Exception:
+        logger.error(traceback.format_exc())
+    
+
     
     DocDtHdr = (
         db.query(model.DocumentData, model.DocumentTagDef)
@@ -992,6 +1016,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         # if invoSubStatus == 13:
         docStatusSync["Rejected"] = {
             "status": 1,
+            "StatusCode":0,
             "response": ["Invoice rejected by user"],
         }
 
@@ -1009,6 +1034,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 if blank_id == 1:
                     docStatusSync["Invoice ID"] = {
                         "status": 0,
+                        "StatusCode":0,
                         "response": ["Invoice ID not found"],
                     }
                     return docStatusSync
@@ -1122,6 +1148,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             duplicate_status_ck_msg = "Invoice already exists"
             docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
+                "StatusCode":0,
                 "response": [duplicate_status_ck_msg],
             }
             return docStatusSync
@@ -1130,6 +1157,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             duplicate_status_ck_msg = "Invoice rejected by user"
             docStatusSync["Invoice rejected"] = {
                 "status": duplicate_status_ck,
+                "StatusCode":0,
                 "response": [duplicate_status_ck_msg],
             }
             return docStatusSync
@@ -1138,13 +1166,15 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             duplicate_status_ck_msg = "InvoiceId not found"
             docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
+                "StatusCode":0,
                 "response": [duplicate_status_ck_msg],
             }
         elif isinstance(InvodocStatus, int) and InvodocStatus != 10:
             duplicate_status_ck = 1
-            duplicate_status_ck_msg = "Success"
+            duplicate_status_ck_msg = "duplicate check success"
             docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
+                "StatusCode":0,
                 "response": [duplicate_status_ck_msg],
             }
         try:
@@ -1162,6 +1192,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     # multiple active models found
                     docStatusSync["Status overview"] = {
                         "status": 0,
+                        "StatusCode":0,
                         "response": [
                             "Multiple active models detected. Please combine the models and try again."  # noqa: E501
                         ],
@@ -1172,6 +1203,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     # no active models found
                     docStatusSync["Status overview"] = {
                         "status": 0,
+                        "StatusCode":0,
                         "response": [
                             "No active models found. Please train the model to onboard the vendor"  # noqa: E501
                         ],
@@ -1199,6 +1231,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         if vdrAccID == 0:
             docStatusSync["Status overview"] = {
                 "status": 0,
+                "StatusCode":0,
                 "response": ["Vendor mapping unsuccessful"],
             }
             return docStatusSync
@@ -1244,7 +1277,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 # Check if the currency matched
                                 # (True means match, False means no match)
                                 if isCurrencyMatch:  # No need to compare to 'True'
-                                    dmsg = "Success"
+                                    dmsg = "currency match success"
 
                                 else:
                                     dmsg = "Invoice currency invalid"
@@ -1349,6 +1382,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                     )
                                                 docStatusSync["Status overview"] = {
                                                     "status": 0,
+                                                    "StatusCode":0,
                                                     "response": [
                                                         "Please review document type."
                                                     ],
@@ -1385,6 +1419,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             )
                                         docStatusSync["Status overview"] = {
                                             "status": 0,
+                                            "StatusCode":0,
                                             "response": [
                                                 "Please review document type."
                                             ],
@@ -1435,6 +1470,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 )
                                             docStatusSync["Status overview"] = {
                                                 "status": 0,
+                                                "StatusCode":0,
                                                 "response": [
                                                     "Please review document type."
                                                 ],
@@ -1571,6 +1607,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                         "Status overview"
                                                     ] = {
                                                         "status": 0,
+                                                        "StatusCode":0,
                                                         "response": [
                                                             "Total tax mismatch"
                                                         ],
@@ -1689,9 +1726,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 else:
                                     if zero_dollar == 1:
                                         invTotalMth = 1
+                                        invo_StatusCode = 2
                                         invTotalMth_msg = "Zero $ invoice total."
                                     else:
                                         invTotalMth = 0
+                                        invo_StatusCode = 2
                                         invTotalMth_msg = "Zero $ invoice total."
 
                             else:
@@ -1755,6 +1794,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                     "Status overview"
                                                                 ] = {
                                                                     "status": 0,
+                                                                    "StatusCode":0,
                                                                     "response": [
                                                                         "Total tax mismatch"
                                                                     ],
@@ -1917,8 +1957,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             if subTotal==0:
                                                 if zero_dollar == 1:
                                                     invTotalMth = 1
+                                                    invo_StatusCode = 2
                                                     invTotalMth_msg = "Zero $ invoice"
                                                 else:
+                                                    invo_StatusCode = 2
                                                     invTotalMth = 0
                                                     invTotalMth_msg = "Zero $ invoice"
                                             else:
@@ -1927,9 +1969,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         else:
                                             if zero_dollar == 1:
                                                 invTotalMth = 1
+                                                invo_StatusCode = 2
                                                 invTotalMth_msg = "Zero $ invoice"
                                             else:
                                                 invTotalMth = 0
+                                                invo_StatusCode = 2
                                                 invTotalMth_msg = "Zero $ invoice"
                                                     
                                                     
@@ -2006,14 +2050,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                     elif dateCheck == 1:
                         ocrCheck = 1
-                        ocrCheck_msg.append("Success")
+                        ocrCheck_msg.append("Date validation success")
                     else:
                         ocrCheck = 0
                         ocrCheck_msg.append(dateCheck_msg)
 
                     if invTotalMth == 1:
                         totalCheck = 1
-                        totalCheck_msg.append("Success")
+                        totalCheck_msg.append("Invocie total validation success")
 
                     else:
                         totalCheck_msg.append(invTotalMth_msg)
@@ -2037,11 +2081,13 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                     docStatusSync["OCR validations"] = {
                         "status": ocrCheck,
+                        "StatusCode":0,
                         "response": ocrCheck_msg,
                     }
 
                     docStatusSync["Invoice total validation"] = {
                         "status": totalCheck,
+                        "StatusCode":invo_StatusCode,
                         "response": totalCheck_msg,
                     }
 
@@ -2079,6 +2125,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                         "Status overview"
                                                                     ] = {
                                                                         "status": 0,
+                                                                        "StatusCode":0,
                                                                         "response": [
                                                                             "Please select item category."
                                                                         ],
@@ -2087,12 +2134,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 else:
                                     docStatusSync["Item category validation"] = {
                                     "status": 0,
+                                    "StatusCode":0,
                                     "response": ["Please select item category."],
                                 }
                             except Exception:
                                 logger.debug(f"{traceback.format_exc()}")
                                 docStatusSync["Item category validation"] = {
                                     "status": 0,
+                                    "StatusCode":0,
                                     "response": ["Please select item category."],
                                 }
                                     
@@ -2142,7 +2191,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 if store_type == list(stmpData["StoreType"].keys())[0]:
 
                                     strCk = 1
-                                    strCk_msg.append("Success")
+                                    strCk_msg.append("Store type validatoin success")
 
                                 elif store_type in [
                                     "Integrated",
@@ -2161,7 +2210,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                     )
                                     db.commit()
                                     strCk = 1
-                                    strCk_msg = ["Success"]
+                                    strCk_msg = ["Store type validatoin success"]
                                 else:
                                     strCk = 0
                                     strCk_msg = ["Invalid Store Type"]
@@ -2187,6 +2236,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                             docStatusSync["Storetype validation"] = {
                                 "status": strCk,
+                                "StatusCode":0,
                                 "response": strCk_msg,
                             }
 
@@ -2265,6 +2315,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                                             docStatusSync["Storetype validation"] = {
                                                 "status": DeptCk,
+                                                "StatusCode":0,
                                                 "response": DeptCk_msg,
                                             }
                                         voucher_query = db.query(
@@ -2337,7 +2388,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         # -----------------------------------
 
                                         strCk = 1
-                                        strCk_msg = ["Success"]
+                                        strCk_msg = ["Store type validatoin success"]
                                         if confirmation_ck == 1:
                                             (
                                                 intStatus,
@@ -2359,6 +2410,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                         "Supplier ID validation"
                                                     ] = {
                                                         "status": 1,
+                                                        "StatusCode":0,
                                                         "response": [vdrStatusMsg],
                                                     }
                                                 else:
@@ -2366,6 +2418,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                         "Supplier ID validation"
                                                     ] = {
                                                         "status": 0,
+                                                        "StatusCode":3,
                                                         "response": [vdrStatusMsg],
                                                     }
                                             if intStatus == 0:
@@ -2392,13 +2445,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         )
                                         if nonIntStatus == 1:
                                             DeptCk = 1
-                                            DeptCk_msg = ["Success"]
+                                            DeptCk_msg = ["Department validation success"]
                                         else:
                                             DeptCk = 0
                                             DeptCk_msg = [nonIntStatusMsg]
 
                                             docStatusSync["Storetype validation"] = {
                                                 "status": DeptCk,
+                                                "StatusCode":0,
                                                 "response": DeptCk_msg,
                                             }
                                 except Exception:
@@ -2481,7 +2535,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         )  # noqa: E501
                                     else:
                                         VthChk = 1
-                                        VthChk_msg = "Success"
+                                        VthChk_msg = "Stamp Data validation success"
 
                                 elif confirmation_ck == 0:
                                     VthChk = confirmation_ck
@@ -2496,6 +2550,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                                 docStatusSync["Voucher creation data validation"] = {
                                     "status": VthChk,
+                                    "StatusCode":0,
                                     "response": [VthChk_msg],
                                 }
                                 logger.info(f"docStatusSync:{docStatusSync}")
@@ -2516,16 +2571,19 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         if float(fileSize) <= fileSizeThreshold:
                                             docStatusSync["File size check"] = {
                                                 "status": 1,
-                                                "response": ["Success"],
+                                                "StatusCode":0,
+                                                "response": ["File size validation Success"],
                                             }
                                         else:
                                             docStatusSync["File size check"] = {
                                                 "status": 1,
+                                                "StatusCode":0,
                                                 "response": [],
                                             }
                                     else:
                                         docStatusSync["File size check"] = {
                                             "status": 0,
+                                            "StatusCode":0,
                                             "response": ["File Size not found."],
                                         }
                                 except Exception:
@@ -2566,7 +2624,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 overAllstatus_ck = 0
 
                                     if overAllstatus_ck == 1:
-                                        overAllstatus_msg = "Success"
+                                        overAllstatus_msg = "Invoice Validation success"    
                                         db.query(model.Document).filter(
                                             model.Document.idDocument == docID
                                         ).update({model.Document.documentStatusID: 2})
@@ -2695,6 +2753,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                                         docStatusSync["Sent to PeopleSoft"] = {
                                             "status": SentToPeopleSoft,
+                                            "StatusCode":0,
                                             "response": [dmsg],
                                         }
 
@@ -2779,6 +2838,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         else:
                             docStatusSync["Stamp Data Validations"] = {
                                 "status": 0,
+                                "StatusCode":0,
                                 "response": ["No Stamp Data Found"],
                             }
                             documentSubstatus = 118
@@ -2861,6 +2921,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
         docStatusSync["Status overview"] = {
             "status": overAllstatus,
+            "StatusCode":0,
             "response": [overAllstatus_msg],
         }
 
