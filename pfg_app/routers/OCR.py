@@ -1165,7 +1165,7 @@ def queue_process_task(queue_task: QueueTask):
 
                                 # Commit the transaction
                                 db.commit()
-                            except Exception as et:
+                            except Exception:
                                 logger.error(f"Error while updating frtrigger_tab: {traceback.format_exc()}")
                         except Exception:
                             logger.debug(traceback.format_exc())
@@ -1175,7 +1175,7 @@ def queue_process_task(queue_task: QueueTask):
                                     model.frtrigger_tab.blobpath == spltFileName
                                 ).update(
                                     {
-                                        model.frtrigger_tab.status: str(et),
+                                        model.frtrigger_tab.status: "Error",
                                     }
                                 )
 
@@ -1722,7 +1722,7 @@ def queue_process_task(queue_task: QueueTask):
             )
 
             if split_doc:
-                split_doc.status = "Processed-Completed"
+                split_doc.status = "Processed-completed"
                 split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
 
                 # Commit the update
