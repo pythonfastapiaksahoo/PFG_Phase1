@@ -575,17 +575,17 @@ def getFrData_MNF(input_data):
         logger.debug(f" {traceback.format_exc()}")
         preBltFrdata_status = 0
     try:
-        # subTotal_tg = {
-        #     "tag": "SubTotal",
-        #     "data": {
-        #         "value": "",
-        #         "prebuilt_confidence": "",
-        #         "custom_confidence": "0.00",
-        #     },
-        #     "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
-        #     "status": 0,
-        #     "status_message": "SubTotal is unavailable.",
-        # }
+        invoId_tag = {
+            "tag": "InvoiceId",
+            "data": {
+                "value": "",
+                "prebuilt_confidence": "",
+                "custom_confidence": "0.00",
+            },
+            "bounding_regions": {"x": "0", "y": "0", "w": "0", "h": "0"},
+            "status": 0,
+            "status_message": "InvoiceId is unavailable.",
+        }
         credit_tg = {
             "tag": "Credit Identifier",
             "data": {
@@ -622,6 +622,7 @@ def getFrData_MNF(input_data):
         creditCk = 0
         # subTotalCk = 0
         gstCk = 0
+        invoIdCk = 0
 
         if len(preBltFrdata) > 0:
             if "header" in preBltFrdata:
@@ -629,23 +630,23 @@ def getFrData_MNF(input_data):
                     if "tag" in tgck_vrdNm:
                         if tgck_vrdNm["tag"] == "VendorName":
                             vendorNameCk = 1
-                        # if tgck_vrdNm["tag"] == "SubTotal":
-                        #     subTotalCk = 1
+                        if tgck_vrdNm["tag"] == "InvoiceId":
+                            invoIdCk = 1
                         if tgck_vrdNm["tag"] == "Credit Identifier":
                             creditCk = 1
                         if tgck_vrdNm["tag"] == "GST":
                             gstCk = 1
                 if vendorNameCk == 0:
                     preBltFrdata["header"].append(vndr_tg)
-                # if subTotalCk == 0:
-                #     preBltFrdata["header"].append(subTotal_tg)
+                if invoIdCk == 0:
+                    preBltFrdata["header"].append(invoId_tag)
                 if creditCk == 0:
                     preBltFrdata["header"].append(credit_tg)
                 if gstCk == 0:
                     preBltFrdata["header"].append(gst_tg)
             else:
                 # preBltFrdata["header"] = [vndr_tg, subTotal_tg, credit_tg, gst_tg]
-                preBltFrdata["header"] = [vndr_tg, credit_tg, gst_tg]
+                preBltFrdata["header"] = [vndr_tg, credit_tg, invoId_tag,gst_tg]
                 if "tab" not in preBltFrdata:
                     preBltFrdata["tab"] = []
                 if "overall_status" not in preBltFrdata:
@@ -654,7 +655,7 @@ def getFrData_MNF(input_data):
                     preBltFrdata["prebuilt_header"] = []
 
         else:
-            preBltFrdata["header"] = [vndr_tg]
+            preBltFrdata["header"] = [vndr_tg, credit_tg, invoId_tag,gst_tg]
             preBltFrdata["tab"] = []
             preBltFrdata["overall_status"] = 0
             preBltFrdata["prebuilt_header"] = []

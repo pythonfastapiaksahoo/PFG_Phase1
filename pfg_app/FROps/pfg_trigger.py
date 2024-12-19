@@ -686,8 +686,21 @@ def format_and_validate_date(date_str):
     return formatted_date, dateValCk
 
 
-def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
-    logger.info(f"start on the pfg_sync,DocID{docID}")
+def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
+    
+    if '2' in str(skipCk):
+        zero_dollar = 1
+    else:
+        zero_dollar = 0
+    if '3' in str(skipCk):
+        skip_supplierCk = 1
+    else:
+        skip_supplierCk = 0
+    if '1' in str(skipCk):
+        skipConf = 1
+    else:
+        skipConf = 0
+    logger.info(f"start on the pfg_sync,DocID{docID}, skipVal: {skipConf}")
 
     docModel = (
         db.query(model.Document.documentModelID)
@@ -832,6 +845,19 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
     logger.info(f"docHdrDt: {docHdrDt}")
     logger.info(f"tagNames: {tagNames}")
+    try:
+        if "InvoiceId" in docHdrDt:
+            if invID_docTab !=docHdrDt["InvoiceId"]:
+
+                db.query(model.Document).filter(
+                                model.Document.idDocument == docID,
+                ).update({model.Document.docheaderID: docHdrDt["InvoiceId"]})
+                db.commit()
+                invID_docTab = docHdrDt["InvoiceId"]
+                logger.info(f"updated docHeader: docID: {docID} invID_docTab: {invID_docTab}")
+    except Exception:
+        logger.info(f"exception: {invID_docTab}")
+
 
     #-------------
     try:
@@ -1498,18 +1524,18 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             invTotalMth_msg = "Invoice total mismatch, please review."
 
                         if credit_note == 1:
-                            if "PST" in docHdrDt:
-                                pst = crd_clean_amount(docHdrDt["PST"])
-                                if (pst is not None) and pst < 0:
-                                    invTotalMth = 0
-                                    invTotalMth_msg = "PST found:" + str(pst)
-                                    tax_isErr = 1
-                            elif "HST" in docHdrDt:
-                                hst = crd_clean_amount(docHdrDt["HST"])
-                                if (hst is not None) and hst > 0:
-                                    invTotalMth = 0
-                                    invTotalMth_msg = "HST found:" + str(hst)
-                                    tax_isErr = 1
+                            # if "PST" in docHdrDt:
+                            #     pst = crd_clean_amount(docHdrDt["PST"])
+                            #     if (pst is not None) and pst < 0:
+                            #         invTotalMth = 0
+                            #         invTotalMth_msg = "PST found:" + str(pst)
+                            #         tax_isErr = 1
+                            # elif "HST" in docHdrDt:
+                            #     hst = crd_clean_amount(docHdrDt["HST"])
+                            #     if (hst is not None) and hst > 0:
+                            #         invTotalMth = 0
+                            #         invTotalMth_msg = "HST found:" + str(hst)
+                            #         tax_isErr = 1
                             if "GST" in docHdrDt:
                                 gst_amt = crd_clean_amount(docHdrDt["GST"])
                                 if gst_amt is None:
@@ -1661,8 +1687,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         invTotalMth = 1
                                         invTotalMth_msg = "Default invoice subtotal."
                                 else:
-                                    invTotalMth = 0
-                                    invTotalMth_msg = "Zero $ invoice total."
+                                    if zero_dollar == 1:
+                                        invTotalMth = 1
+                                        invTotalMth_msg = "Zero $ invoice total."
+                                    else:
+                                        invTotalMth = 0
+                                        invTotalMth_msg = "Zero $ invoice total."
 
                             else:
                                 invTotalMth = 0
@@ -1671,22 +1701,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         else:
 
                             # TAX validations:
-                            if "PST" in docHdrDt:
-                                pst = clean_amount(docHdrDt["PST"])
-                                # if (pst is not None) and pst > 0:
-                                #     invTotalMth = 0
-                                #     invTotalMth_msg = "PST found:" + str(pst)
-                                #     tax_isErr = 1
-                                if pst is None:
-                                    pst = 0
-                            elif "HST" in docHdrDt:
-                                hst = clean_amount(docHdrDt["HST"])
-                                # if (hst is not None) and hst > 0:
-                                #     invTotalMth = 0
-                                #     invTotalMth_msg = "HST found:" + str(hst)
-                                #     tax_isErr = 1
-                                if hst is None:
-                                    hst = 0
+                            # if "PST" in docHdrDt:
+                            #     pst = clean_amount(docHdrDt["PST"])
+                            #     # if (pst is not None) and pst > 0:
+                            #     #     invTotalMth = 0
+                            #     #     invTotalMth_msg = "PST found:" + str(pst)
+                            #     #     tax_isErr = 1
+                            #     if pst is None:
+                            #         pst = 0
+                            # elif "HST" in docHdrDt:
+                            #     hst = clean_amount(docHdrDt["HST"])
+                            #     # if (hst is not None) and hst > 0:
+                            #     #     invTotalMth = 0
+                            #     #     invTotalMth_msg = "HST found:" + str(hst)
+                            #     #     tax_isErr = 1
+                            #     if hst is None:
+                            #         hst = 0
                             if "GST" in docHdrDt:
                                 gst_amt = clean_amount(docHdrDt["GST"])
                                 if gst_amt is None:
@@ -1781,23 +1811,26 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                         ):
                                                             # gst_amt = 0
                                                             invTotalMth = 1
-
+                                                        prv_othChg_sm = clean_amount(subTotal + gst_amt)
                                                         for othCrgs in OtherChargesList:
+                                                            
                                                             if othCrgs in docHdrDt:
-                                                                othCrgs = clean_amount(
+                                                                othCrgs_cln = clean_amount(
                                                                     docHdrDt[othCrgs]
                                                                 )
-                                                                if othCrgs is not None:
+                                                                
+                                                                if othCrgs_cln is not None:
+                                                                    prv_othChg_sm = clean_amount(prv_othChg_sm + othCrgs_cln)
                                                                     othCrgs_sm = (
                                                                         clean_amount(
-                                                                            othCrgs
+                                                                            othCrgs_cln
                                                                             + subTotal
                                                                         )
                                                                     )
                                                                     if (
                                                                         othCrgs_sm
                                                                         is not None
-                                                                    ):
+                                                                    ):  
                                                                         if (
                                                                             othCrgs_sm
                                                                             == invoTotal
@@ -1846,6 +1879,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                                 1
                                                                             )
                                                                             break
+                                                                        elif (round(abs(prv_othChg_sm - invoTotal), 2) < 0.09):
+                                                                            invTotalMth = (
+                                                                                1
+                                                                            )
+                                                                            otrChgsCk = (
+                                                                                1
+                                                                            ) 
+                                                                            break
 
                                                 else:
                                                     invTotalMth = 0
@@ -1874,15 +1915,23 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             )  # noqa: E501
 
                                             if subTotal==0:
-                                                invTotalMth = 0
-                                                invTotalMth_msg = "Zero $ invoice"
+                                                if zero_dollar == 1:
+                                                    invTotalMth = 1
+                                                    invTotalMth_msg = "Zero $ invoice"
+                                                else:
+                                                    invTotalMth = 0
+                                                    invTotalMth_msg = "Zero $ invoice"
                                             else:
                                                 invTotalMth = 0
                                                 invTotalMth_msg = "Invalid invoice total, Please review."
                                         else:
-                                            invTotalMth = 0
-                                            invTotalMth_msg = "Zero $ invoice"
-                                                
+                                            if zero_dollar == 1:
+                                                invTotalMth = 1
+                                                invTotalMth_msg = "Zero $ invoice"
+                                            else:
+                                                invTotalMth = 0
+                                                invTotalMth_msg = "Zero $ invoice"
+                                                    
                                                     
                                         # invTotalMth = 0
                                         # invTotalMth_msg = "Invalid invoice total."
@@ -2304,12 +2353,21 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             )
 
                                             if vdrMatchStatus == 0:
-                                                docStatusSync[
-                                                    "Supplier ID validation"
-                                                ] = {
-                                                    "status": 0,
-                                                    "response": [vdrStatusMsg],
-                                                }
+                                                if skip_supplierCk==1:
+
+                                                    docStatusSync[
+                                                        "Supplier ID validation"
+                                                    ] = {
+                                                        "status": 1,
+                                                        "response": [vdrStatusMsg],
+                                                    }
+                                                else:
+                                                    docStatusSync[
+                                                        "Supplier ID validation"
+                                                    ] = {
+                                                        "status": 0,
+                                                        "response": [vdrStatusMsg],
+                                                    }
                                             if intStatus == 0:
                                                 docStatusSync[
                                                     "Storetype validation"
