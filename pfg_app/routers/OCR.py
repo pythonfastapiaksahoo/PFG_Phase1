@@ -239,7 +239,7 @@ def queue_process_task(queue_task: QueueTask):
             except Exception:
                 logger.error(f"Error in file path: {str(traceback.format_exc())}")
                 
-            # mail_row_key = "DSD1005test"
+            # mail_row_key = "DSD1007test"
             # email_path = ""
             # subject = ""
             vendorAccountID = 0
@@ -1290,32 +1290,6 @@ def queue_process_task(queue_task: QueueTask):
                                     db,
                                 )
 
-                            if "MarkedDept" in StampDataList[splt_map[fl]]:
-                                MarkedDept = StampDataList[splt_map[fl]]["MarkedDept"]
-                                if MarkedDept == "Inventory" or MarkedDept == "Supplies":
-                                    mrkDeptCk_isErr = 0
-                                    mrkDeptCk_msg = ""
-                                else:
-                                    mrkDeptCk_isErr = 1
-                                    mrkDeptCk_msg = "Invalid. Please review."
-
-                            else:
-                                mrkDeptCk_isErr = 1
-                                mrkDeptCk_msg = "Not Found."
-                                MarkedDept = "N/A"
-                            # ----------------------
-
-                            stampdata: dict[str, int | str] = {}
-                            stampdata["documentid"] = invoId
-                            stampdata["stamptagname"] = "SelectedDept"
-                            stampdata["stampvalue"] = MarkedDept
-                            stampdata["is_error"] = mrkDeptCk_isErr
-                            stampdata["errordesc"] = mrkDeptCk_msg
-                            stampdata["created_on"] = stmp_created_on
-                            stampdata["IsUpdated"] = IsUpdated
-                            db.add(model.StampDataValidation(**stampdata))
-                            db.commit()
-
                             if "Confirmation" in StampDataList[splt_map[fl]]:
                                 Confirmation_rw = StampDataList[splt_map[fl]][
                                     "Confirmation"
@@ -1345,7 +1319,7 @@ def queue_process_task(queue_task: QueueTask):
 
                                     except Exception as e:
                                         logger.debug(f"{traceback.format_exc()}")
-                                        confCk_isErr = 0
+                                        confCk_isErr = 1
                                         confCk_msg = "Error:" + str(e)
 
                                 else:
@@ -1367,6 +1341,52 @@ def queue_process_task(queue_task: QueueTask):
                             db.add(model.StampDataValidation(**stampdata))
                             db.commit()
 
+                            if "MarkedDept" in StampDataList[splt_map[fl]]:
+                                MarkedDept = StampDataList[splt_map[fl]]["MarkedDept"]
+                                if confCk_isErr == 0:
+                                    account = (
+                                            db.query(model.PFGReceipt.ACCOUNT)
+                                            .filter(
+                                                model.PFGReceipt.RECEIVER_ID == Confirmation
+                                            )
+                                            .first()
+                                        )
+                                    inv_account = ['14100', '14150','14100', '98401',
+                                                '98400', '14400', '14410', '14999',
+                                                '14200', '14420']
+                                    sup_account = ['71000', '71025', '71999', '71050']
+                                    if account:
+                                        if account[0] in inv_account:
+                                            MarkedDept = "Inventory"
+                                        elif account[0] in sup_account:
+                                            MarkedDept = "Supplies"
+                                        else:
+                                            MarkedDept = "Inventory"
+                                if MarkedDept == "Inventory" or MarkedDept == "Supplies":
+                                    mrkDeptCk_isErr = 0
+                                    mrkDeptCk_msg = ""
+                                else:
+                                    mrkDeptCk_isErr = 1
+                                    mrkDeptCk_msg = "Invalid. Please review."
+
+                            else:
+                                mrkDeptCk_isErr = 1
+                                mrkDeptCk_msg = "Not Found."
+                                MarkedDept = "Inventory"
+                            # ----------------------
+
+                            stampdata: dict[str, int | str] = {}
+                            stampdata["documentid"] = invoId
+                            stampdata["stamptagname"] = "SelectedDept"
+                            stampdata["stampvalue"] = MarkedDept
+                            stampdata["is_error"] = mrkDeptCk_isErr
+                            stampdata["errordesc"] = mrkDeptCk_msg
+                            stampdata["created_on"] = stmp_created_on
+                            stampdata["IsUpdated"] = IsUpdated
+                            db.add(model.StampDataValidation(**stampdata))
+                            db.commit()
+                            
+                            
                             if "ReceivingDate" in StampDataList[splt_map[fl]]:
                                 ReceivingDate = StampDataList[splt_map[fl]]["ReceivingDate"]
                                 if is_valid_date(ReceivingDate):
