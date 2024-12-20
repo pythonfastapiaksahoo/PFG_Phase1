@@ -44,10 +44,8 @@ from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 from pfg_app.model import QueueTask
 
-# from logModule import email_sender
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 
-# model.Base.metadata.create_all(bind=engine)
 auth_handler = AuthHandler()
 tz_region = tz.timezone("US/Pacific")
 
@@ -119,24 +117,16 @@ def save_to_database(new_task):
         db.flush()  # Generate the ID without committing
         task_id = new_task.id
 
-        # Calculate the mail_row_key
-        mail_row_key = f"DSD-{10000000 + task_id}"
+        # Check if mail_row_key is None (since it's part of the `new_task` object)
+        if new_task.request_data.get("mail_row_key") is None:
+            # Calculate the mail_row_key
+            mail_row_key = f"DSD-{10000000 + task_id}"
 
-        # Update the JSONB column's mail_row_key if it's None
-        db.execute(
-            update(QueueTask)
-            .where(QueueTask.id == task_id)
-            .where((QueueTask.request_data["mail_row_key"]).is_(None))  # Check if mail_row_key is None
-            .values(
-                request_data={
-                    **new_task.request_data,  # Preserve existing JSON data
-                    "mail_row_key": mail_row_key,  # Set the mail_row_key
-                }
-            )
-        )
+            # Update the field in the JSONB column
+            new_task.request_data["mail_row_key"] = mail_row_key
 
-        db.commit()  # Commit transaction
-        db.refresh(new_task)  # Refresh to get updated fields
+        # Commit the changes (flush already staged the changes for this session)
+        db.commit()
         return task_id
     except Exception:
         db.rollback()
@@ -230,6 +220,33 @@ def queue_process_task(queue_task: QueueTask):
         sender = queue_task.request_data["sender"]
         email_path = queue_task.request_data["email_path"]
         subject = queue_task.request_data["subject"]
+        mail_row_key = queue_task.request_data["mail_row_key"]
+
+        vendorAccountID = 0
+        vendorID = 0
+        CreditNote = "Invoice Document"
+
+        db = next(get_db())
+        # Create a new instance of the SplitDocTab model
+        new_split_doc = model.SplitDocTab(
+            invoice_path=file_path,
+            status="File Received without Check",
+            emailbody_path=email_path,
+            email_subject=subject,
+            sender=sender,
+            mail_row_key=mail_row_key,
+            updated_on=datetime.now(tz_region),
+            created_on=datetime.now(tz_region),
+        )
+
+        # Add the new entry to the session
+        db.add(new_split_doc)
+
+        # Commit the transaction to save it to the database
+        db.commit()
+
+        # Refresh the instance to get the new ID if needed
+        db.refresh(new_split_doc)
 
         # if the execution is from `debug` mode, then get the file from the local path
         if settings.build_type == "debug":
@@ -246,91 +263,34 @@ def queue_process_task(queue_task: QueueTask):
             rest_of_path = path_parts[1] if len(path_parts) > 1 else ""
             blob_data, content_type = get_blob_securely(container_name, rest_of_path)
 
+        fl_type = filename.split(".")[-1]
+
+        if fl_type in ["png", "jpg", "jpeg", "jpgx"]:
+            image = Image.open(io.BytesIO(blob_data))
+
+            # Convert the image to RGB if it's not in RGB mode
+            # (important for saving as PDF)
+            if image.mode in ("RGBA", "P", "L"):
+                image = image.convert("RGB")
+
+            pdf_bytes = io.BytesIO()
+
+            image.save(pdf_bytes, format="PDF")
+            pdf_bytes.seek(0)
+
+            # Read the PDF using PyPDF2 (or any PDF reader you prefer)
+            pdf_stream = PdfReader(pdf_bytes)
+        elif fl_type in ["pdf"]:
+            pdf_stream = PdfReader(io.BytesIO(blob_data))
+        else:
+            raise Exception(f"Unsupported File Format: {fl_type}")
+        
+        
         try:
-            try:
-                # Regular expression pattern to find "DSD-" followed by digits
-                match = re.search(r"/DSD-\d+/", file_path)
-
-                # Extract mail_row_key if pattern is found, else assign None
-                mail_row_key = match.group(0).strip("/") if match else None
-            except Exception:
-                logger.error(f"Error in file path: {str(traceback.format_exc())}")
-                
-            # mail_row_key = "DSD1005test"
-            # email_path = ""
-            # subject = ""
-            vendorAccountID = 0
-            vendorID = 0
-            CreditNote = "Invoice Document"
-            db = next(get_db())
-            # Create a new instance of the SplitDocTab model
-            new_split_doc = model.SplitDocTab(
-                invoice_path=file_path,
-                status="File Received without Check",
-                emailbody_path=email_path,
-                email_subject=subject,
-                sender=sender,
-                mail_row_key=mail_row_key,
-                updated_on=datetime.now(tz_region),
-            )
-
-            # Add the new entry to the session
-            db.add(new_split_doc)
-
-            # Commit the transaction to save it to the database
-            db.commit()
-
-            # Refresh the instance to get the new ID if needed
-            db.refresh(new_split_doc)
-        except Exception:
-            logger.error(f"{traceback.format_exc()}")
-
-        try:
-            fl_type = filename.split(".")[-1]
-            # -------------------------
-
-            if fl_type in ["png", "jpg", "jpeg", "jpgx"]:
-                image = Image.open(io.BytesIO(blob_data))
-
-                # Convert the image to RGB if it's not in RGB mode
-                # (important for saving as PDF)
-                if image.mode in ("RGBA", "P", "L"):
-                    image = image.convert("RGB")
-
-                pdf_bytes = io.BytesIO()
-
-                image.save(pdf_bytes, format="PDF")
-                pdf_bytes.seek(0)
-
-                # Read the PDF using PyPDF2 (or any PDF reader you prefer)
-                pdf_stream = PdfReader(pdf_bytes)
-            elif fl_type in ["pdf"]:
-                pdf_stream = PdfReader(io.BytesIO(blob_data))
-            else:
-                splitdoc_id = new_split_doc.splitdoc_id
-                split_doc = (
-                    db.query(model.SplitDocTab)
-                    .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
-                    .first()
-                )
-
-                if split_doc:
-                    split_doc.status = "Unsupported File Format: " + fl_type
-                    split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
-
-                    # Commit the update
-                    db.commit()
-                return f"Unsupported File Format: {fl_type}"
-
             modelData = None
             IsUpdated = 0
             invoId = ""
-            # customerID = 1
             userID = 1
-            # logger.info(f"userID: {userID}")
-            """'file_path': blob_url, 'filename': blob_name, 'file_type':
-            file_type, 'source': 'Azure Blob Storage', 'invoice_type':
-            invoice_type."""
 
             logger.info(
                 f"file_path: {file_path}, filename: {filename}, file_type: {file_type},\
@@ -481,27 +441,10 @@ def queue_process_task(queue_task: QueueTask):
                     settings.form_recognizer_endpoint,
                     fr_API_version,
                 )
-            except Exception as e:
-                try:
-                    splitdoc_id = new_split_doc.splitdoc_id
-                    split_doc = (
-                        db.query(model.SplitDocTab)
-                        .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
-                        .first()
-                    )
-
-                    if split_doc:
-                        split_doc.status = "Error"
-                        split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
-
-                        # Commit the update
-                        db.commit()
-
-                except Exception:
-                    logger.error(
-                        f"Failed to update splitdoc_tab table {traceback.format_exc()}"
-                    )
-                logger.error(f"Error in splitDoc: {e}")
+            except Exception:
+                logger.error(f"Error in splitDoc: {traceback.format_exc()}")
+                raise Exception("Failed to split the document")
+        
             if fr_model_status == 1:
 
                 query = db.query(
@@ -1753,6 +1696,20 @@ def queue_process_task(queue_task: QueueTask):
         except Exception as e:
             logger.error(f"Exception in splitDoc: {e}")
         return status
+    except Exception as e:
+        logger.error(f"Error in queue_process_task: {e}")
+        splitdoc_id = new_split_doc.splitdoc_id
+        split_doc = (
+            db.query(model.SplitDocTab)
+            .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+            .first()
+        )
+
+        if split_doc:
+            split_doc.status = "Error"
+            split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+            db.commit()
+        return f"Error: {e}"
     finally:
         db.close()
 
