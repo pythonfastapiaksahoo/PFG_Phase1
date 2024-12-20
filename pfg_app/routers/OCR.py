@@ -19,7 +19,7 @@ from PIL import Image
 from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.exc import InvalidRequestError, OperationalError
 from sqlalchemy.orm import Load
 
@@ -118,6 +118,23 @@ def save_to_database(new_task):
         db.add(new_task)
         db.flush()  # Generate the ID without committing
         task_id = new_task.id
+
+        # Calculate the mail_row_key
+        mail_row_key = 10000000 + task_id
+
+        # Update the JSONB column's mail_row_key if it's None
+        db.execute(
+            update(QueueTask)
+            .where(QueueTask.id == task_id)
+            .where((QueueTask.request_data["mail_row_key"]).is_(None))  # Check if mail_row_key is None
+            .values(
+                request_data={
+                    **new_task.request_data,  # Preserve existing JSON data
+                    "mail_row_key": mail_row_key,  # Set the mail_row_key
+                }
+            )
+        )
+
         db.commit()  # Commit transaction
         db.refresh(new_task)  # Refresh to get updated fields
         return task_id
