@@ -4,7 +4,7 @@ import re
 import traceback
 from datetime import datetime
 from typing import Union
-
+from sqlalchemy import func
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -125,7 +125,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
 
     if Supplier_id == vendor_id:
         vdrMatchStatus = 1
-        vdrStatusMsg = "Success"
+        vdrStatusMsg = "Supplier ID Match success"
     else:
         vdrMatchStatus = 0
         vdrStatusMsg = (
@@ -152,7 +152,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
 
     if location == storeNumber and location != "" and location != 0:
         intStatus = 1
-        intStatusMsg = "Success"
+        intStatusMsg = "Store match Success"
     else:
         intStatus = 0
         intStatusMsg = "Incorrect store number"
@@ -687,8 +687,23 @@ def format_and_validate_date(date_str):
     return formatted_date, dateValCk
 
 
-def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
-    logger.info(f"start on the pfg_sync,DocID{docID}")
+def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
+    
+    if '2' in str(skipCk):
+        zero_dollar = 1
+    else:
+        zero_dollar = 0
+    if '3' in str(skipCk):
+        skip_supplierCk = 1
+    else:
+        skip_supplierCk = 0
+    if '1' in str(skipCk):
+        skipConf = 1
+    else:
+        skipConf = 0
+    invo_StatusCode = 0
+
+    logger.info(f"start on the pfg_sync,DocID{docID}, skipVal: {skipConf}")
 
     docModel = (
         db.query(model.Document.documentModelID)
@@ -743,6 +758,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
     vrdNm = ""
     crdVal_ck = 0
     strbucks = 0
+    credit_found = 0
+    gst_found = 0
     try:
         hdr_ck_list = [
             "SubTotal",
@@ -810,6 +827,29 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
     except Exception as e:
         logger.error(f"{str(e)}")
+
+    try:
+        if skipConf==1:
+            documentdesc = "Confirmation validations were bypassed by the user."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+        if zero_dollar==1:
+            documentdesc = "Attempting to process a zero-dollar invoice."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+        if skip_supplierCk==1:
+            documentdesc = "Skipping the validation for Supplier ID."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+
+    except Exception:
+        logger.error(traceback.format_exc())
+    
+
+    
     DocDtHdr = (
         db.query(model.DocumentData, model.DocumentTagDef)
         .join(
@@ -830,6 +870,133 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
     logger.info(f"docHdrDt: {docHdrDt}")
     logger.info(f"tagNames: {tagNames}")
+    try:
+        if "InvoiceId" in docHdrDt:
+            if invID_docTab !=docHdrDt["InvoiceId"]:
+
+                db.query(model.Document).filter(
+                                model.Document.idDocument == docID,
+                ).update({model.Document.docheaderID: docHdrDt["InvoiceId"]})
+                db.commit()
+                invID_docTab = docHdrDt["InvoiceId"]
+                logger.info(f"updated docHeader: docID: {docID} invID_docTab: {invID_docTab}")
+    except Exception:
+        logger.info(f"exception: {invID_docTab}")
+
+
+    #-------------
+    try:
+        missing_val = []
+
+        if "GST" in docHdrDt:
+            gst_found = 1
+        else:
+            missing_val.append("GST")
+            gst_found = 0
+        if "Credit Identifier" in docHdrDt:
+            credit_found = 1
+        else:
+            missing_val.append("Credit Identifier")
+            credit_found = 0
+        if missing_val:
+            existing_tags = (
+                db.query(model.DocumentTagDef.TagLabel)
+                .filter(
+                    model.DocumentTagDef.idDocumentModel == documentModelID,
+                    model.DocumentTagDef.TagLabel.in_(
+                        ["Credit Identifier"]
+                    ),
+                )
+                .all()
+            )
+
+            # Extract existing tag labels from the result
+            existing_tag_labels = {tag.TagLabel for tag in existing_tags}
+
+            # Prepare missing tags
+            missing_tags = []
+            if "Credit Identifier" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=documentModelID,
+                        TagLabel="Credit Identifier",
+                        CreatedOn=func.now(),
+                    )
+                )
+
+            if "GST" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=documentModelID,
+                        TagLabel="GST",
+                        CreatedOn=func.now(),
+                    )
+                )
+
+            if missing_tags:
+                db.add_all(missing_tags)
+                db.commit()
+        custHdrDt_insert_missing=[]
+        documenttagdef = (
+            db.query(model.DocumentTagDef)
+            .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
+            .all()
+        )
+
+        hdr_tags = {}
+        for hdrTags in documenttagdef:
+            hdr_tags[hdrTags.TagLabel] = hdrTags.idDocumentTagDef
+        if "Credit Identifier" not in docHdrDt:
+            try:
+                custHdrDt_insert_missing.append(
+                                        {
+                                            "documentID": docID,
+                                            "documentTagDefID": hdr_tags["Credit Identifier"],
+                                            "Value": "Invoice Document",
+                                            "IsUpdated": 0,
+                                            "isError": 0,
+                                            "ErrorDesc": "Defaulting to Invoice Document",
+                                        }
+                                    )
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+
+        if "GST" not in docHdrDt:
+            try:
+                custHdrDt_insert_missing.append(
+                                        {
+                                            "documentID": docID,
+                                            "documentTagDefID": hdr_tags["GST"],
+                                            "Value": 0,
+                                            "IsUpdated": 0,
+                                            "isError": 0,
+                                            "ErrorDesc": "Defaulting to 0",
+                                        }
+                                    )
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+
+        # add missing values to the invoice data:
+        for entry in custHdrDt_insert_missing:
+            new_record = model.DocumentData(
+                documentID=entry["documentID"],
+                documentTagDefID=entry["documentTagDefID"],
+                Value=entry["Value"],
+                IsUpdated=entry["IsUpdated"],
+                isError=entry["isError"],
+                ErrorDesc=entry["ErrorDesc"],
+            )
+
+            db.add(new_record)
+
+        try:
+            db.commit()
+        except Exception as err:
+            logger.debug(f"ErrorUpdatingPostingData: {err}")
+
+    except Exception:
+        logger.error(f"{traceback.format_exc()}")
+    #-------------
 
     sentToPPlSft = {
         7: "Sent to PeopleSoft",
@@ -850,6 +1017,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         # if invoSubStatus == 13:
         docStatusSync["Rejected"] = {
             "status": 1,
+            "StatusCode":0,
             "response": ["Invoice rejected by user"],
         }
 
@@ -867,6 +1035,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                 if blank_id == 1:
                     docStatusSync["Invoice ID"] = {
                         "status": 0,
+                        "StatusCode":0,
                         "response": ["Invoice ID not found"],
                     }
                     return docStatusSync
@@ -980,6 +1149,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
             duplicate_status_ck_msg = "Invoice already exists"
             docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
+                "StatusCode":0,
                 "response": [duplicate_status_ck_msg],
             }
             return docStatusSync
@@ -988,6 +1158,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
             duplicate_status_ck_msg = "Invoice rejected by user"
             docStatusSync["Invoice rejected"] = {
                 "status": duplicate_status_ck,
+                "StatusCode":0,
                 "response": [duplicate_status_ck_msg],
             }
             return docStatusSync
@@ -996,13 +1167,15 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
             duplicate_status_ck_msg = "InvoiceId not found"
             docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
+                "StatusCode":0,
                 "response": [duplicate_status_ck_msg],
             }
         elif isinstance(InvodocStatus, int) and InvodocStatus != 10:
             duplicate_status_ck = 1
-            duplicate_status_ck_msg = "Success"
+            duplicate_status_ck_msg = "duplicate check success"
             docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
+                "StatusCode":0,
                 "response": [duplicate_status_ck_msg],
             }
         try:
@@ -1020,6 +1193,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                     # multiple active models found
                     docStatusSync["Status overview"] = {
                         "status": 0,
+                        "StatusCode":0,
                         "response": [
                             "Multiple active models detected. Please combine the models and try again."  # noqa: E501
                         ],
@@ -1030,6 +1204,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                     # no active models found
                     docStatusSync["Status overview"] = {
                         "status": 0,
+                        "StatusCode":0,
                         "response": [
                             "No active models found. Please train the model to onboard the vendor"  # noqa: E501
                         ],
@@ -1057,6 +1232,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
         if vdrAccID == 0:
             docStatusSync["Status overview"] = {
                 "status": 0,
+                "StatusCode":0,
                 "response": ["Vendor mapping unsuccessful"],
             }
             return docStatusSync
@@ -1102,7 +1278,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 # Check if the currency matched
                                 # (True means match, False means no match)
                                 if isCurrencyMatch:  # No need to compare to 'True'
-                                    dmsg = "Success"
+                                    dmsg = "currency match success"
 
                                 else:
                                     dmsg = "Invoice currency invalid"
@@ -1207,6 +1383,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                     )
                                                 docStatusSync["Status overview"] = {
                                                     "status": 0,
+                                                    "StatusCode":0,
                                                     "response": [
                                                         "Please review document type."
                                                     ],
@@ -1243,6 +1420,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             )
                                         docStatusSync["Status overview"] = {
                                             "status": 0,
+                                            "StatusCode":0,
                                             "response": [
                                                 "Please review document type."
                                             ],
@@ -1293,6 +1471,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 )
                                             docStatusSync["Status overview"] = {
                                                 "status": 0,
+                                                "StatusCode":0,
                                                 "response": [
                                                     "Please review document type."
                                                 ],
@@ -1340,7 +1519,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 update_crdVal[crt_tg] = docHdrDt[crt_tg]
                                     if len(update_crdVal) > 0:
                                         for upd_tg in update_crdVal:
-                                            if str(update_crdVal[upd_tg])[0] == "-":
+                                            if update_crdVal[upd_tg]=="":
+                                                update_crdVal[upd_tg] = "0.00"
+                                                
+
+                                            elif str(update_crdVal[upd_tg])[0] == "-":
                                                 update_crdVal[upd_tg] = str(
                                                     update_crdVal[upd_tg]
                                                 )[1:]
@@ -1378,18 +1561,18 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                             invTotalMth_msg = "Invoice total mismatch, please review."
 
                         if credit_note == 1:
-                            if "PST" in docHdrDt:
-                                pst = crd_clean_amount(docHdrDt["PST"])
-                                if (pst is not None) and pst < 0:
-                                    invTotalMth = 0
-                                    invTotalMth_msg = "PST found:" + str(pst)
-                                    tax_isErr = 1
-                            elif "HST" in docHdrDt:
-                                hst = crd_clean_amount(docHdrDt["HST"])
-                                if (hst is not None) and hst > 0:
-                                    invTotalMth = 0
-                                    invTotalMth_msg = "HST found:" + str(hst)
-                                    tax_isErr = 1
+                            # if "PST" in docHdrDt:
+                            #     pst = crd_clean_amount(docHdrDt["PST"])
+                            #     if (pst is not None) and pst < 0:
+                            #         invTotalMth = 0
+                            #         invTotalMth_msg = "PST found:" + str(pst)
+                            #         tax_isErr = 1
+                            # elif "HST" in docHdrDt:
+                            #     hst = crd_clean_amount(docHdrDt["HST"])
+                            #     if (hst is not None) and hst > 0:
+                            #         invTotalMth = 0
+                            #         invTotalMth_msg = "HST found:" + str(hst)
+                            #         tax_isErr = 1
                             if "GST" in docHdrDt:
                                 gst_amt = crd_clean_amount(docHdrDt["GST"])
                                 if gst_amt is None:
@@ -1425,6 +1608,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                         "Status overview"
                                                     ] = {
                                                         "status": 0,
+                                                        "StatusCode":0,
                                                         "response": [
                                                             "Total tax mismatch"
                                                         ],
@@ -1531,14 +1715,24 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                     break
                                         else:
                                             # else:
+
                                             logger.info("subTotal: {}")
                                             invTotalMth = 0
                                             invTotalMth_msg = "Invalid invoice subtotal,Please review."
                                     else:
                                         subTotal = invoTotal - gst_amt
+                                        logger.info(" crd subTotal: {subTotal}")
+                                        invTotalMth = 1
+                                        invTotalMth_msg = "Default invoice subtotal."
                                 else:
-                                    invTotalMth = 0
-                                    invTotalMth_msg = "Invalid subtotal,Please review."
+                                    if zero_dollar == 1:
+                                        invTotalMth = 1
+                                        invo_StatusCode = 2
+                                        invTotalMth_msg = "Zero $ invoice total."
+                                    else:
+                                        invTotalMth = 0
+                                        invo_StatusCode = 2
+                                        invTotalMth_msg = "Zero $ invoice total."
 
                             else:
                                 invTotalMth = 0
@@ -1547,22 +1741,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         else:
 
                             # TAX validations:
-                            if "PST" in docHdrDt:
-                                pst = clean_amount(docHdrDt["PST"])
-                                # if (pst is not None) and pst > 0:
-                                #     invTotalMth = 0
-                                #     invTotalMth_msg = "PST found:" + str(pst)
-                                #     tax_isErr = 1
-                                if pst is None:
-                                    pst = 0
-                            elif "HST" in docHdrDt:
-                                hst = clean_amount(docHdrDt["HST"])
-                                # if (hst is not None) and hst > 0:
-                                #     invTotalMth = 0
-                                #     invTotalMth_msg = "HST found:" + str(hst)
-                                #     tax_isErr = 1
-                                if hst is None:
-                                    hst = 0
+                            # if "PST" in docHdrDt:
+                            #     pst = clean_amount(docHdrDt["PST"])
+                            #     # if (pst is not None) and pst > 0:
+                            #     #     invTotalMth = 0
+                            #     #     invTotalMth_msg = "PST found:" + str(pst)
+                            #     #     tax_isErr = 1
+                            #     if pst is None:
+                            #         pst = 0
+                            # elif "HST" in docHdrDt:
+                            #     hst = clean_amount(docHdrDt["HST"])
+                            #     # if (hst is not None) and hst > 0:
+                            #     #     invTotalMth = 0
+                            #     #     invTotalMth_msg = "HST found:" + str(hst)
+                            #     #     tax_isErr = 1
+                            #     if hst is None:
+                            #         hst = 0
                             if "GST" in docHdrDt:
                                 gst_amt = clean_amount(docHdrDt["GST"])
                                 if gst_amt is None:
@@ -1601,6 +1795,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                     "Status overview"
                                                                 ] = {
                                                                     "status": 0,
+                                                                    "StatusCode":0,
                                                                     "response": [
                                                                         "Total tax mismatch"
                                                                     ],
@@ -1657,23 +1852,26 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                         ):
                                                             # gst_amt = 0
                                                             invTotalMth = 1
-
+                                                        prv_othChg_sm = clean_amount(subTotal + gst_amt)
                                                         for othCrgs in OtherChargesList:
+                                                            
                                                             if othCrgs in docHdrDt:
-                                                                othCrgs = clean_amount(
+                                                                othCrgs_cln = clean_amount(
                                                                     docHdrDt[othCrgs]
                                                                 )
-                                                                if othCrgs is not None:
+                                                                
+                                                                if othCrgs_cln is not None:
+                                                                    prv_othChg_sm = clean_amount(prv_othChg_sm + othCrgs_cln)
                                                                     othCrgs_sm = (
                                                                         clean_amount(
-                                                                            othCrgs
+                                                                            othCrgs_cln
                                                                             + subTotal
                                                                         )
                                                                     )
                                                                     if (
                                                                         othCrgs_sm
                                                                         is not None
-                                                                    ):
+                                                                    ):  
                                                                         if (
                                                                             othCrgs_sm
                                                                             == invoTotal
@@ -1722,6 +1920,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                                 1
                                                                             )
                                                                             break
+                                                                        elif (round(abs(prv_othChg_sm - invoTotal), 2) < 0.09):
+                                                                            invTotalMth = (
+                                                                                1
+                                                                            )
+                                                                            otrChgsCk = (
+                                                                                1
+                                                                            ) 
+                                                                            break
 
                                                 else:
                                                     invTotalMth = 0
@@ -1750,15 +1956,27 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             )  # noqa: E501
 
                                             if subTotal==0:
-                                                invTotalMth = 1
-                                                invTotalMth_msg = "Zero $ invoice"
+                                                if zero_dollar == 1:
+                                                    invTotalMth = 1
+                                                    invo_StatusCode = 2
+                                                    invTotalMth_msg = "Zero $ invoice"
+                                                else:
+                                                    invo_StatusCode = 2
+                                                    invTotalMth = 0
+                                                    invTotalMth_msg = "Zero $ invoice"
                                             else:
                                                 invTotalMth = 0
                                                 invTotalMth_msg = "Invalid invoice total, Please review."
                                         else:
-                                            invTotalMth = 1
-                                            invTotalMth_msg = "Zero $ invoice"
-                                                
+                                            if zero_dollar == 1:
+                                                invTotalMth = 1
+                                                invo_StatusCode = 2
+                                                invTotalMth_msg = "Zero $ invoice"
+                                            else:
+                                                invTotalMth = 0
+                                                invo_StatusCode = 2
+                                                invTotalMth_msg = "Zero $ invoice"
+                                                    
                                                     
                                         # invTotalMth = 0
                                         # invTotalMth_msg = "Invalid invoice total."
@@ -1833,14 +2051,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                     elif dateCheck == 1:
                         ocrCheck = 1
-                        ocrCheck_msg.append("Success")
+                        ocrCheck_msg.append("Date validation success")
                     else:
                         ocrCheck = 0
                         ocrCheck_msg.append(dateCheck_msg)
 
                     if invTotalMth == 1:
                         totalCheck = 1
-                        totalCheck_msg.append("Success")
+                        totalCheck_msg.append("Invocie total validation success")
 
                     else:
                         totalCheck_msg.append(invTotalMth_msg)
@@ -1864,11 +2082,13 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                     docStatusSync["OCR validations"] = {
                         "status": ocrCheck,
+                        "StatusCode":0,
                         "response": ocrCheck_msg,
                     }
 
                     docStatusSync["Invoice total validation"] = {
                         "status": totalCheck,
+                        "StatusCode":invo_StatusCode,
                         "response": totalCheck_msg,
                     }
 
@@ -1906,6 +2126,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                                         "Status overview"
                                                                     ] = {
                                                                         "status": 0,
+                                                                        "StatusCode":0,
                                                                         "response": [
                                                                             "Please select item category."
                                                                         ],
@@ -1914,12 +2135,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 else:
                                     docStatusSync["Item category validation"] = {
                                     "status": 0,
+                                    "StatusCode":0,
                                     "response": ["Please select item category."],
                                 }
                             except Exception:
                                 logger.debug(f"{traceback.format_exc()}")
                                 docStatusSync["Item category validation"] = {
                                     "status": 0,
+                                    "StatusCode":0,
                                     "response": ["Please select item category."],
                                 }
                                     
@@ -1969,7 +2192,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 if store_type == list(stmpData["StoreType"].keys())[0]:
 
                                     strCk = 1
-                                    strCk_msg.append("Success")
+                                    strCk_msg.append("Store type validatoin success")
 
                                 elif store_type in [
                                     "Integrated",
@@ -1988,7 +2211,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                     )
                                     db.commit()
                                     strCk = 1
-                                    strCk_msg = ["Success"]
+                                    strCk_msg = ["Store type validatoin success"]
                                 else:
                                     strCk = 0
                                     strCk_msg = ["Invalid Store Type"]
@@ -2014,6 +2237,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                             docStatusSync["Storetype validation"] = {
                                 "status": strCk,
+                                "StatusCode":0,
                                 "response": strCk_msg,
                             }
 
@@ -2028,17 +2252,29 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                 except Exception:
                                     logger.debug(traceback.format_exc)
                                 # subtotal for payload:
-                                if otrChgsCk == 1:
-                                    payload_subtotal = othCrgs_sm
+                                # if otrChgsCk == 1:
+                                #     # if gst_amt !=0:
+                                #     #     if (invoTotal - gst_amt) == othCrgs_sm:
+                                #     payload_subtotal = othCrgs_sm
+                                #         # else:
 
-                                elif "SubTotal" in docHdrDt:
 
-                                    if vrdNm == "STARBUCKS COFFEE CANADA INC":
-                                        payload_subtotal = subTotal
-                                    else:
-                                        payload_subtotal = docHdrDt["SubTotal"]
-                                else:
-                                    payload_subtotal = invoTotal
+                                # elif "SubTotal" in docHdrDt:
+
+                                #     if vrdNm == "STARBUCKS COFFEE CANADA INC":
+                                #         payload_subtotal = subTotal
+                                #     else:
+                                #         payload_subtotal = docHdrDt["SubTotal"]
+                                # else:
+                                #     payload_subtotal = subTotal
+                                try:
+                                    payload_subtotal = invoTotal-gst_amt
+                                    logger.info(f"invoTotal: {invoTotal}, gst_amt: {gst_amt}")
+                                except Exception:
+                                    logger.info(f"Exception- invoTotal: {invoTotal}, gst_amt: {gst_amt}")
+                                                
+                                    payload_subtotal = subTotal
+                                    logger.debug(traceback.format_exc)
 
                                 try:
                                     if (
@@ -2080,6 +2316,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                                             docStatusSync["Storetype validation"] = {
                                                 "status": DeptCk,
+                                                "StatusCode":0,
                                                 "response": DeptCk_msg,
                                             }
                                         voucher_query = db.query(
@@ -2152,7 +2389,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         # -----------------------------------
 
                                         strCk = 1
-                                        strCk_msg = ["Success"]
+                                        strCk_msg = ["Store type validatoin success"]
                                         if confirmation_ck == 1:
                                             (
                                                 intStatus,
@@ -2168,12 +2405,23 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                             )
 
                                             if vdrMatchStatus == 0:
-                                                docStatusSync[
-                                                    "Supplier ID validation"
-                                                ] = {
-                                                    "status": 0,
-                                                    "response": [vdrStatusMsg],
-                                                }
+                                                if skip_supplierCk==1:
+
+                                                    docStatusSync[
+                                                        "Supplier ID validation"
+                                                    ] = {
+                                                        "status": 1,
+                                                        "StatusCode":0,
+                                                        "response": [vdrStatusMsg],
+                                                    }
+                                                else:
+                                                    docStatusSync[
+                                                        "Supplier ID validation"
+                                                    ] = {
+                                                        "status": 0,
+                                                        "StatusCode":3,
+                                                        "response": [vdrStatusMsg],
+                                                    }
                                             if intStatus == 0:
                                                 docStatusSync[
                                                     "Storetype validation"
@@ -2198,13 +2446,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         )
                                         if nonIntStatus == 1:
                                             DeptCk = 1
-                                            DeptCk_msg = ["Success"]
+                                            DeptCk_msg = ["Department validation success"]
                                         else:
                                             DeptCk = 0
                                             DeptCk_msg = [nonIntStatusMsg]
 
                                             docStatusSync["Storetype validation"] = {
                                                 "status": DeptCk,
+                                                "StatusCode":0,
                                                 "response": DeptCk_msg,
                                             }
                                 except Exception:
@@ -2287,7 +2536,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         )  # noqa: E501
                                     else:
                                         VthChk = 1
-                                        VthChk_msg = "Success"
+                                        VthChk_msg = "Stamp Data validation success"
 
                                 elif confirmation_ck == 0:
                                     VthChk = confirmation_ck
@@ -2302,6 +2551,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                                 docStatusSync["Voucher creation data validation"] = {
                                     "status": VthChk,
+                                    "StatusCode":0,
                                     "response": [VthChk_msg],
                                 }
                                 logger.info(f"docStatusSync:{docStatusSync}")
@@ -2322,16 +2572,19 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                         if float(fileSize) <= fileSizeThreshold:
                                             docStatusSync["File size check"] = {
                                                 "status": 1,
-                                                "response": ["Success"],
+                                                "StatusCode":0,
+                                                "response": ["File size validation Success"],
                                             }
                                         else:
                                             docStatusSync["File size check"] = {
                                                 "status": 1,
+                                                "StatusCode":0,
                                                 "response": [],
                                             }
                                     else:
                                         docStatusSync["File size check"] = {
                                             "status": 0,
+                                            "StatusCode":0,
                                             "response": ["File Size not found."],
                                         }
                                 except Exception:
@@ -2372,7 +2625,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                                                 overAllstatus_ck = 0
 
                                     if overAllstatus_ck == 1:
-                                        overAllstatus_msg = "Success"
+                                        overAllstatus_msg = "Invoice Validation success"    
                                         db.query(model.Document).filter(
                                             model.Document.idDocument == docID
                                         ).update({model.Document.documentStatusID: 2})
@@ -2501,6 +2754,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
                                         docStatusSync["Sent to PeopleSoft"] = {
                                             "status": SentToPeopleSoft,
+                                            "StatusCode":0,
                                             "response": [dmsg],
                                         }
 
@@ -2585,6 +2839,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
                         else:
                             docStatusSync["Stamp Data Validations"] = {
                                 "status": 0,
+                                "StatusCode":0,
                                 "response": ["No Stamp Data Found"],
                             }
                             documentSubstatus = 118
@@ -2667,6 +2922,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipConf=0):
 
         docStatusSync["Status overview"] = {
             "status": overAllstatus,
+            "StatusCode":0,
             "response": [overAllstatus_msg],
         }
 
