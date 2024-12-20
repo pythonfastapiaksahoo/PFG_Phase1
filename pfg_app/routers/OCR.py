@@ -120,7 +120,7 @@ def save_to_database(new_task):
         task_id = new_task.id
 
         # Calculate the mail_row_key
-        mail_row_key = 10000000 + task_id
+        mail_row_key = f"DSD-{10000000 + task_id}"
 
         # Update the JSONB column's mail_row_key if it's None
         db.execute(
