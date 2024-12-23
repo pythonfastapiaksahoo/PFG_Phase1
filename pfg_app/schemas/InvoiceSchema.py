@@ -271,6 +271,7 @@ class UpdateStampData(BaseModel):
     stamptagname: str
     OldValue: str
     NewValue: str
+    skipconfig_ck: Optional[int]
 
 
 class UpsertLineItemData(BaseModel):
