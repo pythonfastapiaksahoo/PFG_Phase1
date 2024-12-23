@@ -473,7 +473,7 @@ async def get_email_row_associated_files(
     List of invoice documents filtered and paginated according to the input parameters.
     """
 
-    docs = await crud.get_email_row_associated_files(
+    docs = await crud.get_get_email_row_associated_files_new(
         user.idUser, (offset, limit), uni_api_filter, column_filter, db,
         sort_column,sort_order
     )
