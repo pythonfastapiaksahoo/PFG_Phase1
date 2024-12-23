@@ -1599,7 +1599,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                 stamptagname = update_data.stamptagname
                 new_value = update_data.NewValue
                 old_value = update_data.OldValue
-
+                skipconfig_ck = update_data.skipconfig_ck
                 # Query the database to find the record
                 stamp_data = (
                     db.query(model.StampDataValidation)
@@ -1618,7 +1618,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                         stamptagname=stamptagname,
                         stampvalue=new_value,
                         is_error=0,
-                        skipconfig_ck=0,
+                        skipconfig_ck=skipconfig_ck,
                         IsUpdated=1,
                         OldValue=old_value,
                         UpdatedOn=dt,
@@ -1635,7 +1635,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     stamp_data.OldValue = old_value
                     stamp_data.stampvalue = new_value
                     stamp_data.is_error = 0
-                    stamp_data.skipconfig_ck = 0
+                    stamp_data.skipconfig_ck = skipconfig_ck
                     stamp_data.IsUpdated = 1
                     stamp_data.UpdatedOn = dt
 
@@ -2682,7 +2682,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
         stamptagname = update_data.stamptagname
         new_value = update_data.NewValue
         old_value = update_data.OldValue
-
+        skipconfig_ck = update_data.skipconfig_ck
         # Query the database for an existing record
         stamp_data = (
             db.query(model.StampDataValidation)
@@ -2700,7 +2700,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                 stamptagname=stamptagname,
                 stampvalue=new_value,
                 is_error=0,
-                skipconfig_ck=0,
+                skipconfig_ck=skipconfig_ck,
                 IsUpdated=1,
                 OldValue=old_value,
                 UpdatedOn=dt,
@@ -2726,7 +2726,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
             stamp_data.OldValue = old_value
             stamp_data.stampvalue = new_value
             stamp_data.is_error = 0
-            stamp_data.skipconfig_ck = 0
+            stamp_data.skipconfig_ck = skipconfig_ck
             stamp_data.IsUpdated = 1
             stamp_data.UpdatedOn = dt
 
