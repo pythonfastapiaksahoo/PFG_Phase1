@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
-from sqlalchemy import String, and_, case, cast, exists, func, or_
+from sqlalchemy import String, and_, case, cast, exists, func, or_,desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, aliased, load_only
 
@@ -1599,7 +1599,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                 stamptagname = update_data.stamptagname
                 new_value = update_data.NewValue
                 old_value = update_data.OldValue
-
+                skipconfig_ck = update_data.skipconfig_ck
                 # Query the database to find the record
                 stamp_data = (
                     db.query(model.StampDataValidation)
@@ -1618,7 +1618,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                         stamptagname=stamptagname,
                         stampvalue=new_value,
                         is_error=0,
-                        skipconfig_ck=0,
+                        skipconfig_ck=skipconfig_ck,
                         IsUpdated=1,
                         OldValue=old_value,
                         UpdatedOn=dt,
@@ -1635,7 +1635,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     stamp_data.OldValue = old_value
                     stamp_data.stampvalue = new_value
                     stamp_data.is_error = 0
-                    stamp_data.skipconfig_ck = 0
+                    stamp_data.skipconfig_ck = skipconfig_ck
                     stamp_data.IsUpdated = 1
                     stamp_data.UpdatedOn = dt
 
@@ -2022,6 +2022,109 @@ async def read_all_doc_inv_list(
         return Response(status_code=500)
     finally:
         db.close()
+
+async def get_get_email_row_associated_files_new(
+      u_id, off_limit, uni_api_filter, column_filter, db, sort_column, sort_order  
+):
+    try:
+        data_query = db.query(model.QueueTask)
+        split_doc_table_alias = aliased(model.SplitDocTab)
+
+        # Count distinct mail_row_key
+        total_items = (
+            data_query.with_entities(
+                func.count(func.distinct(model.QueueTask.request_data["mail_row_key"].astext))
+            )
+            .filter(model.QueueTask.request_data["mail_row_key"].isnot(None))  # Ensure not null
+            .scalar()  # Get the scalar result
+        )
+
+        # Extract offset and limit for pagination
+        try:
+            offset, limit = off_limit
+            off_val = (offset - 1) * limit
+        except (TypeError, ValueError):
+            logger.error(
+                f"Invalid pagination parameters: {str(traceback.format_exc())}"
+            )
+            off_val = 0
+            limit = 10
+        data = []
+        # Query to get the latest 10 unique mail_row_keys
+        latest_mail_row_keys = (
+            db.query(
+                model.QueueTask.request_data["mail_row_key"].astext.label("mail_row_key"),
+                func.max(model.QueueTask.created_at).label("latest_created_at"),
+                func.count(model.QueueTask.id).label("attachment_count"),
+            )
+            .filter(model.QueueTask.request_data["mail_row_key"].isnot(None))  # Exclude NULL values
+            .group_by(model.QueueTask.request_data["mail_row_key"].astext)  # Group by mail_row_key
+            .order_by(desc(func.max(model.QueueTask.created_at)))  # Order by the latest created_at
+            .offset(off_val)
+            .limit(limit)
+            .all()
+        )
+        
+        for row in latest_mail_row_keys:
+            data_to_insert = {
+                "mail_number": row.mail_row_key,
+                "attachment_count": row.attachment_count,
+                "created_at": row.latest_created_at,
+                "attachment": [],
+            }
+            # Query to get the related attachments for each mail_row_key
+            related_attachments = (
+                db.query(model.SplitDocTab)
+                .filter(
+                    model.SplitDocTab.mail_row_key == row.mail_row_key,
+                )
+                .all()
+            )
+            for attachment in related_attachments:
+                attachment_dict = attachment.__dict__
+                attachment_dict.pop("_sa_instance_state")
+                attachment_dict['file_path'] = attachment_dict['invoice_path']
+                attachment_dict.pop('invoice_path')
+                attachment_dict['type'] = attachment_dict['file_path'].split(".")[-1]
+                associated_invoices = (
+                    db.query(model.frtrigger_tab)
+                    .filter(
+                        model.frtrigger_tab.splitdoc_id == attachment.splitdoc_id,
+                    ).all()
+                )
+                attachment_dict["associated_invoice_file"] = []
+                for invoice in associated_invoices:
+                    invoice_dict = invoice.__dict__
+                    invoice_dict.pop("_sa_instance_state")
+                    invoice_dict['file_path'] = invoice_dict['blobpath']
+                    invoice_dict.pop('blobpath')
+                    invoice_dict['type'] = invoice_dict['file_path'].split(".")[-1]
+                    invoice_dict['vendor_id'] = invoice_dict['vendorID']
+                    attachment_dict["associated_invoice_file"].append(invoice_dict)
+                data_to_insert["attachment"].append(attachment_dict)
+            data_to_insert['email_path'] = "/".join(data_to_insert["attachment"][0]['file_path'].split("/")[:8])+".eml"
+            data_to_insert['sender'] = data_to_insert["attachment"][0]['sender']
+            data_to_insert['email_subject'] = data_to_insert["attachment"][0]['email_subject']
+            data_to_insert['overall_page_count'] = sum([attachment['totalpagecount'] or 0 for attachment in data_to_insert["attachment"]])
+            # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
+            
+            if any([invoice['status'] == 'Error' for attachment in data_to_insert["attachment"] for invoice in attachment['associated_invoice_file']]):
+                data_to_insert['status'] = 'Error'
+            elif all([attachment['status'] == 'Processed-completed' for attachment in data_to_insert["attachment"]]):
+                data_to_insert['status'] = 'Completed'
+            elif len(data_to_insert["attachment"]):
+                data_to_insert['status'] = 'In Progress'
+            elif len(data_to_insert["attachment"]) == 0:
+                data_to_insert['status'] = 'Queued'
+            data.append(data_to_insert)
+        return {"data": data, "total_items": total_items}
+            
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500)
+
+
 
 
 async def get_email_row_associated_files(
@@ -2579,7 +2682,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
         stamptagname = update_data.stamptagname
         new_value = update_data.NewValue
         old_value = update_data.OldValue
-
+        skipconfig_ck = update_data.skipconfig_ck
         # Query the database for an existing record
         stamp_data = (
             db.query(model.StampDataValidation)
@@ -2597,7 +2700,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                 stamptagname=stamptagname,
                 stampvalue=new_value,
                 is_error=0,
-                skipconfig_ck=0,
+                skipconfig_ck=skipconfig_ck,
                 IsUpdated=1,
                 OldValue=old_value,
                 UpdatedOn=dt,
@@ -2623,7 +2726,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
             stamp_data.OldValue = old_value
             stamp_data.stampvalue = new_value
             stamp_data.is_error = 0
-            stamp_data.skipconfig_ck = 0
+            stamp_data.skipconfig_ck = skipconfig_ck
             stamp_data.IsUpdated = 1
             stamp_data.UpdatedOn = dt
 
