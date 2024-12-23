@@ -2105,7 +2105,7 @@ async def get_get_email_row_associated_files_new(
             data_to_insert['email_path'] = "/".join(data_to_insert["attachment"][0]['file_path'].split("/")[:8])+".eml"
             data_to_insert['sender'] = data_to_insert["attachment"][0]['sender']
             data_to_insert['email_subject'] = data_to_insert["attachment"][0]['email_subject']
-            data_to_insert['overall_page_count'] = sum([attachment['totalpagecount'] for attachment in data_to_insert["attachment"]])
+            data_to_insert['overall_page_count'] = sum([attachment['totalpagecount'] or 0 for attachment in data_to_insert["attachment"]])
             # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
             
             if any([invoice['status'] == 'Error' for attachment in data_to_insert["attachment"] for invoice in attachment['associated_invoice_file']]):
