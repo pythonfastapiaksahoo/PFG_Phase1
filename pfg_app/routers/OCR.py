@@ -443,7 +443,7 @@ def queue_process_task(queue_task: QueueTask):
                 )
             except Exception:
                 logger.error(f"Error in splitDoc: {traceback.format_exc()}")
-                raise Exception("Failed to split the document")
+                #raise Exception("Failed to split the document")
         
             if fr_model_status == 1:
 
