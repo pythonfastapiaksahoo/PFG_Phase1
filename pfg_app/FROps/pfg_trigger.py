@@ -46,7 +46,7 @@ def crd_clean_amount(amount_str):
 
 
 # db = SCHEMA
-def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Session):
+def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_supplierCk, db: Session):
     voucher_data_status = 1
     intStatus = 0
     recvLineNum = 0
@@ -126,13 +126,17 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
         vdrMatchStatus = 1
         vdrStatusMsg = "Supplier ID Match success"
     else:
-        vdrMatchStatus = 0
-        vdrStatusMsg = (
-            "Supplier ID Mismatch.\nReceiptMaster's Supplier ID: "
-            + str(Supplier_id)
-            + "\nMapped Supplier ID: "
-            + str(vendor_id)
-        )  # noqa: E501
+        if skip_supplierCk==1:
+            vdrMatchStatus = 1
+            vdrStatusMsg = "Supplier ID Match skipped"
+        else:
+            vdrMatchStatus = 0
+            vdrStatusMsg = (
+                "Supplier ID Mismatch.\nReceiptMaster's Supplier ID: "
+                + str(Supplier_id)
+                + "\nMapped Supplier ID: "
+                + str(vendor_id)
+            )  # noqa: E501
 
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
@@ -2399,7 +2403,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 docID,
                                                 gst_amt,
                                                 payload_subtotal,
-                                                CreditNote,
+                                                CreditNote,skip_supplierCk,
                                                 db,
                                             )
 
