@@ -704,6 +704,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         skipConf = 1
     else:
         skipConf = 0
+    if '4' in str(skipCk):
+        approvalCk = 1
+    else:
+        approvalCk = 0
     invo_StatusCode = 0
 
     logger.info(f"start on the pfg_sync,DocID{docID}, skipVal: {skipConf}")
@@ -763,6 +767,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
     strbucks = 0
     credit_found = 0
     gst_found = 0
+    amt_threshold = 10000
+    ocr_msg = "Please review invoice details."
     try:
         hdr_ck_list = [
             "SubTotal",
@@ -844,6 +850,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             )
         if skip_supplierCk==1:
             documentdesc = "Skipping the validation for Supplier ID."
+            update_docHistory(
+                docID, userID, InvodocStatus, documentdesc, db
+            )
+        if approvalCk==1:
+            documentdesc = "Amount Approved"
             update_docHistory(
                 docID, userID, InvodocStatus, documentdesc, db
             )
@@ -1175,7 +1186,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             }
         elif isinstance(InvodocStatus, int) and InvodocStatus != 10:
             duplicate_status_ck = 1
-            duplicate_status_ck_msg = "duplicate check success"
+            duplicate_status_ck_msg = "Duplicate check success"
             docStatusSync["Invoice duplicate check"] = {
                 "status": duplicate_status_ck,
                 "StatusCode":0,
@@ -1222,6 +1233,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         .filter(model.Document.idDocument == docID)
                         .all()
                     )
+                     # update dochistory table
+                    try:
+                        custModelCall_msg =  "Custom Model Call done"
+                        update_docHistory(
+                            docID, userID, InvodocStatus,custModelCall_msg , db
+                        )
+                    except Exception:
+                        logger.debug(traceback.format_exc())
 
                     for dtb_rw in docTb:
                         InvodocStatus = dtb_rw.documentStatusID
@@ -1589,144 +1608,159 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                             if "InvoiceTotal" in docHdrDt:
                                 invoTotal = crd_clean_amount(docHdrDt["InvoiceTotal"])
                                 if (invoTotal is not None) and (abs(invoTotal) > 0):
+                                    if invoTotal >= amt_threshold:
+                                        if approvalCk==1:
+                                            logger.info("Ammount approved")
+                                        else:
+                                            invTotalMth = 0
+                                            invo_StatusCode = 4
+                                            invTotalMth_msg = "Needs user approval"
 
-                                    if "SubTotal" in docHdrDt:
-                                        
+                                    else:
+                                        approvalCk = 1
+                                    if approvalCk==1:
+                                        if "SubTotal" in docHdrDt:
+                                            
 
-                                        subTotal = crd_clean_amount(
-                                            docHdrDt["SubTotal"]
-                                        )  # noqa: E501
-                                        
-                                        if subTotal is not None and (abs(subTotal) > 0):
-                                            if strbucks == 1:
+                                            subTotal = crd_clean_amount(
+                                                docHdrDt["SubTotal"]
+                                            )  # noqa: E501
+                                            
+                                            if subTotal is not None and (abs(subTotal) > 0):
+                                                if strbucks == 1:
 
-                                                if "TotalTax" in docHdrDt:
-                                                    total_tx = crd_clean_amount(
-                                                        docHdrDt["TotalTax"]
-                                                    )  # noqa: E501
-                                                else:
-                                                    total_tx = 0
-                                                if gst_amt > total_tx:
-                                                    docStatusSync[
-                                                        "Status overview"
-                                                    ] = {
-                                                        "status": 0,
-                                                        "StatusCode":0,
-                                                        "response": [
-                                                            "Total tax mismatch"
-                                                        ],
-                                                    }
-                                                    return docStatusSync
-                                                else:
-                                                    if gst_amt <= total_tx:
-                                                        subTotal = (
-                                                            subTotal
-                                                            + (
-                                                                total_tx
-                                                                - gst_amt
-                                                            )
-                                                        )
-                                        
-
-                                            if (gst_amt is not None) and abs(
-                                                gst_amt
-                                            ) > 0:  # noqa: E501
-                                                gst_sm = crd_clean_amount(
-                                                    subTotal + gst_amt
-                                                )
-                                                if gst_sm is not None:
-                                                    if gst_sm == invoTotal:
-                                                        invTotalMth = 1
-
-                                                    elif (
-                                                        round(
-                                                            abs(
-                                                                gst_sm - invoTotal
-                                                            ),  # noqa: E501
-                                                            2,
-                                                        )
-                                                        < 0.09
-                                                    ):  # noqa: E501
-                                                        invTotalMth = 1
-
+                                                    if "TotalTax" in docHdrDt:
+                                                        total_tx = crd_clean_amount(
+                                                            docHdrDt["TotalTax"]
+                                                        )  # noqa: E501
                                                     else:
-                                                        # tax_isErr = 1
-                                                        invTotalMth = 0
-                                                        invTotalMth_msg = (
-                                                            "Invoice total mismatch"
-                                                        )
-                                            if tax_isErr == 0 and invTotalMth!=1:
-                                                if invoTotal == subTotal:
-                                                    invTotalMth = 1
-                                                    gst_amt = 0
-                                                elif (
-                                                    round(
-                                                        abs(invoTotal - subTotal), 2
-                                                    )  # noqa: E501
-                                                    < 0.09
-                                                ):
-                                                    invTotalMth = 1
-                                            if invTotalMth == 0:
-                                                for othCrgs in OtherChargesList:
-                                                    if othCrgs in docHdrDt:
-                                                        othCrgs_amt = crd_clean_amount(
-                                                            docHdrDt[othCrgs]
-                                                        )
-                                                        if othCrgs is not None:
-                                                            othCrgs_sm = (
-                                                                crd_clean_amount(
-                                                                    othCrgs_amt
-                                                                    + subTotal
+                                                        total_tx = 0
+                                                    if gst_amt > total_tx:
+                                                        docStatusSync[
+                                                            "Status overview"
+                                                        ] = {
+                                                            "status": 0,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                "Total tax mismatch"
+                                                            ],
+                                                        }
+                                                        return docStatusSync
+                                                    else:
+                                                        if gst_amt <= total_tx:
+                                                            subTotal = (
+                                                                subTotal
+                                                                + (
+                                                                    total_tx
+                                                                    - gst_amt
                                                                 )
                                                             )
-                                                            if othCrgs_sm is not None:
-                                                                if (
-                                                                    othCrgs_sm
-                                                                    == invoTotal
-                                                                ):
-                                                                    invTotalMth = 1
-                                                                    otrChgsCk = 1
-                                                                    break
-                                                                elif (
-                                                                    round(
-                                                                        abs(
-                                                                            othCrgs_sm
-                                                                            - invoTotal
-                                                                        ),
-                                                                        2,
-                                                                    )
-                                                                    < 0.09
-                                                                ):  # noqa: E501
-                                                                    invTotalMth = 1
-                                                                    otrChgsCk = 1
-                                                                    break
-                                                                elif (
-                                                                    round(
-                                                                        abs(
-                                                                            (
-                                                                                othCrgs_sm
-                                                                                + gst_amt
-                                                                            )
-                                                                            - invoTotal
-                                                                        ),
-                                                                        2,
-                                                                    )
-                                                                    < 0.09
-                                                                ):  # noqa: E501
-                                                                    invTotalMth = 1
-                                                                    otrChgsCk = 1
-                                                                    break
-                                        else:
-                                            # else:
+                                            
 
-                                            logger.info("subTotal: {}")
-                                            invTotalMth = 0
-                                            invTotalMth_msg = "Invalid invoice subtotal,Please review."
+                                                if (gst_amt is not None) and abs(
+                                                    gst_amt
+                                                ) > 0:  # noqa: E501
+                                                    gst_sm = crd_clean_amount(
+                                                        subTotal + gst_amt
+                                                    )
+                                                    if gst_sm is not None:
+                                                        if gst_sm == invoTotal:
+                                                            invTotalMth = 1
+
+                                                        elif (
+                                                            round(
+                                                                abs(
+                                                                    gst_sm - invoTotal
+                                                                ),  # noqa: E501
+                                                                2,
+                                                            )
+                                                            < 0.09
+                                                        ):  # noqa: E501
+                                                            invTotalMth = 1
+
+                                                        else:
+                                                            # tax_isErr = 1
+                                                            invTotalMth = 0
+                                                            invTotalMth_msg = (
+                                                                "Invoice total mismatch"
+                                                            )
+                                                if tax_isErr == 0 and invTotalMth!=1:
+                                                    if invoTotal == subTotal:
+                                                        invTotalMth = 1
+                                                        gst_amt = 0
+                                                    elif (
+                                                        round(
+                                                            abs(invoTotal - subTotal), 2
+                                                        )  # noqa: E501
+                                                        < 0.09
+                                                    ):
+                                                        invTotalMth = 1
+                                                if invTotalMth == 0:
+                                                    for othCrgs in OtherChargesList:
+                                                        if othCrgs in docHdrDt:
+                                                            othCrgs_amt = crd_clean_amount(
+                                                                docHdrDt[othCrgs]
+                                                            )
+                                                            if othCrgs is not None:
+                                                                othCrgs_sm = (
+                                                                    crd_clean_amount(
+                                                                        othCrgs_amt
+                                                                        + subTotal
+                                                                    )
+                                                                )
+                                                                if othCrgs_sm is not None:
+                                                                    if (
+                                                                        othCrgs_sm
+                                                                        == invoTotal
+                                                                    ):
+                                                                        invTotalMth = 1
+                                                                        otrChgsCk = 1
+                                                                        break
+                                                                    elif (
+                                                                        round(
+                                                                            abs(
+                                                                                othCrgs_sm
+                                                                                - invoTotal
+                                                                            ),
+                                                                            2,
+                                                                        )
+                                                                        < 0.09
+                                                                    ):  # noqa: E501
+                                                                        invTotalMth = 1
+                                                                        otrChgsCk = 1
+                                                                        break
+                                                                    elif (
+                                                                        round(
+                                                                            abs(
+                                                                                (
+                                                                                    othCrgs_sm
+                                                                                    + gst_amt
+                                                                                )
+                                                                                - invoTotal
+                                                                            ),
+                                                                            2,
+                                                                        )
+                                                                        < 0.09
+                                                                    ):  # noqa: E501
+                                                                        invTotalMth = 1
+                                                                        otrChgsCk = 1
+                                                                        break
+                                            else:
+                                                # else:
+
+                                                logger.info("subTotal: {}")
+                                                invTotalMth = 0
+                                                invTotalMth_msg = "Invalid invoice subtotal,Please review."
+                                        else:
+                                            subTotal = invoTotal - gst_amt
+                                            logger.info(" crd subTotal: {subTotal}")
+                                            invTotalMth = 1
+                                            invTotalMth_msg = "Default invoice subtotal."
                                     else:
-                                        subTotal = invoTotal - gst_amt
-                                        logger.info(" crd subTotal: {subTotal}")
-                                        invTotalMth = 1
-                                        invTotalMth_msg = "Default invoice subtotal."
+                                    
+                                        invTotalMth = 0
+                                        invo_StatusCode = 4
+                                        invTotalMth_msg = "Needs user approval"
                                 else:
                                     if zero_dollar == 1:
                                         invTotalMth = 1
@@ -1777,176 +1811,187 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                     if (invoTotal is not None) and (invoTotal > 0):
 
                                         try:
+                                            if invoTotal >= amt_threshold:
+                                                if approvalCk==1:
+                                                    logger.info("Ammount approved")
+                                                else:
+                                                    invTotalMth = 0
+                                                    invo_StatusCode = 4
+                                                    invTotalMth_msg = "Needs user approval"
 
-                                            if "SubTotal" in docHdrDt:
+                                            else:
+                                                approvalCk = 1
+                                            if approvalCk==1:
 
-                                                subTotal = clean_amount(
-                                                    docHdrDt["SubTotal"]
-                                                )  # noqa: E501
+                                                if "SubTotal" in docHdrDt:
 
-                                                if subTotal is not None and (
-                                                    abs(subTotal) > 0
-                                                ):
-                                                    if strbucks == 1:
+                                                    subTotal = clean_amount(
+                                                        docHdrDt["SubTotal"]
+                                                    )  # noqa: E501
 
-                                                        if "TotalTax" in docHdrDt:
-                                                            total_tx = clean_amount(
-                                                                docHdrDt["TotalTax"]
-                                                            )  # noqa: E501
-                                                            if gst_amt > total_tx:
-                                                                docStatusSync[
-                                                                    "Status overview"
-                                                                ] = {
-                                                                    "status": 0,
-                                                                    "StatusCode":0,
-                                                                    "response": [
-                                                                        "Total tax mismatch"
-                                                                    ],
-                                                                }
-                                                                return docStatusSync
-                                                            else:
-                                                                if gst_amt < total_tx:
-                                                                    subTotal = (
-                                                                        subTotal
-                                                                        + (
-                                                                            total_tx
-                                                                            - gst_amt
+                                                    if subTotal is not None and (
+                                                        abs(subTotal) > 0
+                                                    ):
+                                                        if strbucks == 1:
+
+                                                            if "TotalTax" in docHdrDt:
+                                                                total_tx = clean_amount(
+                                                                    docHdrDt["TotalTax"]
+                                                                )  # noqa: E501
+                                                                if gst_amt > total_tx:
+                                                                    docStatusSync[
+                                                                        "Status overview"
+                                                                    ] = {
+                                                                        "status": 0,
+                                                                        "StatusCode":0,
+                                                                        "response": [
+                                                                            "Total tax mismatch"
+                                                                        ],
+                                                                    }
+                                                                    return docStatusSync
+                                                                else:
+                                                                    if gst_amt < total_tx:
+                                                                        subTotal = (
+                                                                            subTotal
+                                                                            + (
+                                                                                total_tx
+                                                                                - gst_amt
+                                                                            )
                                                                         )
+
+                                                        if (
+                                                            gst_amt is not None
+                                                        ) and gst_amt > 0:  # noqa: E501
+                                                            gst_sm = clean_amount(
+                                                                subTotal + gst_amt
+                                                            )
+                                                            if gst_sm is not None:
+                                                                if gst_sm == invoTotal:
+                                                                    invTotalMth = 1
+
+                                                                elif (
+                                                                    round(
+                                                                        abs(
+                                                                            gst_sm
+                                                                            - invoTotal
+                                                                        ),  # noqa: E501
+                                                                        2,
                                                                     )
+                                                                    < 0.09
+                                                                ):  # noqa: E501
+                                                                    invTotalMth = 1
 
-                                                    if (
-                                                        gst_amt is not None
-                                                    ) and gst_amt > 0:  # noqa: E501
-                                                        gst_sm = clean_amount(
-                                                            subTotal + gst_amt
-                                                        )
-                                                        if gst_sm is not None:
-                                                            if gst_sm == invoTotal:
+                                                                else:
+                                                                    # tax_isErr = 1
+                                                                    invTotalMth = 0
+                                                                    invTotalMth_msg = "Invoicetotal mismatch"
+                                                        if tax_isErr == 0:
+                                                            if invoTotal == subTotal:
                                                                 invTotalMth = 1
-
+                                                                gst_amt = 0
                                                             elif (
                                                                 round(
                                                                     abs(
-                                                                        gst_sm
-                                                                        - invoTotal
-                                                                    ),  # noqa: E501
+                                                                        invoTotal - subTotal
+                                                                    ),
                                                                     2,
-                                                                )
+                                                                )  # noqa: E501
                                                                 < 0.09
-                                                            ):  # noqa: E501
+                                                            ):
+                                                                # gst_amt = 0
                                                                 invTotalMth = 1
-
-                                                            else:
-                                                                # tax_isErr = 1
-                                                                invTotalMth = 0
-                                                                invTotalMth_msg = "Invoicetotal mismatch"
-                                                    if tax_isErr == 0:
-                                                        if invoTotal == subTotal:
-                                                            invTotalMth = 1
-                                                            gst_amt = 0
-                                                        elif (
-                                                            round(
-                                                                abs(
-                                                                    invoTotal - subTotal
-                                                                ),
-                                                                2,
-                                                            )  # noqa: E501
-                                                            < 0.09
-                                                        ):
-                                                            # gst_amt = 0
-                                                            invTotalMth = 1
-                                                        prv_othChg_sm = clean_amount(subTotal + gst_amt)
-                                                        for othCrgs in OtherChargesList:
-                                                            
-                                                            if othCrgs in docHdrDt:
-                                                                othCrgs_cln = clean_amount(
-                                                                    docHdrDt[othCrgs]
-                                                                )
+                                                            prv_othChg_sm = clean_amount(subTotal + gst_amt)
+                                                            for othCrgs in OtherChargesList:
                                                                 
-                                                                if othCrgs_cln is not None:
-                                                                    prv_othChg_sm = clean_amount(prv_othChg_sm + othCrgs_cln)
-                                                                    othCrgs_sm = (
-                                                                        clean_amount(
-                                                                            othCrgs_cln
-                                                                            + subTotal
-                                                                        )
+                                                                if othCrgs in docHdrDt:
+                                                                    othCrgs_cln = clean_amount(
+                                                                        docHdrDt[othCrgs]
                                                                     )
-                                                                    if (
-                                                                        othCrgs_sm
-                                                                        is not None
-                                                                    ):  
+                                                                    
+                                                                    if othCrgs_cln is not None:
+                                                                        prv_othChg_sm = clean_amount(prv_othChg_sm + othCrgs_cln)
+                                                                        othCrgs_sm = (
+                                                                            clean_amount(
+                                                                                othCrgs_cln
+                                                                                + subTotal
+                                                                            )
+                                                                        )
                                                                         if (
                                                                             othCrgs_sm
-                                                                            == invoTotal
-                                                                        ):
-                                                                            invTotalMth = (
-                                                                                1
-                                                                            )
-                                                                            otrChgsCk = (
-                                                                                1
-                                                                            )
-                                                                            break
-                                                                        elif (
-                                                                            round(
-                                                                                abs(
-                                                                                    othCrgs_sm
-                                                                                    - invoTotal
-                                                                                ),
-                                                                                2,
-                                                                            )
-                                                                            < 0.09
-                                                                        ):  # noqa: E501
-                                                                            invTotalMth = (
-                                                                                1
-                                                                            )
-                                                                            otrChgsCk = (
-                                                                                1
-                                                                            )
-                                                                            break
-                                                                        elif (
-                                                                            round(
-                                                                                abs(
-                                                                                    (
+                                                                            is not None
+                                                                        ):  
+                                                                            if (
+                                                                                othCrgs_sm
+                                                                                == invoTotal
+                                                                            ):
+                                                                                invTotalMth = (
+                                                                                    1
+                                                                                )
+                                                                                otrChgsCk = (
+                                                                                    1
+                                                                                )
+                                                                                break
+                                                                            elif (
+                                                                                round(
+                                                                                    abs(
                                                                                         othCrgs_sm
-                                                                                        + gst_amt
-                                                                                    )
-                                                                                    - invoTotal
-                                                                                ),
-                                                                                2,
-                                                                            )
-                                                                            < 0.09
-                                                                        ):  # noqa: E501
-                                                                            invTotalMth = (
-                                                                                1
-                                                                            )
-                                                                            otrChgsCk = (
-                                                                                1
-                                                                            )
-                                                                            break
-                                                                        elif (round(abs(prv_othChg_sm - invoTotal), 2) < 0.09):
-                                                                            invTotalMth = (
-                                                                                1
-                                                                            )
-                                                                            otrChgsCk = (
-                                                                                1
-                                                                            ) 
-                                                                            break
+                                                                                        - invoTotal
+                                                                                    ),
+                                                                                    2,
+                                                                                )
+                                                                                < 0.09
+                                                                            ):  # noqa: E501
+                                                                                invTotalMth = (
+                                                                                    1
+                                                                                )
+                                                                                otrChgsCk = (
+                                                                                    1
+                                                                                )
+                                                                                break
+                                                                            elif (
+                                                                                round(
+                                                                                    abs(
+                                                                                        (
+                                                                                            othCrgs_sm
+                                                                                            + gst_amt
+                                                                                        )
+                                                                                        - invoTotal
+                                                                                    ),
+                                                                                    2,
+                                                                                )
+                                                                                < 0.09
+                                                                            ):  # noqa: E501
+                                                                                invTotalMth = (
+                                                                                    1
+                                                                                )
+                                                                                otrChgsCk = (
+                                                                                    1
+                                                                                )
+                                                                                break
+                                                                            elif (round(abs(prv_othChg_sm - invoTotal), 2) < 0.09):
+                                                                                invTotalMth = (
+                                                                                    1
+                                                                                )
+                                                                                otrChgsCk = (
+                                                                                    1
+                                                                                ) 
+                                                                                break
 
+                                                    else:
+                                                        invTotalMth = 0
+                                                        invTotalMth_msg = (
+                                                            "Invoice total mismatch"
+                                                        )
+                                                # elif gst_amt > 0:
+                                                #     if
+                                                #     invTotalMth = 0
+                                                #     invTotalMth_msg = "Missing subtotal"
                                                 else:
-                                                    invTotalMth = 0
+                                                    subTotal = invoTotal - gst_amt
+                                                    invTotalMth = 1
                                                     invTotalMth_msg = (
-                                                        "Invoice total mismatch"
+                                                        "Skip total check: Subtotal Missing"
                                                     )
-                                            # elif gst_amt > 0:
-                                            #     if
-                                            #     invTotalMth = 0
-                                            #     invTotalMth_msg = "Missing subtotal"
-                                            else:
-                                                subTotal = invoTotal - gst_amt
-                                                invTotalMth = 1
-                                                invTotalMth_msg = (
-                                                    "Skip total check: Subtotal Missing"
-                                                )
                                         except Exception as e:
                                             logger.debug(traceback.format_exc())
                                             invTotalMth = 0
@@ -2049,13 +2094,16 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         )
 
                     if len(invID_docTab) == 0:
+                        ocr_msg = "No invoice number found"
                         ocrCheck = 0
                         ocrCheck_msg.append("No invoice number found")
 
                     elif dateCheck == 1:
                         ocrCheck = 1
+                        ocr_msg = "Date validation success"
                         ocrCheck_msg.append("Date validation success")
                     else:
+                        ocr_msg = "Failed to validate the invoice date."
                         ocrCheck = 0
                         ocrCheck_msg.append(dateCheck_msg)
 
@@ -2650,6 +2698,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                             "Http Response"
                                                         ].isdigit():
                                                             RespCodeInt = int(RespCode)
+                                                            logger.info(f"RespCodeInt {docID}: {RespCodeInt}")
                                                             if RespCodeInt == 201:
                                                                 SentToPeopleSoft = 1
                                                                 dmsg = (
@@ -2710,6 +2759,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                         )
                                                         docStatus = 21
                                                         docSubStatus = 112
+                                                        
                                                 else:
                                                     dmsg = (
                                                         InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
@@ -2736,6 +2786,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                     }
                                                 )
                                                 db.commit()
+                                                logger.info(f"Updated docStatus {docID}: {docStatus}")
                                             except Exception:
                                                 logger.error(traceback.format_exc())
                                             try:
@@ -2873,7 +2924,13 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         # -------------------------update document history table
                         documentSubstatus = 33
                         documentstatus = 4
-                        documentdesc = "OCR validations failed"
+                        
+                        if docStatusSync["OCR validations"]["status"] == 0:
+                            documentdesc = ocr_msg
+                        elif docStatusSync["Invoice total validation"]["status"] == 0:
+                            documentdesc = "Invoice total validation failed"
+                        else:
+                            documentdesc = "OCR / invoice total validation failed"
                         try:
                             update_docHistory(
                                 docID, userID, documentstatus, documentdesc, db
