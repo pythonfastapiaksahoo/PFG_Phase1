@@ -126,10 +126,10 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
         vdrMatchStatus = 1
         vdrStatusMsg = "Supplier ID Match success"
     else:
-        if skip_supplierCk==1:
-            vdrMatchStatus = 1
-            vdrStatusMsg = "Supplier ID Match skipped"
-        else:
+        # if skip_supplierCk==1:
+        #     vdrMatchStatus = 1
+        #     vdrStatusMsg = "Supplier ID Match skipped"
+        # else:
             vdrMatchStatus = 0
             vdrStatusMsg = (
                 "Supplier ID Mismatch.\nReceiptMaster's Supplier ID: "
@@ -1611,6 +1611,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                     gst_amt = 0
                                 else:
                                     otrCrg_ck_zdr = crd_clean_amount(otrCrg_ck_zdr + gst_amt)
+                            
                             else:
                                 gst_amt = 0
                             if "InvoiceTotal" in docHdrDt:
@@ -1784,6 +1785,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                             + othCrgs_amt
                                                         )
                                                     )
+                                        if "TotalTax" in docHdrDt:
+                                            gst_amt = crd_clean_amount(docHdrDt["TotalTax"])
+                                            if gst_amt is None:
+                                                gst_amt = 0
+                                            else:
+                                                otrCrg_ck_zdr = crd_clean_amount(otrCrg_ck_zdr + gst_amt)
                                         if otrCrg_ck_zdr != 0:
                                             invTotalMth = 0
                                             invo_StatusCode = 2
@@ -2085,6 +2092,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                     + othCrgs_amt
                                                                 )
                                                             )
+                                                if "TotalTax" in docHdrDt:
+                                                    gst_amt = crd_clean_amount(docHdrDt["TotalTax"])
+                                                    if gst_amt is None:
+                                                        gst_amt = 0
+                                                    else:
+                                                        otrCrg_ck_zdr = crd_clean_amount(otrCrg_ck_zdr + gst_amt)
                                                 if otrCrg_ck_zdr != 0:
                                                     invTotalMth = 0
                                                     invo_StatusCode = 2
