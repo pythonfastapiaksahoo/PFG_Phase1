@@ -1769,7 +1769,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                     
                                         invTotalMth = 0
                                         invo_StatusCode = 4
-                                        invTotalMth_msg = "Needs user approval"
+                                        invTotalMth_msg =  f"Needs user approval,(Invoice total greater than ${amt_threshold-1})"
                                 else:
                                     if zero_dollar == 1:
                                         
@@ -1857,7 +1857,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 else:
                                                     invTotalMth = 0
                                                     invo_StatusCode = 4
-                                                    invTotalMth_msg = "Needs user approval"
+                                                    invTotalMth_msg =  f"Needs user approval,(Invoice total greater than ${amt_threshold-1})"
 
                                             else:
                                                 approvalCk = 1
