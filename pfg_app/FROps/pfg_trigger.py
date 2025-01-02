@@ -130,13 +130,13 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
         #     vdrMatchStatus = 1
         #     vdrStatusMsg = "Supplier ID Match skipped"
         # else:
-            vdrMatchStatus = 0
-            vdrStatusMsg = (
-                "Supplier ID Mismatch.\nReceiptMaster's Supplier ID: "
-                + str(Supplier_id)
-                + "\nMapped Supplier ID: "
-                + str(vendor_id)
-            )  # noqa: E501
+        vdrMatchStatus = 1
+        vdrStatusMsg = (
+            "Supplier ID Mismatch.\nReceiptMaster's Supplier ID: "
+            + str(Supplier_id)
+            + "\nMapped Supplier ID: "
+            + str(vendor_id)
+        )  # noqa: E501
 
     # check data type of recvLineNum and if its not int make it to 0
     if type(recvLineNum) is not int:
