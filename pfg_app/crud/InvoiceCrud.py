@@ -106,6 +106,19 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
+        # Create subquery for latest history logs
+        latest_history_log = (
+            db.query(
+                model.DocumentHistoryLogs.documentID,
+                func.max(model.DocumentHistoryLogs.CreatedOn).label("latest_created_on"),
+            )
+            .group_by(model.DocumentHistoryLogs.documentID)
+            .subquery(name="latest_history_log")
+        )
+
+        # Alias for DocumentHistoryLogs
+        latest_logs_alias = aliased(model.DocumentHistoryLogs, name="latest_logs_alias")
+
         # Initial query setup for fetching document, status, and related entities
         data_query = (
             db.query(
@@ -114,6 +127,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.DocumentSubStatus,
                 inv_choice[inv_type][0],
                 inv_choice[inv_type][1],
+                model.User,
             )
             .options(
                 Load(model.Document).load_only(
@@ -135,6 +149,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 Load(model.DocumentStatus).load_only("status", "description"),
                 inv_choice[inv_type][2],
                 inv_choice[inv_type][3],
+                Load(model.User).load_only("firstName"),
             )
             .join(
                 model.DocumentSubStatus,
@@ -156,6 +171,22 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.DocumentStatus,
                 model.DocumentStatus.idDocumentstatus
                 == model.Document.documentStatusID,
+                isouter=True,
+            )
+            .outerjoin(
+                latest_history_log,
+                latest_history_log.c.documentID == model.Document.idDocument,
+            )
+            .outerjoin(
+                latest_logs_alias,
+                and_(
+                    latest_logs_alias.documentID == latest_history_log.c.documentID,
+                    latest_logs_alias.CreatedOn == latest_history_log.c.latest_created_on,
+                ),
+            )
+            .join(
+                model.User,
+                model.User.idUser == latest_logs_alias.userID,
                 isouter=True,
             )
             .filter(
