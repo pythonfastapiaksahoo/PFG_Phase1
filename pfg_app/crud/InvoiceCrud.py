@@ -173,16 +173,18 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 == model.Document.documentStatusID,
                 isouter=True,
             )
-            .outerjoin(
+            .join(
                 latest_history_log,
                 latest_history_log.c.documentID == model.Document.idDocument,
+                isouter=True,
             )
-            .outerjoin(
+            .join(
                 latest_logs_alias,
                 and_(
-                    latest_logs_alias.documentID == latest_history_log.c.documentID,
+                    latest_logs_alias.documentID == model.Document.idDocument,
                     latest_logs_alias.CreatedOn == latest_history_log.c.latest_created_on,
                 ),
+                isouter=True,
             )
             .join(
                 model.User,
@@ -333,7 +335,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
 
         # Apply pagination
         Documentdata = (
-            data_query.order_by(model.Document.CreatedOn.desc())
+            data_query.distinct(model.Document.idDocument)
             .limit(limit)
             .offset(off_val)
             .all()
