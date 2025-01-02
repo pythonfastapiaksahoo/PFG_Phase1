@@ -739,7 +739,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
     ocrCheck = 0
     totalCheck = 0
     ocrCheck_msg = []
-    totalCheck_msg = []
+    totalCheck_msg = ["Invoice total mismatch."]
     invTotalMth_msg = ""
     dateCheck_msg = ""
     overAllstatus = 0
@@ -856,7 +856,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 docID, userID, InvodocStatus, documentdesc, db
             )
         if approvalCk==1:
-            documentdesc = "Amount Approved by the user."
+            documentdesc = f"Amount Approved by the user."
             update_docHistory(
                 docID, userID, InvodocStatus, documentdesc, db
             )
@@ -1623,7 +1623,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         else:
                                             invTotalMth = 0
                                             invo_StatusCode = 4
-                                            invTotalMth_msg = "Needs user approval"
+                                            invTotalMth_msg = f"Needs user approval,(Invoice total greater than ${amt_threshold})"
 
                                     else:
                                         approvalCk = 1
@@ -2016,6 +2016,9 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                                     1
                                                                                 ) 
                                                                                 break
+                                                                            else:
+                                                                                invTotalMth = 0
+                                                                                invTotalMth_msg = "Invoice total mismatch"
 
                                                     else:
                                                         invTotalMth = 0
