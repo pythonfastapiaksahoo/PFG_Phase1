@@ -130,7 +130,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
         #     vdrMatchStatus = 1
         #     vdrStatusMsg = "Supplier ID Match skipped"
         # else:
-        vdrMatchStatus = 1
+        vdrMatchStatus = 0
         vdrStatusMsg = (
             "Supplier ID Mismatch.\nReceiptMaster's Supplier ID: "
             + str(Supplier_id)
@@ -160,7 +160,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
         intStatus = 0
         intStatusMsg = "Incorrect store number"
 
-    if intStatus == 1 and vdrMatchStatus == 1:
+    if intStatus == 1:
 
         # ---------------------------------------------
         docTabData = (
