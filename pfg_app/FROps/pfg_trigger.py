@@ -1803,17 +1803,20 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         else:
 
                             # TAX validations:
-                            # if "PST" in docHdrDt:
-                            #     pst = clean_amount(docHdrDt["PST"])
-                            #     # if (pst is not None) and pst > 0:
-                            #     #     invTotalMth = 0
+                            if "PST" in docHdrDt:
+                                pst = clean_amount(docHdrDt["PST"])
+
+                                if (pst is not None) and pst > 0:
+                                    otrCrg_ck_zdr = clean_amount(otrCrg_ck_zdr + pst)
+                                #     invTotalMth = 0
                             #     #     invTotalMth_msg = "PST found:" + str(pst)
                             #     #     tax_isErr = 1
                             #     if pst is None:
                             #         pst = 0
-                            # elif "HST" in docHdrDt:
-                            #     hst = clean_amount(docHdrDt["HST"])
-                            #     # if (hst is not None) and hst > 0:
+                            elif "HST" in docHdrDt:
+                                hst = clean_amount(docHdrDt["HST"])
+                                if (hst is not None) and hst > 0:
+                                    otrCrg_ck_zdr = clean_amount(otrCrg_ck_zdr + hst)
                             #     #     invTotalMth = 0
                             #     #     invTotalMth_msg = "HST found:" + str(hst)
                             #     #     tax_isErr = 1
@@ -1823,10 +1826,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 gst_amt = clean_amount(docHdrDt["GST"])
                                 if gst_amt is None:
                                     gst_amt = 0
+                                else:
+                                    otrCrg_ck_zdr = clean_amount(otrCrg_ck_zdr + gst_amt)
                             elif "TotalTax" in docHdrDt:
                                 gst_amt = clean_amount(docHdrDt["TotalTax"])
                                 if gst_amt is None:
                                     gst_amt = 0
+                                else:
+                                    otrCrg_ck_zdr = clean_amount(otrCrg_ck_zdr + gst_amt)
                             else:
                                 gst_amt = 0
                             if tax_isErr == 0:
@@ -2033,17 +2040,17 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                     
                                                     for othCrgs in OtherChargesList:
                                                         if othCrgs in docHdrDt:
-                                                            othCrgs_amt = crd_clean_amount(
+                                                            othCrgs_amt = clean_amount(
                                                                 docHdrDt[othCrgs]
                                                             )
                                                             if othCrgs_amt is not None:
                                                                 otrCrg_ck_zdr = (
-                                                                    crd_clean_amount(
+                                                                    clean_amount(
                                                                         otrCrg_ck_zdr
                                                                         + othCrgs_amt
                                                                     )
                                                                 )
-                                                    if otrCrg_ck_zdr > 0:
+                                                    if otrCrg_ck_zdr != 0:
                                                         invTotalMth = 0
                                                         invo_StatusCode = 2
                                                         invTotalMth_msg = "Zero $ invoice total mismatch."
@@ -2067,17 +2074,17 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 
                                                 for othCrgs in OtherChargesList:
                                                     if othCrgs in docHdrDt:
-                                                        othCrgs_amt = crd_clean_amount(
+                                                        othCrgs_amt = clean_amount(
                                                             docHdrDt[othCrgs]
                                                         )
                                                         if othCrgs_amt is not None:
                                                             otrCrg_ck_zdr = (
-                                                                crd_clean_amount(
+                                                                clean_amount(
                                                                     otrCrg_ck_zdr
                                                                     + othCrgs_amt
                                                                 )
                                                             )
-                                                if otrCrg_ck_zdr > 0:
+                                                if otrCrg_ck_zdr != 0:
                                                     invTotalMth = 0
                                                     invo_StatusCode = 2
                                                     invTotalMth_msg = "Zero $ invoice total mismatch."
