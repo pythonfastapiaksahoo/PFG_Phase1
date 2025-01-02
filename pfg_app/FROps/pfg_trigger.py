@@ -739,7 +739,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
     ocrCheck = 0
     totalCheck = 0
     ocrCheck_msg = []
-    totalCheck_msg = ["Invoice total mismatch."]
+    totalCheck_msg = []
     invTotalMth_msg = ""
     dateCheck_msg = ""
     overAllstatus = 0
@@ -1623,7 +1623,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         else:
                                             invTotalMth = 0
                                             invo_StatusCode = 4
-                                            invTotalMth_msg = f"Needs user approval,(Invoice total greater than ${amt_threshold})"
+                                            invTotalMth_msg = f"Needs user approval,(Invoice total greater than ${amt_threshold-1})"
 
                                     else:
                                         approvalCk = 1
@@ -1769,7 +1769,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                     
                                         invTotalMth = 0
                                         invo_StatusCode = 4
-                                        invTotalMth_msg = "Needs user approval"
+                                        invTotalMth_msg =  f"Needs user approval,(Invoice total greater than ${amt_threshold-1})"
                                 else:
                                     if zero_dollar == 1:
                                         
@@ -1857,7 +1857,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 else:
                                                     invTotalMth = 0
                                                     invo_StatusCode = 4
-                                                    invTotalMth_msg = "Needs user approval"
+                                                    invTotalMth_msg =  f"Needs user approval,(Invoice total greater than ${amt_threshold-1})"
 
                                             else:
                                                 approvalCk = 1
@@ -2222,7 +2222,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                         except Exception:
                             logger.debug(traceback.format_exc())
-
+                    if totalCheck_msg==[""]:
+                        totalCheck_msg.append("Invoice total mismatch.")
                     docStatusSync["OCR validations"] = {
                         "status": ocrCheck,
                         "StatusCode":0,
