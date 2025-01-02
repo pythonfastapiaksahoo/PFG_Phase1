@@ -811,6 +811,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             "ShipmentCharges",  # noqa: E501
             "TotalDiscount",
             "Usage Charges",
+            "Miscellaneous",
         ]  # noqa: E501
 
         tab_ck_list = ["Quantity", "UnitPrice", "Amount", "AmountExcTax"]
