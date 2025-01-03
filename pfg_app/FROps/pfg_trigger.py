@@ -1927,8 +1927,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                     invTotalMth_msg = "Invoicetotal mismatch"
                                                         if tax_isErr == 0:
                                                             if invoTotal == subTotal:
-                                                                invTotalMth = 1
-                                                                gst_amt = 0
+                                                                if gst_amt is not None and gst_amt > 0:
+                                                                    invTotalMth = 0
+                                                                else:
+                                                                    invTotalMth = 1
+                                                                    gst_amt = 0
                                                             elif (
                                                                 round(
                                                                     abs(
