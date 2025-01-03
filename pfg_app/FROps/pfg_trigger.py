@@ -2017,8 +2017,9 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                                 ) 
                                                                                 break
                                                                             else:
-                                                                                invTotalMth = 0
-                                                                                invTotalMth_msg = "Invoice total mismatch"
+                                                                                if invTotalMth==0:
+                                                                                
+                                                                                    invTotalMth_msg = "Invoice total mismatch"
 
                                                     else:
                                                         invTotalMth = 0
