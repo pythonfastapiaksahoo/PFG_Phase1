@@ -106,6 +106,17 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
+        # Create subquery for latest history logs
+        latest_history_log = (
+            db.query(
+                model.DocumentHistoryLogs.documentID,
+                func.max(model.DocumentHistoryLogs.CreatedOn).label("latest_created_on"),
+            )
+            .group_by(model.DocumentHistoryLogs.documentID)
+            .subquery()
+        )
+
+
         # Initial query setup for fetching document, status, and related entities
         data_query = (
             db.query(
@@ -114,6 +125,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.DocumentSubStatus,
                 inv_choice[inv_type][0],
                 inv_choice[inv_type][1],
+                model.User.firstName.label("last_updated_by"),
             )
             .options(
                 Load(model.Document).load_only(
@@ -135,6 +147,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 Load(model.DocumentStatus).load_only("status", "description"),
                 inv_choice[inv_type][2],
                 inv_choice[inv_type][3],
+                # Load(model.User).load_only("firstName"),
             )
             .join(
                 model.DocumentSubStatus,
@@ -156,6 +169,24 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.DocumentStatus,
                 model.DocumentStatus.idDocumentstatus
                 == model.Document.documentStatusID,
+                isouter=True,
+            )
+            .join(
+                latest_history_log,
+                latest_history_log.c.documentID == model.Document.idDocument,
+                isouter=True,
+            )
+            .join(
+                model.DocumentHistoryLogs,
+                and_(
+                    model.DocumentHistoryLogs.documentID == model.Document.idDocument,
+                    model.DocumentHistoryLogs.CreatedOn == latest_history_log.c.latest_created_on,
+                ),
+                isouter=True,
+            )
+            .join(
+                model.User,
+                model.User.idUser == model.DocumentHistoryLogs.userID,
                 isouter=True,
             )
             .filter(
@@ -267,6 +298,16 @@ async def read_paginate_doc_inv_list_with_ln_items(
 
         # Get the total count of records before applying limit and offset
         total_count = data_query.distinct(model.Document.idDocument).count()
+        
+        # Pagination
+        offset, limit = off_limit
+        off_val = (offset - 1) * limit
+        if off_val < 0:
+            return Response(
+                status_code=403,
+                headers={"ClientError": "Please provide a valid offset value."},
+            )
+        
         # Apply sorting
         sort_columns_map = {
             "Invoice Number": model.Document.docheaderID,
@@ -282,27 +323,23 @@ async def read_paginate_doc_inv_list_with_ln_items(
         }
 
         if sort_column in sort_columns_map:
+            # sort_field = sort_columns_map.get(sort_column, model.Document.idDocument)
             sort_field = sort_columns_map[sort_column]
+            
             if sort_order.lower() == "desc":
+                # Apply descending order to sort_field
                 data_query = data_query.order_by(sort_field.desc())
             else:
+                # Apply ascending order to sort_field
                 data_query = data_query.order_by(sort_field.asc())
 
-        # # Get the total count of records before applying limit and offset
-        # total_count = data_query.distinct(model.Document.idDocument).count()
-
-        # Pagination
-        offset, limit = off_limit
-        off_val = (offset - 1) * limit
-        if off_val < 0:
-            return Response(
-                status_code=403,
-                headers={"ClientError": "Please provide a valid offset value."},
-            )
-
-        # Apply pagination
-        Documentdata = (
-            data_query.order_by(model.Document.CreatedOn.desc())
+            Documentdata = (data_query.limit(limit).offset(off_val).all())
+            
+        else:
+            data_query = data_query.order_by(model.Document.idDocument.desc())
+            # Apply pagination
+            Documentdata = (
+            data_query.distinct(model.Document.idDocument)
             .limit(limit)
             .offset(off_val)
             .all()
@@ -316,6 +353,8 @@ async def read_paginate_doc_inv_list_with_ln_items(
         return Response(status_code=500)
     finally:
         db.close()
+
+
 
 
 async def read_invoice_data(u_id, inv_id, db):
