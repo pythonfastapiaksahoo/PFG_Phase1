@@ -336,13 +336,14 @@ async def read_paginate_doc_inv_list_with_ln_items(
             Documentdata = (data_query.limit(limit).offset(off_val).all())
             
         else:
+            data_query = data_query.order_by(model.Document.idDocument.desc())
             # Apply pagination
             Documentdata = (
-                data_query.distinct(model.Document.idDocument)
-                .limit(limit)
-                .offset(off_val)
-                .all()
-            )
+            data_query.distinct(model.Document.idDocument)
+            .limit(limit)
+            .offset(off_val)
+            .all()
+        )
 
         # Return paginated document data with line items
         return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
