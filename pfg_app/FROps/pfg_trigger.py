@@ -1956,7 +1956,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                         othCrgs_sm = (
                                                                             clean_amount(
                                                                                 othCrgs_cln
-                                                                                + subTotal
+                                                                                + subTotal+ gst_amt
                                                                             )
                                                                         )
                                                                         if (
