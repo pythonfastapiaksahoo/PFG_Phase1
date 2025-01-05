@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
-from sqlalchemy import String, and_, case, cast, desc, exists, func, or_
+from sqlalchemy import String, and_, case, cast, desc, exists, func, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, aliased, load_only
 
@@ -2194,9 +2194,11 @@ async def get_get_email_row_associated_files_new(
             queue_task = (
                 db.query(model.QueueTask)
                 .filter(
-                    model.QueueTask.request_data["mail_row_key"]
-                    == data_to_insert["mail_number"]
+                    # model.QueueTask.request_data["mail_row_key"]
+                    # == data_to_insert["mail_number"]
+                    text("(request_data->>'mail_row_key') = :mail_row_key")
                 )
+                .params(mail_row_key=data_to_insert["mail_number"])
                 .first()
             )
             data_to_insert["email_path"] = queue_task.request_data["email_path"]
