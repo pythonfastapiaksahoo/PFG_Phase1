@@ -2190,20 +2190,36 @@ async def get_get_email_row_associated_files_new(
 
                     attachment_dict["associated_invoice_file"].append(invoice_dict)
                 data_to_insert["attachment"].append(attachment_dict)
-            data_to_insert["email_path"] = (
-                "/".join(data_to_insert["attachment"][0]["file_path"].split("/")[:8])
-                + ".eml"
+            
+            queue_task = (
+                db.query(model.QueueTask)
+                .filter(
+                    model.QueueTask.request_data["mail_row_key"]
+                    == data_to_insert["mail_number"]
+                )
+                .first()
             )
-            data_to_insert["sender"] = data_to_insert["attachment"][0]["sender"]
-            data_to_insert["email_subject"] = data_to_insert["attachment"][0][
-                "email_subject"
-            ]
+            data_to_insert["email_path"] = queue_task.request_data["email_path"]
+            data_to_insert["sender"] = queue_task.request_data["sender"]
+            data_to_insert["email_subject"] = queue_task.request_data["subject"]
+            # if len(data_to_insert["attachment"]):
+                # data_to_insert["email_path"] = (
+                #     "/".join(data_to_insert["attachment"][0]["file_path"].split("/")[:8])
+                #     + ".eml"
+                # )
+                # data_to_insert["sender"] = data_to_insert["attachment"][0]["sender"]
+                # data_to_insert["email_subject"] = data_to_insert["attachment"][0][
+                #     "email_subject"
+                # ]
             data_to_insert["overall_page_count"] = sum(
                 [
                     attachment["total_page_count"] or 0
                     for attachment in data_to_insert["attachment"]
                 ]
             )
+            # else:
+                
+            #     data_to_insert["overall_page_count"] = 0
             # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
 
             if any(
