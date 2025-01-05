@@ -2185,7 +2185,16 @@ async def get_get_email_row_associated_files_new(
             #     data_to_insert["overall_page_count"] = 0
             # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
 
-            if any(
+            if len(data_to_insert["attachment"]) == 0:
+                data_to_insert["status"] = "Queued"
+            elif all(
+                [
+                    attachment["status"] == "Processed-completed"
+                    for attachment in data_to_insert["attachment"]
+                ]
+            ) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
+                data_to_insert["status"] = "Completed"
+            elif any(
                 [
                     invoice["status"] == "Error"
                     for attachment in data_to_insert["attachment"]
@@ -2193,17 +2202,10 @@ async def get_get_email_row_associated_files_new(
                 ]
             ):
                 data_to_insert["status"] = "Error"
-            elif all(
-                [
-                    attachment["status"] == "Processed-completed"
-                    for attachment in data_to_insert["attachment"]
-                ]
-            ):
-                data_to_insert["status"] = "Completed"
             elif len(data_to_insert["attachment"]):
                 data_to_insert["status"] = "In Progress"
-            elif len(data_to_insert["attachment"]) == 0:
-                data_to_insert["status"] = "Queued"
+            else:
+                data_to_insert["status"] = "Unknown"
             data.append(data_to_insert)
         return {"data": data, "total_items": total_items}
 
