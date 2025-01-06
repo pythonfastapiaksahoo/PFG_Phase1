@@ -106,16 +106,22 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
-        # Create subquery for latest history logs
-        latest_history_log = (
+        # # Create subquery for latest history logs
+        # latest_history_log = (
+        #     db.query(
+        #         model.DocumentHistoryLogs.documentID,
+        #         func.max(model.DocumentHistoryLogs.CreatedOn).label("latest_created_on"),
+        #     )
+        #     .group_by(model.DocumentHistoryLogs.documentID)
+        #     .subquery()
+        # )
+        
+        sub_query_desc = (
             db.query(
-                model.DocumentHistoryLogs.documentID,
-                func.max(model.DocumentHistoryLogs.CreatedOn).label("latest_created_on"),
-            )
+            func.max(model.DocumentHistoryLogs.iddocumenthistorylog))
             .group_by(model.DocumentHistoryLogs.documentID)
             .subquery()
         )
-
 
         # Initial query setup for fetching document, status, and related entities
         data_query = (
@@ -171,19 +177,25 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 == model.Document.documentStatusID,
                 isouter=True,
             )
-            .join(
-                latest_history_log,
-                latest_history_log.c.documentID == model.Document.idDocument,
-                isouter=True,
-            )
+            # .join(
+            #     latest_history_log,
+            #     latest_history_log.c.documentID == model.Document.idDocument,
+            #     isouter=True,
+            # )
             .join(
                 model.DocumentHistoryLogs,
                 and_(
                     model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-                    model.DocumentHistoryLogs.CreatedOn == latest_history_log.c.latest_created_on,
+                    # model.DocumentHistoryLogs.CreatedOn == latest_history_log.c.latest_created_on,
+                    model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
                 ),
                 isouter=True,
             )
+            # .join(
+            #     model.DocumentHistoryLogs,
+            #     model.DocumentHistoryLogs.documentID == model.Document.idDocument,
+            #     isouter=True,
+            # )
             .join(
                 model.User,
                 model.User.idUser == model.DocumentHistoryLogs.userID,
@@ -192,6 +204,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             .filter(
                 model.Document.idDocumentType == 3,
                 model.Document.vendorAccountID.isnot(None),
+                # model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
             )
         )
 
@@ -236,16 +249,11 @@ async def read_paginate_doc_inv_list_with_ln_items(
         if date_range:
             frdate, todate = date_range.lower().split("to")
             frdate = datetime.strptime(frdate.strip(), "%Y-%m-%d")
-            todate = datetime.strptime(
-                todate.strip(), "%Y-%m-%d"
-            )  # Remove timedelta adjustments
-            frdate_str = frdate.strftime("%Y-%m-%d")
-            todate_str = todate.strftime("%Y-%m-%d")
+            
+            todate = datetime.strptime(todate, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
+            # Apply the filter
             data_query = data_query.filter(
-                or_(
-                    model.Document.documentDate.between(frdate_str, todate_str),
-                    model.Document.CreatedOn.between(frdate, todate),
-                )
+                model.Document.CreatedOn.between(frdate, todate)
             )
 
         # Function to normalize strings by removing non-alphanumeric
@@ -325,7 +333,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
         if sort_column in sort_columns_map:
             # sort_field = sort_columns_map.get(sort_column, model.Document.idDocument)
             sort_field = sort_columns_map[sort_column]
-            
             if sort_order.lower() == "desc":
                 # Apply descending order to sort_field
                 data_query = data_query.order_by(sort_field.desc())
