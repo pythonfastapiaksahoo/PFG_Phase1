@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from azure.storage.blob import BlobServiceClient
 from fastapi.responses import Response
-from sqlalchemy import String, and_, case, cast, exists, func, or_,desc
+from sqlalchemy import String, and_, case, cast, desc, exists, func, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Load, aliased, load_only
 
@@ -87,7 +87,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
-            "Duplicate Invoice" : 32,
+            "Duplicate Invoice": 32,
         }
 
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
@@ -447,9 +447,12 @@ async def read_invoice_data(u_id, inv_id, db):
                 model.DocumentData.documentID == inv_id,
             )
             .outerjoin(
-            model.DocumentUpdates,
-            (model.DocumentUpdates.documentDataID == model.DocumentData.idDocumentData) &
-            (model.DocumentUpdates.IsActive == 1)
+                model.DocumentUpdates,
+                (
+                    model.DocumentUpdates.documentDataID
+                    == model.DocumentData.idDocumentData
+                )
+                & (model.DocumentUpdates.IsActive == 1),
             )
             # .join(
             #     model.DocumentUpdates,
@@ -778,9 +781,11 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
     try:
         # avoid data updates by other users if in lock
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+        docStatus_id = (
+            db.query(model.Document.documentStatusID)
+            .filter(model.Document.idDocument == inv_id)
+            .scalar()
+        )
         consolidated_updates = []  # Store updates for consolidated log
         for row in inv_data:
             try:
@@ -860,7 +865,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     db.query(model.Document).filter_by(
                         idDocument=tag_def_inv_id.documentID
                     ).update({doc_table_match[label]: data.NewValue})
-                    
+
                 # If the TagLabel is "VendorName", proceed with fetching VendorCode
                 if label == "VendorName":
                     # Fetch VendorCode using the NewValue from the Vendor table
@@ -952,12 +957,12 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                                             )  # noqa: E501
                                             db.flush()
                                             break  # TagLabel match found, stop the loo
-                                        
+
                 # Update document data as per original logic
                 db.query(model.DocumentData).filter_by(
                     idDocumentData=row.documentDataID
                 ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
-                
+
                 consolidated_updates.append(
                     f"Field {label} updated to {data.NewValue} from {data.OldValue}"
                 )
@@ -969,7 +974,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                 ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
 
             db.flush()
-        # Updating the consolidated history log for updated fields   
+        # Updating the consolidated history log for updated fields
         if consolidated_updates:
             try:
                 update_docHistory(
@@ -981,7 +986,8 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                 )
             except Exception:
                 logger.error(
-                    f"Error updating document history: {traceback.format_exc()}")
+                    f"Error updating document history: {traceback.format_exc()}"
+                )
         # Update the last updated timestamp for the document
         db.query(model.Document).filter_by(idDocument=inv_id).update(
             {"UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
@@ -1565,7 +1571,8 @@ async def new_get_stamp_data_by_document_id(u_id, inv_id, db):
 
         # Check if records exists or not
         if not stamp_data_records or (
-            len(stamp_data_records) == 1 and stamp_data_records[0].stamptagname == 'Credit Identifier'
+            len(stamp_data_records) == 1
+            and stamp_data_records[0].stamptagname == "Credit Identifier"
         ):
             static_stamp_data_records = [
                 {
@@ -1635,9 +1642,11 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
     updated_records = []
     consolidated_updates = []
-    docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+    docStatus_id = (
+        db.query(model.Document.documentStatusID)
+        .filter(model.Document.idDocument == inv_id)
+        .scalar()
+    )
     try:
         for update_data in update_data_list:
             try:
@@ -1711,7 +1720,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
 
                     # Add the updated document to the session for commit
                     db.add(document_record)
-                    
+
                 # Consolidate updates for the history log
                 consolidated_updates.append(
                     f"Field '{stamptagname}' updated to '{new_value}' from '{old_value}'"
@@ -1893,9 +1902,9 @@ async def read_all_doc_inv_list(
             "exception": 4,
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
-            "Duplicate Invoice" : 32,
+            "Duplicate Invoice": 32,
         }
-        
+
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
         inv_choice = {
             "ser": (
@@ -2069,8 +2078,9 @@ async def read_all_doc_inv_list(
     finally:
         db.close()
 
+
 async def get_get_email_row_associated_files_new(
-      u_id, off_limit, uni_api_filter, column_filter, db, sort_column, sort_order  
+    u_id, off_limit, uni_api_filter, column_filter, db, sort_column, sort_order
 ):
     try:
         data_query = db.query(model.QueueTask)
@@ -2079,9 +2089,13 @@ async def get_get_email_row_associated_files_new(
         # Count distinct mail_row_key
         total_items = (
             data_query.with_entities(
-                func.count(func.distinct(model.QueueTask.request_data["mail_row_key"].astext))
+                func.count(
+                    func.distinct(model.QueueTask.request_data["mail_row_key"].astext)
+                )
             )
-            .filter(model.QueueTask.request_data["mail_row_key"].isnot(None))  # Ensure not null
+            .filter(
+                model.QueueTask.request_data["mail_row_key"].isnot(None)
+            )  # Ensure not null
             .scalar()  # Get the scalar result
         )
 
@@ -2099,18 +2113,26 @@ async def get_get_email_row_associated_files_new(
         # Query to get the latest 10 unique mail_row_keys
         latest_mail_row_keys = (
             db.query(
-                model.QueueTask.request_data["mail_row_key"].astext.label("mail_row_key"),
+                model.QueueTask.request_data["mail_row_key"].astext.label(
+                    "mail_row_key"
+                ),
                 func.max(model.QueueTask.created_at).label("latest_created_at"),
                 func.count(model.QueueTask.id).label("attachment_count"),
             )
-            .filter(model.QueueTask.request_data["mail_row_key"].isnot(None))  # Exclude NULL values
-            .group_by(model.QueueTask.request_data["mail_row_key"].astext)  # Group by mail_row_key
-            .order_by(desc(func.max(model.QueueTask.created_at)))  # Order by the latest created_at
+            .filter(
+                model.QueueTask.request_data["mail_row_key"].isnot(None)
+            )  # Exclude NULL values
+            .group_by(
+                model.QueueTask.request_data["mail_row_key"].astext
+            )  # Group by mail_row_key
+            .order_by(
+                desc(func.max(model.QueueTask.created_at))
+            )  # Order by the latest created_at
             .offset(off_val)
             .limit(limit)
             .all()
         )
-        
+
         for row in latest_mail_row_keys:
             data_to_insert = {
                 "mail_number": row.mail_row_key,
@@ -2129,48 +2151,113 @@ async def get_get_email_row_associated_files_new(
             for attachment in related_attachments:
                 attachment_dict = attachment.__dict__
                 attachment_dict.pop("_sa_instance_state")
-                attachment_dict['file_path'] = attachment_dict['invoice_path']
-                attachment_dict.pop('invoice_path')
-                attachment_dict['type'] = attachment_dict['file_path'].split(".")[-1]
+                attachment_dict["file_path"] = attachment_dict["invoice_path"]
+                attachment_dict.pop("invoice_path")
+                attachment_dict["type"] = attachment_dict["file_path"].split(".")[-1]
+                attachment_dict["total_page_count"] = attachment_dict["totalpagecount"]
+                attachment_dict.pop("totalpagecount")
+
                 associated_invoices = (
                     db.query(model.frtrigger_tab)
                     .filter(
                         model.frtrigger_tab.splitdoc_id == attachment.splitdoc_id,
-                    ).all()
+                    )
+                    .all()
                 )
+
+                # remove unnecessary fields
+                attachment_dict.pop("splitdoc_id")
+                attachment_dict.pop("vendortype")
+                # attachment_dict.pop('email_subject')
+                attachment_dict.pop("emailbody_path")
+                # attachment_dict.pop('sender')
+                attachment_dict.pop("mail_row_key")
+
                 attachment_dict["associated_invoice_file"] = []
                 for invoice in associated_invoices:
                     invoice_dict = invoice.__dict__
                     invoice_dict.pop("_sa_instance_state")
-                    invoice_dict['file_path'] = invoice_dict['blobpath']
-                    invoice_dict.pop('blobpath')
-                    invoice_dict['type'] = invoice_dict['file_path'].split(".")[-1]
-                    invoice_dict['vendor_id'] = invoice_dict['vendorID']
+                    invoice_dict["filepath"] = invoice_dict["blobpath"]
+                    invoice_dict.pop("blobpath")
+                    invoice_dict["file_size"] = invoice_dict["filesize"]
+                    invoice_dict.pop("filesize")
+                    invoice_dict["type"] = invoice_dict["filepath"].split(".")[-1]
+                    invoice_dict["vendor_id"] = invoice_dict["vendorID"]
+                    invoice_dict.pop("vendorID")
+                    invoice_dict["document_id"] = invoice_dict["documentid"]
+                    invoice_dict.pop("documentid")
+
+                    # remove unnecessary fields
+                    invoice_dict.pop("splitdoc_id")
+                    invoice_dict.pop("prebuilt_linedata")
+                    invoice_dict.pop("pagecount")
+                    invoice_dict.pop("frtrigger_id")
+                    invoice_dict.pop("prebuilt_headerdata")
+                    invoice_dict.pop("sender")
+
                     attachment_dict["associated_invoice_file"].append(invoice_dict)
                 data_to_insert["attachment"].append(attachment_dict)
-            data_to_insert['email_path'] = "/".join(data_to_insert["attachment"][0]['file_path'].split("/")[:8])+".eml"
-            data_to_insert['sender'] = data_to_insert["attachment"][0]['sender']
-            data_to_insert['email_subject'] = data_to_insert["attachment"][0]['email_subject']
-            data_to_insert['overall_page_count'] = sum([attachment['totalpagecount'] or 0 for attachment in data_to_insert["attachment"]])
-            # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
             
-            if any([invoice['status'] == 'Error' for attachment in data_to_insert["attachment"] for invoice in attachment['associated_invoice_file']]):
-                data_to_insert['status'] = 'Error'
-            elif all([attachment['status'] == 'Processed-completed' for attachment in data_to_insert["attachment"]]):
-                data_to_insert['status'] = 'Completed'
+            queue_task = (
+                db.query(model.QueueTask)
+                .filter(
+                    # model.QueueTask.request_data["mail_row_key"]
+                    # == data_to_insert["mail_number"]
+                    text("(request_data->>'mail_row_key') = :mail_row_key")
+                )
+                .params(mail_row_key=data_to_insert["mail_number"])
+                .first()
+            )
+            data_to_insert["email_path"] = queue_task.request_data["email_path"]
+            data_to_insert["sender"] = queue_task.request_data["sender"]
+            data_to_insert["email_subject"] = queue_task.request_data["subject"]
+            # if len(data_to_insert["attachment"]):
+                # data_to_insert["email_path"] = (
+                #     "/".join(data_to_insert["attachment"][0]["file_path"].split("/")[:8])
+                #     + ".eml"
+                # )
+                # data_to_insert["sender"] = data_to_insert["attachment"][0]["sender"]
+                # data_to_insert["email_subject"] = data_to_insert["attachment"][0][
+                #     "email_subject"
+                # ]
+            data_to_insert["overall_page_count"] = sum(
+                [
+                    attachment["total_page_count"] or 0
+                    for attachment in data_to_insert["attachment"]
+                ]
+            )
+            # else:
+                
+            #     data_to_insert["overall_page_count"] = 0
+            # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
+
+            if len(data_to_insert["attachment"]) == 0:
+                data_to_insert["status"] = "Queued"
+            elif all(
+                [
+                    attachment["status"] == "Processed-completed"
+                    for attachment in data_to_insert["attachment"]
+                ]
+            ) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
+                data_to_insert["status"] = "Completed"
+            elif any(
+                [
+                    invoice["status"] == "Error"
+                    for attachment in data_to_insert["attachment"]
+                    for invoice in attachment["associated_invoice_file"]
+                ]
+            ):
+                data_to_insert["status"] = "Error"
             elif len(data_to_insert["attachment"]):
-                data_to_insert['status'] = 'In Progress'
-            elif len(data_to_insert["attachment"]) == 0:
-                data_to_insert['status'] = 'Queued'
+                data_to_insert["status"] = "In Progress"
+            else:
+                data_to_insert["status"] = "Unknown"
             data.append(data_to_insert)
         return {"data": data, "total_items": total_items}
-            
 
     except Exception:
         logger.error(traceback.format_exc())
         return Response(status_code=500)
-
-
 
 
 async def get_email_row_associated_files(
@@ -2318,7 +2405,7 @@ async def get_email_row_associated_files(
                 logger.error(
                     f"Error processing column filter: {str(traceback.format_exc())}"
                 )
-        
+
         # # Alias for the SplitDocTab model
         SplitDocTabAlias = aliased(model.SplitDocTab)
         # Sorting logic
@@ -2331,7 +2418,9 @@ async def get_email_row_associated_files(
         if sort_column and sort_column in sort_columns_map:
             column_to_sort = sort_columns_map[sort_column]
             order_by_clause = (
-                column_to_sort.desc() if sort_order.lower() == "desc" else column_to_sort.asc()
+                column_to_sort.desc()
+                if sort_order.lower() == "desc"
+                else column_to_sort.asc()
             )
         else:
             order_by_clause = SplitDocTabAlias.splitdoc_id.desc()  # Default sorting
@@ -2353,8 +2442,6 @@ async def get_email_row_associated_files(
             data_query.with_entities(model.SplitDocTab.mail_row_key).distinct().count()
         )
 
-        
-
         # Subquery to get the latest splitdoc_id per mail_row_key, with filters applied
         latest_splitdoc_subquery = (
             data_query.with_entities(  # Start with the filtered base query
@@ -2364,8 +2451,6 @@ async def get_email_row_associated_files(
             .group_by(model.SplitDocTab.mail_row_key)
             .subquery()
         )
-        
-        
 
         # # Main query to get latest unique mail_row_keys with pagination
         # unique_mail_keys_query = (
@@ -2379,7 +2464,7 @@ async def get_email_row_associated_files(
         #     .offset(off_val)
         #     .limit(limit)
         # )
-        
+
         # Main query to get latest unique mail_row_keys with sorting and pagination
         unique_mail_keys_query = (
             db.query(SplitDocTabAlias.mail_row_key)
@@ -2392,7 +2477,7 @@ async def get_email_row_associated_files(
             .offset(off_val)
             .limit(limit)
         )
-        
+
         unique_mail_keys = unique_mail_keys_query.all()
         # Step 2: Retrieve all splitdoc_ids for the selected unique mail_row_keys
         if unique_mail_keys:
@@ -2510,10 +2595,8 @@ async def readdeptname(db):
         db.close()
 
 
-
 async def upsert_line_items(u_id, inv_id, inv_data, db):
-    """
-    Upserts (updates or inserts) line items for a given document ID.
+    """Upserts (updates or inserts) line items for a given document ID.
 
     Args:
         db (Session): SQLAlchemy database session.
@@ -2521,10 +2604,10 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
         line_data (list): List of dictionaries containing line item data.
             Each item should have keys:
                 - "documentLineItemID" (int)
-                - "line_item_tag_id" (int) 
+                - "line_item_tag_id" (int)
                 - "item_code" (str)
                 - "NewValue" (str)
-                
+
     Returns:
         dict: Result containing 'inserted' and 'updated' counts.
     """
@@ -2534,18 +2617,20 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
     try:
         # avoid data updates by other users if in lock
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+        docStatus_id = (
+            db.query(model.Document.documentStatusID)
+            .filter(model.Document.idDocument == inv_id)
+            .scalar()
+        )
         consolidated_updates = []
         for row in inv_data:
             if row.documentLineItemID:
                 try:
                     # Check if the line item exists for this tag ID and document ID
                     db.query(model.DocumentLineItems).filter_by(
-                            idDocumentLineItems=row.documentLineItemID,
-                            documentID=inv_id,
-                        ).scalar()
+                        idDocumentLineItems=row.documentLineItemID,
+                        documentID=inv_id,
+                    ).scalar()
                 except Exception:
                     logger.error(traceback.format_exc())
                     return Response(
@@ -2569,15 +2654,15 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
                     "IsActive": 1,
                     "UpdatedOn": dt,
                 }
-                new_update  = model.DocumentUpdates(**update_data)
-                db.add(new_update )
+                new_update = model.DocumentUpdates(**update_data)
+                db.add(new_update)
                 db.flush()
-                
+
                 # Add to consolidated history log
                 consolidated_updates.append(
                     f"Line Item ID {row.documentLineItemID}: Updated from {row.OldValue} to {row.NewValue}"
                 )
-                
+
                 # Update DocumentLineItems for line item updates
                 db.query(model.DocumentLineItems).filter_by(
                     idDocumentLineItems=row.documentLineItemID
@@ -2587,18 +2672,18 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
             else:
                 # Insert a new line item
                 new_line = model.DocumentLineItems(
-                    documentID = inv_id,
-                    lineItemtagID = row.lineItemTagID,
-                    Value = row.NewValue,
-                    isError = 0,
-                    itemCode = row.itemCode,
-                    invoice_itemcode = row.itemCode,
-                    IsUpdated = 0,
-                    CreatedOn = dt
+                    documentID=inv_id,
+                    lineItemtagID=row.lineItemTagID,
+                    Value=row.NewValue,
+                    isError=0,
+                    itemCode=row.itemCode,
+                    invoice_itemcode=row.itemCode,
+                    IsUpdated=0,
+                    CreatedOn=dt,
                 )
                 db.add(new_line)
                 inserted_count += 1
-                
+
         # Add consolidated history log
         if consolidated_updates:
             try:
@@ -2614,10 +2699,10 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
         # Commit the changes
         db.commit()
         return {
-        "inserted": inserted_count,
-        "updated": updated_count,
-    }
-        
+            "inserted": inserted_count,
+            "updated": updated_count,
+        }
+
     except Exception as e:
         logger.error(traceback.format_exc())
         db.rollback()
@@ -2628,8 +2713,7 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
 
 
 async def delete_line_items(u_id, inv_id, line_item_objects, db):
-    """
-    Deletes one or more line items for a given invoice ID.
+    """Deletes one or more line items for a given invoice ID.
 
     Args:
         inv_id (int): ID of the invoice.
@@ -2643,27 +2727,31 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
     deleted_count = 0
     history_log = []
     try:
-        docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+        docStatus_id = (
+            db.query(model.Document.documentStatusID)
+            .filter(model.Document.idDocument == inv_id)
+            .scalar()
+        )
         # Extract IDs from the objects
         line_item_ids = [obj.documentLineItemID for obj in line_item_objects]
 
         if not line_item_ids:
-            return {
-                "error": "No valid line item IDs provided."
-            }
-            
+            return {"error": "No valid line item IDs provided."}
+
         # Delete related records in documentupdates first
         db.query(model.DocumentUpdates).filter(
             model.DocumentUpdates.documentLineItemID.in_(line_item_ids)
         ).delete(synchronize_session=False)
-        
+
         # Fetch and delete line items
-        line_items_to_delete = db.query(model.DocumentLineItems).filter(
-            model.DocumentLineItems.idDocumentLineItems.in_(line_item_ids),
-            model.DocumentLineItems.documentID == inv_id
-        ).all()
+        line_items_to_delete = (
+            db.query(model.DocumentLineItems)
+            .filter(
+                model.DocumentLineItems.idDocumentLineItems.in_(line_item_ids),
+                model.DocumentLineItems.documentID == inv_id,
+            )
+            .all()
+        )
 
         if not line_items_to_delete:
             return {
@@ -2671,7 +2759,9 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
             }
         # Collect details for history logging
         for line_item in line_items_to_delete:
-            history_log.append(f"Deleted line item with ID: {line_item.idDocumentLineItems}, Value: {line_item.Value}")
+            history_log.append(
+                f"Deleted line item with ID: {line_item.idDocumentLineItems}, Value: {line_item.Value}"
+            )
         deleted_count = len(line_items_to_delete)
         for line_item in line_items_to_delete:
             db.delete(line_item)
@@ -2680,38 +2770,32 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
         try:
             consolidated_message = "; ".join(history_log)
             update_docHistory(
-                    inv_id,
-                    u_id,
-                    docStatus_id,
-                    "; ".join(consolidated_message),
-                    db,
-                )
+                inv_id,
+                u_id,
+                docStatus_id,
+                "; ".join(consolidated_message),
+                db,
+            )
         except Exception:
             logger.error("Failed to update history log.")
-            
+
         # Commit the deletion
         db.commit()
 
-        return {
-            "deleted_count": deleted_count
-        }
+        return {"deleted_count": deleted_count}
 
     except Exception as e:
         logger.error(traceback.format_exc())
         db.rollback()
-        return {
-            "error": "An error occurred while deleting line items."
-        }
+        return {"error": "An error occurred while deleting line items."}
 
     finally:
         db.close()
-        
-
 
 
 async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
-    """
-    Function to update or insert a single stamp data record based on document ID.
+    """Function to update or insert a single stamp data record based on
+    document ID.
 
     :param u_id: User ID of the requestor.
     :param inv_id: Document ID to filter the stamp data for updating or inserting.
@@ -2720,9 +2804,11 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
     :return: Updated or newly inserted StampDataValidation object or error details.
     """
     dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
-    docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+    docStatus_id = (
+        db.query(model.Document.documentStatusID)
+        .filter(model.Document.idDocument == inv_id)
+        .scalar()
+    )
     try:
         # Extract data from the update_data object
         stamptagname = update_data.stamptagname
@@ -2790,19 +2876,17 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
             except Exception:
                 logger.error(traceback.format_exc())
             return stamp_data
-        
+
     except SQLAlchemyError as e:
         logger.error(traceback.format_exc())
         return {
             "stamptagname": stamptagname,
             "error": f"Database error occurred: {str(e)}",
         }
-        
-        
-        
+
+
 async def get_voucher_data_by_document_id(u_id, document_id, db):
-    """
-    Retrieve voucher data filtered by documentID.
+    """Retrieve voucher data filtered by documentID.
 
     Parameters:
     -----------
@@ -2820,15 +2904,25 @@ async def get_voucher_data_by_document_id(u_id, document_id, db):
     """
     try:
         # Check if the document ID exists
-        exists = db.query(model.VoucherData).filter(model.VoucherData.documentID == document_id).first()
-        
+        exists = (
+            db.query(model.VoucherData)
+            .filter(model.VoucherData.documentID == document_id)
+            .first()
+        )
+
         if not exists:
             # Return message if documentID does not exist
-            return {"error": f"Document ID: {document_id} does not exist in the voucherdata table."}
-        
+            return {
+                "error": f"Document ID: {document_id} does not exist in the voucherdata table."
+            }
+
         # Query to retrieve all data matching the documentID
-        results = db.query(model.VoucherData).filter(model.VoucherData.documentID == document_id).all()
-        
+        results = (
+            db.query(model.VoucherData)
+            .filter(model.VoucherData.documentID == document_id)
+            .all()
+        )
+
         # Format and return the result
         return [
             {
