@@ -2208,9 +2208,15 @@ async def get_get_email_row_associated_files_new(
                 .params(mail_row_key=data_to_insert["mail_number"])
                 .first()
             )
-            data_to_insert["email_path"] = queue_task.request_data["email_path"]
-            data_to_insert["sender"] = queue_task.request_data["sender"]
-            data_to_insert["email_subject"] = queue_task.request_data["subject"]
+            if queue_task and queue_task.request_data:
+                data_to_insert["email_path"] = queue_task.request_data["email_path"]
+                data_to_insert["sender"] = queue_task.request_data["sender"]
+                data_to_insert["email_subject"] = queue_task.request_data["subject"]
+            else:
+                # Handle the case where queue_task is None or does not have request_data
+                data_to_insert["email_path"] = None
+                data_to_insert["sender"] = None
+                data_to_insert["email_subject"] = None
             # if len(data_to_insert["attachment"]):
                 # data_to_insert["email_path"] = (
                 #     "/".join(data_to_insert["attachment"][0]["file_path"].split("/")[:8])
