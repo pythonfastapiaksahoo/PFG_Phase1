@@ -1758,7 +1758,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         invTotalMth = 0
                                         invo_StatusCode = 2
                                         invTotalMth_msg = "Approval required for Zero $ invoice."
-                                if invoTotal < amt_threshold:
+                                if invoTotal >= amt_threshold:
                                     if approvalCk==1:
                                         invo_StatusCode = 4
                                         invTotalMth = 1
@@ -1954,7 +1954,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         invTotalMth = 0
                                         invo_StatusCode = 2
                                         invTotalMth_msg = "Approval required for Zero $ invoice."
-                                if invoTotal < amt_threshold:
+                                if invoTotal >= amt_threshold:
                                     if approvalCk==1:
                                         invo_StatusCode = 4
                                         invTotalMth = 1
