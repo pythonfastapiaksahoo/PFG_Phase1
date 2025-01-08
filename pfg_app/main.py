@@ -176,7 +176,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.89.50"
+            response.headers["api-version"] = "0.90.0"
 
             logger.info(
                 "Sending response from FastAPI"
