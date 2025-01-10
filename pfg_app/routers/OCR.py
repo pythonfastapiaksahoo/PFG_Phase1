@@ -224,6 +224,10 @@ def runStatus(
             - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections).
                                 Ensure to capture the primary vendor name typically found at the top of the document. If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
                                 If "Starbucks Coffee Canada, Inc" is not present on the invoice, do not guess or assume it.
+                                if "Freshpoint Nanaimo" is present on the invoice with any other vendor name, extract "Freshpoint Nanaimo" only not "Freshpoint Vancouver".
+                                if "Centennial" is present on the invoice with any other vendor name, extract "Centennial FoodService"
+                                if "Alsco Canada Corporation 2992 88 Ave Surrey" is present on the invoice with any other vendor name, extract "Alsco Canada Corporation" only
+                                if "Alsco Canada Corporation 91 Comox Rd" is present on the invoice with any other vendor name, extract "Alsco Canada Corp" only
                                 Return "N/A" if the vendor name is not present in the invoice document.
             - **Vendor Address**: Extracted vendor address from invoice document.
             - **Stamp Present**: Yes/No
