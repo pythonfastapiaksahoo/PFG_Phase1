@@ -2581,6 +2581,20 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
         old_value = update_data.OldValue
         skipconfig_ck = update_data.skipconfig_ck
 
+        # If the new and old values are the same, log a confirmation message
+        if new_value == old_value:
+            dmsg = f"User has confirmed that document identifier: '{stamptagname}' is correct."
+            try:
+                update_docHistory(
+                    inv_id,
+                    u_id,
+                    docStatus_id,
+                    dmsg,
+                    db,
+                )
+            except Exception:
+                logger.error(traceback.format_exc())
+            return None  # No changes made to StampDataValidation
         # Query the database for an existing record
         stamp_data = (
             db.query(model.StampDataValidation)
