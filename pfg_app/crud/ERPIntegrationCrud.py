@@ -1215,7 +1215,7 @@ def updateInvoiceStatus(doc_id, db):
                     db.commit()
 
                     # Update document history
-                    update_docHistory(doc_id, userID, documentstatusid, dmsg, db)
+                    update_docHistory(doc_id, userID, documentstatusid, docsubstatusid,  dmsg, db)
 
                 return {
                     "response": response.json(),
@@ -1342,7 +1342,7 @@ def newbulkupdateInvoiceStatus():
         # )
         doc_query = db.query(model.Document.idDocument).filter(
             model.Document.documentStatusID.in_([7, 14]),
-            model.Document.documentsubstatusID.in_([43, 44, 117]),
+            model.Document.documentsubstatusID.in_([43, 44, 114, 115, 117,]),
         )
         total_docs = doc_query.count()  # Total number of documents to process
         logger.info(f"Total documents to process: {total_docs}")
@@ -1691,7 +1691,7 @@ def bulkProcessVoucherData():
                     logger.info(f"ErrorUpdatingPostingData: {err}")
                 try:
                     # userID = 1
-                    update_docHistory(docID, userID, docStatus, dmsg, db)
+                    update_docHistory(docID, userID, docStatus, docSubStatus, dmsg, db)
                 except Exception as e:
                     logger.error(f"pfg_sync 501: {str(e)}")
             except Exception as e:
@@ -1718,7 +1718,7 @@ def bulkProcessVoucherData():
                     logger.info(f"ErrorUpdatingPostingData 156: {err}")
                 try:
                     documentstatus = 21
-                    update_docHistory(docID, userID, documentstatus, dmsg, db)
+                    update_docHistory(docID, userID, documentstatus, docSubStatus, dmsg, db)
                 except Exception as e:
                     logger.error(f"ErrorUpdatingDocHistory 163: {str(e)}")
         data = {

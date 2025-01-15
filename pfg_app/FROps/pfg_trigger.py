@@ -515,20 +515,20 @@ def nonIntegratedVoucherData(
     else:
         voucher_data_status = 0
 
-    # Determine ACCOUNT based on account existence or emptiness
-    if " " in str(account):
-        account = account.replace(" ","")
-    if account and len(str(account))>3:
-        ACCOUNT = account
-
-    else:
-        itmSelected = stmpData["SelectedDept"]
-        if itmSelected == "Inventory":
-            ACCOUNT = "14100"
-        elif itmSelected == "Supplies":
-            ACCOUNT = "71999"
+    # Determine ACCOUNT based on account existence or emptiness and selected department
+    itmSelected = stmpData["SelectedDept"]
+    if itmSelected == "Inventory":
+        ACCOUNT = "14100"
+    elif itmSelected == "Supplies":
+        # Determine ACCOUNT based on account existence or emptiness
+        if " " in str(account):
+            account = account.replace(" ","")
+        if account and len(str(account))>3:
+            ACCOUNT = account
         else:
-            ACCOUNT = ""
+            ACCOUNT = "71999"
+    else:
+        ACCOUNT = ""
 
     if voucher_data_status == 1:
         try:
