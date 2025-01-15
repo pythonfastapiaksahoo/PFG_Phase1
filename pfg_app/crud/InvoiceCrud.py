@@ -731,9 +731,9 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
     try:
         # avoid data updates by other users if in lock
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+        docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
         consolidated_updates = [] 
         for row in inv_data:
             try:
@@ -930,6 +930,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
                 )
@@ -1589,9 +1590,9 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
     updated_records = []
     consolidated_updates = []
-    docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+    docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
 
     try:
         for update_data in update_data_list:
@@ -1695,6 +1696,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
                 )
@@ -1724,7 +1726,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     return updated_records
 
 
-def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
+def update_docHistory(documentID, userID, documentstatus, documentsubstatus, documentdesc, db):
     """Function to update the document history by inserting a new record into
     the DocumentHistoryLogs table.
 
@@ -1752,6 +1754,7 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         docHistory["documentID"] = documentID
         docHistory["userID"] = userID
         docHistory["documentStatusID"] = documentstatus
+        docHistory["documentSubStatusID"] = documentsubstatus
         docHistory["documentdescription"] = documentdesc
         docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         # Insert the new document history log into the database
@@ -1804,7 +1807,7 @@ async def reject_invoice(userID, invoiceID, reason, db):
         # Commit the changes to the database
         db.commit()
         # Update document history with the new status change
-        update_docHistory(invoiceID, userID, 10, reason, db)
+        update_docHistory(invoiceID, userID, 10, 13, reason, db)
 
         return "success: document status changed to rejected!"
 
@@ -2386,9 +2389,9 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
     try:
         # avoid data updates by other users if in lock
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+        docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
         consolidated_updates = []
         for row in inv_data:
             if row.documentLineItemID:
@@ -2457,6 +2460,7 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
                 )
@@ -2494,9 +2498,9 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
     deleted_count = 0
     history_log = []
     try:
-        docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+        docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
         # Extract IDs from the objects
         line_item_ids = [obj.documentLineItemID for obj in line_item_objects]
 
@@ -2534,6 +2538,7 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     "; ".join(consolidated_message),
                     db,
                 )
@@ -2571,9 +2576,9 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
     :return: Updated or newly inserted StampDataValidation object or error details.
     """
     dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
-    docStatus_id = db.query(
-            model.Document.documentStatusID
-            ).filter(model.Document.idDocument==inv_id).scalar()
+    docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
     try:
         # Extract data from the update_data object
         stamptagname = update_data.stamptagname
@@ -2589,6 +2594,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     dmsg,
                     db,
                 )
@@ -2627,6 +2633,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     dmsg,
                     db,
                 )
@@ -2650,6 +2657,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     dmsg,
                     db,
                 )
