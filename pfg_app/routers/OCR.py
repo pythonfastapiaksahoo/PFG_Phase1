@@ -2035,7 +2035,7 @@ def push_frdata(
         if user_details[0] is not None
         else "" + " " + user_details[1] if user_details[1] is not None else ""
     )
-    update_docHistory(invoiceID, userID, 0, f"Invoice Uploaded By {user_name}", db)
+    update_docHistory(invoiceID, userID, 0, f"Invoice Uploaded By {user_name}", db,docsubstatus)
 
     # update document history table
     return invoiceID
@@ -2189,7 +2189,7 @@ def get_labelId(db, item, modelID):
         return None
 
 
-def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
+def update_docHistory(documentID, userID, documentstatus, documentdesc, db,docsubstatus=0):
     try:
         docHistory = {}
         docHistory["documentID"] = documentID
@@ -2197,6 +2197,8 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         docHistory["documentStatusID"] = documentstatus
         docHistory["documentdescription"] = documentdesc
         docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        if docsubstatus!=0:
+            docHistory["documentStatusID"] = docsubstatus
         db.add(model.DocumentHistoryLogs(**docHistory))
         db.commit()
     except Exception:

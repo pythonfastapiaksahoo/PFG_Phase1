@@ -11,7 +11,8 @@ from sqlalchemy.sql import case
 
 import pfg_app.model as model
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
-from pfg_app.crud.InvoiceCrud import update_docHistory
+# from pfg_app.crud.InvoiceCrud import update_docHistory
+from pfg_app.routers.OCR import update_docHistory
 from pfg_app.FROps.customCall import customModelCall
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
@@ -770,6 +771,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
     amt_threshold = 10000
     otrCrg_ck_zdr = 0
     otrTax_total = 0
+    invoSubStatus = 0
     ocr_msg = "Please review invoice details."
     try:
         hdr_ck_list = [
@@ -844,22 +846,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         if skipConf==1:
             documentdesc = "Confirmation validations were bypassed by the user."
             update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db
+                docID, userID, InvodocStatus, documentdesc, db,invoSubStatus
             )
         if zero_dollar==1:
             documentdesc = "Zero-dollar invoice approved by the user."
             update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db
+                docID, userID, InvodocStatus, documentdesc, db,invoSubStatus
             )
         if skip_supplierCk==1:
             documentdesc = "Supplier ID mismatch approved by the user."
             update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db
+                docID, userID, InvodocStatus, documentdesc, db, invoSubStatus
             )
         if approvalCk==1:
             documentdesc = f"Amount Approved by the user."
             update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db
+                docID, userID, InvodocStatus, documentdesc, db, invoSubStatus
             )
 
     except Exception:
@@ -1240,7 +1242,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     try:
                         custModelCall_msg =  "Custom Model Call done"
                         update_docHistory(
-                            docID, userID, InvodocStatus,custModelCall_msg , db
+                            docID, userID, InvodocStatus,custModelCall_msg , db, invoSubStatus
                         )
                     except Exception:
                         logger.debug(traceback.format_exc())
@@ -1251,6 +1253,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         invID_docTab = dtb_rw.docheaderID
                         vdrAccID = dtb_rw.vendorAccountID
                         documentModelID = dtb_rw.documentModelID
+                        invoSubStatus = dtb_rw.documentsubstatusID
         except Exception:
             logger.error(f"{traceback.format_exc()}")
 
@@ -1273,7 +1276,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             if duplicate_status_ck == 1:
                 try:
                     update_docHistory(
-                        docID, userID, InvodocStatus, duplicate_status_ck_msg, db
+                        docID, userID, InvodocStatus, duplicate_status_ck_msg, db,invoSubStatus
                     )
                 except Exception:
                     logger.debug(traceback.format_exc())
@@ -1384,7 +1387,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                         userID,
                                                         InvodocStatus,
                                                         documentdesc,
-                                                        db,  # noqa: E501
+                                                        db,invoSubStatus,  # noqa: E501
                                                     )
                                                 except Exception:
                                                     logger.debug(
@@ -1425,7 +1428,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 userID,
                                                 InvodocStatus,
                                                 documentdesc,
-                                                db,  # noqa: E501
+                                                db,invoSubStatus  # noqa: E501
                                             )
                                         except Exception:
                                             logger.debug(f"{traceback.format_exc()}")
@@ -1470,7 +1473,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                     userID,
                                                     InvodocStatus,
                                                     documentdesc,
-                                                    db,  # noqa: E501
+                                                    db,invoSubStatus  # noqa: E501
                                                 )
                                             except Exception:
                                                 logger.debug(
@@ -1512,7 +1515,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 userID,
                                                 InvodocStatus,
                                                 documentdesc,
-                                                db,  # noqa: E501
+                                                db,invoSubStatus  # noqa: E501
                                             )
                                         except Exception:
                                             logger.debug(f"{traceback.format_exc()}")
@@ -2087,7 +2090,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         documentdesc = "OCR validations success"
                         try:
                             update_docHistory(
-                                docID, userID, documentstatus, documentdesc, db
+                                docID, userID, documentstatus, documentdesc, db,invoSubStatus
                             )
                         except Exception:
                             logger.error(traceback.format_exc())
@@ -2232,7 +2235,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 documentdesc = "Storetype validation Success"
                                 try:
                                     update_docHistory(
-                                        docID, userID, documentstatus, documentdesc, db
+                                        docID, userID, documentstatus, documentdesc, db,invoSubStatus
                                     )
                                 except Exception:
                                     logger.debug(traceback.format_exc)
@@ -2591,7 +2594,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             userID,
                                             documentstatus,
                                             documentdesc,
-                                            db,  # noqa: E501
+                                            db,invoSubStatus,  # noqa: E501
                                         )
                                     except Exception:
                                         logger.debug(traceback.format_exc())
@@ -2726,7 +2729,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             try:
 
                                                 update_docHistory(
-                                                    docID, userID, docStatus, dmsg, db
+                                                    docID, userID, docStatus, dmsg, db, docSubStatus
                                                 )
 
                                             except Exception:
@@ -2766,7 +2769,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 userID,
                                                 documentstatus,
                                                 dmsg,
-                                                db,  # noqa: E501
+                                                db,docSubStatus,  # noqa: E501
                                             )
                                         except Exception:
                                             logger.debug(f"{traceback.format_exc()}")
@@ -2784,7 +2787,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             userID,
                                             documentstatus,
                                             documentdesc,
-                                            db,  # noqa: E501
+                                            db,documentSubstatus  # noqa: E501
                                         )
                                     except Exception:
                                         logger.debug(f"{traceback.format_exc()}")
@@ -2808,7 +2811,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 documentdesc = "Invalid Store Type"
                                 try:
                                     update_docHistory(
-                                        docID, userID, documentstatus, documentdesc, db
+                                        docID, userID, documentstatus, documentdesc, db,documentSubstatus,
                                     )
                                 except Exception:
                                     logger.debug(f"{traceback.format_exc()}")
@@ -2835,7 +2838,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                             documentdesc = "No Stamp Data Found"
                             try:
                                 update_docHistory(
-                                    docID, userID, documentstatus, documentdesc, db
+                                    docID, userID, documentstatus, documentdesc, db,documentSubstatus
                                 )
                             except Exception:
                                 logger.debug(f"{traceback.format_exc()}")
@@ -2867,7 +2870,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                             documentdesc = "OCR / invoice total validation failed"
                         try:
                             update_docHistory(
-                                docID, userID, documentstatus, documentdesc, db
+                                docID, userID, documentstatus, documentdesc, db,documentSubstatus
                             )
                         except Exception:
 
@@ -2894,7 +2897,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             else:
                 try:
                     update_docHistory(
-                        docID, userID, InvodocStatus, duplicate_status_ck_msg, db
+                        docID, userID, InvodocStatus, duplicate_status_ck_msg, db,invoSubStatus
                     )
                 except Exception as e:
                     logger.error(f"pfg_sync line 886: {str(e)}")
@@ -2904,7 +2907,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             try:
                 docHrd_msg = "No Header Data found"
                 docHrd_status = 0
-                update_docHistory(docID, userID, docHrd_status, docHrd_msg, db)
+                update_docHistory(docID, userID, docHrd_status, docHrd_msg, db,invoSubStatus)
             except Exception:
                 logger.debug(traceback)
             overAllstatus_msg = "Failed"
