@@ -47,7 +47,7 @@ jobs:
     runs-on: azure-private-ghhostedrunner-nonprod-001
     needs: build
     environment:
-      name: 'Production'
+      name: 'qa'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write #This is required for requesting the JWT
