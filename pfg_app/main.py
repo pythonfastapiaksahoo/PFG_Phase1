@@ -26,6 +26,7 @@ from pfg_app.routers import (
     invoice,
     modelonboarding,
     vendor,
+    CorpIntegrationapi,
 )
 from pfg_app.session.session import get_db
 
@@ -219,6 +220,7 @@ app.include_router(modelonboarding.router)
 app.include_router(ERPIntegrationapi.router)
 app.include_router(batchexception.router)
 app.include_router(common.router)
+app.include_router(CorpIntegrationapi.router)
 
 
 @app.get("/")
