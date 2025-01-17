@@ -1,3 +1,4 @@
+#cust_call
 import re
 import traceback
 
@@ -679,6 +680,7 @@ def customModelCall(docID):
                 logger.error(f"{traceback.format_exc()}")
 
         # add missing values to the invoice data:
+        logger.info(f"custHdrDt_insert_missing: {custHdrDt_insert_missing}")
         for entry in custHdrDt_insert_missing:
             new_record = model.DocumentData(
                 documentID=entry["documentID"],

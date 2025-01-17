@@ -64,8 +64,8 @@ else:
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_recycle=1800,
-        pool_size=20,
-        max_overflow=2,
+        pool_size=25,
+        max_overflow=5,
         pool_timeout=30,
     )
 

@@ -1,3 +1,4 @@
+import threading
 import traceback
 import uuid
 from datetime import datetime
@@ -15,6 +16,7 @@ from pfg_app.crud.commonCrud import (
     schedule_bulk_update_invoice_status_job,
 )
 from pfg_app.logger_module import logger, set_operation_id, tracer
+from pfg_app.model import QueueTask
 from pfg_app.routers import (
     FR,
     OCR,
@@ -25,6 +27,7 @@ from pfg_app.routers import (
     modelonboarding,
     vendor,
 )
+from pfg_app.session.session import get_db
 
 app = FastAPI(
     title="IDP",
@@ -133,7 +136,28 @@ async def app_startup():
         except Exception as e:
             logger.info(f"Exception: {e}" + traceback.format_exc())
 
-        logger.info("Application is ready to process requests")
+        logger.info("Resetting all queues before starting the application")
+        db = next(get_db())
+        db.query(QueueTask).filter(QueueTask.status == "processing").update(
+            {"status": "queued"}
+        )
+        db.commit()
+        logger.info("All queues reset to queued state")
+        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
+        worker_thread.start()
+        logger.info("OCR Worker thread started")
+    else:
+        logger.info("Resetting all queues before starting the application")
+        db = next(get_db())
+        db.query(QueueTask).filter(
+            QueueTask.status == f"{settings.local_user_name}-processing"
+        ).update({"status": f"{settings.local_user_name}-queued"})
+        db.commit()
+        logger.info("All queues reset to queued state")
+        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
+        worker_thread.start()
+        logger.info("OCR Worker thread started")
+    logger.info("Application is ready to process requests")
 
 
 @app.on_event("shutdown")
@@ -176,8 +200,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-
-            response.headers["api-version"] = "0.90.4"
+            response.headers["api-version"] = "0.94.0"
 
             logger.info(
                 "Sending response from FastAPI"
