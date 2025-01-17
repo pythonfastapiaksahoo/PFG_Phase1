@@ -325,102 +325,105 @@ def queue_process_task(queue_task: QueueTask):
                 }
 
                 ### Instructions:
-                1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly.
-                2. **Data Extraction**: Extract only the information specified:
-                - **Invoice Document**: Yes/No
-                - **CreditNote**: Yes/No
-                - **Invoice ID**: Extracted Invoice ID from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
-                - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections).
-                                    Ensure to capture the primary vendor name typically found at the top of the document. If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
-                                    If "Starbucks Coffee Canada, Inc" is not present on the invoice, do not guess or assume it.
-                                    Return "N/A" if the vendor name is not present in the invoice document.
-                - **Vendor Address**: Extracted vendor address from invoice document.
-                - **Stamp Present**: Yes/No
-                - If a stamp is present, extract the following information:
-                - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.Ensure the store number can be three or four digits only. If it is more than four digits, return "N/A"
-                - **MarkedDept**: Extract the clearly circled marked keyword "Inventory" or "INV" or "Supplies" or "SUP" from the stamp image.
-                            Ensure that it must return either "Inventory" or "Supplies" and should not extract anything else.
-                            If no department is circled or it's missing, then return "Inventory" as the default only. Ensure not to return "N/A" or any other value.
-                - **Department**: Extract either a department code or department name, handwritten
-                        and possibly starting with "Dept"
-                - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
-                        If not, leave it blank.
-                - **Receiver**: The name or code of the person who received the goods (may appear as "Receiver#" or by name).
-                - **Confirmation Number**: A 9-digit number, usually handwritten and labeled as "Confirmation"., if it is visible.
-                        If not, leave it as "N/A".
-                - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
-                - **GST_HST_Found** : Yes/No
-                - **GST_HST_Amount**: extract the value listed in the same row as 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice .
-                    For example, if the line 'GST/HST 44.69 @ 5%  2.23' is present, extract the value '2.23'. Note that the amount before '@ 5%'  and next to it can vary.
+            1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly.
+            2. **Data Extraction**: Extract only the information specified:
+            - **Invoice Document**: Yes/No
+            - **CreditNote**: Yes/No
+            - **Invoice ID**: Extracted Invoice ID from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
+            - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections).
+                                Ensure to capture the primary vendor name typically found at the top of the document. If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
+                                If "Starbucks Coffee Canada, Inc" is not present on the invoice, do not guess or assume it.
+                                if "Freshpoint Nanaimo" is present on the invoice with any other vendor name, extract "Freshpoint Nanaimo" only not "Freshpoint Vancouver".
+                                if "Centennial" is present on the invoice with any other vendor name, extract "Centennial FoodService"
+                                if "Alsco Canada Corporation 2992 88 Ave Surrey" is present on the invoice with any other vendor name, extract "Alsco Canada Corporation" only
+                                if "Alsco Canada Corporation 91 Comox Rd" is present on the invoice with any other vendor name, extract "Alsco Canada Corp" only
+                                Return "N/A" if the vendor name is not present in the invoice document.
+            - **Vendor Address**: Extracted vendor address from invoice document.
+            - **Stamp Present**: Yes/No
+            - If a stamp is present, extract the following information:
+            - **Store Number**: extract the store number only if its clearly visible and starting with either 'STR#' or '#' or 'Urban Fare #'.Ensure the store number can be three or four digits only. If it is more than four digits, return "N/A"
+            - **MarkedDept**: Extract the clearly circled marked keyword "Inventory" or "INV" or "Supplies" or "SUP" from the stamp image.
+            Ensure that it must return either "Inventory" or "Supplies" and should not extract anything else. If no department is circled or it's missing, then return "Inventory" as the default only. Ensure not to return "N/A" or any other value.
+            - **Department**: Extract either a department code or department name, handwritten
+                    and possibly starting with "Dept"
+            - **Receiving Date**: extract the date of receipt from the stamp image, if it is visible and in a recognizable format.
+                    If not, leave it blank.
+            - **Receiver**: The name or code of the person who received the goods (may appear as "Receiver#" or by name).
+            - **Confirmation Number**: A 9-digit number, usually handwritten and labeled as "Confirmation"., if it is visible.
+                    If not, leave it as "N/A".
+            - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
+            - **GST_HST_Found** : Yes/No
+            - **GST_HST_Amount**: extract the value listed next to 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice .
+                For example, if the line 'GST/HST 44.69 @ 5%' is present, extract the value '2.23'. Note that the amount before '@ 5%'  and next to it can vary.
 
-                3. **Special Notes**:
-                - *MarkedDept*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
-                        - If the circle starts with the word "Inventory" and ends with the starting character of "Supplies", extract "Inventory".
-                        - If the circle starts with the last character of "Inventory" and covers "Supplies" completely, extract "Supplies".
-                        - If the circle exactly encloses the word "Inventory" return "Inventory"
-                        - If the circle exactly encloses the word "Supplies" return "Supplies"
-                        - If the circle encloses the word "INV" return "Inventory"
-                        - If the circle encloses the word "SUP" return "Supplies"
-                    - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
-                        - The confirmation number must be a handwritten number only.
-                        - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
-                        - Apply image enhancement techniques such as increasing contrast to clarify obscured digits.
-                        - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
-                        - if the confirmation number is not present, return "N/A"
-                    - **Receiver** : Extract it only if keyword "Receiver#" exist before the receiver code or name.
-                    - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section.
-                        - Ensure to capture the primary vendor name typically found at the top of the document.
-                        - If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
-                        - If "Starbucks Coffee Canada, Inc" is not present on the invoice, do not guess or assume it.
-                        - Return "N/A" if the vendor name is not present in the invoice document.
-                    - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
-                    - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
-                    - **Credit Note**:  May have 'CREDIT MEMO' written on the invoice with or without Negative Amount.
-                        - If the invoice has 'CREDIT MEMO' written on it or if total amounts are negative, return 'Yes'
-                        - If the invoice does not have 'CREDIT MEMO' written on it, return 'No'
-                        - If the invoice has 'CREDIT MEMO' written on it, but the amount is negative, return 'Yes'
-                        - Don't consider Discounts as it is not a Credit Note.
-                    - **GST_HST_Found** : Only if Vendor Name is 'Starbucks Coffee Canada, Inc' then identify if 'GST/HST [any amount] @ 5%' is present in the bottom left side of the Starbucks's invoice return 'Yes'.
-                        -  if its other than @ 5% then return 'No'. For example, 'GST/HST [any amount] @ 0%' or 'GST/HST [any amount] @ 10%'.
-                        - **GST_HST_Amount**: extract the value listed in the same row as 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice . For example, if the line 'GST/HST 44.69 @ 5%  2.23' is present, extract the value '2.23'.
-                        - Note that the amount before '@ 5%'  and next to it can vary.
-                4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
+            3. **Special Notes**:
+            - *Marked Department*: The department may be labeled as "Inventory," "INV," "Supplies," or "SUP." Ensure that you identify the circled text accurately.
+                    - If the circle starts with the word "Inventory" and ends with the starting character of "Supplies", extract "Inventory".
+                    - If the circle starts with the last character of "Inventory" and covers "Supplies" completely, extract "Supplies".
+                    - If the circle exactly encloses the word "Inventory" extract "Inventory"
+                    - If the circle exactly encloses the word "Supplies" extract "Supplies"
+                    - If the circle encloses the word "INV," extract "Inventory"
+                    - If the circle encloses the word "SUP," extract "Supplies"
+                - **Confirmation Number** : Extract the confirmation number labeled as 'Confirmation' from the stamp seal in the provided invoice image.
+                    - The confirmation number must be a handwritten number only.
+                    - Please account for potential obstacles such as table description lines that may cut through the number, poor handwriting, or low-quality stamp impressions.
+                    - Apply image enhancement techniques such as increasing contrast to clarify obscured digits.
+                    - Ensure the extracted number is accurate and complete. If there are any ambiguities or unclear digits.
+                    - if the confirmation number is not present, return "N/A"
+                - **Receiver** : Extract it only if keyword "Receiver#" exist before the receiver code or name.
+                - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section.
+                    - Ensure to capture the primary vendor name typically found at the top of the document.
+                    - If "Starbucks Coffee Canada, Inc" is present on the invoice with any other vendor name, extract "Starbucks Coffee Canada, Inc" only.
+                    - If "Starbucks Coffee Canada, Inc" is not present on the invoice, do not guess or assume it.
+                    - Return "N/A" if the vendor name is not present in the invoice document.
+                - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
+                - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
+                - **Credit Note**:  May have 'CREDIT MEMO' written on the invoice with or without Negative Amount.
+                    - If the invoice has 'CREDIT MEMO' written on it or if total amounts are negative, return 'Yes'
+                    - If the invoice does not have 'CREDIT MEMO' written on it, return 'No'
+                    - If the invoice has 'CREDIT MEMO' written on it, but the amount is negative, return 'Yes'
+                    - Don't consider Discounts as it is not a Credit Note.
+                - **GST_HST_Found** : Only if Vendor Name is 'Starbucks Coffee Canada, Inc' then identify if 'GST/HST [any amount] @ 5%' is present in the bottom left side of the Starbucks's invoice return 'Yes'.
+                    -  if its other than @ 5% then return 'No'. For example, 'GST/HST [any amount] @ 0%' or 'GST/HST [any amount] @ 10%'.
+            	    - **GST_HST_Amount**: extract the value listed next to 'GST/HST [any amount] @ 5%' from the bottom left side of the Starbucks's invoice . For example, if the line 'GST/HST 44.69 @ 5%' is present, extract the value '2.23'.
+		            - Note that the amount before '@ 5%'  and next to it can vary.
+            4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
-                ### Example Output:
-                If the extracted text includes:
-                - MarkedDept: "Inventory"
-                - Confirmation: "123456789"
-                - ReceivingDate: "2023-01-01"
-                - Receiver: "John Doe"
-                - Department: "30"
-                - Store Number: "1981"
-                - VendorName: "ABC Company"
-                - VendorAddress: "123 Main St, Anytown CANADA"
-                - InvoiceID: "INV-12345"
-                - Currency: "CAD"
-                - GST_HST_Found: "No"
-                - GST_HST_Amount: "0.0"
+            ### Example Output:
+            If the extracted text includes:
+            - MarkedDept: "Inventory"
+            - Confirmation: "123456789"
+            - ReceivingDate: "2023-01-01"
+            - Receiver: "John Doe"
+            - Department: "30"
+            - Store Number: "1981"
+            - VendorName: "ABC Company"
+            - VendorAddress: "123 Main St, Anytown CANADA"
+            - InvoiceID: "INV-12345"
+            - Currency: "CAD"
+            - GST_HST_Found: "No"  
+            - GST_HST_Amount: "0.0" 
 
-                The expected output should be:
-                {
-                    "StampFound": "Yes",
-                    "CreditNote": "Yes/No",
-                    "NumberOfPages": "1",
-                    "MarkedDept": "Inventory",
-                    "Confirmation": "123456789",
-                    "ReceivingDate": "2023-01-01",
-                    "Receiver": "John Doe",
-                    "Department": "30",
-                    "Store Number": "1981",
-                    "VendorName": "ABC Company",
-                    "VendorAddress": "123 Main St, Anytown USA",
-                    "InvoiceID": "INV-12345",
-                    "Currency": "CAD",
-                    "GST_HST_Found": "No",
-                    "GST_HST_Amount": "0.0"
-                }
+            The expected output should be:
+            {
+                "StampFound": "Yes",
+                "CreditNote": "Yes/No",
+                "NumberOfPages": "1",
+                "MarkedDept": "Inventory",
+                "Confirmation": "123456789",
+                "ReceivingDate": "2023-01-01",
+                "Receiver": "John Doe",
+                "Department": "30",
+                "Store Number": "1981",
+                "VendorName": "ABC Company",
+                "VendorAddress": "123 Main St, Anytown USA",
+                "InvoiceID": "INV-12345",
+                "Currency": "CAD",
+                "GST_HST_Found": "No",  
+                "GST_HST_Amount": "0.0" 
+            }
 
-                """
+            """
 
             try:
                 (
@@ -1536,6 +1539,28 @@ def queue_process_task(queue_task: QueueTask):
                                     CreditNoteCk_isErr = 1
                                     CreditNoteCk_msg = "Response from OpenAI."
 
+                        # try:
+                        #     gst_amt = 0
+                        #     # if store_type == "Integrated":
+                        #     #     payload_subtotal = ""
+                        #     #     IntegratedvoucherData(
+                        #     #         invoId, gst_amt, payload_subtotal,CreditNote, db
+                        #     #     )
+                        #     # elif store_type == "Non-Integrated":
+                        #     #     payload_subtotal = ""
+                        #     #     nonIntegratedVoucherData(
+                        #     #         invoId, gst_amt, payload_subtotal,CreditNote, db
+                        #     #     )
+                        # except Exception:
+                        #     logger.debug(f"{traceback.format_exc()}")
+                    else:
+                        try:
+                            if "CreditNote" in StampDataList[splt_map[fl]]:
+                                CreditNote_chk = StampDataList[splt_map[fl]]["CreditNote"]
+                                if CreditNote_chk == "Yes":
+                                    CreditNote = "credit note"
+                                elif CreditNote_chk=="No":
+                                    CreditNote = "Invoice Document"
                                 else:
                                     CreditNote = "NA"
                                     CreditNoteCk_isErr = 0
@@ -2362,7 +2387,7 @@ def push_frdata(
         if user_details[0] is not None
         else "" + " " + user_details[1] if user_details[1] is not None else ""
     )
-    update_docHistory(invoiceID, userID, 0, f"Invoice Uploaded By {user_name}", db)
+    update_docHistory(invoiceID, userID, 0, f"Invoice Uploaded By {user_name}", db,docsubstatus)
 
     # update document history table
     return invoiceID
@@ -2516,7 +2541,7 @@ def get_labelId(db, item, modelID):
         return None
 
 
-def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
+def update_docHistory(documentID, userID, documentstatus, documentdesc, db,docsubstatus=0):
     try:
         docHistory = {}
         docHistory["documentID"] = documentID
@@ -2524,6 +2549,8 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         docHistory["documentStatusID"] = documentstatus
         docHistory["documentdescription"] = documentdesc
         docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        if docsubstatus!=0:
+            docHistory["documentStatusID"] = docsubstatus
         db.add(model.DocumentHistoryLogs(**docHistory))
         db.commit()
     except Exception:

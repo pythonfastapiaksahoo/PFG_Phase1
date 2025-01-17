@@ -781,12 +781,10 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
     try:
         # avoid data updates by other users if in lock
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        docStatus_id = (
-            db.query(model.Document.documentStatusID)
-            .filter(model.Document.idDocument == inv_id)
-            .scalar()
-        )
-        consolidated_updates = []  # Store updates for consolidated log
+        docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
+        consolidated_updates = [] 
         for row in inv_data:
             try:
                 # Check if the document id and document data are related
@@ -962,11 +960,10 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                 db.query(model.DocumentData).filter_by(
                     idDocumentData=row.documentDataID
                 ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
-
+                
                 consolidated_updates.append(
                     f"Field {label} updated to {data.NewValue} from {data.OldValue}"
                 )
-
             else:
                 # Update DocumentLineItems for line item updates
                 db.query(model.DocumentLineItems).filter_by(
@@ -974,20 +971,20 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                 ).update({"IsUpdated": 1, "isError": 0, "Value": data.NewValue})
 
             db.flush()
-        # Updating the consolidated history log for updated fields
+        # Updating the consolidated history log for updated fields   
         if consolidated_updates:
             try:
                 update_docHistory(
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
                 )
             except Exception:
                 logger.error(
-                    f"Error updating document history: {traceback.format_exc()}"
-                )
+                    f"Error updating document history: {traceback.format_exc()}")
         # Update the last updated timestamp for the document
         db.query(model.Document).filter_by(idDocument=inv_id).update(
             {"UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
@@ -1642,11 +1639,10 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
     updated_records = []
     consolidated_updates = []
-    docStatus_id = (
-        db.query(model.Document.documentStatusID)
-        .filter(model.Document.idDocument == inv_id)
-        .scalar()
-    )
+    docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
+
     try:
         for update_data in update_data_list:
             try:
@@ -1655,6 +1651,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                 new_value = update_data.NewValue
                 old_value = update_data.OldValue
                 skipconfig_ck = update_data.skipconfig_ck
+
                 # Query the database to find the record
                 stamp_data = (
                     db.query(model.StampDataValidation)
@@ -1720,7 +1717,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
 
                     # Add the updated document to the session for commit
                     db.add(document_record)
-
+                    
                 # Consolidate updates for the history log
                 consolidated_updates.append(
                     f"Field '{stamptagname}' updated to '{new_value}' from '{old_value}'"
@@ -1748,12 +1745,12 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
                 )
             except Exception:
                 logger.error(traceback.format_exc())
-
         # Refresh and return the updated or newly inserted records
         for stamp_data in updated_records:
             if isinstance(stamp_data, model.StampDataValidation):
@@ -1772,13 +1769,13 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
         logger.error(traceback.format_exc())
         # Handle any other unexpected errors and rollback
         db.rollback()
-        print(traceback.format_exc())
+        # print(traceback.format_exc())
         return Response(status_code=500, headers={"Error": "Internal Server error"})
 
     return updated_records
 
 
-def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
+def update_docHistory(documentID, userID, documentstatus, documentsubstatus, documentdesc, db):
     """Function to update the document history by inserting a new record into
     the DocumentHistoryLogs table.
 
@@ -1806,6 +1803,7 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db):
         docHistory["documentID"] = documentID
         docHistory["userID"] = userID
         docHistory["documentStatusID"] = documentstatus
+        docHistory["documentSubStatusID"] = documentsubstatus
         docHistory["documentdescription"] = documentdesc
         docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         # Insert the new document history log into the database
@@ -1858,7 +1856,7 @@ async def reject_invoice(userID, invoiceID, reason, db):
         # Commit the changes to the database
         db.commit()
         # Update document history with the new status change
-        update_docHistory(invoiceID, userID, 10, reason, db)
+        update_docHistory(invoiceID, userID, 10, 13, reason, db)
 
         return "success: document status changed to rejected!"
 
@@ -2623,11 +2621,9 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
     try:
         # avoid data updates by other users if in lock
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        docStatus_id = (
-            db.query(model.Document.documentStatusID)
-            .filter(model.Document.idDocument == inv_id)
-            .scalar()
-        )
+        docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
         consolidated_updates = []
         for row in inv_data:
             if row.documentLineItemID:
@@ -2663,12 +2659,12 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
                 new_update = model.DocumentUpdates(**update_data)
                 db.add(new_update)
                 db.flush()
-
+                
                 # Add to consolidated history log
                 consolidated_updates.append(
                     f"Line Item ID {row.documentLineItemID}: Updated from {row.OldValue} to {row.NewValue}"
                 )
-
+                
                 # Update DocumentLineItems for line item updates
                 db.query(model.DocumentLineItems).filter_by(
                     idDocumentLineItems=row.documentLineItemID
@@ -2689,7 +2685,6 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
                 )
                 db.add(new_line)
                 inserted_count += 1
-
         # Add consolidated history log
         if consolidated_updates:
             try:
@@ -2697,6 +2692,7 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
                 )
@@ -2733,11 +2729,9 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
     deleted_count = 0
     history_log = []
     try:
-        docStatus_id = (
-            db.query(model.Document.documentStatusID)
-            .filter(model.Document.idDocument == inv_id)
-            .scalar()
-        )
+        docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
         # Extract IDs from the objects
         line_item_ids = [obj.documentLineItemID for obj in line_item_objects]
 
@@ -2765,9 +2759,7 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
             }
         # Collect details for history logging
         for line_item in line_items_to_delete:
-            history_log.append(
-                f"Deleted line item with ID: {line_item.idDocumentLineItems}, Value: {line_item.Value}"
-            )
+            history_log.append(f"Deleted line item with ID: {line_item.idDocumentLineItems}, Value: {line_item.Value}")
         deleted_count = len(line_items_to_delete)
         for line_item in line_items_to_delete:
             db.delete(line_item)
@@ -2776,12 +2768,13 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
         try:
             consolidated_message = "; ".join(history_log)
             update_docHistory(
-                inv_id,
-                u_id,
-                docStatus_id,
-                "; ".join(consolidated_message),
-                db,
-            )
+                    inv_id,
+                    u_id,
+                    docStatus_id,
+                    docSubStatus_id,
+                    "; ".join(consolidated_message),
+                    db,
+                )
         except Exception:
             logger.error("Failed to update history log.")
 
@@ -2810,17 +2803,31 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
     :return: Updated or newly inserted StampDataValidation object or error details.
     """
     dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
-    docStatus_id = (
-        db.query(model.Document.documentStatusID)
-        .filter(model.Document.idDocument == inv_id)
-        .scalar()
-    )
+    docStatus_id, docSubStatus_id = db.query(
+            model.Document.documentStatusID, model.Document.documentsubstatusID
+            ).filter(model.Document.idDocument==inv_id).first()
     try:
         # Extract data from the update_data object
         stamptagname = update_data.stamptagname
         new_value = update_data.NewValue
         old_value = update_data.OldValue
         skipconfig_ck = update_data.skipconfig_ck
+
+        # If the new and old values are the same, log a confirmation message
+        if new_value == old_value:
+            dmsg = f"User has confirmed that document identifier: '{stamptagname}' is correct."
+            try:
+                update_docHistory(
+                    inv_id,
+                    u_id,
+                    docStatus_id,
+                    docSubStatus_id,
+                    dmsg,
+                    db,
+                )
+            except Exception:
+                logger.error(traceback.format_exc())
+            return None  # No changes made to StampDataValidation
         # Query the database for an existing record
         stamp_data = (
             db.query(model.StampDataValidation)
@@ -2853,6 +2860,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     dmsg,
                     db,
                 )
@@ -2876,6 +2884,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
+                    docSubStatus_id,
                     dmsg,
                     db,
                 )
