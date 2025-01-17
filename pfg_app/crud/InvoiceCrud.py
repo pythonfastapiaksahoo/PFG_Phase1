@@ -978,9 +978,9 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
-                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
+                    docSubStatus_id,
                 )
             except Exception:
                 logger.error(
@@ -1745,9 +1745,9 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     inv_id,
                     u_id,
                     docStatus_id,
-                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
+                    docSubStatus_id,
                 )
             except Exception:
                 logger.error(traceback.format_exc())
@@ -1775,7 +1775,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     return updated_records
 
 
-def update_docHistory(documentID, userID, documentstatus, documentsubstatus, documentdesc, db):
+def update_docHistory(documentID, userID, documentstatus, documentdesc, db,docsubstatus=0):
     """Function to update the document history by inserting a new record into
     the DocumentHistoryLogs table.
 
@@ -1791,6 +1791,9 @@ def update_docHistory(documentID, userID, documentstatus, documentsubstatus, doc
         A description or reason for the status change.
     db : Session
         Database session object to interact with the backend.
+    docsubstatus : int (optional)
+        The sub-status of the document being recorded in the history.
+
 
     Returns:
     -------
@@ -1798,26 +1801,20 @@ def update_docHistory(documentID, userID, documentstatus, documentsubstatus, doc
         Returns None on success or an error message on failure.
     """
     try:
-        # Creating a dictionary to hold the document history data
         docHistory = {}
         docHistory["documentID"] = documentID
         docHistory["userID"] = userID
         docHistory["documentStatusID"] = documentstatus
-        docHistory["documentSubStatusID"] = documentsubstatus
         docHistory["documentdescription"] = documentdesc
         docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        # Insert the new document history log into the database
+        if docsubstatus!=0:
+            docHistory["documentStatusID"] = docsubstatus
         db.add(model.DocumentHistoryLogs(**docHistory))
-        # Commit the transaction to save the changes
         db.commit()
     except Exception:
-        # Log the exception details for debugging
         logger.error(traceback.format_exc())
-        # Rollback the transaction in case of an error
         db.rollback()
-        # Return a descriptive error message to the caller
         return {"DB error": "Error while inserting document history"}
-
 
 async def reject_invoice(userID, invoiceID, reason, db):
     """Function to reject an invoice by updating its status and logging the
@@ -1856,7 +1853,7 @@ async def reject_invoice(userID, invoiceID, reason, db):
         # Commit the changes to the database
         db.commit()
         # Update document history with the new status change
-        update_docHistory(invoiceID, userID, 10, 13, reason, db)
+        update_docHistory(invoiceID, userID, 10, reason, db, 13)
 
         return "success: document status changed to rejected!"
 
@@ -2692,9 +2689,9 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
-                    docSubStatus_id,
                     "; ".join(consolidated_updates),
                     db,
+                    docSubStatus_id,
                 )
             except Exception:
                 logger.error(traceback.format_exc())
@@ -2771,9 +2768,9 @@ async def delete_line_items(u_id, inv_id, line_item_objects, db):
                     inv_id,
                     u_id,
                     docStatus_id,
-                    docSubStatus_id,
                     "; ".join(consolidated_message),
                     db,
+                    docSubStatus_id,
                 )
         except Exception:
             logger.error("Failed to update history log.")
@@ -2821,9 +2818,9 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
-                    docSubStatus_id,
                     dmsg,
                     db,
+                    docSubStatus_id,
                 )
             except Exception:
                 logger.error(traceback.format_exc())
@@ -2860,9 +2857,9 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
-                    docSubStatus_id,
                     dmsg,
                     db,
+                    docSubStatus_id,
                 )
             except Exception:
                 logger.error(traceback.format_exc())
@@ -2884,9 +2881,9 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
                     inv_id,
                     u_id,
                     docStatus_id,
-                    docSubStatus_id,
                     dmsg,
                     db,
+                    docSubStatus_id,
                 )
             except Exception:
                 logger.error(traceback.format_exc())

@@ -43,6 +43,7 @@ from pfg_app.FROps.SplitDoc import splitDoc
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
 from pfg_app.model import QueueTask
+from pfg_app.crud.InvoiceCrud import update_docHistory
 
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 
@@ -2512,22 +2513,7 @@ def get_labelId(db, item, modelID):
         return None
 
 
-def update_docHistory(documentID, userID, documentstatus, documentdesc, db,docsubstatus=0):
-    try:
-        docHistory = {}
-        docHistory["documentID"] = documentID
-        docHistory["userID"] = userID
-        docHistory["documentStatusID"] = documentstatus
-        docHistory["documentdescription"] = documentdesc
-        docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        if docsubstatus!=0:
-            docHistory["documentStatusID"] = docsubstatus
-        db.add(model.DocumentHistoryLogs(**docHistory))
-        db.commit()
-    except Exception:
-        logger.error(traceback.format_exc())
-        db.rollback()
-        return {"DB error": "Error while inserting document history"}
+
 
 
 def store_gst_hst_amount(

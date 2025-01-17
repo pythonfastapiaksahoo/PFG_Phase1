@@ -12,8 +12,8 @@ from sqlalchemy.sql import case
 
 import pfg_app.model as model
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
-# from pfg_app.crud.InvoiceCrud import update_docHistory
-from pfg_app.routers.OCR import update_docHistory
+from pfg_app.crud.InvoiceCrud import update_docHistory
+# from pfg_app.routers.OCR import update_docHistory
 from pfg_app.FROps.customCall import customModelCall
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
