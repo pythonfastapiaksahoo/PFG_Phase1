@@ -1539,35 +1539,6 @@ def queue_process_task(queue_task: QueueTask):
                                     CreditNoteCk_isErr = 1
                                     CreditNoteCk_msg = "Response from OpenAI."
 
-                        # try:
-                        #     gst_amt = 0
-                        #     # if store_type == "Integrated":
-                        #     #     payload_subtotal = ""
-                        #     #     IntegratedvoucherData(
-                        #     #         invoId, gst_amt, payload_subtotal,CreditNote, db
-                        #     #     )
-                        #     # elif store_type == "Non-Integrated":
-                        #     #     payload_subtotal = ""
-                        #     #     nonIntegratedVoucherData(
-                        #     #         invoId, gst_amt, payload_subtotal,CreditNote, db
-                        #     #     )
-                        # except Exception:
-                        #     logger.debug(f"{traceback.format_exc()}")
-                    else:
-                        try:
-                            if "CreditNote" in StampDataList[splt_map[fl]]:
-                                CreditNote_chk = StampDataList[splt_map[fl]]["CreditNote"]
-                                if CreditNote_chk == "Yes":
-                                    CreditNote = "credit note"
-                                elif CreditNote_chk=="No":
-                                    CreditNote = "Invoice Document"
-                                else:
-                                    CreditNote = "NA"
-                                    CreditNoteCk_isErr = 0
-                                    CreditNoteCk_msg = "No response from OpenAI."
-
-                                # -----------------
-
                                 stampdata: dict[str, int | str] = {}
                                 stampdata["documentid"] = invoId
                                 stampdata["stamptagname"] = "Credit Identifier"
