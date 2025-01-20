@@ -232,6 +232,18 @@ def customModelCall(docID):
         destination_container_name = configs.ContainerName
         API_version = settings.api_version
         model_type = "custom"
+        try:
+            db.rollback()
+            db.query(model.DocumentData).filter(
+                model.DocumentData.documentID == docID,
+            ).delete()
+
+            db.commit()
+
+        except Exception:
+            logger.error(traceback.format_exc())
+            custcall_status = 0
+            db.rollback()
 
         # preprocess the file and get binary data
         fr_preprocessing_status, fr_preprocessing_msg, input_data, ui_status = (

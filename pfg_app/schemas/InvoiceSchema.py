@@ -273,7 +273,6 @@ class UpdateStampData(BaseModel):
     NewValue: str
     skipconfig_ck: Optional[int]
 
-
 class UpsertLineItemData(BaseModel):
     documentLineItemID: Optional[int] = None
     OldValue: Optional[str] = None

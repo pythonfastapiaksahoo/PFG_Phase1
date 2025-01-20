@@ -590,7 +590,7 @@ def getFrData_MNF(input_data):
         credit_tg = {
             "tag": "Credit Identifier",
             "data": {
-                "value": "NA",
+                "value": "",
                 "prebuilt_confidence": "",
                 "custom_confidence": "0.00",
             },
