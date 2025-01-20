@@ -2,6 +2,56 @@ import json
 from bs4 import BeautifulSoup
 
 
+
+# def parse_eml(file_path):
+#     with open(file_path, 'rb') as file:
+#         msg = BytesParser(policy=policy.default).parse(file)
+#     return msg
+
+# Function to extract table data and skip empty rows
+def extract_table_data(table):
+    rows = table.find_all("tr")
+    table_data = []
+    for row in rows:
+        cells = row.find_all(["td", "th"])  # Include both header and data cells
+        row_data = [cell.get_text(strip=True) for cell in cells]
+        
+        # Skip the row if all cells are empty or contain only whitespace
+        if any(cell.strip() for cell in row_data):  # At least one cell has content
+            table_data.append(row_data)
+    return table_data
+
+
+def extract_content_from_eml_file(email_msg):
+    email_metadata = {
+        "from": email_msg['From'],
+        "sent": email_msg['date'],
+        "to": email_msg['To']
+    }
+    # Get the HTML content from the email body
+    html_content = email_msg.get_body(preferencelist=('html', 'plain')).get_content()
+    # print(html_content)
+    soup = BeautifulSoup(html_content, 'html.parser')
+        
+    # Find all tables in the HTML
+    tables = soup.find_all('table')
+
+    # Extract data from all tables
+    all_tables_data = [extract_table_data(table) for table in tables]
+
+    # Combine metadata and table data
+    output_data = {
+        "email_metadata": email_metadata,
+        "tables_data": all_tables_data
+    }
+    # Convert to JSON
+    final_json = json.dumps(output_data, indent=4)
+    # # print the JSON result
+    # print(final_json) 
+    return final_json
+    
+
+
 def format_data_for_template1(parsed_data):
 
     # Extract metadata
@@ -200,10 +250,8 @@ def format_data_for_template3(parsed_data):
     # Convert to JSON and return
     final_json = json.dumps(structured_output, indent=4)
     return final_json
-  
-  
-  
-def extract_content_from_msg(msg):
+
+def extract_content_from_msg_file(msg):
     email_metadata = {
         "from": msg.sender,
         "sent": msg.date.utcnow().strftime('%Y-%m-%d %H:%M:%S') if msg.date else None,  # Convert datetime to string
