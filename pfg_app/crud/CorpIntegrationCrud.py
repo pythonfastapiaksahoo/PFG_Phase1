@@ -78,7 +78,7 @@ def format_data_for_template1(parsed_data):
             # Identify case where "Invoice#" is present in a row
             if "Invoice#" in row[0]:
                 invoice_number = row[1]  # Extract invoice number
-                invoice_data["invoiceNumber"] = invoice_number
+                invoice_data["invoice#"] = invoice_number
 
             # Check if header matches expected columns without "Invoice" keyword
             elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Subtotal"]:
@@ -207,7 +207,7 @@ def format_data_for_template3(parsed_data):
             # Extract invoice number (from first row in new format)
             if "Invoice #" in row[0]:
                 invoice_number = row[1]  # Extract invoice number
-                invoice_data["invoiceNumber"] = invoice_number
+                invoice_data["invoice#"] = invoice_number
 
             # Extract GST and Grand Total
             elif "GST:" in row[0]:
