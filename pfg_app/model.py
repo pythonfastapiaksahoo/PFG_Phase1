@@ -1514,7 +1514,7 @@ class QueueTask(Base):
     )
 
 class CorpQueueTask(Base):
-    __tablename__ = "corp_queue_tasks"
+    __tablename__ = "corp_queue_task"
     id = Column(Integer, primary_key=True, index=True)
     request_data = Column(JSONB, nullable=False, index=False)  # JSONB column
     status = Column(String(50), nullable=False, default="queued")
@@ -1522,8 +1522,9 @@ class CorpQueueTask(Base):
     updated_at = Column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
+    mail_row_key = Column(String(50), nullable=False)
 
-    # Define a GIN index on the request_data column
-    __table_args__ = (
-        Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
-    )
+    # # Define a GIN index on the request_data column
+    # __table_args__ = (
+    #     Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
+    # )
