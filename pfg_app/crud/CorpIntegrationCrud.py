@@ -344,7 +344,7 @@ def replace_cid_links(html, attachments):
 
     return re.sub(r'cid:([^"\'\s]+)', cid_to_data_uri, html)
 
-def convert_eml_to_base64(email_msg):
+def convert_eml_to_encoded_image(email_msg):
     
     config = imgkit.config(wkhtmltoimage=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe")
     # Step 1: Extract and process HTML content
