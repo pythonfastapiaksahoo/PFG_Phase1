@@ -1,7 +1,11 @@
 import json
+import base64
+import os
+import imgkit
+import re
+from PIL import Image
+from io import BytesIO
 from bs4 import BeautifulSoup
-
-
 
 # def parse_eml(file_path):
 #     with open(file_path, 'rb') as file:
@@ -297,8 +301,8 @@ def extract_content_from_msg_file(msg):
     final_json = json.dumps(output_data, indent=4)
     parsed_data = json.loads(final_json)
     return parsed_data
-  
-  
+
+
 def identify_template(parsed_data):
     # Extract tables_data from parsed_data
     tables_data = parsed_data.get("tables_data", [])
@@ -324,3 +328,117 @@ def identify_template(parsed_data):
 # # Example usage with parsed_data
 # template_type = identify_template(parsed_data)
 # print(f"The identified template is: {template_type}")
+
+
+def replace_cid_links(html, attachments):
+    def cid_to_data_uri(match):
+        cid = match.group(1).split("@")[0]  # Extract the base filename before '@'
+        for filename, data in attachments.items():
+            if filename == cid:
+                mime_type = "image/png" if filename.endswith(".png") else "image/jpeg"
+                encoded_data = base64.b64encode(data).decode("utf-8")
+                # print(f"Replacing CID {cid} with data URI for {filename}")
+                return f"data:{mime_type};base64,{encoded_data}"
+        # print(f"CID {cid} not found in attachments")
+        return match.group(0)  # Leave the original cid: link if no match is found
+
+    return re.sub(r'cid:([^"\'\s]+)', cid_to_data_uri, html)
+
+def convert_eml_to_base64(email_msg):
+    
+    config = imgkit.config(wkhtmltoimage=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe")
+    # Step 1: Extract and process HTML content
+    html_content = email_msg.get_body(preferencelist=('html', 'plain')).get_content()
+
+    # # Debug: Extract all cid: links in the HTML
+    # cid_links = re.findall(r'cid:([^"\'\s]+)', html_body)
+    # print("CID references in HTML:", cid_links)
+    # Step 2: Extract attachments
+    attachments = {}
+    for attachment in email_msg.iter_attachments():
+        filename = attachment.get_filename()
+        if filename:
+            attachments[filename] = attachment.get_payload(decode=True)
+
+    # Step 3: Replace CID links in the HTML body with base64-encoded data URIs
+    html_body = replace_cid_links(html_content, attachments)
+    # Step 1: Remove all `cid:` references
+    def remove_cid_references(html):
+        cleaned_html = re.sub(r'cid:[^"\'\s]+', '', html)
+        return cleaned_html
+
+    cleaned_html = remove_cid_references(html_body)
+    # # Step 5: Optional - Save the updated HTML to a file for verification
+    # with open(input_html_path, "w", encoding="utf-8") as file:
+    #     file.write(cleaned_html)
+
+    # Step 6: Convert HTML to PNG and get base64 string
+    options = {"format": "png", "quality": "90"}
+    image_data = imgkit.from_string(cleaned_html, False, config=config, options=options)
+
+    # Encode the binary image data in base64
+    encoded_image = base64.b64encode(image_data).decode("ascii")
+    return encoded_image
+
+
+def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, output_dir):
+    """
+    Dynamically splits an image based on its height and converts it to a PDF.
+    The output file name is based on the .eml file's base name.
+
+    :param encoded_image: Base64-encoded string of the input PNG image.
+    :param eml_file_path: Path to the original .eml file.
+    :param output_dir: Directory where the output PDF will be saved.
+    """
+    try:
+        # Extract base name from .eml file (without extension)
+        eml_base_name = os.path.splitext(os.path.basename(eml_file_path))[0]
+        output_pdf = os.path.join(output_dir, f"{eml_base_name}_output.pdf")
+        # output_prefix = os.path.join(output_dir, eml_base_name)
+
+        # Decode the base64 image data
+        image_data = base64.b64decode(encoded_image)
+        img = Image.open(BytesIO(image_data))
+        width, height = img.size
+
+        # Define thresholds for splitting
+        threshold_small = 1000    # Height for small emails
+        threshold_medium = 3000  # Height for medium emails
+
+        # Determine number of splits dynamically
+        if height <= threshold_small:
+            n_splits = 1  # Single page for small emails
+        elif height <= threshold_medium:
+            n_splits = 2  # Two pages for medium emails
+        else:
+            n_splits = max(3, height // 1500)  # Split proportionally for large emails
+
+        print(f"Image height: {height}, Splitting into {n_splits} pages.")
+
+        # Calculate the height of each split
+        split_height = height // n_splits
+
+        # List to hold images for the PDF
+        images_for_pdf = []
+
+        # Split the image and save each part
+        for i in range(n_splits):
+            upper = i * split_height
+            lower = (i + 1) * split_height if i < n_splits - 1 else height
+            cropped_img = img.crop((0, upper, width, lower))
+            
+            # # Save each split as a PNG
+            # output_file = f"{output_prefix}_part_{i+1}.png"
+            # cropped_img.save(output_file)
+            # print(f"Saved: {output_file}")
+            
+            # Append to PDF list (convert to RGB if needed)
+            images_for_pdf.append(cropped_img.convert("RGB"))
+
+        # Save images as a single PDF
+        if images_for_pdf:
+            images_for_pdf[0].save(output_pdf, save_all=True, append_images=images_for_pdf[1:])
+            print(f"PDF saved: {output_pdf}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
