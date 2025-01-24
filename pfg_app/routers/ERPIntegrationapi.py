@@ -18,6 +18,7 @@ from pfg_app.schemas.ERPIntegrationSchema import (
     PFGReceipt,
     PFGStore,
     PFGVendor,
+    VchrImpRequestBody,
 )
 from pfg_app.session.session import get_db
 
@@ -167,6 +168,18 @@ async def create_invoice_voucher(inv_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# API endpoint to handle the invoice creation request
+@router.post(
+    "/pushPayloadToPST"
+    # response_model=VchrImpRequestBody
+)
+async def push_payload_to_pst(payload_data: VchrImpRequestBody):
+    try:
+        # Process the request using the mock CRUD function
+        response = crud.processInvoicePayload(payload_data)
+        return response
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}
 
 # # API endpoint to handle the invoice status request
 # @router.post(

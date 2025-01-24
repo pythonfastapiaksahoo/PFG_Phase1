@@ -1738,3 +1738,71 @@ def bulkProcessVoucherData():
         db.close()
         if "lease" in locals():
             lease.break_lease()
+
+
+# CRUD function to process the invoice voucher and send it to peoplesoft
+def processInvoicePayload(request_payload):
+    try:
+        
+        logger.info(f"request_payload : {request_payload}")
+        # Convert the Pydantic model to a dictionary
+        request_payload_dict = request_payload.dict()
+        # Make a POST request to the external API endpoint
+        api_url = settings.erp_invoice_import_endpoint
+        headers = {"Content-Type": "application/json"}
+        username = settings.erp_user
+        password = settings.erp_password
+        responsedata = {}
+        try:
+            # Make the POST request with basic authentication
+            response = requests.post(
+                api_url,
+                json=request_payload_dict,
+                headers=headers,
+                auth=(username, password),
+                timeout=60,  # Set a timeout of 60 seconds
+            )
+            response.raise_for_status()
+            # Raises an HTTPError if the response was unsuccessful
+            # Log full response details
+            logger.info(f"Response Status : {response.status_code}")
+            logger.info(f"Response Headers : {response.headers}")
+            # print("Response Content: ", response.content.decode())  # Full content
+
+            # Check for success
+            if response.status_code == 200:
+                try:
+                    response_data = response.json()
+                    if not response_data:
+                        logger.info("Response JSON is empty.")
+                        responsedata = {
+                            "message": "Success, but response JSON is empty."
+                        }
+                    else:
+                        responsedata = {"message": "Success", "data": response_data}
+                except ValueError:
+                    # Handle case where JSON decoding fails
+                    logger.info("Response returned, but not in JSON format.")
+                    responsedata = {
+                        "message": "Success, but response is not JSON.",
+                        "data": response.text,
+                    }
+
+        except requests.exceptions.HTTPError as e:
+            logger.info(f"HTTP error occurred: {traceback.format_exc()}")
+            logger.info(f"Response content: {response.content.decode()}")
+            responsedata = {"message": str(e), "data": response.json()}
+
+    except Exception:
+        responsedata = {
+            "message": "InternalError",
+            "data": {"Http Response": "500", "Status": "Fail"},
+        }
+        logger.error(
+            f"Error while processing invoice voucher: {traceback.format_exc()}")
+        # raise HTTPException(
+        #     status_code=500,
+        #     detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
+        # )
+
+    return responsedata
