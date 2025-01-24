@@ -629,3 +629,22 @@ async def get_voucher_data_by_doc_id(
         Returns the invoice stamp data fields.
     """
     return await crud.get_voucher_data_by_document_id(user.idUser, inv_id, db)
+
+
+
+# API endpoint to handle the invoice status request
+@router.post(
+    "/updateinvoicestatus/{inv_id}",
+    # response_model=InvoiceResponse
+)
+async def update_invoice_status(
+    inv_id: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user)
+    ):
+    try:
+        # Process the request using the mock CRUD function
+        response = crud.updateInvoiceStatus(user.idUser, inv_id, db)
+        return response
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}

@@ -140,18 +140,18 @@ async def update_receipt_master(data: List[PFGReceipt], db: Session = Depends(ge
     return await crud.updateReceiptMaster(data, db)
 
 
-# API endpoint to handle the invoice status request
-@router.post(
-    "/updateinvoicestatus/{inv_id}",
-    # response_model=InvoiceResponse
-)
-async def update_invoice_status(inv_id: int, db: Session = Depends(get_db)):
-    try:
-        # Process the request using the mock CRUD function
-        response = crud.updateInvoiceStatus(inv_id, db)
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# # API endpoint to handle the invoice status request
+# @router.post(
+#     "/updateinvoicestatus/{inv_id}",
+#     # response_model=InvoiceResponse
+# )
+# async def update_invoice_status(inv_id: int, db: Session = Depends(get_db)):
+#     try:
+#         # Process the request using the mock CRUD function
+#         response = crud.updateInvoiceStatus(inv_id, db)
+#         return response
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 # API endpoint to handle the invoice creation request
