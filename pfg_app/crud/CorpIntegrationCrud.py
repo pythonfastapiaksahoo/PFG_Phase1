@@ -186,6 +186,75 @@ def format_data_for_template2(parsed_data):
     # print(final_json)
     return final_json
 
+# def format_data_for_template3(parsed_data):
+#     # Extract metadata
+#     email_metadata = parsed_data["email_metadata"]
+
+#     # Extract table data
+#     tables = parsed_data["tables_data"]
+
+#     # Initialize dictionaries
+#     invoice_data = {
+#         "store": [],
+#         "dept": [],
+#         "account": [],
+#         "SL": [],
+#         "project": [],
+#         "activity": [],
+#         "amount": []  # Changed to 'amount' as the column name is "Amount"
+#     }
+#     approver_details = {}
+
+#     # Process the table to differentiate cases
+#     for table in tables:
+#         for i, row in enumerate(table):
+#             # Extract invoice number (from first row in new format)
+#             if "Invoice #" in row[0]:
+#                 invoice_number = row[1]  # Extract invoice number
+#                 invoice_data["invoice#"] = invoice_number
+
+#             # Extract GST and Grand Total
+#             elif "GST:" in row[0]:
+#                 invoice_data["GST"] = row[1]
+#             elif "Grand Total:" in row[0]:
+#                 invoice_data["grandTotal"] = row[1]
+
+#             # Extract approver details
+#             elif "Approver Name:" in row[0]:
+#                 approver_details["approverName"] = row[1]
+#             elif "Approver TM ID:" in row[0]:
+#                 approver_details["TMID"] = row[1]
+#             elif "Approval Title:" in row[0]:
+#                 approver_details["title"] = row[1]
+
+#             # Check if header matches expected columns
+#             elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Amount"]:
+#                 headers = row
+#                 for data_row in table[i + 1:]:
+#                     # Stop processing if GST or Grand Total rows are reached
+#                     if "GST:" in data_row[0] or "Grand Total:" in data_row[0]:
+#                         break
+
+#                     # Map each column of data to the correct header
+#                     invoice_data["store"].append(data_row[0])
+#                     invoice_data["dept"].append(data_row[1])
+#                     invoice_data["account"].append(data_row[2])
+#                     invoice_data["SL"].append(data_row[3])
+#                     invoice_data["project"].append(data_row[4])
+#                     invoice_data["activity"].append(data_row[5])
+#                     invoice_data["amount"].append(data_row[6])  # Ensure 'Amount' remains
+
+#     # Combine into final structured JSON
+#     structured_output = {
+#         "email_metadata": email_metadata,
+#         "invoiceDetails": invoice_data,
+#         "approverDetails": approver_details
+#     }
+
+#     # Convert to JSON and return
+#     final_json = json.dumps(structured_output, indent=4)
+#     return final_json
+
 def format_data_for_template3(parsed_data):
     # Extract metadata
     email_metadata = parsed_data["email_metadata"]
@@ -209,23 +278,33 @@ def format_data_for_template3(parsed_data):
     for table in tables:
         for i, row in enumerate(table):
             # Extract invoice number (from first row in new format)
-            if "Invoice #" in row[0]:
-                invoice_number = row[1]  # Extract invoice number
-                invoice_data["invoice#"] = invoice_number
+            if "invoice #" in row[0]:
+                # invoice_number = row[1]  # Extract invoice number
+                # invoice_data["invoice#"] = invoice_number
+                invoice_data["invoice#"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
 
             # Extract GST and Grand Total
             elif "GST:" in row[0]:
-                invoice_data["GST"] = row[1]
+                # invoice_data["GST"] = row[1]
+                invoice_data["GST"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+
             elif "Grand Total:" in row[0]:
-                invoice_data["grandTotal"] = row[1]
+                # invoice_data["grandTotal"] = row[1]
+                invoice_data["grandTotal"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+
 
             # Extract approver details
             elif "Approver Name:" in row[0]:
-                approver_details["approverName"] = row[1]
+                # approver_details["approverName"] = row[1]
+                approver_details["approverName"] = row[1] if len(row) > 1 else ""
+
             elif "Approver TM ID:" in row[0]:
-                approver_details["TMID"] = row[1]
+                # approver_details["TMID"] = row[1]
+                approver_details["TMID"] = row[1] if len(row) > 1 else ""
+
             elif "Approval Title:" in row[0]:
-                approver_details["title"] = row[1]
+                # approver_details["title"] = row[1]
+                approver_details["title"] = row[1] if len(row) > 1 else ""
 
             # Check if header matches expected columns
             elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Amount"]:
@@ -235,14 +314,23 @@ def format_data_for_template3(parsed_data):
                     if "GST:" in data_row[0] or "Grand Total:" in data_row[0]:
                         break
 
+                    # # Map each column of data to the correct header
+                    # invoice_data["store"].append(data_row[0])
+                    # invoice_data["dept"].append(data_row[1])
+                    # invoice_data["account"].append(data_row[2])
+                    # invoice_data["SL"].append(data_row[3])
+                    # invoice_data["project"].append(data_row[4])
+                    # invoice_data["activity"].append(data_row[5])
+                    # invoice_data["amount"].append(data_row[6])  # Ensure 'Amount' remains
+                    
                     # Map each column of data to the correct header
-                    invoice_data["store"].append(data_row[0])
-                    invoice_data["dept"].append(data_row[1])
-                    invoice_data["account"].append(data_row[2])
-                    invoice_data["SL"].append(data_row[3])
-                    invoice_data["project"].append(data_row[4])
-                    invoice_data["activity"].append(data_row[5])
-                    invoice_data["amount"].append(data_row[6])  # Ensure 'Amount' remains
+                    invoice_data["store"].append(data_row[0] if len(data_row) > 0 else "")
+                    invoice_data["dept"].append(data_row[1] if len(data_row) > 1 else "")
+                    invoice_data["account"].append(data_row[2] if len(data_row) > 2 else "")
+                    invoice_data["SL"].append(data_row[3] if len(data_row) > 3 else "")
+                    invoice_data["project"].append(data_row[4] if len(data_row) > 4 else "")
+                    invoice_data["activity"].append(data_row[5] if len(data_row) > 5 else "")
+                    invoice_data["amount"].append(data_row[6] if len(data_row) > 6 else "")
 
     # Combine into final structured JSON
     structured_output = {
@@ -328,6 +416,41 @@ def identify_template(parsed_data):
 # # Example usage with parsed_data
 # template_type = identify_template(parsed_data)
 # print(f"The identified template is: {template_type}")
+
+
+def has_extra_empty_strings(parsed_data):
+    """
+    Check if any row in tables_data contains the specific header with an extra empty string at the end.
+    """
+    tables_data = parsed_data.get("tables_data", [])
+    target_header_with_extra = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount', '']
+    
+    for table in tables_data:
+        for row in table:
+            if row == target_header_with_extra:
+                return True
+    return False
+
+def clean_tables_data(parsed_data):
+    """
+    Clean the tables_data in parsed_data by removing extra empty strings at the end of each row.
+    """
+    tables_data = parsed_data.get("tables_data", [])
+    
+    # Iterate over each table and row to remove trailing empty strings
+    cleaned_tables_data = []
+    for table in tables_data:
+        cleaned_table = []
+        for row in table:
+            cleaned_row = row
+            while cleaned_row and cleaned_row[-1] == '':
+                cleaned_row = cleaned_row[:-1]  # Remove the last element if it's an empty string
+            cleaned_table.append(cleaned_row)
+        cleaned_tables_data.append(cleaned_table)
+    
+    # Update the parsed_data with cleaned tables_data
+    parsed_data["tables_data"] = cleaned_tables_data
+    return parsed_data
 
 
 def replace_cid_links(html, attachments):
