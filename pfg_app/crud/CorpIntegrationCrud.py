@@ -1,11 +1,17 @@
 import json
 import base64
 import os
+import traceback
 import imgkit
 import re
 from PIL import Image
 from io import BytesIO
 from bs4 import BeautifulSoup
+import requests
+from pfg_app import settings
+from pfg_app import model
+from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
+from pfg_app.logger_module import logger
 
 # def parse_eml(file_path):
 #     with open(file_path, 'rb') as file:
@@ -515,3 +521,170 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, output_dir):
 
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
+
+# CRUD function to process the invoice voucher and send it to peoplesoft
+def processCorpInvoiceVoucher(request_payload):
+    try:
+        # # Fetch the invoice details from the voucherdata table
+        # voucherdata = (
+        #     db.query(model.VoucherData)
+        #     .filter(model.VoucherData.documentID == doc_id)
+        #     .scalar()
+        # )
+        # if not voucherdata:
+        #     return {"message": "Voucherdata not found for document ID: {doc_id}"}
+
+        # # Call the function to get the base64 file and content type
+        # try:
+        #     file_data = read_invoice_file_voucher(doc_id, db)
+        #     if file_data and "result" in file_data:
+        #         base64file = file_data["result"]["filepath"]
+
+        #         # If filepath is a bytes object, decode it
+        #         if isinstance(base64file, bytes):
+        #             base64file = base64file.decode("utf-8")
+        #     else:
+        #         base64file = "Error retrieving file: No result found in file data."
+        # except Exception as e:
+        #     # Catch any error from the read_invoice_file
+        #     # function and use the error message
+        #     base64file = f"Error retrieving file: {str(e)}"
+
+        # Continue processing the file
+        # print(f"Filepath (Base64 Encoded or Error): {base64file}")
+
+        # request_payload = {
+        #     "RequestBody": [
+        #         {
+        #             "OF_VCHR_IMPORT_STG": [
+        #                 {
+        #                     "VCHR_HDR_STG": [
+        #                         {
+        #                             "BUSINESS_UNIT": "MERCH",
+        #                             "VOUCHER_STYLE": "REG",
+        #                             "INVOICE_ID": "",
+        #                             "INVOICE_DT": "",
+        #                             "VENDOR_SETID": "",
+        #                             "VENDOR_ID": "",
+        #                             "ORIGIN": "IDP",
+        #                             "ACCOUNTING_DT": "",
+        #                             "VOUCHER_ID_RELATED": "",
+        #                             "GROSS_AMT": 0,
+        #                             "SALETX_AMT": 0,
+        #                             "FREIGHT_AMT": 0,
+        #                             "MISC_AMT": 0,
+        #                             "PYMNT_TERMS_CD": "",
+        #                             "TXN_CURRENCY_CD": "",
+        #                             "VAT_ENTRD_AMT": 0,
+        #                             "VCHR_LINE_STG": [
+        #                                 {
+        #                                     "BUSINESS_UNIT": "MERCH",
+        #                                     "VOUCHER_LINE_NUM": 1,
+        #                                     "DESCR": "",
+        #                                     "MERCHANDISE_AMT": 0,
+        #                                     "QTY_VCHR": 1,
+        #                                     "UNIT_OF_MEASURE": "",
+        #                                     "UNIT_PRICE": 0,
+        #                                     "VAT_APPLICABILITY": "",
+        #                                     "BUSINESS_UNIT_RECV": "",
+        #                                     "RECEIVER_ID": "",
+        #                                     "RECV_LN_NBR": 0,
+        #                                     "SHIPTO_ID": "",
+        #                                     "VCHR_DIST_STG": [
+        #                                         {
+        #                                             "BUSINESS_UNIT": "MERCH",
+        #                                             "VOUCHER_LINE_NUM": 1,
+        #                                             "DISTRIB_LINE_NUM": 1,
+        #                                             "BUSINESS_UNIT_GL": "OFG01",
+        #                                             "ACCOUNT": "",
+        #                                             "DEPTID": "",
+        #                                             "OPERATING_UNIT": "",
+        #                                             "MERCHANDISE_AMT": 0,
+        #                                             "BUSINESS_UNIT_PC": " ",
+        #                                             "PROJECT_ID": " ",
+        #                                             "ACTIVITY_ID": " ",
+        #                                         }
+        #                                     ],
+        #                                 }
+        #                             ],
+        #                         }
+        #                     ],
+        #                     "INV_METADATA_STG": [
+        #                         {
+        #                             "BUSINESS_UNIT": "MERCH",
+        #                             "INVOICE_ID": "",
+        #                             "INVOICE_DT": "",
+        #                             "VENDOR_SETID": "",
+        #                             "VENDOR_ID": "",
+        #                             "IMAGE_NBR": 1,
+        #                             "FILE_NAME": "",
+        #                             "base64file": "",
+        #                         }
+        #                     ],
+        #                 }
+        #             ]
+        #         }
+        #     ]
+        # }
+        # logger.info(f"request_payload for doc_id: {doc_id}: {request_payload}")
+        # Make a POST request to the external API endpoint
+        api_url = settings.erp_invoice_import_endpoint
+        headers = {"Content-Type": "application/json"}
+        username = settings.erp_user
+        password = settings.erp_password
+        responsedata = {}
+        try:
+            # Make the POST request with basic authentication
+            response = requests.post(
+                api_url,
+                json=request_payload,
+                headers=headers,
+                auth=(username, password),
+                timeout=60,  # Set a timeout of 60 seconds
+            )
+            response.raise_for_status()
+            # Raises an HTTPError if the response was unsuccessful
+            # Log full response details
+            logger.info(f"Response Status : {response.status_code}")
+            logger.info(f"Response Headers : {response.headers}")
+            # print("Response Content: ", response.content.decode())  # Full content
+
+            # Check for success
+            if response.status_code == 200:
+                try:
+                    response_data = response.json()
+                    if not response_data:
+                        logger.info("Response JSON is empty.")
+                        responsedata = {
+                            "message": "Success, but response JSON is empty."
+                        }
+                    else:
+                        responsedata = {"message": "Success", "data": response_data}
+                except ValueError:
+                    # Handle case where JSON decoding fails
+                    logger.info("Response returned, but not in JSON format.")
+                    responsedata = {
+                        "message": "Success, but response is not JSON.",
+                        "data": response.text,
+                    }
+
+        except requests.exceptions.HTTPError as e:
+            logger.info(f"HTTP error occurred: {traceback.format_exc()}")
+            logger.info(f"Response content: {response.content.decode()}")
+            responsedata = {"message": str(e), "data": response.json()}
+
+    except Exception:
+        responsedata = {
+            "message": "InternalError",
+            "data": {"Http Response": "500", "Status": "Fail"},
+        }
+        logger.error(
+            f"Error while processing invoice voucher: {traceback.format_exc()}")
+        # raise HTTPException(
+        #     status_code=500,
+        #     detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
+        # )
+
+    return responsedata
