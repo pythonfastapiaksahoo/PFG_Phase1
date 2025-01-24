@@ -602,3 +602,20 @@ async def update_identifier_to_stamp_data(
         return {"response": updated_stamp_data}
     except Exception as e:
         return {"error": f"An error occurred: {str(e)}"}
+    
+# API endpoint to handle the invoice status request
+@router.post(
+    "/updateinvoicestatus/{inv_id}",
+    # response_model=InvoiceResponse
+)
+async def update_invoice_status(
+    inv_id: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user)
+    ):
+    try:
+        # Process the request using the mock CRUD function
+        response = crud.updateInvoiceStatus(user.idUser, inv_id, db)
+        return response
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}
