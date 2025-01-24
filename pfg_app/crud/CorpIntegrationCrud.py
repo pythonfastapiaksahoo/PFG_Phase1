@@ -81,8 +81,9 @@ def format_data_for_template1(parsed_data):
         for i, row in enumerate(table):
             # Identify case where "Invoice#" is present in a row
             if "Invoice#" in row[0]:
-                invoice_number = row[1]  # Extract invoice number
-                invoice_data["invoice#"] = invoice_number
+                # invoice_number = row[1]  # Extract invoice number
+                # invoice_data["invoice#"] = invoice_number
+                invoice_data["invoice#"] = row[1] if len(row) > 1 else ""
 
             # Check if header matches expected columns without "Invoice" keyword
             elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Subtotal"]:
@@ -103,17 +104,22 @@ def format_data_for_template1(parsed_data):
 
             # Extract GST and Grand Total
             elif "GST:" in row[0]:
-                invoice_data["GST"] = row[1]
+                # invoice_data["GST"] = row[1]
+                invoice_data["GST"] = row[1] if len(row) > 1 else ""
             elif "Grand Total:" in row[0]:
-                invoice_data["grandTotal"] = row[1]
+                # invoice_data["grandTotal"] = row[1]
+                invoice_data["grandTotal"] = row[1] if len(row) > 1 else "" 
 
             # Extract approver details
             elif "Approver Name:" in row[0]:
-                approver_details["approverName"] = row[1]
+                # approver_details["approverName"] = row[1]
+                approver_details["approverName"] = row[1] if len(row) > 1 else ""
             elif "Approver TM ID:" in row[0]:
-                approver_details["TMID"] = row[1]
+                # approver_details["TMID"] = row[1]
+                approver_details["TMID"] = row[1] if len(row) > 1 else ""
             elif "Approval Title:" in row[0]:
-                approver_details["title"] = row[1]
+                # approver_details["title"] = row[1]
+                approver_details["title"] = row[1] if len(row) > 1 else ""
 
     # Combine into final structured JSON
     structured_output = {
@@ -186,75 +192,6 @@ def format_data_for_template2(parsed_data):
     # print(final_json)
     return final_json
 
-# def format_data_for_template3(parsed_data):
-#     # Extract metadata
-#     email_metadata = parsed_data["email_metadata"]
-
-#     # Extract table data
-#     tables = parsed_data["tables_data"]
-
-#     # Initialize dictionaries
-#     invoice_data = {
-#         "store": [],
-#         "dept": [],
-#         "account": [],
-#         "SL": [],
-#         "project": [],
-#         "activity": [],
-#         "amount": []  # Changed to 'amount' as the column name is "Amount"
-#     }
-#     approver_details = {}
-
-#     # Process the table to differentiate cases
-#     for table in tables:
-#         for i, row in enumerate(table):
-#             # Extract invoice number (from first row in new format)
-#             if "Invoice #" in row[0]:
-#                 invoice_number = row[1]  # Extract invoice number
-#                 invoice_data["invoice#"] = invoice_number
-
-#             # Extract GST and Grand Total
-#             elif "GST:" in row[0]:
-#                 invoice_data["GST"] = row[1]
-#             elif "Grand Total:" in row[0]:
-#                 invoice_data["grandTotal"] = row[1]
-
-#             # Extract approver details
-#             elif "Approver Name:" in row[0]:
-#                 approver_details["approverName"] = row[1]
-#             elif "Approver TM ID:" in row[0]:
-#                 approver_details["TMID"] = row[1]
-#             elif "Approval Title:" in row[0]:
-#                 approver_details["title"] = row[1]
-
-#             # Check if header matches expected columns
-#             elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Amount"]:
-#                 headers = row
-#                 for data_row in table[i + 1:]:
-#                     # Stop processing if GST or Grand Total rows are reached
-#                     if "GST:" in data_row[0] or "Grand Total:" in data_row[0]:
-#                         break
-
-#                     # Map each column of data to the correct header
-#                     invoice_data["store"].append(data_row[0])
-#                     invoice_data["dept"].append(data_row[1])
-#                     invoice_data["account"].append(data_row[2])
-#                     invoice_data["SL"].append(data_row[3])
-#                     invoice_data["project"].append(data_row[4])
-#                     invoice_data["activity"].append(data_row[5])
-#                     invoice_data["amount"].append(data_row[6])  # Ensure 'Amount' remains
-
-#     # Combine into final structured JSON
-#     structured_output = {
-#         "email_metadata": email_metadata,
-#         "invoiceDetails": invoice_data,
-#         "approverDetails": approver_details
-#     }
-
-#     # Convert to JSON and return
-#     final_json = json.dumps(structured_output, indent=4)
-#     return final_json
-
 def format_data_for_template3(parsed_data):
     # Extract metadata
     email_metadata = parsed_data["email_metadata"]
@@ -278,7 +215,7 @@ def format_data_for_template3(parsed_data):
     for table in tables:
         for i, row in enumerate(table):
             # Extract invoice number (from first row in new format)
-            if "invoice #" in row[0]:
+            if "Invoice #" in row[0]:
                 # invoice_number = row[1]  # Extract invoice number
                 # invoice_data["invoice#"] = invoice_number
                 invoice_data["invoice#"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
@@ -413,10 +350,23 @@ def identify_template(parsed_data):
     
     return "Unknown Template"
 
-# # Example usage with parsed_data
-# template_type = identify_template(parsed_data)
-# print(f"The identified template is: {template_type}")
 
+def clean_parsed_data(parsed_data):
+    """
+    Recursively clean all occurrences of '$\xa0' from the parsed_data.
+    """
+    if isinstance(parsed_data, dict):
+        # If the data is a dictionary, recursively clean each value
+        return {key: clean_parsed_data(value) for key, value in parsed_data.items()}
+    elif isinstance(parsed_data, list):
+        # If the data is a list, recursively clean each element
+        return [clean_parsed_data(item) for item in parsed_data]
+    elif isinstance(parsed_data, str):
+        # If the data is a string, replace '$\xa0' and any extra whitespace
+        return parsed_data.replace('$\xa0', '').strip()
+    else:
+        # If it's neither dict, list, nor string, return it as is
+        return parsed_data
 
 def has_extra_empty_strings(parsed_data):
     """
