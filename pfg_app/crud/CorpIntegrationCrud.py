@@ -1,3 +1,4 @@
+import email
 import json
 import base64
 import os
@@ -409,56 +410,63 @@ def clean_tables_data(parsed_data):
     return parsed_data
 
 
-def replace_cid_links(html, attachments):
-    def cid_to_data_uri(match):
-        cid = match.group(1).split("@")[0]  # Extract the base filename before '@'
-        for filename, data in attachments.items():
-            if filename == cid:
-                mime_type = "image/png" if filename.endswith(".png") else "image/jpeg"
-                encoded_data = base64.b64encode(data).decode("utf-8")
-                # print(f"Replacing CID {cid} with data URI for {filename}")
-                return f"data:{mime_type};base64,{encoded_data}"
-        # print(f"CID {cid} not found in attachments")
-        return match.group(0)  # Leave the original cid: link if no match is found
 
-    return re.sub(r'cid:([^"\'\s]+)', cid_to_data_uri, html)
+def extract_eml_to_html(eml_file):
+    with open(eml_file, 'rb') as f:
+        msg = email.message_from_binary_file(f)
 
-def convert_eml_to_encoded_image(email_msg):
+    # # Create output directory
+    # os.makedirs(output_dir, exist_ok=True)
+
+    html_content = ""
+    for part in msg.walk():
+        if part.get_content_type() == "text/html":
+            html_content = part.get_payload(decode=True).decode()
+        elif part.get_content_maintype() == "image":
+            # Handle image attachments
+            image_name = part.get_filename()
+            image_data = part.get_payload(decode=True)
+
+            # Encode image in Base64
+            if image_data:
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+                image_type = part.get_content_subtype()  # e.g., "jpeg", "png"
+
+                # Replace cid: references in HTML with Base64 data URL
+                cid = part.get("Content-ID").strip("<>")
+                data_url = f"data:image/{image_type};base64,{image_base64}"
+                html_content = html_content.replace(f"cid:{cid}", data_url)
+
+    # # Save the updated HTML
+    # html_path = os.path.join(output_dir, "email_output.html")
+    # with open(html_path, "w", encoding="utf-8") as html_file:
+    #     html_file.write(html_content)
+
+    return html_content
+
+def html_to_base64_image(html_content, config_path):
     
-    config = imgkit.config(wkhtmltoimage=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe")
-    # Step 1: Extract and process HTML content
-    html_content = email_msg.get_body(preferencelist=('html', 'plain')).get_content()
+    try:
+        # Set up the config for wkhtmltoimage
+        config = imgkit.config(wkhtmltoimage=config_path)
+        # config = imgkit.config(wkhtmltoimage=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe")
+        # Options for imgkit
+        options = {
+            "format": "png",  # Output format
+            "quality": "90",  # Image quality
+            "width": 800      # Set the width of the output image
+        }
 
-    # # Debug: Extract all cid: links in the HTML
-    # cid_links = re.findall(r'cid:([^"\'\s]+)', html_body)
-    # print("CID references in HTML:", cid_links)
-    # Step 2: Extract attachments
-    attachments = {}
-    for attachment in email_msg.iter_attachments():
-        filename = attachment.get_filename()
-        if filename:
-            attachments[filename] = attachment.get_payload(decode=True)
+        # Generate image in memory using imgkit and get binary data
+        image_data = imgkit.from_string(html_content, False, config=config, options=options)
 
-    # Step 3: Replace CID links in the HTML body with base64-encoded data URIs
-    html_body = replace_cid_links(html_content, attachments)
-    # Step 1: Remove all `cid:` references
-    def remove_cid_references(html):
-        cleaned_html = re.sub(r'cid:[^"\'\s]+', '', html)
-        return cleaned_html
+        # Encode the binary image data to base64
+        encoded_image = base64.b64encode(image_data).decode("ascii")
 
-    cleaned_html = remove_cid_references(html_body)
-    # # Step 5: Optional - Save the updated HTML to a file for verification
-    # with open(input_html_path, "w", encoding="utf-8") as file:
-    #     file.write(cleaned_html)
-
-    # Step 6: Convert HTML to PNG and get base64 string
-    options = {"format": "png", "quality": "90"}
-    image_data = imgkit.from_string(cleaned_html, False, config=config, options=options)
-
-    # Encode the binary image data in base64
-    encoded_image = base64.b64encode(image_data).decode("ascii")
-    return encoded_image
-
+        return encoded_image
+    
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, output_dir):
     """
