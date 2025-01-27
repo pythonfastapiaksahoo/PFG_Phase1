@@ -453,7 +453,7 @@ def html_to_base64_image(html_content, config_path):
         # Options for imgkit
         options = {
             "format": "png",  # Output format
-            "quality": "90",  # Image quality
+            "quality": "95",  # Image quality
             "width": 800      # Set the width of the output image
         }
 
@@ -468,7 +468,7 @@ def html_to_base64_image(html_content, config_path):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, output_dir):
+def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
     """
     Dynamically splits an image based on its height and converts it to a PDF.
     The output file name is based on the .eml file's base name.
@@ -480,6 +480,8 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, output_dir):
     try:
         # Extract base name from .eml file (without extension)
         eml_base_name = os.path.splitext(os.path.basename(eml_file_path))[0]
+        # Extract the directory containing the file
+        output_dir = os.path.dirname(eml_file_path)
         output_pdf = os.path.join(output_dir, f"{eml_base_name}_output.pdf")
         # output_prefix = os.path.join(output_dir, eml_base_name)
 
