@@ -960,6 +960,21 @@ def queue_process_task(queue_task: QueueTask):
                             try:
                                 invoId = live_model_fn_1(generatorObj)
                                 logger.info(f"DocumentID:{invoId}")
+                                if len(str(invoId)) == 0:
+                                    invoId = ""
+                                    logger.error("Custom model failed")
+                                    try:
+                                        fr_trigger = db.query(model.frtrigger_tab).filter(
+                                            model.frtrigger_tab.blobpath == spltFileName
+                                        )
+                                        fr_trigger.update(
+                                            {
+                                                model.frtrigger_tab.status: "Error",
+                                            }
+                                        )
+                                        db.commit()
+                                    except Exception:
+                                        logger.error(f"Failed to update error status in frtrigger_tab: {traceback.format_exc()}")
                             except Exception:
                                 invoId = ""
                                 logger.error(f"{traceback.format_exc()}")
