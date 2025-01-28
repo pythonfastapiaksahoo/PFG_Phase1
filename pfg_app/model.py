@@ -1393,6 +1393,16 @@ class PFGReceipt(Base):
     DEPTID = Column(String(10), nullable=True)
     LOCATION = Column(String(10), nullable=True)
 
+class PFGStrategicLedger(Base):
+    __tablename__ = "pfgstrategicledger"
+    ID = Column(Integer, primary_key=True, autoincrement=True)
+    SETID = Column(String(5), nullable=True)
+    CHARTFIELD1 = Column(String(10), nullable=True)
+    EFFDT = Column(String(10), nullable=True)
+    EFF_STATUS = Column(String(1), nullable=True)
+    DESCR = Column(String(50), nullable=True)
+    DESCRSHORT = Column(String(10), nullable=True)
+    
 
 class StampData(Base):
     __tablename__ = "stampdata"

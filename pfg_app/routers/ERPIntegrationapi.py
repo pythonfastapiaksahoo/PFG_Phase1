@@ -10,6 +10,7 @@ from pfg_app import settings
 # from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.crud import ERPIntegrationCrud as crud
+
 from pfg_app.schemas.ERPIntegrationSchema import (
     PFGAccount,
     PFGDepartment,
@@ -18,6 +19,7 @@ from pfg_app.schemas.ERPIntegrationSchema import (
     PFGReceipt,
     PFGStore,
     PFGVendor,
+    PFGStrategicLedger,
     VchrImpRequestBody,
 )
 from pfg_app.session.session import get_db
@@ -140,6 +142,14 @@ async def update_receipt_master(data: List[PFGReceipt], db: Session = Depends(ge
 
     return await crud.updateReceiptMaster(data, db)
 
+@router.post(
+    "/updatestrategicledgermaster",
+    # status_code=status.HTTP_200_OK
+)
+async def update_strategic_ledger_master(
+    data: List[PFGStrategicLedger], db: Session = Depends(get_db)
+):
+    return await crud.updateStrategicLedgerMaster(data, db)
 
 # # API endpoint to handle the invoice status request
 # @router.post(
