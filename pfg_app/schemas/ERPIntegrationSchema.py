@@ -186,6 +186,7 @@ class VchrDistStg(BaseModel):
     ACCOUNT: str
     DEPTID: str
     OPERATING_UNIT: str
+    CHARTFIELD1: str
     MERCHANDISE_AMT: float
     BUSINESS_UNIT_PC: Optional[str] = None
     PROJECT_ID: Optional[str] = None
@@ -225,6 +226,8 @@ class VchrHdrStg(BaseModel):
     PYMNT_TERMS_CD: str
     TXN_CURRENCY_CD: str
     VAT_ENTRD_AMT: float
+    VCHR_SRC: str
+    OPRID: str
     VCHR_LINE_STG: List[VchrLineStg]
 
 
