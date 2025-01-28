@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 import requests
 from pfg_app import settings
 from pfg_app import model
+from pfg_app.core.utils import upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger
 
@@ -411,16 +412,14 @@ def clean_tables_data(parsed_data):
 
 
 
-def extract_eml_to_html(eml_file):
-    with open(eml_file, 'rb') as f:
-        msg = email.message_from_binary_file(f)
-
-    # # Create output directory
-    # os.makedirs(output_dir, exist_ok=True)
+def extract_eml_to_html(blob_data):
+    # Parse the email message from binary blob data
+    msg = email.message_from_bytes(blob_data)
 
     html_content = ""
     for part in msg.walk():
         if part.get_content_type() == "text/html":
+            # Extract and decode HTML content
             html_content = part.get_payload(decode=True).decode()
         elif part.get_content_maintype() == "image":
             # Handle image attachments
@@ -436,11 +435,6 @@ def extract_eml_to_html(eml_file):
                 cid = part.get("Content-ID").strip("<>")
                 data_url = f"data:image/{image_type};base64,{image_base64}"
                 html_content = html_content.replace(f"cid:{cid}", data_url)
-
-    # # Save the updated HTML
-    # html_path = os.path.join(output_dir, "email_output.html")
-    # with open(html_path, "w", encoding="utf-8") as html_file:
-    #     html_file.write(html_content)
 
     return html_content
 
@@ -468,22 +462,21 @@ def html_to_base64_image(html_content, config_path):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
+
+def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_name):
     """
     Dynamically splits an image based on its height and converts it to a PDF.
-    The output file name is based on the .eml file's base name.
+    The PDF is directly uploaded to Azure Blob Storage in the same directory as the input .eml file.
 
     :param encoded_image: Base64-encoded string of the input PNG image.
-    :param eml_file_path: Path to the original .eml file.
-    :param output_dir: Directory where the output PDF will be saved.
+    :param eml_file_path: Path to the original .eml file in the blob container.
+    :param container_name: Name of the Azure Blob Storage container.
     """
     try:
-        # Extract base name from .eml file (without extension)
-        eml_base_name = os.path.splitext(os.path.basename(eml_file_path))[0]
-        # Extract the directory containing the file
-        output_dir = os.path.dirname(eml_file_path)
-        output_pdf = os.path.join(output_dir, f"{eml_base_name}_output.pdf")
-        # output_prefix = os.path.join(output_dir, eml_base_name)
+        # Extract directory and base name from .eml file path
+        eml_directory = os.path.dirname(eml_file_path)  # Directory path in the blob container
+        eml_base_name = os.path.splitext(os.path.basename(eml_file_path))[0]  # File name without extension
+        blob_name = f"{eml_directory}/{eml_base_name}_output.pdf"  # PDF will be saved in the same directory
 
         # Decode the base64 image data
         image_data = base64.b64decode(encoded_image)
@@ -516,18 +509,22 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
             lower = (i + 1) * split_height if i < n_splits - 1 else height
             cropped_img = img.crop((0, upper, width, lower))
             
-            # # Save each split as a PNG
-            # output_file = f"{output_prefix}_part_{i+1}.png"
-            # cropped_img.save(output_file)
-            # print(f"Saved: {output_file}")
-            
             # Append to PDF list (convert to RGB if needed)
             images_for_pdf.append(cropped_img.convert("RGB"))
 
-        # Save images as a single PDF
+        # Save images to an in-memory PDF
+        pdf_bytes_io = BytesIO()
         if images_for_pdf:
-            images_for_pdf[0].save(output_pdf, save_all=True, append_images=images_for_pdf[1:])
-            print(f"PDF saved: {output_pdf}")
+            images_for_pdf[0].save(pdf_bytes_io, format="PDF", save_all=True, append_images=images_for_pdf[1:])
+            pdf_bytes_io.seek(0)  # Reset the stream position
+
+            # Upload the PDF using the secure upload function
+            upload_blob_securely(
+                container_name=container_name,
+                blob_path=blob_name,
+                data=pdf_bytes_io.getvalue(),
+                content_type="application/pdf"
+            )
 
     except Exception as e:
         print(f"An error occurred: {e}")
