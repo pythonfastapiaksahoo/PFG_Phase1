@@ -863,6 +863,61 @@ async def SyncVendorMaster(db, vendordata):
         db.close()
 
 
+
+async def updateStrategicLedgerMaster(StrategicLedgerdata, db):
+
+    try:
+        response = []
+        # Validate required fields
+        for data in StrategicLedgerdata:
+            if not all([data.SETID, data.CHARTFIELD1, data.EFFDT]):
+                raise HTTPException(
+                    status_code=400, detail="required fields missing!!!"
+                )
+
+            strategic_ledger_data = data.dict()
+
+            # Find existing department record
+            existing_strategic_ledger = (
+                db.query(model.PFGStrategicLedger)
+                .filter(
+                    model.PFGStrategicLedger.SETID == data.SETID,
+                    model.PFGStrategicLedger.CHARTFIELD1 == data.CHARTFIELD1,
+                    model.PFGStrategicLedger.EFFDT == data.EFFDT,
+                )
+                .first()
+            )
+
+            if existing_strategic_ledger:
+                # Update existing department record
+                for key, value in strategic_ledger_data.items():
+                    setattr(existing_strategic_ledger, key, value)
+                db.commit()
+                db.refresh(existing_strategic_ledger)
+                response.append(existing_strategic_ledger)
+
+            else:
+                # Insert new department record
+                new_strategic_ledger = model.PFGStrategicLedger(**strategic_ledger_data)
+                db.add(new_strategic_ledger)
+                db.commit()
+                db.refresh(new_strategic_ledger)
+                response.append(new_strategic_ledger)
+
+        logger.info(f"Strategic Ledger Master Data Updated at {datetime.datetime.now()}")
+        return {"result": "Updated", "records": response}
+    except SQLAlchemyError:
+        logger.error(
+            f"Error occurred while updating Strategic Ledger master: { traceback.format_exc()}"
+        )  # noqa: E501
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail="An error occurred while processing the request."
+        )
+
+    finally:
+        db.close()
+
 # CRUD function to process the invoice voucher and send it to peoplesoft
 def processInvoiceVoucher(doc_id, db):
     try:

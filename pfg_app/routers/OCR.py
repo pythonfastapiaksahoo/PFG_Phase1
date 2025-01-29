@@ -1711,6 +1711,22 @@ def queue_process_task(queue_task: QueueTask):
         except Exception:
             logger.debug(f"{traceback.format_exc()}")
 
+        return status
+    except Exception as e:
+        logger.error(f"Error in queue_process_task: {e}")
+        # splitdoc_id = new_split_doc.splitdoc_id
+        # split_doc = (
+        #     db.query(model.SplitDocTab)
+        #     .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+        #     .first()
+        # )
+
+        # if split_doc:
+        #     split_doc.status = "Error"
+        #     split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+        #     db.commit()
+        return f"Error: {e}"
+    finally:
         try:
             splitdoc_id = new_split_doc.splitdoc_id
             # Query all rows in frtrigger_tab with the specific splitdoc_id
@@ -1734,9 +1750,9 @@ def queue_process_task(queue_task: QueueTask):
             if normalized_statuses == {"Processed"}:
                 overall_status = "Processed-completed"
             elif "Processed" in normalized_statuses and len(normalized_statuses) > 1:
-                overall_status = "Partially processed"
+                overall_status = "Partially-processed"
             else:
-                overall_status = "Not processed"
+                overall_status = "Error"
             # Update the SplitDocTab status
             split_doc = (
                 db.query(model.SplitDocTab)
@@ -1755,22 +1771,6 @@ def queue_process_task(queue_task: QueueTask):
 
         except Exception as e:
             logger.error(f"Exception in splitDoc: {e}")
-        return status
-    except Exception as e:
-        logger.error(f"Error in queue_process_task: {e}")
-        splitdoc_id = new_split_doc.splitdoc_id
-        split_doc = (
-            db.query(model.SplitDocTab)
-            .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
-            .first()
-        )
-
-        if split_doc:
-            split_doc.status = "Error"
-            split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
-            db.commit()
-        return f"Error: {e}"
-    finally:
         db.close()
 
 def queue_worker():
