@@ -969,7 +969,7 @@ def queue_process_task(queue_task: QueueTask):
                                         )
                                         fr_trigger.update(
                                             {
-                                                model.frtrigger_tab.status: "Error",
+                                                model.frtrigger_tab.status: "Error-Customn model not found in DI subscription",
                                             }
                                         )
                                         db.commit()
