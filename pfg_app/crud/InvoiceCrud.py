@@ -2243,14 +2243,28 @@ async def get_get_email_row_associated_files_new(
                 ]
             ) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
                 data_to_insert["status"] = "Completed"
-            elif any(
-                [
-                    invoice["status"] == "Error"
-                    for attachment in data_to_insert["attachment"]
-                    for invoice in attachment["associated_invoice_file"]
-                ]
+            
+            elif (
+                any(attachment["status"] != "Processed-completed" for attachment in data_to_insert["attachment"])
+                and any(attachment["status"] == "Processed-completed" for attachment in data_to_insert["attachment"])
+                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
+            ):
+                data_to_insert["status"] = "Partially-Completed"
+            
+            elif (
+                all(attachment["status"] != "Processed-completed" for attachment in data_to_insert["attachment"])
+                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
             ):
                 data_to_insert["status"] = "Error"
+            # elif any(
+            #     [
+            #         invoice["status"] == "Error"
+            #         for attachment in data_to_insert["attachment"]
+            #         for invoice in attachment["associated_invoice_file"]
+            #     ]
+            # ):
+            #     data_to_insert["status"] = "Error"
+                
             elif len(data_to_insert["attachment"]):
                 data_to_insert["status"] = "In Progress"
             else:
