@@ -963,18 +963,63 @@ def queue_process_task(queue_task: QueueTask):
                                 if len(str(invoId)) == 0:
                                     invoId = ""
                                     logger.error("Custom model failed")
+                                    #---------------
                                     try:
-                                        fr_trigger = db.query(model.frtrigger_tab).filter(
-                                            model.frtrigger_tab.blobpath == spltFileName
+                                        preBltFrdata, preBltFrdata_status = getFrData_MNF(
+                                            rwOcrData[grp_pages[fl][0] - 1 : grp_pages[fl][1]]
                                         )
-                                        fr_trigger.update(
-                                            {
-                                                model.frtrigger_tab.status: "Error-Customn model not found in DI subscription",
-                                            }
+
+                                        invoId = push_frdata(
+                                            preBltFrdata,
+                                            999999,
+                                            spltFileName,
+                                            entityID,
+                                            1,
+                                            vendorAccountID,
+                                            "nonPO",
+                                            spltFileName,
+                                            userID,
+                                            0,
+                                            num_pages,
+                                            source,
+                                            sender,
+                                            filename,
+                                            file_type,
+                                            invoice_type,
+                                            33,
+                                            135,
+                                            db,
+                                            mail_row_key,
                                         )
-                                        db.commit()
+                                        
+                                        if len(str(invoId)) == 0:
+                                            logger.error(f"push_frdata returned None for invoId")
+                                            try:
+                                                fr_trigger = db.query(model.frtrigger_tab).filter(
+                                                    model.frtrigger_tab.blobpath == spltFileName
+                                                )
+                                                fr_trigger.update(
+                                                    {
+                                                        model.frtrigger_tab.status: "Error: Custom model not found in DI subscription",
+                                                    }
+                                                )
+                                                db.commit()
+                                            except Exception:
+                                                logger.error(f"Failed to update error status in frtrigger_tab: {traceback.format_exc()}")
+                                                        
+                                        logger.info(
+                                            f" Custom model failed-invoice_ID: {invoId}"
+                                        )
+                                        status = "success"
+
                                     except Exception:
-                                        logger.error(f"Failed to update error status in frtrigger_tab: {traceback.format_exc()}")
+                                        logger.error(f"{traceback.format_exc()}")
+
+                                        status = traceback.format_exc()
+
+                                    logger.info("Custom model failed")
+                                    
+                                    #---------------
                             except Exception:
                                 invoId = ""
                                 logger.error(f"{traceback.format_exc()}")
