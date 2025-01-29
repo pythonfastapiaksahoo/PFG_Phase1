@@ -1810,7 +1810,7 @@ def update_docHistory(documentID, userID, documentstatus, documentdesc, db,docsu
         docHistory["documentdescription"] = documentdesc
         docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         if docsubstatus!=0:
-            docHistory["documentStatusID"] = docsubstatus
+            docHistory["documentSubStatusID"] = docsubstatus
         db.add(model.DocumentHistoryLogs(**docHistory))
         db.commit()
     except Exception:
