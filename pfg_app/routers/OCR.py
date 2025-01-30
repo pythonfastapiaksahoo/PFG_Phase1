@@ -447,6 +447,19 @@ def queue_process_task(queue_task: QueueTask):
                 )
             except Exception:
                 logger.error(f"Error in splitDoc: {traceback.format_exc()}")
+                splitdoc_id = new_split_doc.splitdoc_id
+                split_doc = (
+                    db.query(model.SplitDocTab)
+                    .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                    .first()
+                )
+                if split_doc:
+                    # Update the fields
+                    split_doc.status = "Error - Attachment Processing Failed"
+                    split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+
+                    # Commit the update
+                    db.commit()
                 #raise Exception("Failed to split the document")
         
             if fr_model_status == 1:
