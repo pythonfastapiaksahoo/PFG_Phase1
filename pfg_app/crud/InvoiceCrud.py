@@ -2233,7 +2233,12 @@ async def get_get_email_row_associated_files_new(
                 
             #     data_to_insert["overall_page_count"] = 0
             # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
-
+            statuses = {
+                invoice["status"]
+                for attachment in data_to_insert["attachment"]
+                for invoice in attachment["associated_invoice_file"]
+            }
+            
             if len(data_to_insert["attachment"]) == 0:
                 data_to_insert["status"] = "Queued"
             elif all(
@@ -2244,18 +2249,11 @@ async def get_get_email_row_associated_files_new(
             ) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
                 data_to_insert["status"] = "Completed"
             
-            elif (
-                any(attachment["status"] != "Processed-completed" for attachment in data_to_insert["attachment"])
-                and any(attachment["status"] == "Processed-completed" for attachment in data_to_insert["attachment"])
-                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
-            ):
-                data_to_insert["status"] = "Partially-Completed"
-            
-            elif (
-                all(attachment["status"] != "Processed-completed" for attachment in data_to_insert["attachment"])
-                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
-            ):
+            elif "Processed" not in statuses:
                 data_to_insert["status"] = "Error"
+                
+            elif "Processed" in statuses and any(status != "Processed" for status in statuses):
+                data_to_insert["status"] = "Partially-Completed"
             # elif any(
             #     [
             #         invoice["status"] == "Error"
