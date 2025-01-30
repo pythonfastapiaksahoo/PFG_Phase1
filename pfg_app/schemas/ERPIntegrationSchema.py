@@ -122,16 +122,13 @@ class PFGProjectActivity(BaseModel):
     DESCR: Optional[str] = Field(max_length=30)
 
 
-# class PFGReceipt(BaseModel):
-#     BUSINESS_UNIT: str = Field(max_length=5)
-#     RECEIVER_ID: str = Field(max_length=15)
-#     RECV_LN_NBR: int
-#     RECV_SHIP_SEQ_NBR: int
-#     DISTRIB_LN_NUM: int
-#     MERCHANDISE_AMT: Optional[float]
-#     ACCOUNT: Optional[str] = Field(max_length=10)
-#     DEPTID : Optional[str] = Field(max_length=10)
-#     LOCATION: Optional[str] = Field(max_length=10)
+class PFGStrategicLedger(BaseModel):
+    SETID: str = Field(max_length=5)
+    CHARTFIELD1: str = Field(max_length=10)
+    EFFDT: str = Field(max_length=10)
+    EFF_STATUS: Optional[Literal["A", "I"]]
+    DESCR: Optional[str] = Field(max_length=50)
+    DESCRSHORT: Optional[str] = Field(max_length=10)
 
 
 class RECV_LN_DISTRIB(BaseModel):
@@ -186,6 +183,7 @@ class VchrDistStg(BaseModel):
     ACCOUNT: str
     DEPTID: str
     OPERATING_UNIT: str
+    CHARTFIELD1: str
     MERCHANDISE_AMT: float
     BUSINESS_UNIT_PC: Optional[str] = None
     PROJECT_ID: Optional[str] = None
@@ -225,6 +223,8 @@ class VchrHdrStg(BaseModel):
     PYMNT_TERMS_CD: str
     TXN_CURRENCY_CD: str
     VAT_ENTRD_AMT: float
+    VCHR_SRC: str
+    OPRID: str
     VCHR_LINE_STG: List[VchrLineStg]
 
 

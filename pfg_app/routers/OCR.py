@@ -447,6 +447,19 @@ def queue_process_task(queue_task: QueueTask):
                 )
             except Exception:
                 logger.error(f"Error in splitDoc: {traceback.format_exc()}")
+                splitdoc_id = new_split_doc.splitdoc_id
+                split_doc = (
+                    db.query(model.SplitDocTab)
+                    .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                    .first()
+                )
+                if split_doc:
+                    # Update the fields
+                    split_doc.status = "Error - Attachment Processing Failed"
+                    split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+
+                    # Commit the update
+                    db.commit()
                 #raise Exception("Failed to split the document")
         
             if fr_model_status == 1:
@@ -1062,7 +1075,7 @@ def queue_process_task(queue_task: QueueTask):
                                                 )
                                                 fr_trigger.update(
                                                     {
-                                                        model.frtrigger_tab.status: "Error",
+                                                        model.frtrigger_tab.status: "Error - Custom model not found in DI subscription",
                                                     }
                                                 )
                                                 db.commit()
@@ -1756,6 +1769,22 @@ def queue_process_task(queue_task: QueueTask):
         except Exception:
             logger.debug(f"{traceback.format_exc()}")
 
+        return status
+    except Exception as e:
+        logger.error(f"Error in queue_process_task: {e}")
+        # splitdoc_id = new_split_doc.splitdoc_id
+        # split_doc = (
+        #     db.query(model.SplitDocTab)
+        #     .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+        #     .first()
+        # )
+
+        # if split_doc:
+        #     split_doc.status = "Error"
+        #     split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+        #     db.commit()
+        return f"Error: {e}"
+    finally:
         try:
             splitdoc_id = new_split_doc.splitdoc_id
             # Query all rows in frtrigger_tab with the specific splitdoc_id
@@ -1779,9 +1808,9 @@ def queue_process_task(queue_task: QueueTask):
             if normalized_statuses == {"Processed"}:
                 overall_status = "Processed-completed"
             elif "Processed" in normalized_statuses and len(normalized_statuses) > 1:
-                overall_status = "Partially processed"
+                overall_status = "Partially-processed"
             else:
-                overall_status = "Not processed"
+                overall_status = "Error"
             # Update the SplitDocTab status
             split_doc = (
                 db.query(model.SplitDocTab)
@@ -1800,22 +1829,6 @@ def queue_process_task(queue_task: QueueTask):
 
         except Exception as e:
             logger.error(f"Exception in splitDoc: {e}")
-        return status
-    except Exception as e:
-        logger.error(f"Error in queue_process_task: {e}")
-        splitdoc_id = new_split_doc.splitdoc_id
-        split_doc = (
-            db.query(model.SplitDocTab)
-            .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
-            .first()
-        )
-
-        if split_doc:
-            split_doc.status = "Error"
-            split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
-            db.commit()
-        return f"Error: {e}"
-    finally:
         db.close()
 
 def queue_worker():
@@ -2351,6 +2364,17 @@ def push_frdata(
     }
 
     try:
+        try:
+            if invoice_data.get("vendorAccountID") == 0:
+                invoice_data.pop("vendorAccountID")
+
+            # Convert totalAmount to a float
+            invoice_data["totalAmount"] = float(invoice_data["totalAmount"]) if invoice_data["totalAmount"] else 0.0
+
+            # Ensure documentDate is either None or a valid date
+            invoice_data["documentDate"] = invoice_data["documentDate"] if invoice_data["documentDate"] else None
+        except Exception as e:
+            logger.debug(f"{traceback.format_exc()}")
         # if vendorAccountID==0:
 
         #     # invoice_data.pop('userID')
