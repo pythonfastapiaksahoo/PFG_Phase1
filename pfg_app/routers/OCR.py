@@ -2364,6 +2364,17 @@ def push_frdata(
     }
 
     try:
+        try:
+            if invoice_data.get("vendorAccountID") == 0:
+                invoice_data.pop("vendorAccountID")
+
+            # Convert totalAmount to a float
+            invoice_data["totalAmount"] = float(invoice_data["totalAmount"]) if invoice_data["totalAmount"] else 0.0
+
+            # Ensure documentDate is either None or a valid date
+            invoice_data["documentDate"] = invoice_data["documentDate"] if invoice_data["documentDate"] else None
+        except Exception as e:
+            logger.debug(f"{traceback.format_exc()}")
         # if vendorAccountID==0:
 
         #     # invoice_data.pop('userID')
