@@ -2724,6 +2724,7 @@ def updateInvoiceStatus(u_id, doc_id, db):
                 if entry_status == "STG":
                     documentstatusid = 7
                     docsubstatusid = 43
+                    dmsg = InvoiceVoucherSchema.SUCCESS_STAGED
                 elif entry_status == "QCK":
                     documentstatusid = 14
                     docsubstatusid = 114
@@ -2789,6 +2790,7 @@ def updateInvoiceStatus(u_id, doc_id, db):
 
                 return {
                     "response": response.json(),
+                    "status": dmsg,
                     "message": "Invoice status updated successfully",
                 }
         except Exception as e:
