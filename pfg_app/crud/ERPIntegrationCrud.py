@@ -1884,7 +1884,7 @@ def pullInvoiceStatus(request_payload):
         logger.info(f"request_payload_dict : {json.dumps(request_payload_dict, indent=2)}")
 
         # Make a POST request to the external API endpoint
-        api_url = settings.erp_invoice_import_endpoint
+        api_url = settings.erp_invoice_status_endpoint
         headers = {"Content-Type": "application/json"}
         username = settings.erp_user
         password = settings.erp_password
