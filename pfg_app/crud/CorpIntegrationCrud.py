@@ -419,8 +419,13 @@ def extract_eml_to_html(blob_data):
     html_content = ""
     for part in msg.walk():
         if part.get_content_type() == "text/html":
-            # Extract and decode HTML content
-            html_content = part.get_payload(decode=True).decode()
+            charset = part.get_content_charset()  # Detect encoding
+            if charset is None:
+                charset = "utf-8"  # Fallback encoding
+            try:
+                html_content = part.get_payload(decode=True).decode(charset, errors="replace")
+            except UnicodeDecodeError:
+                html_content = part.get_payload(decode=True).decode("latin1")  # Fallback for Windows-1252
         elif part.get_content_maintype() == "image":
             # Handle image attachments
             image_name = part.get_filename()
