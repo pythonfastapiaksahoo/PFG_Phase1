@@ -501,7 +501,7 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_nam
         else:
             n_splits = max(3, height // 1500)  # Split proportionally for large emails
 
-        print(f"Image height: {height}, Splitting into {n_splits} pages.")
+        logger.info(f"Image height: {height}, Splitting into {n_splits} pages.")
 
         # Calculate the height of each split
         split_height = height // n_splits
@@ -705,10 +705,16 @@ def processCorpInvoiceVoucher(request_payload):
 
 # CRUD function to add a new record
 def create_corp_metadata(db, metadata):
+    vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == metadata.vendor_id).first()
+    if not vendor:
+        return (f" Vendor with id {metadata.vendor_id} does not exist", 404)
+    
     new_metadata = model.corp_metadata(
+        vendorcode=vendor.VendorCode,
         synonyms_name=metadata.synonyms_name,
         synonyms_address=metadata.synonyms_address,
         dateformat=metadata.dateformat,
+        status="Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded",
         created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         updated_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     )
