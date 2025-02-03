@@ -49,3 +49,4 @@ class Settings(BaseSettings):
 
     # local setup for testing
     local_user_name: str = "local"
+    wkhtmltoimage_path: str = ""
