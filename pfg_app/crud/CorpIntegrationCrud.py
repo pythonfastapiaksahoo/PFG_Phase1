@@ -704,13 +704,14 @@ def processCorpInvoiceVoucher(request_payload):
 
 
 # CRUD function to add a new record
-def create_corp_metadata(db, metadata):
-    vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == metadata.vendor_id).first()
+def create_corp_metadata(u_id, v_id, db, metadata):
+    vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == v_id).first()
     if not vendor:
-        return (f" Vendor with id {metadata.vendor_id} does not exist", 404)
+        return (f" Vendor with id {v_id} does not exist", 404)
     
     new_metadata = model.corp_metadata(
         vendorcode=vendor.VendorCode,
+        vendorid = v_id,
         synonyms_name=metadata.synonyms_name,
         synonyms_address=metadata.synonyms_address,
         dateformat=metadata.dateformat,
