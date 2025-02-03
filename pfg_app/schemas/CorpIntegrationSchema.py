@@ -78,3 +78,9 @@ class RequestBodyItem(BaseModel):
 
 class VchrImpRequestBody(BaseModel):
     RequestBody: List[RequestBodyItem]
+    
+    
+class CorpMetadataCreate(BaseModel):
+    synonyms_name: Optional[str]
+    synonyms_address: Optional[str]
+    dateformat: str

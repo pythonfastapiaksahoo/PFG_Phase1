@@ -1,3 +1,4 @@
+from datetime import datetime
 import email
 import json
 import base64
@@ -700,3 +701,16 @@ def processCorpInvoiceVoucher(request_payload):
     return responsedata
 
 
+# CRUD function to add a new record
+def create_corp_metadata(db, metadata):
+    new_metadata = model.corp_metadata(
+        synonyms_name=metadata.synonyms_name,
+        synonyms_address=metadata.synonyms_address,
+        dateformat=metadata.dateformat,
+        created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        updated_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    )
+    db.add(new_metadata)
+    db.commit()
+    db.refresh(new_metadata)
+    return new_metadata
