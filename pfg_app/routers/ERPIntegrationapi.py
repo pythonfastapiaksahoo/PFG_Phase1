@@ -10,6 +10,7 @@ from pfg_app import settings
 # from pfg_app import settings
 from pfg_app.auth import AuthHandler
 from pfg_app.crud import ERPIntegrationCrud as crud
+
 from pfg_app.schemas.ERPIntegrationSchema import (
     PFGAccount,
     PFGDepartment,
@@ -18,6 +19,9 @@ from pfg_app.schemas.ERPIntegrationSchema import (
     PFGReceipt,
     PFGStore,
     PFGVendor,
+    PFGStrategicLedger,
+    RequestPayload,
+    VchrImpRequestBody,
 )
 from pfg_app.session.session import get_db
 
@@ -139,19 +143,20 @@ async def update_receipt_master(data: List[PFGReceipt], db: Session = Depends(ge
 
     return await crud.updateReceiptMaster(data, db)
 
-
-# API endpoint to handle the invoice status request
 @router.post(
-    "/updateinvoicestatus/{inv_id}",
-    # response_model=InvoiceResponse
+    "/updatestrategicledgermaster",
+    # status_code=status.HTTP_200_OK
 )
-async def update_invoice_status(inv_id: int, db: Session = Depends(get_db)):
-    try:
-        # Process the request using the mock CRUD function
-        response = crud.updateInvoiceStatus(inv_id, db)
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def update_strategic_ledger_master(
+    data: List[PFGStrategicLedger], db: Session = Depends(get_db)
+):
+    return await crud.updateStrategicLedgerMaster(data, db)
+
+@router.get("/getstrategicledgermaster", status_code=status.HTTP_200_OK)
+async def get_strategic_ledger_master(db: Session = Depends(get_db)):
+
+    return await crud.getStrategicLedgerMaster(db)
+
 
 
 # API endpoint to handle the invoice creation request
@@ -167,7 +172,33 @@ async def create_invoice_voucher(inv_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# API endpoint to handle the invoice creation request
+@router.post(
+    "/pushPayloadToPST"
+    # response_model=VchrImpRequestBody
+)
+async def push_payload_to_pst(payload_data: VchrImpRequestBody):
+    try:
+        # Process the request using the mock CRUD function
+        response = crud.processInvoicePayload(payload_data)
+        return response
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}
 
+# API endpoint to handle the invoice status request
+@router.post(
+    "/pullinvoicestatus",
+    # response_model=InvoiceResponse
+)
+async def pull_invoice_status(payload_data: RequestPayload):
+    try:
+        # Process the request using the mock CRUD function
+        response = crud.pullInvoiceStatus(payload_data)
+        return response
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}
+    
+    
 # # API endpoint to handle the invoice status request
 # @router.post(
 #     "/bulkupdateinvoicestatus",
