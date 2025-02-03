@@ -1539,7 +1539,6 @@ class CorpQueueTask(Base):
     #     Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
     # )
 
-
 class corp_document_tab(Base):
     __tablename__ = "corp_document_tab"
 
