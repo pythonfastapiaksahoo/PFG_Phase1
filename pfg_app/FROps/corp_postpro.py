@@ -174,13 +174,13 @@ def corp_postPro(op_1):
                     missing_val.append("email_metadata","sender","sender_email","sent_time","sent_to")
 
                 if "invoiceDetails" in op_1['coding_details']:
-                    if "grandTotal" in op_1['coding_details']['invoiceDetails']:
-                        if '-' in op_1['coding_details']['invoiceDetails']['grandTotal']:
+                    if "invoiceTotal" in op_1['coding_details']['invoiceDetails']:
+                        if '-' in op_1['coding_details']['invoiceDetails']['invoiceTotal']:
                             credit_invo = 1
                             coding_tab_data['document_type'] = "credit"
                         else:
                             coding_tab_data['document_type'] = "invoice"
-                        c_invoTotal = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['grandTotal'])
+                        c_invoTotal = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['invoiceTotal'])
 
                     if "GST" in op_1['coding_details']['invoiceDetails']:
                         c_gst = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['GST'])
