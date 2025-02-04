@@ -178,10 +178,14 @@ def corp_postPro(op_1):
                         if '-' in op_1['coding_details']['invoiceDetails']['invoicetotal']:
                             credit_invo = 1
                             coding_tab_data['document_type'] = "credit"
+                            
                         else:
                             coding_tab_data['document_type'] = "invoice"
                         c_invoTotal = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['invoicetotal'])
-
+                    if c_invoTotal:
+                        coding_tab_data['invoicetotal'] = c_invoTotal
+                    else:
+                        coding_tab_data['invoicetotal'] = None
                     if "GST" in op_1['coding_details']['invoiceDetails']:
                         c_gst = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['GST'])
                         coding_tab_data["gst"] = c_gst
@@ -396,7 +400,7 @@ def corp_postPro(op_1):
         if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
             missing_code_docTab = {
                 "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
-                "invoicetotal":miss_code[list(miss_code.keys())[0]]["invoicetotal"],
+                "invoicetotal":miss_code[list(miss_code.keys())[0]]["InvoiceTotal"],
                 "gst":miss_code[list(miss_code.keys())[0]]["GST/HST"],
                 "invo_page_count":miss_code[list(miss_code.keys())[0]]["NumberOfPages"],
                 "created_on":timestmp,
@@ -421,7 +425,7 @@ def corp_postPro(op_1):
                         "customeraddress": "",
                         "currency":miss_code[list(miss_code.keys())[0]]["Currency"],
                         
-                        "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
+                        "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["InvoiceTotal"]),
                         "subtotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["SubTotal"]),
                         
                         "corp_doc_id":corp_doc_id,
