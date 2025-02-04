@@ -1,9 +1,11 @@
+from sqlalchemy.orm import Load
 from datetime import datetime
 import email
 import json
 import base64
 import os
 import traceback
+from fastapi import Response
 import imgkit
 import re
 from PIL import Image
@@ -15,7 +17,7 @@ from pfg_app import model
 from pfg_app.core.utils import upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger
-
+from sqlalchemy import and_, case, func, or_
 # def parse_eml(file_path):
 #     with open(file_path, 'rb') as file:
 #         msg = BytesParser(policy=policy.default).parse(file)
@@ -771,3 +773,127 @@ def create_or_update_corp_metadata(u_id, v_id, metadata, db):
 
     # Return the updated or newly created record
     return existing_metadata if existing_metadata else new_metadata
+
+
+
+async def readpaginatedcorpvendorlist(
+    db,
+    pagination,
+    api_filter,
+    ven_status
+):
+    """
+    Retrieve a paginated list of vendors with onboarding status based on existence in corp_metadata.
+
+    :param vendor_type: Optional filter for vendor type.
+    :param db: Database session.
+    :param pagination: Tuple containing (offset, limit).
+    :param filters: Dictionary containing optional filters (ven_code, onb_status).
+    :param ven_status: Optional filter for vendor status.
+    :return: List of vendor details with computed onboarding status.
+    """
+
+    try:
+        # Subquery to determine onboarding status correctly
+        subquery = (
+            db.query(
+                model.Vendor.idVendor,
+                case(
+                    (func.count(model.corp_metadata.vendorid) > 0, "Onboarded"),
+                    else_="Not-Onboarded",
+                ).label("OnboardedStatus"),
+            )
+            .outerjoin(
+                model.corp_metadata,
+                (model.Vendor.idVendor == model.corp_metadata.vendorid) &
+                (model.corp_metadata.status == "Onboarded")  # Ensures only valid onboarded vendors
+            )
+            .group_by(model.Vendor.idVendor)
+            .subquery()
+        )
+
+        # Main query to get vendor details along with onboarding status
+        data = (
+            db.query(
+                model.Vendor,
+                subquery.c.OnboardedStatus,
+            )
+            .options(
+                Load(model.Vendor).load_only(
+                    "VendorName", "VendorCode", "vendorType", "Address", "City"
+                ),
+            )
+            .outerjoin(subquery, model.Vendor.idVendor == subquery.c.idVendor)
+        )
+
+        def normalize_string(input_str):
+            return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
+        # Apply additional filters
+        for key, val in api_filter.items():
+            if key == "ven_code" and val:
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", val.lower())
+                pattern = f"%{normalized_filter}%"
+                data = data.filter(
+                    or_(
+                        normalize_string(model.Vendor.VendorName).ilike(pattern),
+                        normalize_string(model.Vendor.VendorCode).ilike(pattern),
+                    )
+                )
+            if key == "onb_status" and val:
+                data = data.filter(subquery.c.OnboardedStatus == val)
+
+        # Apply vendor status filter
+        if ven_status:
+            if ven_status in ["A", "I"]:
+                data = data.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    ) == ven_status
+                )
+            else:
+                return {"error": f"Invalid vendor status: {ven_status}"}
+
+        # Total count query (with filters applied)
+        total_count = data.distinct(model.Vendor.idVendor).count()
+
+        # Pagination
+        offset, limit = pagination
+        off_val = (offset - 1) * limit
+        if off_val < 0:
+            return Response(
+                status_code=403,
+                headers={"ClientError": "Please provide a valid offset value."},
+            )
+
+        # Execute paginated query
+        vendors = data.distinct().limit(limit).offset(off_val).all()
+
+        # Prepare result
+        result = {"data": [], "total_count": total_count}
+        for row in vendors:
+            row_dict = {}
+            for idx, col in enumerate(row):
+                if isinstance(col, model.Vendor):
+                    row_dict["Vendor"] = {
+                        "idVendor": col.idVendor,
+                        "VendorName": col.VendorName,
+                        "VendorCode": col.VendorCode,
+                        "vendorType": col.vendorType,
+                        "Address": col.Address,
+                        "City": col.City,
+                    }
+                elif isinstance(col, str):
+                    row_dict["OnboardedStatus"] = col
+                elif col is None:
+                    row_dict[f"col{idx}"] = None
+            result["data"].append(row_dict)
+
+        return result
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(
+            status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
+        )
+    finally:
+        db.close()
