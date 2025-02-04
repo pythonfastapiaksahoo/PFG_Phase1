@@ -116,7 +116,7 @@ def format_data_for_template1(parsed_data):
                 invoice_data["GST"] = row[1] if len(row) > 1 else ""
             elif "Grand Total:" in row[0]:
                 # invoice_data["grandTotal"] = row[1]
-                invoice_data["invoiceTotal"] = row[1] if len(row) > 1 else "" 
+                invoice_data["invoicetotal"] = row[1] if len(row) > 1 else "" 
 
             # Extract approver details
             elif "Approver Name:" in row[0]:
@@ -158,7 +158,7 @@ def format_data_for_template2(parsed_data):
         "project": [],
         "activity": [],
         "GST": [],
-        "invoiceTotal": [],
+        "invoicetotal": [],
         "subtotal": None
     }
     approver_details = {}
@@ -186,7 +186,7 @@ def format_data_for_template2(parsed_data):
                 invoice_data["project"].append(row[5])
                 invoice_data["activity"].append(row[6])
                 invoice_data["GST"].append(row[7])
-                invoice_data["invoiceTotal"].append(row[8])
+                invoice_data["invoicetotal"].append(row[8])
 
     # Combine into final structured JSON
     structured_output = {
@@ -235,7 +235,7 @@ def format_data_for_template3(parsed_data):
 
             elif "Grand Total:" in row[0]:
                 # invoice_data["grandTotal"] = row[1]
-                invoice_data["invoiceTotal"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+                invoice_data["invoicetotal"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
 
 
             # Extract approver details
