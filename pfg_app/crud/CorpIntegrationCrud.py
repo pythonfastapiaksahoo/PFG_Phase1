@@ -706,19 +706,17 @@ def processCorpInvoiceVoucher(request_payload):
 
 
 def create_or_update_corp_metadata(u_id, v_id, metadata, db):
-    # Ensure synonyms_name and synonyms_address are always lists, even if passed as strings
-    if isinstance(metadata.synonyms_name, str):
-        metadata.synonyms_name = [metadata.synonyms_name]
-    if isinstance(metadata.synonyms_address, str):
-        metadata.synonyms_address = [metadata.synonyms_address]
+    # Ensure synonyms_name and synonyms_address are always lists, even if None
+    metadata.synonyms_name = metadata.synonyms_name or []
+    metadata.synonyms_address = metadata.synonyms_address or []
 
     # Remove empty values from synonyms_name and synonyms_address
-    metadata.synonyms_name = [name.strip() for name in metadata.synonyms_name if name.strip()]
-    metadata.synonyms_address = [address.strip() for address in metadata.synonyms_address if address.strip()]
+    metadata.synonyms_name = [name.strip() for name in metadata.synonyms_name if name and name.strip()]
+    metadata.synonyms_address = [address.strip() for address in metadata.synonyms_address if address and address.strip()]
 
     # Ignore update if all values are empty
-    if not metadata.synonyms_name and not metadata.synonyms_address and metadata.dateformat.strip() == "":
-        return (f"No valid data provided to insert or update", 400)
+    if not metadata.synonyms_name and not metadata.synonyms_address and not metadata.dateformat.strip():
+        return ("No valid data provided to insert or update", 400)
 
     # Check if the vendor exists
     vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == v_id).first()
@@ -729,27 +727,19 @@ def create_or_update_corp_metadata(u_id, v_id, metadata, db):
     existing_metadata = db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
 
     if existing_metadata:
-        # Convert stored JSON-like fields back to lists (if they were stored as strings)
-        if isinstance(existing_metadata.synonyms_name, str):
-            existing_metadata.synonyms_name = json.loads(existing_metadata.synonyms_name)
-        if isinstance(existing_metadata.synonyms_address, str):
-            existing_metadata.synonyms_address = json.loads(existing_metadata.synonyms_address)
-
-        # Ensure they are lists
-        if not isinstance(existing_metadata.synonyms_name, list):
-            existing_metadata.synonyms_name = []
-        if not isinstance(existing_metadata.synonyms_address, list):
-            existing_metadata.synonyms_address = []
+        # Convert stored JSON-like fields back to lists (if they were stored as JSON strings)
+        existing_metadata.synonyms_name = json.loads(existing_metadata.synonyms_name) if existing_metadata.synonyms_name else []
+        existing_metadata.synonyms_address = json.loads(existing_metadata.synonyms_address) if existing_metadata.synonyms_address else []
 
         # Append new values while ensuring no duplicates
         existing_metadata.synonyms_name = list(set(existing_metadata.synonyms_name + metadata.synonyms_name))
         existing_metadata.synonyms_address = list(set(existing_metadata.synonyms_address + metadata.synonyms_address))
 
-        # Convert back to JSON string for database storage if necessary
+        # Convert back to JSON string for database storage
         existing_metadata.synonyms_name = json.dumps(existing_metadata.synonyms_name)
         existing_metadata.synonyms_address = json.dumps(existing_metadata.synonyms_address)
 
-        # Only update dateformat if it's not empty
+        # Update dateformat if provided
         if metadata.dateformat.strip():
             existing_metadata.dateformat = metadata.dateformat
             existing_metadata.status = "Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded"
@@ -897,3 +887,60 @@ async def readpaginatedcorpvendorlist(
         )
     finally:
         db.close()
+        
+async def get_metadata_data(u_id, v_id, db):
+    """
+    Retrieve corp metadata record filtered by vendor ID.
+
+    Parameters:
+    ----------
+    user_id : int
+        ID of the user making the request.
+    v_id : int
+        Vendor ID used to filter metadata records.
+    db : Session
+        Database session object.
+
+    Returns:
+    -------
+    corp_metadata instance or None
+    """
+    return db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
+
+
+async def delete_metadata_values(u_id, v_id, delmetadata, db):
+    """
+    Delete specific values from the synonyms_name or synonyms_address column in corp_metadata.
+
+    Parameters:
+    ----------
+    v_id : int
+        Vendor ID used to identify the metadata record.
+    delmetadata : CorpMetadataDelete
+        Object containing lists of values to be removed from the columns.
+    db : Session
+        Database session object.
+
+    Returns:
+    -------
+    corp_metadata instance or None
+    """
+    metadata_record = db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
+    
+    if not metadata_record:
+        return None
+    
+    if delmetadata.synonyms_name:
+        existing_values = json.loads(metadata_record.synonyms_name) if isinstance(metadata_record.synonyms_name, str) else []
+        updated_values = [val for val in existing_values if val not in delmetadata.synonyms_name]
+        metadata_record.synonyms_name = json.dumps(updated_values)
+    
+    if delmetadata.synonyms_address:
+        existing_values = json.loads(metadata_record.synonyms_address) if isinstance(metadata_record.synonyms_address, str) else []
+        updated_values = [val for val in existing_values if val not in delmetadata.synonyms_address]
+        metadata_record.synonyms_address = json.dumps(updated_values)
+    
+    metadata_record.updated_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    
+    db.commit()
+    return metadata_record
