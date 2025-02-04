@@ -81,6 +81,11 @@ class VchrImpRequestBody(BaseModel):
     
     
 class CorpMetadataCreate(BaseModel):
-    synonyms_name: Optional[str]
-    synonyms_address: Optional[str]
+    synonyms_name: Optional[List[str]] = None
+    synonyms_address: Optional[List[str]] = None
     dateformat: str
+    
+class CorpMetadataDelete(BaseModel):
+    synonyms_name: Optional[List[str]] = None
+    synonyms_address: Optional[List[str]] = None
+    
