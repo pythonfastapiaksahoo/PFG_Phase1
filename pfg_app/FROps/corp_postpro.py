@@ -117,10 +117,10 @@ def corp_postPro(op_1):
                         TMID =  op_1['coding_details']['approverDetails']['TMID']
             #- process multi invoice: 
             invoice_details = op_1['coding_details']['invoiceDetails']
-            keys_to_check_invo = ['invoice#','store', 'dept', 'account', 'SL', 'project', 'activity','GST','invoiceTotal']
+            keys_to_check_invo = ['invoice#','store', 'dept', 'account', 'SL', 'project', 'activity','GST','invoicetotal']
             if all(len(invoice_details[keys_to_check_invo[0]]) == len(invoice_details[key]) for key in keys_to_check_invo[1:]):
                 for rw in range(len(invoice_details[keys_to_check_invo[0]])):
-                    if '-' in invoice_details['invoiceTotal'][rw]:
+                    if '-' in invoice_details['invoicetotal'][rw]:
                         credit_invo = 1
                         coding_tab_data['document_type'] = "credit"
                     else:
@@ -137,13 +137,13 @@ def corp_postPro(op_1):
                     coding_tab_data["approver_title"] = approver_title
                     coding_tab_data["approval_status"] = approval_status
                     coding_tab_data["TMID"] = TMID
-                    coding_tab_data["invoice_total"] = invoice_details["invoiceTotal"][rw]
+                    coding_tab_data["invoicetotal"] = invoice_details["invoicetotal"][rw]
                     coding_data[1] = {'store':invoice_details['store'][rw],
                                             'dept':invoice_details['dept'][rw],
                                             'SL':invoice_details['SL'][rw],
                                             'project':invoice_details['project'][rw],
                                             'activity':invoice_details['activity'][rw],
-                                            'amount':cleanAmt_all(credit_invo,invoice_details['invoiceTotal'][rw])} 
+                                            'amount':cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw])} 
                     coding_tab_data['coding_data'] = coding_data
                     print(invoice_details['invoice#'][rw])
                 
@@ -174,13 +174,13 @@ def corp_postPro(op_1):
                     missing_val.append("email_metadata","sender","sender_email","sent_time","sent_to")
 
                 if "invoiceDetails" in op_1['coding_details']:
-                    if "invoiceTotal" in op_1['coding_details']['invoiceDetails']:
-                        if '-' in op_1['coding_details']['invoiceDetails']['invoiceTotal']:
+                    if "invoicetotal" in op_1['coding_details']['invoiceDetails']:
+                        if '-' in op_1['coding_details']['invoiceDetails']['invoicetotal']:
                             credit_invo = 1
                             coding_tab_data['document_type'] = "credit"
                         else:
                             coding_tab_data['document_type'] = "invoice"
-                        c_invoTotal = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['invoiceTotal'])
+                        c_invoTotal = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['invoicetotal'])
 
                     if "GST" in op_1['coding_details']['invoiceDetails']:
                         c_gst = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['GST'])
@@ -267,14 +267,14 @@ def corp_postPro(op_1):
     for doc_dt_rw in op_1['invoice_detail_list']:
         if doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID'] in good_togo:
             att_invoID = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID']
-            att_invoTotal = cleanAmt_all(credit_invo, doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceTotal'])
+            att_invoTotal = cleanAmt_all(credit_invo, doc_dt_rw[list(doc_dt_rw.keys())[0]]['invoicetotal'])
             gst = cleanAmt_all(credit_invo, doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST/HST'])
             att_invoDate = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceDate']
             
             # insert to db
             corp_doc_data = {"invoice_id":att_invoID,
                             "invoice_date":att_invoDate,
-                            "invoice_total":att_invoTotal,
+                            "invoicetotal":att_invoTotal,
                             "gst":gst,
                             "documentstatus":4,
                             "documentsubstatus":11,
@@ -298,7 +298,7 @@ def corp_postPro(op_1):
                         
                         'tmid':all_invo_coding[att_invoID]['TMID'],
                         'approver_title':all_invo_coding[att_invoID]['approver_title'],
-                        'invoice_total':all_invo_coding[att_invoID]['invoice_total'],
+                        'invoicetotal':all_invo_coding[att_invoID]['invoicetotal'],
                         'gst':all_invo_coding[att_invoID]['gst'],
                         'created_on': timestmp,
                         'sender_name': all_invo_coding[att_invoID]['sender'],
@@ -325,7 +325,7 @@ def corp_postPro(op_1):
                         "customeraddress": "",
                         "currency":doc_dt_rw[list(doc_dt_rw.keys())[0]]["Currency"],
                         
-                        "invoicetotal":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceTotal"]),
+                        "invoicetotal":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["invoicetotal"]),
                         "subtotal":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["SubTotal"]),
                         
                         "corp_doc_id":corp_doc_id,
@@ -351,7 +351,7 @@ def corp_postPro(op_1):
     # document status & substatus:  4 , 130
     for miss_att in missing_attachment:
         mssing_att_docData = {"invoice_id":all_invo_coding[miss_att]["invoice_number"],
-                            "invoice_total": all_invo_coding[miss_att]["invoice_total"],
+                            "invoicetotal": all_invo_coding[miss_att]["invoicetotal"],
                             "gst": all_invo_coding[miss_att]["gst"],
                             "approved_by": all_invo_coding[miss_att]["approverName"],
                             "uploaded_date":timestmp ,
@@ -374,7 +374,7 @@ def corp_postPro(op_1):
                         
                         'tmid':all_invo_coding[miss_att]['TMID'],
                         'approver_title':all_invo_coding[miss_att]['approver_title'],
-                        'invoice_total':all_invo_coding[miss_att]['invoice_total'],
+                        'invoicetotal':all_invo_coding[miss_att]['invoicetotal'],
                         'gst':all_invo_coding[miss_att]['gst'],
                         'created_on': timestmp,
                         'sender_name': all_invo_coding[miss_att]['sender'],
@@ -396,7 +396,7 @@ def corp_postPro(op_1):
         if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
             missing_code_docTab = {
                 "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
-                "invoice_total":miss_code[list(miss_code.keys())[0]]["InvoiceTotal"],
+                "invoicetotal":miss_code[list(miss_code.keys())[0]]["invoicetotal"],
                 "gst":miss_code[list(miss_code.keys())[0]]["GST/HST"],
                 "invo_page_count":miss_code[list(miss_code.keys())[0]]["NumberOfPages"],
                 "created_on":timestmp,
@@ -421,7 +421,7 @@ def corp_postPro(op_1):
                         "customeraddress": "",
                         "currency":miss_code[list(miss_code.keys())[0]]["Currency"],
                         
-                        "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["InvoiceTotal"]),
+                        "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
                         "subtotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["SubTotal"]),
                         
                         "corp_doc_id":corp_doc_id,
