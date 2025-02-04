@@ -1,8 +1,11 @@
+from sqlalchemy.orm import Load
+from datetime import datetime
 import email
 import json
 import base64
 import os
 import traceback
+from fastapi import Response
 import imgkit
 import re
 from PIL import Image
@@ -14,7 +17,7 @@ from pfg_app import model
 from pfg_app.core.utils import upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger
-
+from sqlalchemy import and_, case, func, or_
 # def parse_eml(file_path):
 #     with open(file_path, 'rb') as file:
 #         msg = BytesParser(policy=policy.default).parse(file)
@@ -500,7 +503,7 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_nam
         else:
             n_splits = max(3, height // 1500)  # Split proportionally for large emails
 
-        print(f"Image height: {height}, Splitting into {n_splits} pages.")
+        logger.info(f"Image height: {height}, Splitting into {n_splits} pages.")
 
         # Calculate the height of each split
         split_height = height // n_splits
@@ -702,3 +705,195 @@ def processCorpInvoiceVoucher(request_payload):
     return responsedata
 
 
+def create_or_update_corp_metadata(u_id, v_id, metadata, db):
+    # Ensure synonyms_name and synonyms_address are always lists, even if passed as strings
+    if isinstance(metadata.synonyms_name, str):
+        metadata.synonyms_name = [metadata.synonyms_name]
+    if isinstance(metadata.synonyms_address, str):
+        metadata.synonyms_address = [metadata.synonyms_address]
+
+    # Remove empty values from synonyms_name and synonyms_address
+    metadata.synonyms_name = [name.strip() for name in metadata.synonyms_name if name.strip()]
+    metadata.synonyms_address = [address.strip() for address in metadata.synonyms_address if address.strip()]
+
+    # Ignore update if all values are empty
+    if not metadata.synonyms_name and not metadata.synonyms_address and metadata.dateformat.strip() == "":
+        return (f"No valid data provided to insert or update", 400)
+
+    # Check if the vendor exists
+    vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == v_id).first()
+    if not vendor:
+        return (f"Vendor with id {v_id} does not exist", 404)
+
+    # Check if metadata for the vendor already exists
+    existing_metadata = db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
+
+    if existing_metadata:
+        # Convert stored JSON-like fields back to lists (if they were stored as strings)
+        if isinstance(existing_metadata.synonyms_name, str):
+            existing_metadata.synonyms_name = json.loads(existing_metadata.synonyms_name)
+        if isinstance(existing_metadata.synonyms_address, str):
+            existing_metadata.synonyms_address = json.loads(existing_metadata.synonyms_address)
+
+        # Ensure they are lists
+        if not isinstance(existing_metadata.synonyms_name, list):
+            existing_metadata.synonyms_name = []
+        if not isinstance(existing_metadata.synonyms_address, list):
+            existing_metadata.synonyms_address = []
+
+        # Append new values while ensuring no duplicates
+        existing_metadata.synonyms_name = list(set(existing_metadata.synonyms_name + metadata.synonyms_name))
+        existing_metadata.synonyms_address = list(set(existing_metadata.synonyms_address + metadata.synonyms_address))
+
+        # Convert back to JSON string for database storage if necessary
+        existing_metadata.synonyms_name = json.dumps(existing_metadata.synonyms_name)
+        existing_metadata.synonyms_address = json.dumps(existing_metadata.synonyms_address)
+
+        # Only update dateformat if it's not empty
+        if metadata.dateformat.strip():
+            existing_metadata.dateformat = metadata.dateformat
+            existing_metadata.status = "Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded"
+
+        existing_metadata.updated_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        # Insert new metadata record if valid data exists
+        new_metadata = model.corp_metadata(
+            vendorcode=vendor.VendorCode,
+            vendorid=v_id,
+            synonyms_name=json.dumps(metadata.synonyms_name),  # Convert list to JSON string for storage
+            synonyms_address=json.dumps(metadata.synonyms_address),  # Convert list to JSON string for storage
+            dateformat=metadata.dateformat if metadata.dateformat.strip() else None,  # Ignore empty dateformat
+            status="Onboarded" if metadata.dateformat.strip() and metadata.dateformat != "Not Onboarded" else "Not Onboarded",
+            created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            updated_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        db.add(new_metadata)
+
+    db.commit()
+
+    # Return the updated or newly created record
+    return existing_metadata if existing_metadata else new_metadata
+
+
+
+async def readpaginatedcorpvendorlist(
+    db,
+    pagination,
+    api_filter,
+    ven_status
+):
+    """
+    Retrieve a paginated list of vendors with onboarding status based on existence in corp_metadata.
+
+    :param vendor_type: Optional filter for vendor type.
+    :param db: Database session.
+    :param pagination: Tuple containing (offset, limit).
+    :param filters: Dictionary containing optional filters (ven_code, onb_status).
+    :param ven_status: Optional filter for vendor status.
+    :return: List of vendor details with computed onboarding status.
+    """
+
+    try:
+        # Subquery to determine onboarding status correctly
+        subquery = (
+            db.query(
+                model.Vendor.idVendor,
+                case(
+                    (func.count(model.corp_metadata.vendorid) > 0, "Onboarded"),
+                    else_="Not-Onboarded",
+                ).label("OnboardedStatus"),
+            )
+            .outerjoin(
+                model.corp_metadata,
+                (model.Vendor.idVendor == model.corp_metadata.vendorid) &
+                (model.corp_metadata.status == "Onboarded")  # Ensures only valid onboarded vendors
+            )
+            .group_by(model.Vendor.idVendor)
+            .subquery()
+        )
+
+        # Main query to get vendor details along with onboarding status
+        data = (
+            db.query(
+                model.Vendor,
+                subquery.c.OnboardedStatus,
+            )
+            .options(
+                Load(model.Vendor).load_only(
+                    "VendorName", "VendorCode", "vendorType", "Address", "City"
+                ),
+            )
+            .outerjoin(subquery, model.Vendor.idVendor == subquery.c.idVendor)
+        )
+
+        def normalize_string(input_str):
+            return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
+        # Apply additional filters
+        for key, val in api_filter.items():
+            if key == "ven_code" and val:
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", val.lower())
+                pattern = f"%{normalized_filter}%"
+                data = data.filter(
+                    or_(
+                        normalize_string(model.Vendor.VendorName).ilike(pattern),
+                        normalize_string(model.Vendor.VendorCode).ilike(pattern),
+                    )
+                )
+            if key == "onb_status" and val:
+                data = data.filter(subquery.c.OnboardedStatus == val)
+
+        # Apply vendor status filter
+        if ven_status:
+            if ven_status in ["A", "I"]:
+                data = data.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    ) == ven_status
+                )
+            else:
+                return {"error": f"Invalid vendor status: {ven_status}"}
+
+        # Total count query (with filters applied)
+        total_count = data.distinct(model.Vendor.idVendor).count()
+
+        # Pagination
+        offset, limit = pagination
+        off_val = (offset - 1) * limit
+        if off_val < 0:
+            return Response(
+                status_code=403,
+                headers={"ClientError": "Please provide a valid offset value."},
+            )
+
+        # Execute paginated query
+        vendors = data.distinct().limit(limit).offset(off_val).all()
+
+        # Prepare result
+        result = {"data": [], "total_count": total_count}
+        for row in vendors:
+            row_dict = {}
+            for idx, col in enumerate(row):
+                if isinstance(col, model.Vendor):
+                    row_dict["Vendor"] = {
+                        "idVendor": col.idVendor,
+                        "VendorName": col.VendorName,
+                        "VendorCode": col.VendorCode,
+                        "vendorType": col.vendorType,
+                        "Address": col.Address,
+                        "City": col.City,
+                    }
+                elif isinstance(col, str):
+                    row_dict["OnboardedStatus"] = col
+                elif col is None:
+                    row_dict[f"col{idx}"] = None
+            result["data"].append(row_dict)
+
+        return result
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(
+            status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
+        )
+    finally:
+        db.close()

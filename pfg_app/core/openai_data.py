@@ -21,8 +21,7 @@ def get_open_ai_token():
     token = credential.get_token("https://cognitiveservices.azure.com/.default")
     access_token = token.token
     return access_token
-  
-  
+
 
 def extract_invoice_details_using_openai(blob_data):
     try:
@@ -47,6 +46,8 @@ def extract_invoice_details_using_openai(blob_data):
                     "Shipping Charges": "Extracted shipping charges",
                     "Litter Deposit": "Extracted Litter Deposit",
                     "Ecology Fee": "Extracted Ecology or Ecology Fee",
+                    "Fuel Surcharge": "Extracted Fuel Surcharge",
+                    "Freight Charges": "Extracted Fright Charges",
                     "misc": "Extracted miscellaneous charges",
                     "Currency": "Extracted currency
                 }
@@ -70,18 +71,22 @@ def extract_invoice_details_using_openai(blob_data):
                 - **PST-BC**: Extracted PST-BC from invoice document if present else return "N/A".
                 - **Bottle Deposit**: Extracted bottle deposit from invoice document if present else return "N/A".
                 - **Shipping Charges**: Extracted shipping charges from invoice document if present else return "N/A".
+                - **Fuel Surcharge**: Extracted Fuel Surcharge from invoice document if present else return "N/A".
+                - **Freight Charges**: Extracted Freight charges from invoice document if present else return "N/A".
                 - **Litter Deposit**: Extracted litter deposit from invoice document if present else return "N/A".
+                - **Ecology Fee**: Extracted Ecology Fee from invoice document if present else return "N/A".
                 - **misc**: Extracted miscellaneous charges from invoice document if present else return "N/A".
                 - **Invoice Date**: Extracted invoice date from invoice document.
                 3. **Special Notes**:
                     - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section.
                         - Ensure to capture the primary vendor name typically found at the top of the document (Excluding 'Pattison Food Group').
                         - Sometime vendor name may be name of person, so ensure to capture name of person with prefix 'Name:', for example 'Barry Smith', then return 'Barry Smith'.
+                        - If the vendor name is not present at the top of the invoice document,then check if its present at the bottom with prefix 'please remit payment to:' or 'pay to:'
                         - Return "N/A" if the vendor name is not present in the invoice document.
                     - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                     - **Vendor Addreess:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                         - Ensure to capture the primary vendor address typically found in the top of the invoice document.
-                        - If the vendor address is  not present at the top of the invoice document,then check if its present at the bottom with prefix 'please remit payment to:'.
+                        - If the vendor address is  not present at the top of the invoice document,then check if its present at the bottom with prefix 'please remit payment to:' or 'pay to:'.
                         - if the vendor address is not present in the invoice document, return "N/A".
                     - **CreditNote** - if any of the amount fields are in negative, then return "Yes".for example, '-123.45' or '123.45-' return "Yes".
                                     - Ensure that if it's CreditNote than amounts(Subtotal, InvoiceTotal, GST/HST, PST, PST-SK, PST-BC, Bottle Deposit, Shipping Charges, Litter Deposit, misc) are in negative.
@@ -100,6 +105,9 @@ def extract_invoice_details_using_openai(blob_data):
                 - PST: "2.23"
                 - Bottle Deposit: "N/A"
                 - Shipping Charges: "N/A"
+                - Ecology Fee: "N/A"
+                - Fuel Surcharge: "N/A"
+                - Freight Charges: "N/A"
                 - Litter Deposit: "N/A"
                 - Currency: "CAD"
 
@@ -119,6 +127,9 @@ def extract_invoice_details_using_openai(blob_data):
                     "PST-BC": "N/A",
                     "Bottle Deposit": "N/A",
                     "Shipping Charges": "N/A",
+                    "Ecology Fee": "N/A",
+                    "Fuel Surcharge": "N/A",
+                    "Freight Charges": "N/A",
                     "Litter Deposit": "N/A",
                     "Currency": "CAD"
                 }
@@ -132,8 +143,8 @@ def extract_invoice_details_using_openai(blob_data):
         total_pages = len(pdf_img)
         print("Total pages:", total_pages)
         # Check if total pages are more than 30
-        if total_pages > 10:
-            # Append only the first and last page
+        if total_pages > 5:
+            # Append only the first page
             pages_to_process = [pdf_img[0]]
         else:
             # Process all pages
@@ -221,6 +232,9 @@ def extract_invoice_details_using_openai(blob_data):
                     "PST-BC": "Max retries reached",
                     "Bottle Deposit": "Max retries reached",
                     "Shipping Charges": "Max retries reached",
+                    "Ecology Fee": "Max retries reached",
+                    "Fuel Surcharge": "Max retries reached",
+                    "Freight": "Max retries reached",
                     "Litter Deposit": "Max retries reached",
                     "Currency": "CAD"
                 }
@@ -260,6 +274,9 @@ def extract_invoice_details_using_openai(blob_data):
             "PST-BC": "Response not found",
             "Bottle Deposit": "Response not found",
             "Shipping Charges": "Response not found",
+            "Ecology Fee": "Response not found",
+            "Fuel Surcharge": "Response not found",
+            "Freight": "Response not found",
             "Litter Deposit": "Response not found",
             "Currency": "CAD"
         }
