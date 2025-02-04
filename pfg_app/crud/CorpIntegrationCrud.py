@@ -14,6 +14,7 @@ from pfg_app import model
 from pfg_app.core.utils import upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger
+from sqlalchemy import and_, case, func, or_
 
 # def parse_eml(file_path):
 #     with open(file_path, 'rb') as file:
