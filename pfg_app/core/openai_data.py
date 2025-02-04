@@ -232,6 +232,9 @@ def extract_invoice_details_using_openai(blob_data):
                     "PST-BC": "Max retries reached",
                     "Bottle Deposit": "Max retries reached",
                     "Shipping Charges": "Max retries reached",
+                    "Ecology Fee": "Max retries reached",
+                    "Fuel Surcharge": "Max retries reached",
+                    "Freight": "Max retries reached",
                     "Litter Deposit": "Max retries reached",
                     "Currency": "CAD"
                 }
@@ -271,6 +274,9 @@ def extract_invoice_details_using_openai(blob_data):
             "PST-BC": "Response not found",
             "Bottle Deposit": "Response not found",
             "Shipping Charges": "Response not found",
+            "Ecology Fee": "Response not found",
+            "Fuel Surcharge": "Response not found",
+            "Freight": "Response not found",
             "Litter Deposit": "Response not found",
             "Currency": "CAD"
         }
