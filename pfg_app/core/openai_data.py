@@ -47,6 +47,8 @@ def extract_invoice_details_using_openai(blob_data):
                     "Shipping Charges": "Extracted shipping charges",
                     "Litter Deposit": "Extracted Litter Deposit",
                     "Ecology Fee": "Extracted Ecology or Ecology Fee",
+                    "Fuel Surcharge": "Extracted Fuel Surcharge",
+                    "Freight": "Extracted Fright Charges",
                     "misc": "Extracted miscellaneous charges",
                     "Currency": "Extracted currency
                 }
@@ -70,7 +72,10 @@ def extract_invoice_details_using_openai(blob_data):
                 - **PST-BC**: Extracted PST-BC from invoice document if present else return "N/A".
                 - **Bottle Deposit**: Extracted bottle deposit from invoice document if present else return "N/A".
                 - **Shipping Charges**: Extracted shipping charges from invoice document if present else return "N/A".
+                - **Fuel Surcharge**: Extracted Fuel Surcharge from invoice document if present else return "N/A".
+                - **Freight**: Extracted Freight charges from invoice document if present else return "N/A".
                 - **Litter Deposit**: Extracted litter deposit from invoice document if present else return "N/A".
+                - **Ecology Fee**: Extracted Ecology Fee from invoice document if present else return "N/A".
                 - **misc**: Extracted miscellaneous charges from invoice document if present else return "N/A".
                 - **Invoice Date**: Extracted invoice date from invoice document.
                 3. **Special Notes**:
@@ -100,6 +105,9 @@ def extract_invoice_details_using_openai(blob_data):
                 - PST: "2.23"
                 - Bottle Deposit: "N/A"
                 - Shipping Charges: "N/A"
+                - Ecology Fee: "N/A"
+                - Fuel Surcharge: "N/A"
+                - Freight: "N/A"
                 - Litter Deposit: "N/A"
                 - Currency: "CAD"
 
@@ -119,6 +127,9 @@ def extract_invoice_details_using_openai(blob_data):
                     "PST-BC": "N/A",
                     "Bottle Deposit": "N/A",
                     "Shipping Charges": "N/A",
+                    "Ecology Fee": "N/A",
+                    "Fuel Surcharge": "N/A",
+                    "Freight": "N/A",
                     "Litter Deposit": "N/A",
                     "Currency": "CAD"
                 }

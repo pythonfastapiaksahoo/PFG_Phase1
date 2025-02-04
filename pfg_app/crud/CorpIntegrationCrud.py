@@ -703,23 +703,71 @@ def processCorpInvoiceVoucher(request_payload):
     return responsedata
 
 
-# CRUD function to add a new record
-def create_corp_metadata(u_id, v_id, db, metadata):
+def create_or_update_corp_metadata(u_id, v_id, metadata, db):
+    # Ensure synonyms_name and synonyms_address are always lists, even if passed as strings
+    if isinstance(metadata.synonyms_name, str):
+        metadata.synonyms_name = [metadata.synonyms_name]
+    if isinstance(metadata.synonyms_address, str):
+        metadata.synonyms_address = [metadata.synonyms_address]
+
+    # Remove empty values from synonyms_name and synonyms_address
+    metadata.synonyms_name = [name.strip() for name in metadata.synonyms_name if name.strip()]
+    metadata.synonyms_address = [address.strip() for address in metadata.synonyms_address if address.strip()]
+
+    # Ignore update if all values are empty
+    if not metadata.synonyms_name and not metadata.synonyms_address and metadata.dateformat.strip() == "":
+        return (f"No valid data provided to insert or update", 400)
+
+    # Check if the vendor exists
     vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == v_id).first()
     if not vendor:
-        return (f" Vendor with id {v_id} does not exist", 404)
-    
-    new_metadata = model.corp_metadata(
-        vendorcode=vendor.VendorCode,
-        vendorid = v_id,
-        synonyms_name=metadata.synonyms_name,
-        synonyms_address=metadata.synonyms_address,
-        dateformat=metadata.dateformat,
-        status="Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded",
-        created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-        updated_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    )
-    db.add(new_metadata)
+        return (f"Vendor with id {v_id} does not exist", 404)
+
+    # Check if metadata for the vendor already exists
+    existing_metadata = db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
+
+    if existing_metadata:
+        # Convert stored JSON-like fields back to lists (if they were stored as strings)
+        if isinstance(existing_metadata.synonyms_name, str):
+            existing_metadata.synonyms_name = json.loads(existing_metadata.synonyms_name)
+        if isinstance(existing_metadata.synonyms_address, str):
+            existing_metadata.synonyms_address = json.loads(existing_metadata.synonyms_address)
+
+        # Ensure they are lists
+        if not isinstance(existing_metadata.synonyms_name, list):
+            existing_metadata.synonyms_name = []
+        if not isinstance(existing_metadata.synonyms_address, list):
+            existing_metadata.synonyms_address = []
+
+        # Append new values while ensuring no duplicates
+        existing_metadata.synonyms_name = list(set(existing_metadata.synonyms_name + metadata.synonyms_name))
+        existing_metadata.synonyms_address = list(set(existing_metadata.synonyms_address + metadata.synonyms_address))
+
+        # Convert back to JSON string for database storage if necessary
+        existing_metadata.synonyms_name = json.dumps(existing_metadata.synonyms_name)
+        existing_metadata.synonyms_address = json.dumps(existing_metadata.synonyms_address)
+
+        # Only update dateformat if it's not empty
+        if metadata.dateformat.strip():
+            existing_metadata.dateformat = metadata.dateformat
+            existing_metadata.status = "Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded"
+
+        existing_metadata.updated_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        # Insert new metadata record if valid data exists
+        new_metadata = model.corp_metadata(
+            vendorcode=vendor.VendorCode,
+            vendorid=v_id,
+            synonyms_name=json.dumps(metadata.synonyms_name),  # Convert list to JSON string for storage
+            synonyms_address=json.dumps(metadata.synonyms_address),  # Convert list to JSON string for storage
+            dateformat=metadata.dateformat if metadata.dateformat.strip() else None,  # Ignore empty dateformat
+            status="Onboarded" if metadata.dateformat.strip() and metadata.dateformat != "Not Onboarded" else "Not Onboarded",
+            created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            updated_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        db.add(new_metadata)
+
     db.commit()
-    db.refresh(new_metadata)
-    return new_metadata
+
+    # Return the updated or newly created record
+    return existing_metadata if existing_metadata else new_metadata
