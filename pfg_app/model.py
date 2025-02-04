@@ -1544,7 +1544,7 @@ class corp_document_tab(Base):
 
     corp_doc_id = Column(Integer, primary_key=True, autoincrement=True)
     invoice_id = Column(String(30), nullable=True)
-    invoice_total = Column(Float, nullable=True)
+    invoicetotal = Column(Float, nullable=True)
     gst = Column(Float, nullable=True)
     invo_filepath = Column(String(1255), nullable=True)
     email_filepath = Column(String(1255), nullable=True)
@@ -1574,7 +1574,7 @@ class corp_coding_tab(Base):
     approver_name = Column(String, nullable=True)
     tmid = Column(String, nullable=True)
     approver_title = Column(String, nullable=True)
-    invoice_total = Column(Float, nullable=True)
+    invoicetotal = Column(Float, nullable=True)
     gst = Column(Float, nullable=True)
     voucher_status = Column(String, nullable=True)
     sent_erp = Column(DateTime, nullable=True)
