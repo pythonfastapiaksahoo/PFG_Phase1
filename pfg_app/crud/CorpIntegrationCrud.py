@@ -14,7 +14,7 @@ from pfg_app import model
 from pfg_app.core.utils import upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy import and_, case, func, or_, desc, text
 from sqlalchemy.orm import Load
 from datetime import datetime
 from fastapi import Response
@@ -946,3 +946,149 @@ async def delete_metadata_values(u_id, v_id, delmetadata, db):
     
     db.commit()
     return metadata_record
+
+
+async def get_mail_row_key_summary(u_id, off_limit, db):
+    try:
+        # Count distinct mail_row_key
+        total_items = (
+            db.query(func.count(func.distinct(model.CorpQueueTask.mail_row_key))).scalar()
+        )
+
+        # Extract offset and limit for pagination
+        try:
+            offset, limit = off_limit
+            off_val = (offset - 1) * limit
+        except (TypeError, ValueError):
+            off_val, limit = 0, 10
+
+        data = []
+        # Query to get the latest unique mail_row_keys
+        latest_mail_row_keys = (
+            db.query(
+                model.CorpQueueTask.mail_row_key,
+                func.max(model.CorpQueueTask.created_at).label("latest_created_at"),
+            )
+            .filter(model.CorpQueueTask.mail_row_key.isnot(None))
+            .group_by(model.CorpQueueTask.mail_row_key)
+            .order_by(desc(func.max(model.CorpQueueTask.created_at)))
+            .offset(off_val)
+            .limit(limit)
+            .all()
+        )
+
+        for row in latest_mail_row_keys:
+            data_to_insert = {
+                "mail_number": row.mail_row_key,
+                "attachment_count": row.attachment_count,
+                "created_at": row.latest_created_at,
+                "associated_invoice_files": [],
+            }
+
+            related_attachments = (
+                db.query(model.corp_trigger_tab)
+                .filter(model.corp_trigger_tab.mail_row_key == row.mail_row_key)
+                .all()
+            )
+            
+            for attachment in related_attachments:
+                associated_invoice_files = {
+                    "filepath": attachment.blobpath,
+                    "type": attachment.blobpath.split(".")[-1] if attachment.blobpath else None,
+                    "document_id": attachment.documentid,
+                    "status": attachment.status,
+                    "file_size": attachment.filesize,
+                    "vendor_id": attachment.vendor_id,
+                    "page_number": attachment.pagecount,
+                }
+                data_to_insert["associated_invoice_files"].append(associated_invoice_files)
+
+            queue_task = (
+                db.query(model.CorpQueueTask)
+                .filter(text("(request_data->>'mail_row_key') = :mail_row_key"))
+                .params(mail_row_key=data_to_insert["mail_number"])
+                .first()
+            )
+            
+            if queue_task and queue_task.request_data:
+                data_to_insert["email_path"] = queue_task.request_data.get("email_path")
+                data_to_insert["sender"] = queue_task.request_data.get("sender")
+                data_to_insert["email_subject"] = queue_task.request_data.get("email_subject")
+            else:
+                data_to_insert["email_path"] = None
+                data_to_insert["sender"] = None
+                data_to_insert["email_subject"] = None
+
+            statuses = {attachment["status"] for attachment in data_to_insert["associated_invoice_files"]}
+            
+            if not data_to_insert["associated_invoice_files"]:
+                data_to_insert["status"] = "Queued"
+            elif statuses == {"processed"}:
+                data_to_insert["status"] = "Completed"
+            elif "processed" in statuses:
+                data_to_insert["status"] = "Partially Completed"
+            elif statuses:
+                data_to_insert["status"] = "Error"
+            else:
+                data_to_insert["status"] = "Unknown"
+            
+            data.append(data_to_insert)
+
+        return {"data": data, "total_items": total_items}
+
+    except Exception as e:
+        return {"error": str(e), "total_items": 0}
+        
+
+# def get_mail_row_key_summary(db):
+#     # Get distinct count of mail_row_key from CorpQueueTask
+#     distinct_mail_row_keys = db.query(func.count(func.distinct(model.CorpQueueTask.mail_row_key))).scalar()
+    
+#     # Get all associated records from corp_trigger_tab and count attachments
+#     results = (
+#         db.query(
+#             model.CorpQueueTask.mail_row_key,
+#             model.CorpQueueTask.request_data,
+#             func.count(model.corp_trigger_tab.corp_trigger_id).label("attachment_count"),
+#             func.array_agg(model.corp_trigger_tab.corp_trigger_id).label("attachments")
+#         )
+#         .outerjoin(model.corp_trigger_tab, model.CorpQueueTask.mail_row_key == model.corp_trigger_tab.mail_row_key)
+#         .group_by(model.CorpQueueTask.mail_row_key, model.CorpQueueTask.request_data)
+#         .all()
+#     )
+    
+#     summary = []
+#     for row in results:
+#         mail_number = row.mail_row_key
+#         corp_queue_task = row.request_data
+#         attachment_count = row.attachment_count
+        
+#         child = {
+#             "mail_number": mail_number,
+#             "email_path": corp_queue_task.get("eml_path"),
+#             "sender": corp_queue_task.get("sender"),
+#             "email_subject": corp_queue_task.get("email_subject"),
+#             "attachment_count": attachment_count,
+#             "associated_invoice_files": []
+#         }
+        
+#         associated_records = db.query(model.corp_trigger_tab).filter_by(mail_row_key=mail_number).all()
+#         for fr in associated_records:
+#             file_extension = fr.blobpath.split(".")[-1] if fr.blobpath else None
+#             associated_invoice_files = {
+#                 "filepath": fr.blobpath,
+#                 "type": file_extension,
+#                 "document_id": fr.documentid,
+#                 "status": fr.status,
+#                 "file_size": fr.filesize,
+#                 "vendor_id": fr.vendor_id,
+#                 "page_number": fr.pagecount,
+#             }
+#             child["associated_invoice_files"].append(associated_invoice_files)
+        
+#         summary.append(child)
+    
+#     return {
+#         "distinct_mail_row_keys": distinct_mail_row_keys,
+#         "summary": summary
+#     }

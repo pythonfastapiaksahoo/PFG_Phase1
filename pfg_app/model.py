@@ -1651,3 +1651,4 @@ class corp_trigger_tab(Base):
     sender = Column(String, nullable=True)
     filesize = Column(String, nullable=True)
     documentid = Column(Integer, nullable=True)
+    mail_row_key = Column(String, nullable=True)
