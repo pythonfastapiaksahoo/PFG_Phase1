@@ -447,11 +447,12 @@ def extract_eml_to_html(blob_data):
 
     return html_content
 
-def html_to_base64_image(html_content, config_path):
+def html_to_base64_image(html_content):
     
     try:
         # Set up the config for wkhtmltoimage
-        config = imgkit.config(wkhtmltoimage=config_path)
+        # config = imgkit.config(wkhtmltoimage=config_path)
+        config = imgkit.config(wkhtmltoimage=r"/usr/bin/wkhtmltoimage")
         # config = imgkit.config(wkhtmltoimage=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe")
         # Options for imgkit
         options = {
@@ -469,7 +470,7 @@ def html_to_base64_image(html_content, config_path):
         return encoded_image
     
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred in wkhtmltoimage: {e}")
 
 
 def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_name):
@@ -536,7 +537,7 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_nam
             )
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
 
 
 
