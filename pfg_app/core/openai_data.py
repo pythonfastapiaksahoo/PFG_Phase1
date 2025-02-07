@@ -37,8 +37,8 @@ def extract_invoice_details_using_openai(blob_data):
                     "InvoiceID": "Extracted invoice ID",
                     "InvoiceDate": "Extracted invoice date",
                     "SubTotal": "Extracted subtotal",
-                    "InvoiceTotal": "Extracted invoice total",
-                    "GST/HST": "Extracted GST or Goods and Services Tax or Tax",
+                    "invoicetotal": "Extracted invoice total",
+                    "GST": "Extracted GST or Goods and Services Tax or Tax",
                     "PST": "Extracted PST",
                     "PST-SK": "Extracted PST-SK",
                     "PST-BC": "Extracted PST-BC",
@@ -90,8 +90,8 @@ def extract_invoice_details_using_openai(blob_data):
                         - if the vendor address is not present in the invoice document, return "N/A".
                     - **CreditNote** : if "Credit Memo" or Credit Note" is present in the invoice document, then return "Yes".
                         - if any of the amount fields are in negative, then return "Yes".for example, '-123.45' or '123.45-' return "Yes".
-                        - Ensure that if it's CreditNote than amounts(Subtotal, InvoiceTotal, GST/HST, PST, PST-SK, PST-BC, Bottle Deposit, Shipping Charges, Litter Deposit, misc) are in negative.
-                    - Ensure that the amounts(Subtotal,InvoiceTotal,GST/HST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
+                        - Ensure that if it's CreditNote than amounts(Subtotal, invoicetotal, GST, PST, PST-SK, PST-BC, Bottle Deposit, Shipping Charges, Litter Deposit, misc) are in negative.
+                    - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
                 4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
                 ### Example Output:
@@ -101,7 +101,7 @@ def extract_invoice_details_using_openai(blob_data):
                 - InvoiceID: "INV-12345"
                 - InvoiceDate: "May 1, 2023"
                 - SubTotal: "123.45"
-                - InvoiceTotal: "123.45"
+                - invoicetotal: "123.45"
                 - GST: "0.5"
                 - PST: "2.23"
                 - Bottle Deposit: "N/A"
@@ -121,7 +121,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "InvoiceID": "INV-12345",
                     "InvoiceDate": "May 1, 2023",
                     "SubTotal": "123.45",
-                    "InvoiceTotal": "123.45",
+                    "invoicetotal": "123.45",
                     "GST": "0.5",
                     "PST": "2.23",
                     "PST-SK": "N/A",
@@ -229,7 +229,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "InvoiceID": "Max retries reached",
                     "InvoiceDate": "Max retries reached",
                     "SubTotal": "Max retries reached",
-                    "InvoiceTotal": "Max retries reached",
+                    "invoicetotal": "Max retries reached",
                     "GST": "Max retries reached",
                     "PST": "Max retries reached",
                     "PST-SK": "Max retries reached",
@@ -271,7 +271,7 @@ def extract_invoice_details_using_openai(blob_data):
             "InvoiceID": "Response not found",
             "InvoiceDate": "Response not found",
             "SubTotal": "Response not found",
-            "InvoiceTotal": "Response not found",
+            "invoicetotal": "Response not found",
             "GST": "Response not found",
             "PST": "Response not found",
             "PST-SK": "Response not found",

@@ -1553,12 +1553,12 @@ class corp_document_tab(Base):
     uploaded_date = Column(DateTime, nullable=True)
     approver_title = Column(String(45), nullable=True)
     last_updated_by = Column(String(45), nullable=True)
-    model_id = Column(Integer, nullable=True)
+    vendor_id = Column(Integer, nullable=True)
     documentstatus = Column((Integer), nullable=True)
     documentsubstatus = Column((Integer), nullable=True)
     mail_row_key = Column((String), nullable=True)
     invo_page_count = Column((Integer), nullable=True)
-    invoice_date = Column(DateTime, nullable=True)
+    invoice_date = Column(String, nullable=True)
     created_on = Column(DateTime, nullable=True)
     updated_on = Column(DateTime, nullable=True)
     document_type = Column((String), nullable=True)
@@ -1636,3 +1636,22 @@ class corp_metadata(Base):
     created_on = Column(DateTime, nullable=True)
     updated_on = Column(DateTime, nullable=True)
     metadata_id = Column(Integer, primary_key=True, index=True)
+    currency = Column(String, nullable=True)
+    vendorname = Column(String, nullable=True)
+    vendoraddress = Column(String, nullable=True)
+
+
+class corp_trigger_tab(Base):
+    __tablename__ = "corp_trigger_tab"
+ 
+    corp_trigger_id = Column(Integer, primary_key=True, autoincrement=True)
+    corp_queue_id = Column(Integer, nullable=True)   
+    pagecount = Column(Integer, nullable=True)
+    blobpath = Column(String(350), nullable=True)
+    vendor_id = Column(Integer, nullable=True)
+    status = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=True)    
+    updated_at = Column(DateTime, nullable=True) 
+    sender = Column(String, nullable=True)
+    filesize = Column(String, nullable=True)
+    documentid = Column(Integer, nullable=True)
