@@ -11,14 +11,14 @@ from bs4 import BeautifulSoup
 import requests
 from pfg_app import settings
 from pfg_app import model
-from pfg_app.core.utils import upload_blob_securely
+from pfg_app.core.utils import get_credential, upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger
 from sqlalchemy import and_, case, func, or_, desc, text
-from sqlalchemy.orm import Load
+from sqlalchemy.orm import Load, load_only
 from datetime import datetime, timedelta
 from fastapi import Response
-
+from azure.storage.blob import BlobServiceClient
 # def parse_eml(file_path):
 #     with open(file_path, 'rb') as file:
 #         msg = BytesParser(policy=policy.default).parse(file)
@@ -1076,3 +1076,180 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
 
     except Exception as e:
         return {"error": str(e), "total_items": 0}
+    
+    
+async def read_corp_invoice_file(u_id, inv_id, db):
+    """Function to read the invoice file and return its base64 encoded content
+    along with the content type.
+
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    inv_id : int
+        Invoice ID for which the file is to be retrieved.
+    db : Session
+        Database session object used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the file path in base64 format and its content type.
+    """
+    try:
+        content_type = "application/pdf"
+        # getting invoice data for later operation
+        invdat = (
+            db.query(model.corp_document_tab)
+            .options(load_only("invo_filepath"))
+            .filter_by(corp_doc_id=inv_id)
+            .one()
+        )
+        # check if file path is present and give base64 coded image url
+        if invdat.invo_filepath:
+            try:
+                account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=get_credential()
+                )
+                container = settings.container_name
+                # if invdat.vendor_id is None:
+                blob_client = blob_service_client.get_blob_client(
+                    container=container, blob=invdat.invo_filepath
+                )
+                # invdat.docPath = str(list(blob_client.download_blob().readall()))
+                try:
+                    filetype = os.path.splitext(invdat.invo_filepath)[1].lower()
+                    if filetype == ".png":
+                        content_type = "image/png"
+                    elif filetype == ".jpg" or filetype == ".jpeg":
+                        content_type = "image/jpg"
+                    else:
+                        content_type = "application/pdf"
+                except Exception:
+                    print(f"Error in file type : {traceback.format_exc()}")
+                invdat.invo_filepath = base64.b64encode(blob_client.download_blob().readall())
+            except Exception:
+                logger.error(traceback.format_exc())
+                invdat.invo_filepath = ""
+
+        return {"result": {"filepath": invdat.invo_filepath, "content_type": content_type}}
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500, headers={"codeError": "Server Error"})
+    finally:
+        db.close()
+        
+async def read_corp_invoice_data(u_id, inv_id, db):
+    """
+    This function reads the invoice list and contains the following parameters:
+
+    Parameters:
+    -----------
+    u_id : int
+        The user ID provided as a function parameter.
+    inv_id : int
+        The invoice ID provided as a function parameter.
+    db : Session
+        A session object that interacts with the backend database.
+
+    Returns:
+    --------
+    dict
+        A dictionary containing the result of the vendordata, invoice header,
+        line items and upload time .
+    """
+    try:
+        vendordata = ""
+        # Fetching invoice data along with DocumentStatus using correct join
+        invdat = (
+            db.query(model.corp_document_tab, model.DocumentStatus.status)
+            .join(
+                model.DocumentStatus,
+                model.corp_document_tab.documentstatus
+                == model.DocumentStatus.idDocumentstatus,
+                isouter=True,
+            )
+            .filter(model.corp_document_tab.corp_doc_id == inv_id)  # Use correct field in filter
+            .one()
+        )
+
+        # provide vendor details
+        if invdat.corp_document_tab.vendor_id:
+            vendordata = (
+                db.query(model.Vendor)
+                .options(
+                    Load(model.Vendor).load_only(
+                        "VendorName",
+                        "VendorCode",
+                        "vendorType",
+                        "Address",
+                        "City",
+                        "miscellaneous",
+                    )   
+                )
+                .filter(
+                    model.Vendor.idVendor
+                    == invdat.corp_document_tab.vendor_id
+                )
+                .all()
+            )
+        # provide header deatils of invoce
+        headerdata = (
+            db.query(model.corp_docdata)
+            .options(
+                Load(model.corp_docdata).load_only(
+                    "invoice_id",
+                    "invoice_date",
+                    "vendor_name",
+                    "vendor_address",
+                    "currency",
+                    "gst",
+                    "pst",
+                    "invoicetotal",
+                    "subtotal",
+                )
+            .filter(
+                model.corp_docdata.corp_doc_id == inv_id,
+            )
+        ))
+        headerdata = headerdata.all()
+        
+        # provide header deatils of invoce
+        codingdata = (
+            db.query(model.corp_coding_tab)
+            .options(
+                Load(model.corp_coding_tab).load_only(
+                    "invoice_id",
+                    "coding_details",
+                    "approver_name",
+                    "tmid",
+                    "approver_title",
+                    "invoicetotal",
+                    "gst",
+                    "approval_status",
+                    "sender_name"
+                )
+            .filter(
+                model.corp_coding_tab.corp_doc_id == inv_id,
+            )
+        ))
+        codingdata = codingdata.all()
+
+        return {
+            "ok": {
+                "vendordata": vendordata,
+                "headerdata": headerdata,
+                "uploadtime": invdat.corp_document_tab.uploaded_date,
+                "codingdata": codingdata,
+                "documentstatusid": invdat.corp_document_tab.documentStatus,
+                "documentsubstatusid": invdat.corp_document_tab.documentsubstatus,
+            }
+        }
+
+    except Exception:
+        logger.error(f"Error in line item :{traceback.format_exc()}")
+        return Response(status_code=500, headers={"codeError": "Server Error"})
+    finally:
+        db.close()
