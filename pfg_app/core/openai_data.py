@@ -146,6 +146,12 @@ def extract_invoice_details_using_openai(blob_data):
         # Get total number of pages
         total_pages = len(pdf_img)
         print("Total pages:", total_pages)
+        
+        # Get file size in bytes, KB, or MB
+        file_size_bytes = len(blob_data)
+        file_size_kb = file_size_bytes / 1024
+        file_size_mb = file_size_kb / 1024
+        
         # Check if total pages are more than 30
         if total_pages > 5:
             # Append only the first page
@@ -284,7 +290,7 @@ def extract_invoice_details_using_openai(blob_data):
             "Litter Deposit": "Response not found",
             "Currency": "CAD"
         }
-    return cleaned_json
+    return cleaned_json, total_pages, file_size_mb
 
 def extract_approver_details_using_openai(msg):
     try:
