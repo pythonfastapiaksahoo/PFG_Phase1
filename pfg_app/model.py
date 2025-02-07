@@ -1628,8 +1628,8 @@ class corp_metadata(Base):
     
     vendorcode = Column(String(50), nullable=False)
     vendorid = Column(Integer, nullable=False)
-    synonyms_name = Column(String, nullable=False)
-    synonyms_address = Column(String, nullable=False)
+    synonyms_name = Column(TEXT, nullable=False)
+    synonyms_address = Column(TEXT, nullable=False)
     dateformat = Column(String(50), nullable=False)
     status = Column(String(50), nullable=False)
     created_on = Column(DateTime, nullable=True)
