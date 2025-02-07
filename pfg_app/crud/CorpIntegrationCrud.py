@@ -14,9 +14,9 @@ from pfg_app import model
 from pfg_app.core.utils import upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy import and_, case, func, or_, desc, text
 from sqlalchemy.orm import Load
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import Response
 
 # def parse_eml(file_path):
@@ -447,11 +447,12 @@ def extract_eml_to_html(blob_data):
 
     return html_content
 
-def html_to_base64_image(html_content, config_path):
+def html_to_base64_image(html_content):
     
     try:
         # Set up the config for wkhtmltoimage
-        config = imgkit.config(wkhtmltoimage=config_path)
+        # config = imgkit.config(wkhtmltoimage=config_path)
+        config = imgkit.config(wkhtmltoimage=r"/usr/bin/wkhtmltoimage")
         # config = imgkit.config(wkhtmltoimage=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe")
         # Options for imgkit
         options = {
@@ -469,7 +470,7 @@ def html_to_base64_image(html_content, config_path):
         return encoded_image
     
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred in wkhtmltoimage: {e}")
 
 
 def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_name):
@@ -536,7 +537,7 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_nam
             )
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
 
 
 
@@ -707,64 +708,57 @@ def processCorpInvoiceVoucher(request_payload):
 
 
 def create_or_update_corp_metadata(u_id, v_id, metadata, db):
-    # Ensure synonyms_name and synonyms_address are always lists, even if None
-    metadata.synonyms_name = metadata.synonyms_name or []
-    metadata.synonyms_address = metadata.synonyms_address or []
-
-    # Remove empty values from synonyms_name and synonyms_address
-    metadata.synonyms_name = [name.strip() for name in metadata.synonyms_name if name and name.strip()]
-    metadata.synonyms_address = [address.strip() for address in metadata.synonyms_address if address and address.strip()]
-
-    # Ignore update if all values are empty
-    if not metadata.synonyms_name and not metadata.synonyms_address and not metadata.dateformat.strip():
-        return ("No valid data provided to insert or update", 400)
-
-    # Check if the vendor exists
-    vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == v_id).first()
-    if not vendor:
-        return (f"Vendor with id {v_id} does not exist", 404)
-
-    # Check if metadata for the vendor already exists
-    existing_metadata = db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
-
-    if existing_metadata:
-        # Convert stored JSON-like fields back to lists (if they were stored as JSON strings)
-        existing_metadata.synonyms_name = json.loads(existing_metadata.synonyms_name) if existing_metadata.synonyms_name else []
-        existing_metadata.synonyms_address = json.loads(existing_metadata.synonyms_address) if existing_metadata.synonyms_address else []
-
-        # Append new values while ensuring no duplicates
-        existing_metadata.synonyms_name = list(set(existing_metadata.synonyms_name + metadata.synonyms_name))
-        existing_metadata.synonyms_address = list(set(existing_metadata.synonyms_address + metadata.synonyms_address))
-
-        # Convert back to JSON string for database storage
-        existing_metadata.synonyms_name = json.dumps(existing_metadata.synonyms_name)
-        existing_metadata.synonyms_address = json.dumps(existing_metadata.synonyms_address)
-
-        # Update dateformat if provided
-        if metadata.dateformat.strip():
-            existing_metadata.dateformat = metadata.dateformat
-            existing_metadata.status = "Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded"
-
-        existing_metadata.updated_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        # Insert new metadata record if valid data exists
-        new_metadata = model.corp_metadata(
-            vendorcode=vendor.VendorCode,
-            vendorid=v_id,
-            synonyms_name=json.dumps(metadata.synonyms_name),  # Convert list to JSON string for storage
-            synonyms_address=json.dumps(metadata.synonyms_address),  # Convert list to JSON string for storage
-            dateformat=metadata.dateformat if metadata.dateformat.strip() else None,  # Ignore empty dateformat
-            status="Onboarded" if metadata.dateformat.strip() and metadata.dateformat != "Not Onboarded" else "Not Onboarded",
-            created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-            updated_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        existing_record = (
+            db.query(model.corp_metadata)
+            .filter(model.corp_metadata.vendorid == v_id)
+            .first()
         )
-        db.add(new_metadata)
+        # Check if the vendor exists
+        vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == v_id).first()
+        if not vendor:
+            return (f"Vendor with id {v_id} does not exist", 404)
+        if existing_record:
+            # Update existing record
+            update_data = {}
+            if metadata.synonyms_name is not None:
+                # update_data["synonyms_name"] = metadata.synonyms_name  # Directly store list
+                update_data["synonyms_name"] = json.dumps(metadata.synonyms_name)
+            if metadata.synonyms_address is not None:
+                # update_data["synonyms_address"] = metadata.synonyms_address  # Directly store list
+                update_data["synonyms_address"] = json.dumps(metadata.synonyms_address)
+            if metadata.dateformat:
+                update_data["dateformat"] = metadata.dateformat
+            update_data["updated_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-    db.commit()
+            db.query(model.corp_metadata).filter(
+                model.corp_metadata.vendorid == v_id
+            ).update(update_data)
 
-    # Return the updated or newly created record
-    return existing_metadata if existing_metadata else new_metadata
+            db.commit()
+            return {"result": "Updated", "record": update_data}
+        else:
+            # Insert new record
+            new_metadata = model.corp_metadata(
+                vendorid=v_id,
+                synonyms_name=json.dumps(metadata.synonyms_name) if metadata.synonyms_name else [],
+                synonyms_address=json.dumps(metadata.synonyms_address) if metadata.synonyms_address else [],
+                dateformat=metadata.dateformat,
+                status="Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded",
+                created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                vendorcode= vendor.VendorCode,
+            )
+            db.add(new_metadata)
+            db.commit()
+            db.refresh(new_metadata)
+            return {"result": "Inserted", "record": new_metadata}
 
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error processing corp_metadata: {traceback.format_exc()}")
+        return {"result": "Failed", "error": str(e)}
+    finally:
+        db.close()
 
 
 async def readpaginatedcorpvendorlist(
@@ -945,3 +939,140 @@ async def delete_metadata_values(u_id, v_id, delmetadata, db):
     
     db.commit()
     return metadata_record
+
+
+async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_range):
+    try:
+        # Extract offset and limit for pagination
+        try:
+            offset, limit = off_limit
+            off_val = (offset - 1) * limit
+        except (TypeError, ValueError):
+            off_val, limit = 0, 10
+
+        # Base query for unique mail_row_keys
+        base_query = db.query(
+            model.CorpQueueTask.mail_row_key,
+            func.max(model.CorpQueueTask.created_at).label("latest_created_at"),
+        ).filter(model.CorpQueueTask.mail_row_key.isnot(None))
+
+        # Apply universal search filter if provided
+        if uni_api_filter:
+            search_terms = uni_api_filter.split(":")  # Split by colon
+            filter_conditions = []
+            
+            for term in search_terms:
+                # Normalize user input (remove special characters, lowercase)
+                # normalized_term = re.sub(r"[^a-zA-Z0-9@. ]", "", term).strip().lower()
+                # pattern = f"%{normalized_term}%"
+                pattern = f"%{term}%"
+                # Add OR conditions for each search term
+                filter_conditions.append(
+                    or_(
+                        func.lower(model.CorpQueueTask.mail_row_key).ilike(pattern),
+                        func.lower(model.CorpQueueTask.request_data["subject"].astext).ilike(pattern),
+                        func.lower(model.CorpQueueTask.request_data["sender"].astext).ilike(pattern),
+                        func.to_char(model.CorpQueueTask.created_at, "YYYY-MM-DD").ilike(pattern)
+                    )
+                )
+            
+            # Apply filter conditions to the query
+            base_query = base_query.filter(or_(*filter_conditions))
+
+        # Apply date range filter if provided
+        if date_range:
+            try:
+                frdate, todate = date_range.lower().split("to")
+                frdate = datetime.strptime(frdate.strip(), "%Y-%m-%d")
+                
+                # Set `todate` to the end of the day (23:59:59)
+                todate = datetime.strptime(todate.strip(), "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+
+                base_query = base_query.filter(model.CorpQueueTask.created_at.between(frdate, todate))
+            except ValueError:
+                return {"error": "Invalid date range format. Use YYYY-MM-DD to YYYY-MM-DD", "total_items": 0}
+            
+        # # Get total count after applying filters
+        # total_items = db.query(func.count(func.distinct(model.CorpQueueTask.mail_row_key))).scalar()
+        # Get correct total count after applying filters
+        total_items = db.query(func.count(func.distinct(model.CorpQueueTask.mail_row_key)))\
+                        .filter(or_(*filter_conditions) if uni_api_filter else True)\
+                        .filter(model.CorpQueueTask.created_at.between(frdate, todate) if date_range else True)\
+                        .scalar()
+        # Execute query with pagination
+        latest_mail_row_keys = (
+            base_query
+            .group_by(model.CorpQueueTask.mail_row_key)
+            .order_by(func.max(model.CorpQueueTask.created_at).desc())
+            .offset(off_val)
+            .limit(limit)
+            .all()
+        )
+
+        data = []
+        for row in latest_mail_row_keys:
+            data_to_insert = {
+                "mail_number": row.mail_row_key,
+                "created_at": row.latest_created_at,
+                "associated_invoice_files": [],
+            }
+
+            # Get related attachments
+            related_attachments = (
+                db.query(model.corp_trigger_tab)
+                .filter(model.corp_trigger_tab.mail_row_key == row.mail_row_key)
+                .all()
+            )
+
+            for attachment in related_attachments:
+                associated_invoice_files = {
+                    "filepath": attachment.blobpath,
+                    "type": attachment.blobpath.split(".")[-1] if attachment.blobpath else None,
+                    "document_id": attachment.documentid,
+                    "status": attachment.status,
+                    "file_size": attachment.filesize,
+                    "vendor_id": attachment.vendor_id,
+                    "page_count": attachment.pagecount,
+                }
+                data_to_insert["associated_invoice_files"].append(associated_invoice_files)
+
+            # Get email metadata
+            queue_task = (
+                db.query(model.CorpQueueTask)
+                .filter(text("(request_data->>'mail_row_key') = :mail_row_key"))
+                .params(mail_row_key=data_to_insert["mail_number"])
+                .first()
+            )
+
+            if queue_task and queue_task.request_data:
+                data_to_insert["email_path"] = queue_task.request_data.get("eml_path")
+                data_to_insert["sender"] = queue_task.request_data.get("sender")
+                data_to_insert["subject"] = queue_task.request_data.get("subject")
+            else:
+                data_to_insert["email_path"] = None
+                data_to_insert["sender"] = None
+                data_to_insert["subject"] = None
+
+            # Count total attachments
+            data_to_insert["total_attachment_count"] = len(data_to_insert["associated_invoice_files"])
+
+            # Determine Overallstatus
+            statuses = {attachment["status"] for attachment in data_to_insert["associated_invoice_files"]}
+
+            if not data_to_insert["associated_invoice_files"]:
+                data_to_insert["Overallstatus"] = "Queued"
+            elif statuses == {"Processed"}:
+                data_to_insert["Overallstatus"] = "Completed"
+            elif "Processed" in statuses:
+                data_to_insert["Overallstatus"] = "Partially Completed"
+            elif statuses:
+                data_to_insert["Overallstatus"] = "Error"
+            else:
+                data_to_insert["Overallstatus"] = "Unknown"
+
+            data.append(data_to_insert)
+
+        return {"data": data, "total_items": total_items}
+
+    except Exception as e:
+        return {"error": str(e), "total_items": 0}

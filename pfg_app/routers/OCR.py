@@ -338,6 +338,10 @@ def queue_process_task(queue_task: QueueTask):
                                 if "Centennial" is present on the invoice with any other vendor name, extract "Centennial FoodService"
                                 if "Alsco Canada Corporation 2992 88 Ave Surrey" is present on the invoice with any other vendor name, extract "Alsco Canada Corporation" only
                                 if "Alsco Canada Corporation 91 Comox Rd" is present on the invoice with any other vendor name, extract "Alsco Canada Corp" only
+                                if SYSCO Canada, Inc Vancouver is present on the invoice with any other vendor name, extract "SYSCO FOOD SERVICES" only.
+                                if SYSCO Canada, Inc Edmonton is present on the invoice with any other vendor name, extract "SYSCO FOOD (EDMONTON)" only.
+                                if SYSCO Canada, Inc Calgary is present on the invoice with any other vendor name, extract "SYSCO CALGARY" only.
+                                if SYSCO Canada, Inc Victoria is present on the invoice with any other vendor name, extract "SYSCO" only.
                                 Return "N/A" if the vendor name is not present in the invoice document.
             - **Vendor Address**: Extracted vendor address from invoice document.
             - **Stamp Present**: Yes/No

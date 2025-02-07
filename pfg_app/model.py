@@ -1623,14 +1623,13 @@ class corp_docdata(Base):
     ecology_fee = Column(Float,nullable=True)
     misc = Column(Float,nullable=True)
 
-    
 class corp_metadata(Base):
     __tablename__ = "corp_metadata"
     
     vendorcode = Column(String(50), nullable=False)
     vendorid = Column(Integer, nullable=False)
-    synonyms_name = Column(String, nullable=False)
-    synonyms_address = Column(String, nullable=False)
+    synonyms_name = Column(TEXT, nullable=False)
+    synonyms_address = Column(TEXT, nullable=False)
     dateformat = Column(String(50), nullable=False)
     status = Column(String(50), nullable=False)
     created_on = Column(DateTime, nullable=True)
@@ -1641,17 +1640,21 @@ class corp_metadata(Base):
     vendoraddress = Column(String, nullable=True)
 
 
+
 class corp_trigger_tab(Base):
     __tablename__ = "corp_trigger_tab"
- 
+
+
     corp_trigger_id = Column(Integer, primary_key=True, autoincrement=True)
-    corp_queue_id = Column(Integer, nullable=True)   
+    corp_queue_id = Column(Integer, nullable=True)
     pagecount = Column(Integer, nullable=True)
     blobpath = Column(String(350), nullable=True)
     vendor_id = Column(Integer, nullable=True)
     status = Column(String, nullable=True)
-    created_at = Column(DateTime, nullable=True)    
-    updated_at = Column(DateTime, nullable=True) 
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
     sender = Column(String, nullable=True)
     filesize = Column(String, nullable=True)
     documentid = Column(Integer, nullable=True)
+    mail_row_key = Column(String, nullable=True)
+
