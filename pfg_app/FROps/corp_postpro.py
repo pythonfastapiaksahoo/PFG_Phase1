@@ -4,8 +4,11 @@ from datetime import datetime, timezone
 from pfg_app.logger_module import logger
 import pfg_app.model as model
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
+from pfg_app.FROps.vendor_map import matchVendorCorp
+from sqlalchemy import func
+import pandas as pd
 utc_timestamp = datetime.now(timezone.utc)
-
+ 
 
 def clean_amount(amount_str):
     if isinstance(amount_str, float):
@@ -17,7 +20,6 @@ def clean_amount(amount_str):
     except Exception:
         return None
     return 0.0
-
 
 def crd_clean_amount(amount_str):
     if isinstance(amount_str, float):
@@ -52,7 +54,7 @@ def corp_postPro(op_1):
     coding_data = {}
     all_invo_coding = {}
     map_invo_att = {}
-
+    userID = 1
 
     if 'invoice#' in op_1['coding_details']['invoiceDetails']:
         if type(op_1['coding_details']['invoiceDetails']["invoice#"])==list:
@@ -112,7 +114,7 @@ def corp_postPro(op_1):
                         sent_to = ""
                         missing_val.append("sent_to")
                 else:
-                    missing_val.append("email_metadata","sender","sender_email","sent_time","sent_to")
+                    missing_val.appematchVendorCorpnd("email_metadata","sender","sender_email","sent_time","sent_to")
                 if "TMID" in  op_1['coding_details']['approverDetails']:
                         TMID =  op_1['coding_details']['approverDetails']['TMID']
             #- process multi invoice: 
@@ -271,8 +273,17 @@ def corp_postPro(op_1):
     for doc_dt_rw in op_1['invoice_detail_list']:
         if doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID'] in good_togo:
             att_invoID = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID']
-            att_invoTotal = cleanAmt_all(credit_invo, doc_dt_rw[list(doc_dt_rw.keys())[0]]['invoicetotal'])
-            gst = cleanAmt_all(credit_invo, doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST/HST'])
+            if 'invoicetotal' in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                invTotl = doc_dt_rw[list(doc_dt_rw.keys())[0]]['invoicetotal']
+            else:
+                invTotl = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceTotal']
+
+            att_invoTotal = cleanAmt_all(credit_invo,invTotl)
+            if "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
+            # elif "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+            #     gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
+            gst = cleanAmt_all(credit_invo, gst_amt)
             att_invoDate = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceDate']
             
             # insert to db
@@ -280,19 +291,54 @@ def corp_postPro(op_1):
                             "invoice_date":att_invoDate,
                             "invoicetotal":att_invoTotal,
                             "gst":gst,
-                            "documentstatus":4,
-                            "documentsubstatus":11,
+                            # "documentstatus":4,
+                            # "documentsubstatus":11,
                             "created_on":timestmp,
                         }
             corp_doc = model.corp_document_tab(**corp_doc_data)
             db.add(corp_doc)
             db.commit()
+            logger.info(f"Corp document added: {corp_doc}")
             corp_doc_id = corp_doc.corp_doc_id
             print("corp_doc_id: ",corp_doc_id)
             
             # vendor mapping:
+            query = db.query(
+                model.Vendor.idVendor,
+                model.Vendor.VendorName,
+                model.Vendor.Synonyms,
+                model.Vendor.Address,
+                model.Vendor.VendorCode,
+            ).filter(
+                func.jsonb_extract_path_text(
+                    model.Vendor.miscellaneous, "VENDOR_STATUS"
+                )
+                == "A"
+            )
+            rows = query.all()
+            columns = ["idVendor", "VendorName", "Synonyms", "Address", "VendorCode"]
+
+            vendorName_df = pd.DataFrame(rows, columns=columns)
+
+            #corp_metadata
+            corp_metadata_query = db.query(model.corp_metadata)
+            corp_metadata_rows = corp_metadata_query.all()
+
+            # Convert list of ORM objects to a list of dictionaries
+            corp_metadata_data = [row.__dict__ for row in corp_metadata_rows]
+
+
+            # for row in corp_metadata_data:
+            #     row.pop('_sa_instance_state', None)
+
+            # Create DataFrame
+            corp_metadata_df = pd.DataFrame(corp_metadata_data)
+
+
+
             vendorname = doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"]
             vendor_address =doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
+            matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
             
             # update coding details
             coding_data_insert = {'invoice_id':all_invo_coding[att_invoID]['invoice_number'],
@@ -321,6 +367,11 @@ def corp_postPro(op_1):
             print("corp_code_id: ",corp_code_id)
             
             # insert doc data:
+            if "invoicetotal" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["invoicetotal"]
+            else:
+                cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceTotal"]
+
             corp_docdata_insert = {"invoice_id":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceID"],
                         "invoice_date":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceDate"],
                             "vendor_name":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"],
@@ -329,14 +380,14 @@ def corp_postPro(op_1):
                         "customeraddress": "",
                         "currency":doc_dt_rw[list(doc_dt_rw.keys())[0]]["Currency"],
                         
-                        "invoicetotal":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["invoicetotal"]),
+                        "invoicetotal":cleanAmt_all(credit_invo,cln_invoTotal),
                         "subtotal":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["SubTotal"]),
                         
                         "corp_doc_id":corp_doc_id,
                         "bottledeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]['Bottle Deposit']),
                         "shippingcharges":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Shipping Charges"]),
                         "litterdeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Litter Deposit"]),
-                        "gst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["GST/HST"]),
+                        "gst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["GST"]),
                         "pst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST"]),
                         "created_on":timestmp,
                         "pst_sk":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-SK"]),
@@ -400,8 +451,8 @@ def corp_postPro(op_1):
         if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
             missing_code_docTab = {
                 "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
-                "invoicetotal":miss_code[list(miss_code.keys())[0]]["InvoiceTotal"],
-                "gst":miss_code[list(miss_code.keys())[0]]["GST/HST"],
+                "invoicetotal":miss_code[list(miss_code.keys())[0]]["invoicetotal"],
+                "gst":miss_code[list(miss_code.keys())[0]]["GST"],
                 "invo_page_count":miss_code[list(miss_code.keys())[0]]["NumberOfPages"],
                 "created_on":timestmp,
                 "updated_on":timestmp,
@@ -425,14 +476,14 @@ def corp_postPro(op_1):
                         "customeraddress": "",
                         "currency":miss_code[list(miss_code.keys())[0]]["Currency"],
                         
-                        "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["InvoiceTotal"]),
+                        "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
                         "subtotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["SubTotal"]),
                         
                         "corp_doc_id":corp_doc_id,
                         "bottledeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]['Bottle Deposit']),
                         "shippingcharges":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Shipping Charges"]),
                         "litterdeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Litter Deposit"]),
-                        "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST/HST"]),
+                        "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"]),
                         "pst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST"]),
                         "created_on":timestmp,
                         "pst_sk":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-SK"]),
@@ -443,6 +494,7 @@ def corp_postPro(op_1):
             corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
             db.add(corp_docdata_insert_data)
             db.commit()
+            logger.info(f"Corp document data added: {corp_docdata_insert_data}")
             corp_data_id = corp_docdata_insert_data.docdata_id
             print("corp_data_id: ",corp_data_id)
 
