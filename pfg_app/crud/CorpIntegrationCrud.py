@@ -1253,3 +1253,150 @@ async def read_corp_invoice_data(u_id, inv_id, db):
         return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()
+        
+
+async def update_corp_column_pos(u_id, tabtype, col_data, db):
+    """Function to update the column position of a specified tab.
+
+    Parameters:
+    ----------
+    u_id : int
+        User ID provided as a function parameter.
+    tabtype : str
+        Tab type used to identify which tab's column position to update.
+    col_data : PydanticModel
+        Pydantic model containing the column data for updating the column position.
+    bg_task : BackgroundTasks
+        Background task manager for handling asynchronous tasks.
+    db : Session
+        Database session object, used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the result of the update operation.
+    """
+    try:
+        updated_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        for items in col_data:
+            items = dict(items)
+            items["updated_on"] = updated_on
+            items["document_column_pos"] = items.pop("column_pos")
+
+            db.query(model.CorpDocumentColumnPos).filter_by(
+                id_document_column=items.pop("id_tab_column")
+            ).update(items)
+
+        db.commit()
+        return {"result": "updated"}
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(
+            status_code=403,
+            headers={f"{traceback.format_exc()}clientError": "update failed"},
+        )
+    finally:
+        db.close()
+        
+async def read_corp_column_pos(user_id, tab_type, db):
+    """Function to retrieve the column position based on the tab type.
+
+    Parameters:
+    ----------
+    u_id : int
+        User ID provided as a function parameter.
+    tabtype : str
+        Tab type used to filter and retrieve the column positions.
+    db : Session
+        Database session object, used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the column positions for the specified tab type.
+    """
+    try:
+        # Query to retrieve column data based on userID and tab type
+        column_data = (
+            db.query(model.CorpDocumentColumnPos, model.CorpColumnNameDef)
+            .filter_by()
+            .options(
+                Load(model.CorpDocumentColumnPos).load_only(
+                    "document_column_pos", "is_active"
+                ),
+                Load(model.CorpColumnNameDef).load_only(
+                    "column_name", "column_description", "db_columnname"
+                ),
+            )
+            .filter(
+                model.CorpDocumentColumnPos.column_name_def_id == model.CorpColumnNameDef.id_column,
+                model.CorpDocumentColumnPos.user_id == user_id,
+                model.CorpDocumentColumnPos.tab_type == tab_type,
+            )
+            .all()
+        )
+        # If no column data is found, copy default settings from the admin (userID=1)
+        if len(column_data) == 0:
+            allcolumns = (
+                db.query(model.CorpDocumentColumnPos)
+                .filter(model.CorpDocumentColumnPos.user_id == 1)
+                .all()
+            )
+            # Insert default column positions for the current user
+            for ac in allcolumns:
+                to_insert = {
+                    "column_name_def_id": ac.column_name_def_id,
+                    "document_column_pos": ac.document_column_pos,
+                    "is_active": ac.is_active,
+                    "tab_type": ac.tab_type,
+                    "user_id": user_id,
+                }
+                db.add(model.CorpDocumentColumnPos(**to_insert))
+                db.commit()
+            # Fetch column data again after inserting defaults
+            column_data = (
+                db.query(model.CorpDocumentColumnPos, model.CorpColumnNameDef)
+                .filter_by()
+                .options(
+                    Load(model.CorpDocumentColumnPos).load_only(
+                        "document_column_pos", "is_active"
+                    ),
+                    Load(model.CorpColumnNameDef).load_only(
+                        "column_name", "column_description", "db_columnname"
+                    ),
+                )
+                .filter(
+                    model.CorpDocumentColumnPos.column_name_def_id
+                    == model.CorpColumnNameDef.id_column,
+                    model.CorpDocumentColumnPos.user_id == user_id,
+                    model.CorpDocumentColumnPos.tab_type == tab_type,
+                )
+                .all()
+            )
+        # Convert the query result (a tuple of two models) to a list of dictionaries
+        column_data_list = []
+        for row in column_data:
+            row_dict = {}
+            for idx, col in enumerate(row):
+                if isinstance(col, model.CorpDocumentColumnPos):
+                    row_dict["DocumentColumnPos"] = {
+                        "document_column_pos": col.document_column_pos,
+                        "is_active": col.is_active,
+                        "id_document_column": col.id_document_column,
+                    }
+                elif isinstance(col, model.CorpColumnNameDef):
+                    row_dict["ColumnPosDef"] = {
+                        "column_name": col.column_name,
+                        "column_description": col.column_description,
+                        "db_columnname": col.db_columnname,
+                        "id_column": col.id_column,
+                    }
+            column_data_list.append(row_dict)
+        return {"col_data": column_data_list}
+    except Exception:
+        # Log any exceptions and return a 500 response
+        logger.error(traceback.format_exc())
+        return Response(status_code=500)
+    finally:
+        # Ensure the database session is closed
+        db.close()

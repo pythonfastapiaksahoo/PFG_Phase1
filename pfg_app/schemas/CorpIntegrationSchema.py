@@ -88,4 +88,9 @@ class CorpMetadataCreate(BaseModel):
 class CorpMetadataDelete(BaseModel):
     synonyms_name: Optional[List[str]] = None
     synonyms_address: Optional[List[str]] = None
-    
+
+
+class corpcolumnpos(BaseModel):
+    id_tab_column: int
+    column_pos: int
+    is_active: int

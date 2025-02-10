@@ -1652,3 +1652,28 @@ class corp_trigger_tab(Base):
     filesize = Column(String, nullable=True)
     documentid = Column(Integer, nullable=True)
     mail_row_key = Column(String, nullable=True)
+    
+class CorpColumnNameDef(Base):
+
+    __tablename__ = "corp_column_def" 
+
+    id_column = Column(Integer, primary_key=True, index=True)
+    column_name = Column(String(45), nullable=True)
+    column_description = Column(String(60), nullable=True)
+    table_name = Column(String(45), nullable=True)
+    db_columnname = Column(String(45), nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    updated_on = Column(DateTime, nullable=True)
+    
+    
+class CorpDocumentColumnPos(Base):
+    __tablename__ = "corp_doc_column"
+
+    id_document_column = Column(Integer, primary_key=True, index=True)
+    column_name_def_id = Column(Integer, nullable=True)
+    document_column_pos = Column(Integer, nullable=True)
+    user_id = Column(Integer, nullable=True)
+    is_active = Column(Integer, nullable=True)
+    tab_type = Column(Integer, nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    updated_on = Column(DateTime, nullable=True)
