@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     storage_account_name: str = ""
     appinsights_instrumentation_key: str = ""
     appinsights_connection_string: str = ""
+    container_name: str = ""
 
     # ERP
     erp_url: str = ""
