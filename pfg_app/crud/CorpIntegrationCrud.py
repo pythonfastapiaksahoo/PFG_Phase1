@@ -1403,59 +1403,78 @@ async def read_corp_column_pos(user_id, tab_type, db):
         db.close()
         
 
-def update_corp_docdata(corp_doc_id, updates, user_id, update_type, db):
-    
+async def update_corp_docdata(user_id, corp_doc_id, updates, db):
     try:
+        docStatus_id, docSubStatus_id = db.query(
+            model.corp_document_tab.documentstatus, model.corp_document_tab.documentsubstatus
+        ).filter(model.corp_document_tab.corp_doc_id == corp_doc_id).first()
+
         # Fetch the existing record
         corp_doc = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
         if not corp_doc:
             raise ValueError("No record found for the given corp_doc_id")
-        
+
         consolidated_updates = []
-        
-        # Iterate through updates and track changes
-        for field, new_value in updates.items():
+
+        # Iterate through the list of updates
+        for update in updates:
+            field = update.field
+            old_value = update.OldValue
+            new_value = update.NewValue
+
+            # Ensure the field exists in the model
             if hasattr(corp_doc, field):
-                old_value = getattr(corp_doc, field)
+                field_type = type(getattr(corp_doc, field))  # Get the current field's type
                 
+                # Convert new & old values to the correct data type
+                if field_type == int:
+                    old_value = int(old_value) if old_value is not None else None
+                    new_value = int(new_value) if new_value is not None else None
+                elif field_type == float:
+                    old_value = float(old_value) if old_value is not None else None
+                    new_value = float(new_value) if new_value is not None else None
+                elif field_type == str:
+                    old_value = str(old_value) if old_value is not None else ""
+                    new_value = str(new_value) if new_value is not None else ""
+
+                current_value = getattr(corp_doc, field)  # Get current DB value
+
                 # Only update if the value is actually changing
-                if old_value != new_value:
-                    setattr(corp_doc, field, new_value)
-                    
+                if current_value != new_value:
+                    setattr(corp_doc, field, new_value)  # Update the field
+
                     # Log the update in CorpDocumentUpdates
                     update_log = model.CorpDocumentUpdates(
                         doc_id=corp_doc_id,
                         updated_field=field,
-                        old_value=str(old_value),
-                        new_value=str(new_value),
+                        old_value=old_value,  # Keep as original type
+                        new_value=new_value,  # Keep as original type
                         created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         user_id=user_id,
-                        update_type=update_type,
                         is_active=1
                     )
                     db.add(update_log)
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
-        
+
         # Updating the consolidated history log for updated fields
         if consolidated_updates:
             try:
                 update_corpdocHistory(
                     corp_doc_id,
                     user_id,
-                    "DocumentStatus",  # Placeholder, replace as needed
+                    docStatus_id,  
                     "; ".join(consolidated_updates),
                     db,
-                    "DocumentSubStatus"  # Placeholder, replace as needed
+                    docSubStatus_id  
                 )
             except Exception as e:
-                print(f"Error updating document history: {str(e)}")
-        
+                print(f"Error updating document history: {traceback.format_exc()}")
+
         # Commit changes
         db.commit()
     except Exception as e:
-        print(f"Error updating corp_docdata: {str(e)}")
+        print(f"Error updating corp_docdata: {traceback.format_exc()}")
         db.rollback()
-        
 
 def upsert_coding_line_data(corp_doc_id, updates, user_id, update_type, db):
     try:
