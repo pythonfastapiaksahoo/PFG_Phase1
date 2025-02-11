@@ -747,6 +747,9 @@ def create_or_update_corp_metadata(u_id, v_id, metadata, db):
                 status="Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded",
                 created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                 vendorcode= vendor.VendorCode,
+                vendorname=vendor.VendorName,
+                vendoraddress=vendor.Address,
+                currency=vendor.currency,
             )
             db.add(new_metadata)
             db.commit()
