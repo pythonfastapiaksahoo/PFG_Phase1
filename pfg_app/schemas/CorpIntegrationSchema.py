@@ -94,3 +94,24 @@ class corpcolumnpos(BaseModel):
     id_tab_column: int
     column_pos: int
     is_active: int
+    
+class UpdateCorpInvoiceData(BaseModel):
+    invoice_id: Optional[str]
+    invoice_date: Optional[str]
+    vendor_name: Optional[str]
+    vendoraddress: Optional[str]
+    currency: Optional[str]
+    invoicetotal: Optional[str]
+    subtotal: Optional[str]
+    gst: Optional[str]
+    
+    
+class UpdateCodinglineData(BaseModel):
+    invoice_id: Optional[str]
+    coding_details: Optional[str]
+    approver_name: Optional[str]
+    tmid: Optional[str]
+    approver_title: Optional[str]
+    invoicetotal: Optional[str]
+    subtotal: Optional[str]
+    gst: Optional[str]

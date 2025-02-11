@@ -1400,3 +1400,161 @@ async def read_corp_column_pos(user_id, tab_type, db):
     finally:
         # Ensure the database session is closed
         db.close()
+        
+
+def update_corp_docdata(corp_doc_id, updates, user_id, update_type, db):
+    
+    try:
+        # Fetch the existing record
+        corp_doc = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
+        if not corp_doc:
+            raise ValueError("No record found for the given corp_doc_id")
+        
+        consolidated_updates = []
+        
+        # Iterate through updates and track changes
+        for field, new_value in updates.items():
+            if hasattr(corp_doc, field):
+                old_value = getattr(corp_doc, field)
+                
+                # Only update if the value is actually changing
+                if old_value != new_value:
+                    setattr(corp_doc, field, new_value)
+                    
+                    # Log the update in CorpDocumentUpdates
+                    update_log = model.CorpDocumentUpdates(
+                        doc_id=corp_doc_id,
+                        updated_field=field,
+                        old_value=str(old_value),
+                        new_value=str(new_value),
+                        created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        user_id=user_id,
+                        update_type=update_type,
+                        is_active=1
+                    )
+                    db.add(update_log)
+                    consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
+        
+        # Updating the consolidated history log for updated fields
+        if consolidated_updates:
+            try:
+                update_corpdocHistory(
+                    corp_doc_id,
+                    user_id,
+                    "DocumentStatus",  # Placeholder, replace as needed
+                    "; ".join(consolidated_updates),
+                    db,
+                    "DocumentSubStatus"  # Placeholder, replace as needed
+                )
+            except Exception as e:
+                print(f"Error updating document history: {str(e)}")
+        
+        # Commit changes
+        db.commit()
+    except Exception as e:
+        print(f"Error updating corp_docdata: {str(e)}")
+        db.rollback()
+        
+
+def upsert_coding_line_data(corp_doc_id, updates, user_id, update_type, db):
+    try:
+        # Fetch the existing record
+        corp_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+        
+        if corp_coding:
+            # Update existing record
+            consolidated_updates = []
+            for field, new_value in updates.items():
+                if hasattr(corp_coding, field):
+                    old_value = getattr(corp_coding, field)
+                    
+                    if old_value != new_value:
+                        setattr(corp_coding, field, new_value)
+                        
+                        # Log the update in CorpDocumentUpdates
+                        update_log = model.CorpDocumentUpdates(
+                            doc_id=corp_doc_id,
+                            updated_field=field,
+                            old_value=json.dumps(old_value) if isinstance(old_value, dict) else str(old_value),
+                            new_value=json.dumps(new_value) if isinstance(new_value, dict) else str(new_value),
+                            created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                            user_id=user_id,
+                            update_type=update_type,
+                            is_active=1
+                        )
+                        db.add(update_log)
+                        consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
+            
+            corp_coding.updated_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            # Insert new record
+            corp_coding = model.corp_coding_tab(
+                corp_doc_id=corp_doc_id,
+                **updates,
+                created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                updated_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            )
+            db.add(corp_coding)
+            consolidated_updates = [f"Inserted new record with corp_doc_id: {corp_doc_id}"]
+        
+        # Updating the consolidated history log for updated fields
+        if consolidated_updates:
+            try:
+                update_corpdocHistory(
+                    corp_doc_id,
+                    user_id,
+                    "DocumentStatus",  # Placeholder, replace as needed
+                    "; ".join(consolidated_updates),
+                    db,
+                    "DocumentSubStatus"  # Placeholder, replace as needed
+                )
+            except Exception as e:
+                print(f"Error updating document history: {str(e)}")
+        
+        # Commit changes
+        db.commit()
+    except Exception as e:
+        print(f"Error upserting corp_coding_tab: {str(e)}")
+        db.rollback()
+
+
+def update_corpdocHistory(documentID, userID, documentstatus, documentdesc, db,docsubstatus=0):
+    """Function to update the document history by inserting a new record into
+    the DocumentHistoryLogs table.
+
+    Parameters:
+    ----------
+    documentID : int
+        The ID of the document for which history is being updated.
+    userID : int
+        The ID of the user who is making the update.
+    documentstatus : int
+        The current status of the document being recorded in the history.
+    documentdesc : str
+        A description or reason for the status change.
+    db : Session
+        Database session object to interact with the backend.
+    docsubstatus : int (optional)
+        The sub-status of the document being recorded in the history.
+
+
+    Returns:
+    -------
+    None or dict
+        Returns None on success or an error message on failure.
+    """
+    try:
+        docHistory = {}
+        docHistory["document_id"] = documentID
+        docHistory["user_id"] = userID
+        docHistory["document_status"] = documentstatus
+        docHistory["document_desc"] = documentdesc
+        docHistory["created_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        if docsubstatus!=0:
+            docHistory["document_substatus"] = docsubstatus
+        db.add(model.CorpDocumentHistLogs(**docHistory))
+        db.commit()
+    except Exception:
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while inserting document history"}
