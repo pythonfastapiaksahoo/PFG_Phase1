@@ -47,6 +47,7 @@ def cleanAmt_all(credit_invo, amount_str):
     return rtn_amt
 
 def corp_postPro(op_1):
+    corp_doc_id = ""
     db = next(get_db())
     timestmp = utc_timestamp.strftime('%Y-%m-%d %H:%M:%S')
     coding_tab_data = {}
@@ -497,5 +498,5 @@ def corp_postPro(op_1):
             logger.info(f"Corp document data added: {corp_docdata_insert_data}")
             corp_data_id = corp_docdata_insert_data.docdata_id
             print("corp_data_id: ",corp_data_id)
-
+    return corp_doc_id
             
