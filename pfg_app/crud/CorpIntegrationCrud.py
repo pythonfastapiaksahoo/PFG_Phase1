@@ -1201,27 +1201,27 @@ async def read_corp_invoice_data(u_id, inv_id, db):
         # provide header deatils of invoce
         headerdata = (
             db.query(model.corp_docdata)
+            .filter(model.corp_docdata.corp_doc_id == inv_id)
             .options(
                 Load(model.corp_docdata).load_only(
                     "invoice_id",
                     "invoice_date",
                     "vendor_name",
-                    "vendor_address",
+                    "vendoraddress",
                     "currency",
                     "gst",
                     "pst",
                     "invoicetotal",
                     "subtotal",
                 )
-            .filter(
-                model.corp_docdata.corp_doc_id == inv_id,
             )
-        ))
+        )
         headerdata = headerdata.all()
         
         # provide header deatils of invoce
         codingdata = (
             db.query(model.corp_coding_tab)
+            .filter(model.corp_coding_tab.corp_doc_id == inv_id)
             .options(
                 Load(model.corp_coding_tab).load_only(
                     "invoice_id",
@@ -1234,10 +1234,8 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "approval_status",
                     "sender_name"
                 )
-            .filter(
-                model.corp_coding_tab.corp_doc_id == inv_id,
             )
-        ))
+        )
         codingdata = codingdata.all()
 
         return {
@@ -1246,7 +1244,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                 "headerdata": headerdata,
                 "uploadtime": invdat.corp_document_tab.uploaded_date,
                 "codingdata": codingdata,
-                "documentstatusid": invdat.corp_document_tab.documentStatus,
+                "documentstatusid": invdat.corp_document_tab.documentstatus,
                 "documentsubstatusid": invdat.corp_document_tab.documentsubstatus,
             }
         }
