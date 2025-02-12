@@ -1415,7 +1415,11 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
             raise ValueError("No record found for the given corp_doc_id")
 
         consolidated_updates = []
-
+        
+        corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+        if not corp_doc_tab:
+            raise ValueError("No record found in corp_document_tab for the given corp_doc_id")
+        
         # Iterate through the list of updates
         for update in updates:
             field = update.field
@@ -1456,6 +1460,10 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                     db.add(update_log)
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
+                # If the field is one of the specified ones, update corp_document_tab as well
+                if field in ["invoice_id", "invoicetotal", "invoice_date"]:
+                    setattr(corp_doc_tab, field, new_value)
+                    consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
         # Updating the consolidated history log for updated fields
         if consolidated_updates:
             try:
@@ -1495,7 +1503,11 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
             is_new_record = False
 
         consolidated_updates = []
-
+        
+        corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+        if not corp_doc_tab:
+            raise ValueError("No record found in corp_document_tab for the given corp_doc_id")
+        
         # Process each update
         for update in updates:
             field = update.field
@@ -1550,6 +1562,10 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     db.add(update_log)
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
+                # If the field is one of the specified ones, update corp_document_tab as well
+                if field in ["invoice_id", "invoicetotal", "invoice_date"]:
+                    setattr(corp_doc_tab, field, new_value)
+                    consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
         # If it's a new record, insert it
         if is_new_record:
             db.add(corp_coding)
