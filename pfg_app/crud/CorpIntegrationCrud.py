@@ -1400,3 +1400,45 @@ async def read_corp_column_pos(user_id, tab_type, db):
     finally:
         # Ensure the database session is closed
         db.close()
+
+def corp_update_docHistory(documentID, userID, documentstatus, docsubstatus, documentdesc, db):
+    """Function to update the document history by inserting a new record into
+    the DocumentHistoryLogs table.
+
+    Parameters:
+    ----------
+    documentID : int
+        The ID of the document for which history is being updated.
+    userID : int
+        The ID of the user who is making the update.
+    documentstatus : int
+        The current status of the document being recorded in the history.
+    documentdesc : str
+        A description or reason for the status change.
+    db : Session
+        Database session object to interact with the backend.
+    docsubstatus : int (optional)
+        The sub-status of the document being recorded in the history.
+
+
+    Returns:
+    -------
+    None or dict
+        Returns None on success or an error message on failure.
+    """
+    try:
+        docHistory = {}
+        docHistory["documentID"] = documentID
+        docHistory["userID"] = userID
+        docHistory["documentStatusID"] = documentstatus
+        docHistory["documentdescription"] = documentdesc
+        docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        if docsubstatus!=0:
+            docHistory["documentSubStatusID"] = docsubstatus
+        db.add(model.corp_hist_logs(**docHistory))
+        db.commit()
+    except Exception:
+        # logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while inserting document history"}
+    
