@@ -1,6 +1,7 @@
 import re
 import traceback
 from datetime import datetime, timezone
+from pfg_app.FROps.corp_validations import validate_corpdoc
 from pfg_app.logger_module import logger
 import pfg_app.model as model
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
@@ -46,7 +47,8 @@ def cleanAmt_all(credit_invo, amount_str):
         rtn_amt = clean_amount(amount_str)
     return rtn_amt
 
-def corp_postPro(op_1):
+def corp_postPro(op_1,mail_row_key,file_path,sender):
+  
     corp_doc_id = ""
     db = next(get_db())
     timestmp = utc_timestamp.strftime('%Y-%m-%d %H:%M:%S')
@@ -56,6 +58,7 @@ def corp_postPro(op_1):
     all_invo_coding = {}
     map_invo_att = {}
     userID = 1
+    lt_corp_doc_id = []
 
     if 'invoice#' in op_1['coding_details']['invoiceDetails']:
         if type(op_1['coding_details']['invoiceDetails']["invoice#"])==list:
@@ -286,15 +289,27 @@ def corp_postPro(op_1):
             #     gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
             gst = cleanAmt_all(credit_invo, gst_amt)
             att_invoDate = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceDate']
-            
+            if credit_invo==1:
+                document_type = "Credit"
+            else:
+                document_type = "Invoice"
             # insert to db
+          
+
             corp_doc_data = {"invoice_id":att_invoID,
                             "invoice_date":att_invoDate,
                             "invoicetotal":att_invoTotal,
                             "gst":gst,
-                            # "documentstatus":4,
-                            # "documentsubstatus":11,
+                            "document_type":document_type,
+                            "documentstatus":4,
+                            "documentsubstatus":11,
                             "created_on":timestmp,
+                            "mail_row_key": mail_row_key,
+                            "email_filepath": file_path,
+                            "invo_filepath": "",
+                            "sender": sender,
+                            "approved_by":op_1['approval_details']['Approver'],
+                            "approver_title":op_1['approval_details']['Designation'],
                         }
             corp_doc = model.corp_document_tab(**corp_doc_data)
             db.add(corp_doc)
@@ -302,6 +317,7 @@ def corp_postPro(op_1):
             logger.info(f"Corp document added: {corp_doc}")
             corp_doc_id = corp_doc.corp_doc_id
             print("corp_doc_id: ",corp_doc_id)
+            lt_corp_doc_id.append(corp_doc_id)
             
             # vendor mapping:
             query = db.query(
@@ -373,6 +389,9 @@ def corp_postPro(op_1):
             else:
                 cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceTotal"]
 
+            pdf_invoTotal = cleanAmt_all(credit_invo,cln_invoTotal)
+            pdf_gst = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["GST"])
+            pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
             corp_docdata_insert = {"invoice_id":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceID"],
                         "invoice_date":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceDate"],
                             "vendor_name":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"],
@@ -381,14 +400,13 @@ def corp_postPro(op_1):
                         "customeraddress": "",
                         "currency":doc_dt_rw[list(doc_dt_rw.keys())[0]]["Currency"],
                         
-                        "invoicetotal":cleanAmt_all(credit_invo,cln_invoTotal),
-                        "subtotal":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["SubTotal"]),
-                        
+                        "invoicetotal":pdf_invoTotal,
+                        "subtotal":pdf_subTotal,
                         "corp_doc_id":corp_doc_id,
                         "bottledeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]['Bottle Deposit']),
                         "shippingcharges":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Shipping Charges"]),
                         "litterdeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Litter Deposit"]),
-                        "gst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["GST"]),
+                        "gst":pdf_gst,
                         "pst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST"]),
                         "created_on":timestmp,
                         "pst_sk":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-SK"]),
@@ -420,6 +438,7 @@ def corp_postPro(op_1):
         db.add(corp_doc)
         db.commit()
         corp_doc_id = corp_doc.corp_doc_id
+        lt_corp_doc_id.append(corp_doc_id)
         
         # update coding details: 
         # update coding details
@@ -465,8 +484,11 @@ def corp_postPro(op_1):
             db.add(corp_doc)
             db.commit()
             corp_doc_id = corp_doc.corp_doc_id
+            lt_corp_doc_id.append(corp_doc_id)
             print("corp_doc_id: ",corp_doc_id)
-            
+            pdf_invoTotal = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"])
+            pdf_gst = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"])
+            pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
             # update document data tab:
             # insert doc data:
             corp_docdata_insert = {"invoice_id":miss_code[list(miss_code.keys())[0]]["InvoiceID"],
@@ -477,14 +499,13 @@ def corp_postPro(op_1):
                         "customeraddress": "",
                         "currency":miss_code[list(miss_code.keys())[0]]["Currency"],
                         
-                        "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
-                        "subtotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["SubTotal"]),
-                        
+                        "invoicetotal":pdf_invoTotal,
+                        "subtotal": pdf_subTotal,
                         "corp_doc_id":corp_doc_id,
                         "bottledeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]['Bottle Deposit']),
                         "shippingcharges":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Shipping Charges"]),
                         "litterdeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Litter Deposit"]),
-                        "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"]),
+                        "gst":pdf_gst,
                         "pst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST"]),
                         "created_on":timestmp,
                         "pst_sk":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-SK"]),
@@ -498,5 +519,12 @@ def corp_postPro(op_1):
             logger.info(f"Corp document data added: {corp_docdata_insert_data}")
             corp_data_id = corp_docdata_insert_data.docdata_id
             print("corp_data_id: ",corp_data_id)
+    try:
+        for doc_id_ in set(lt_corp_doc_id):
+            if doc_id_ != "":
+                validate_corpdoc(doc_id_,userID,db)
+    except Exception:
+        logger.error(traceback.format_exc())
+            
     return corp_doc_id
             

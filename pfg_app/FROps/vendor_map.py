@@ -11,6 +11,8 @@ import time
 import traceback
 from datetime import datetime, timezone
 from pfg_app.core.stampData import VndMatchFn_corp
+from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
+
 def compute_cosine_similarity(text1, text2):
     if not text1 or not text2:
         return 0  # Return 0 if either text is empty or None
@@ -24,94 +26,6 @@ LEVENSHTEIN_NAME_THRESHOLD = 90
 LEVENSHTEIN_ADDR_THRESHOLD = 60
 COSINE_NAME_THRESHOLD = 95
 COSINE_ADDR_THRESHOLD = 60
-
-# def find_best_vendor_match_onboarded(openai_vendor_name, openai_vendor_address, corp_metadata_df):
-#     matching_vendors = {}
-
-#     # Ensure inputs are strings and lowercase
-#     openai_vendor_name = str(openai_vendor_name or "").lower()
-#     openai_vendor_address = str(openai_vendor_address or "").lower()
-
-#     for syn_nm, v_id, vendorName, vendorAddress, syn_add, vrd_cd in zip(
-#         corp_metadata_df["synonyms_name"],
-#         corp_metadata_df["vendorid"],
-#         corp_metadata_df["vendorname"],
-#         corp_metadata_df["vendoraddress"],
-#         corp_metadata_df["synonyms_address"],
-#         corp_metadata_df["vendorcode"],
-#     ):
-
-#         vendorName = str(vendorName or "").lower()
-#         vendorAddress = str(vendorAddress or "").lower()
-
-#         # Compute similarity scores for vendor name
-#         levenshtein_score_name_1 = levenshtein_ratio(openai_vendor_name, vendorName) * 100
-#         cosine_score_name_2 = compute_cosine_similarity(openai_vendor_name, vendorName)
-
-#         levenshtein_score_name_3 = cosine_score_name_4 = 0
-#         if syn_nm and str(syn_nm) != "None":
-#             synonyms_nm = json.loads(syn_nm)
-#             if isinstance(synonyms_nm, list):
-#                 for syn_2 in ",".join(synonyms_nm).split(","):  # Flatten all synonyms
-#                     syn2 = syn_2.strip().lower()
-#                     if levenshtein_score_name_3 < 90:
-#                         levenshtein_score_name_3 = max(levenshtein_score_name_3, levenshtein_ratio(openai_vendor_name, syn2) * 100)
-#                     if cosine_score_name_4 < 90:
-#                         cosine_score_name_4 = max(cosine_score_name_4, compute_cosine_similarity(openai_vendor_name, syn2))
-#                     cosine_score_name_4 = max(cosine_score_name_4, compute_cosine_similarity(openai_vendor_name, syn2))
-
-#         # Compute similarity scores for vendor address
-#         levenshtein_score_addr_1 = levenshtein_ratio(openai_vendor_address, vendorAddress) * 100
-#         cosine_score_addr_2 = compute_cosine_similarity(openai_vendor_address, vendorAddress)
-
-#         levenshtein_score_addr_3 = cosine_score_addr_4 = 0
-#         if syn_add and str(syn_add) != "None":
-#             synonyms_add = json.loads(syn_add)
-#             if isinstance(synonyms_add, list):
-#                 for syn_2 in ",".join(synonyms_add).split(","):  # Flatten all synonyms
-#                     syn2 = syn_2.strip().lower()
-#                     if levenshtein_score_addr_3 < 60:
-#                         levenshtein_score_addr_3 = max(levenshtein_score_addr_3, levenshtein_ratio(openai_vendor_address, syn2) * 100)
-#                     if cosine_score_addr_4 < 60:
-#                         cosine_score_addr_4 = max(cosine_score_addr_4, compute_cosine_similarity(openai_vendor_address, syn2))
-
-#         # Check if name and address match above thresholds
-#         levenshtein_name_match = max(levenshtein_score_name_1, levenshtein_score_name_3) >= LEVENSHTEIN_NAME_THRESHOLD
-#         levenshtein_addr_match = max(levenshtein_score_addr_1, levenshtein_score_addr_3) >= LEVENSHTEIN_ADDR_THRESHOLD
-
-#         cosine_name_match = max(cosine_score_name_2, cosine_score_name_4) >= COSINE_NAME_THRESHOLD
-#         cosine_addr_match = max(cosine_score_addr_2, cosine_score_addr_4) >= COSINE_ADDR_THRESHOLD
-
-#         match_score = {
-#             "vendor_id": v_id,
-#             "vendor_name": vendorName,
-#             "vendor_address": vendorAddress,
-#             "vendor_code": vrd_cd,
-#             "scores": {
-#                 "levenshtein_score_name_1": round(levenshtein_score_name_1,2),
-#                 "cosine_score_name_2": round(cosine_score_name_2,2),
-#                 "levenshtein_score_name_3": round(levenshtein_score_name_3,2),
-#                 "cosine_score_name_4": round(cosine_score_name_4,2),
-#                 "levenshtein_score_addr_1": round(levenshtein_score_addr_1,2),
-#                 "cosine_score_addr_2": round(cosine_score_addr_2,2),
-#                 "levenshtein_score_addr_3": round(levenshtein_score_addr_3,2),
-#                 "cosine_score_addr_4": round(cosine_score_addr_4,2),
-#             },
-#         }
-
-#         if levenshtein_name_match and levenshtein_addr_match and cosine_name_match and cosine_addr_match:
-#             match_score["bestmatch"] = "Full Match"
-#         elif levenshtein_name_match or cosine_name_match:
-#             match_score["bestmatch"] = "Name Match"
-#         elif levenshtein_addr_match or cosine_addr_match:
-#             match_score["bestmatch"] = "Address Match"
-#         else:
-#             continue  # Skip if no match at all
-
-#         matching_vendors[v_id] = match_score
-
-#     return matching_vendors
-
 
 import json
 
@@ -262,47 +176,7 @@ def find_best_vendor_match_not_onboarded(openai_vendor_name, openai_vendor_addre
 
     return matching_vendors
 
-def corp_update_docHistory(documentID, userID, documentstatus, docsubstatus, documentdesc, db):
-    """Function to update the document history by inserting a new record into
-    the DocumentHistoryLogs table.
 
-    Parameters:
-    ----------
-    documentID : int
-        The ID of the document for which history is being updated.
-    userID : int
-        The ID of the user who is making the update.
-    documentstatus : int
-        The current status of the document being recorded in the history.
-    documentdesc : str
-        A description or reason for the status change.
-    db : Session
-        Database session object to interact with the backend.
-    docsubstatus : int (optional)
-        The sub-status of the document being recorded in the history.
-
-
-    Returns:
-    -------
-    None or dict
-        Returns None on success or an error message on failure.
-    """
-    try:
-        docHistory = {}
-        docHistory["documentID"] = documentID
-        docHistory["userID"] = userID
-        docHistory["documentStatusID"] = documentstatus
-        docHistory["documentdescription"] = documentdesc
-        docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        if docsubstatus!=0:
-            docHistory["documentSubStatusID"] = docsubstatus
-        db.add(model.DocumentHistoryLogs(**docHistory))
-        db.commit()
-    except Exception:
-        # logger.error(traceback.format_exc())
-        db.rollback()
-        return {"DB error": "Error while inserting document history"}
-    
 def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,vendorName_df, userID,docID,db):
     # userID = 1
     logger.info(f"Matching vendor corp: openai_vendor_name: {openai_vendor_name}, openai_vendor_address: {openai_vendor_address}, docID: {docID}")
@@ -335,6 +209,8 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         # map vendor
         matched_id_vendor = matching_vendors[list(matching_vendors.keys())[0]]["vendor_id"]
         vendorID = matched_id_vendor
+        vrd_cd = matching_vendors[list(matching_vendors.keys())[0]]["vendor_code"]
+
         docStatus = 4
         documentdesc = f"Vendor match found:{vendorID}"
         substatus = 11
@@ -346,6 +222,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
                 model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
                 model.corp_document_tab.last_updated_by: userID,
                 model.corp_document_tab.vendor_id: vendorID,
+                model.corp_document_tab.vendor_code:vrd_cd
 
             }
         )
@@ -436,6 +313,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         docStatus = 26
         substatus = 107
         documentdesc = "vendor not found"
+
         corp_update_docHistory(docID, userID, docStatus, substatus, documentdesc, db)
         
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
