@@ -1687,7 +1687,7 @@ class CorpDocumentColumnPos(Base):
 
 class corp_hist_logs(Base):
     __tablename__ = "corp_hist_logs"
-    document_desc = Column(String, nullable=True)
+    document_desc = Column(TEXT, nullable=True)
     document_status = Column(Integer, nullable=True)
     document_substatus = Column(Integer, nullable=True)
     user_id =  Column(Integer, nullable=True)
@@ -1708,15 +1708,3 @@ class CorpDocumentUpdates(Base):
     user_id = Column(Integer, nullable=True)
     update_type = Column(String, nullable=True)
     
-class CorpDocumentHistLogs(Base):
-    __tablename__ = "corp_hist_logs"
-
-    histlog_id = Column(Integer, primary_key=True, autoincrement=True)
-    document_id = Column(Integer, nullable=True)
-    document_desc = Column(TEXT, nullable=True)
-    document_status = Column(Integer, nullable=True)
-    document_substatus = Column(Integer, nullable=True)
-    user_id = Column(Integer, nullable=True)
-    # userAmount = Column(String(45), nullable=True)
-    # documentfinstatus = Column(SmallInteger, nullable=True)
-    created_on = Column(DateTime, nullable=True)
