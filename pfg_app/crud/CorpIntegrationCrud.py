@@ -1476,7 +1476,7 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
         print(f"Error updating corp_docdata: {traceback.format_exc()}")
         db.rollback()
 
-def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
+async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
     try:
         # Fetch document status
         docStatus_id, docSubStatus_id = db.query(
@@ -1501,66 +1501,54 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
             field = update.field
             old_value = update.OldValue
             new_value = update.NewValue
-
+            field_type = type(getattr(corp_coding, field))
             # Ensure the field exists in the model
-            if hasattr(corp_coding, field):
-                current_value = getattr(corp_coding, field, None)  # Get current DB value
+            if field_type == dict:
+                # Compare JSON objects
+                if old_value != new_value:
+                    setattr(corp_coding, field, new_value)  # Store as JSON string
+                    # Convert old and new values to JSON string before storing
+                    old_value_str = json.dumps(old_value) if old_value is not None else None
+                    new_value_str = json.dumps(new_value) if new_value is not None else None
+                    # Log the update
+                    update_log = model.CorpDocumentUpdates(
+                        doc_id=corp_doc_id,
+                        updated_field=field,
+                        old_value=old_value_str,
+                        new_value=new_value_str,
+                        created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        user_id=user_id,
+                        is_active=1
+                    )
+                    db.add(update_log)
+                    consolidated_updates.append(f"{field}: JSON Updated")
 
-                # Handle JSON field properly
-                if isinstance(current_value, (dict, list)) or isinstance(old_value, dict) or isinstance(new_value, dict):
-                    # Convert stored JSON (if string) into a Python dictionary
-                    if isinstance(current_value, str):
-                        try:
-                            current_value = json.loads(current_value)
-                        except json.JSONDecodeError:
-                            current_value = {}
-
-                    # Compare JSON objects
-                    if current_value != new_value:
-                        setattr(corp_coding, field, json.dumps(new_value))  # Store as JSON string
-
-                        # Log the update
-                        update_log = model.CorpDocumentUpdates(
-                            doc_id=corp_doc_id,
-                            updated_field=field,
-                            old_value=json.dumps(old_value, indent=2, sort_keys=True) if old_value else None,
-                            new_value=json.dumps(new_value, indent=2, sort_keys=True) if new_value else None,
-                            created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                            user_id=user_id,
-                            is_active=1
-                        )
-                        db.add(update_log)
-                        consolidated_updates.append(f"{field}: JSON Updated")
-
-                else:
-                    # Get the correct field type
-                    field_type = type(getattr(corp_coding, field))
-
-                    # Convert new & old values to the correct data type
-                    if field_type == int:
-                        old_value = int(old_value) if old_value not in [None, ""] else None
-                        new_value = int(new_value) if new_value not in [None, ""] else None
-                    elif field_type == float:
-                        old_value = float(old_value) if old_value not in [None, ""] else None
-                        new_value = float(new_value) if new_value not in [None, ""] else None
-                    elif field_type == str:
-                        old_value = str(old_value) if old_value is not None else ""
-                        new_value = str(new_value) if new_value is not None else ""
-
-                    # Update only if value changes
-                    if current_value != new_value:
-                        setattr(corp_coding, field, new_value)
-                        update_log = model.CorpDocumentUpdates(
-                            doc_id=corp_doc_id,
-                            updated_field=field,
-                            old_value=old_value,
-                            new_value=new_value,
-                            created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                            user_id=user_id,
-                            is_active=1
-                        )
-                        db.add(update_log)
-                        consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
+            else:
+                # Convert new & old values to the correct data type
+                if field_type == int:
+                    old_value = int(old_value) if old_value not in [None, ""] else None
+                    new_value = int(new_value) if new_value not in [None, ""] else None
+                elif field_type == float:
+                    old_value = float(old_value) if old_value not in [None, ""] else None
+                    new_value = float(new_value) if new_value not in [None, ""] else None
+                elif field_type == str:
+                    old_value = str(old_value) if old_value is not None else ""
+                    new_value = str(new_value) if new_value is not None else ""
+                
+                # Update only if value changes
+                if old_value != new_value:
+                    setattr(corp_coding, field, new_value)
+                    update_log = model.CorpDocumentUpdates(
+                        doc_id=corp_doc_id,
+                        updated_field=field,
+                        old_value=old_value,
+                        new_value=new_value,
+                        created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        user_id=user_id,
+                        is_active=1
+                    )
+                    db.add(update_log)
+                    consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
         # If it's a new record, insert it
         if is_new_record:

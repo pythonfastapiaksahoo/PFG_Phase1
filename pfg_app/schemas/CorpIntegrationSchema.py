@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel
 
 class ProcessResponse(BaseModel):
@@ -100,24 +100,8 @@ class UpdateCorpInvoiceData(BaseModel):
     OldValue: str
     NewValue: str
 
-class CodingDetail(BaseModel):  
-    store: Optional[str]  
-    dept: Optional[str]  
-    SL: Optional[str]  
-    project: Optional[str]  
-    activity: Optional[str]  
-    amount: Optional[float]  
-class UpdateCodinglineData(BaseModel):
-    invoice_id: Optional[str]
-    coding_details: Optional[Dict[str, CodingDetail]]
-    approver_name: Optional[str]
-    tmid: Optional[str]
-    approver_title: Optional[str]
-    invoicetotal: Optional[str]
-    subtotal: Optional[str]
-    gst: Optional[str]
     
 class UpdateCodinglineData(BaseModel):
     field: str
-    OldValue: str
-    NewValue: str
+    OldValue: Union[str, int, float, Dict[str, Any], None]  # Can be string, number, or JSON
+    NewValue: Union[str, int, float, Dict[str, Any], None]  # Can be string, number, or JSON
