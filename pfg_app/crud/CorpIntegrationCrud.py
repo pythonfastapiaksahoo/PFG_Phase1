@@ -1401,8 +1401,252 @@ async def read_corp_column_pos(user_id, tab_type, db):
     finally:
         # Ensure the database session is closed
         db.close()
+        
 
-def corp_update_docHistory(documentID, userID, documentstatus, docsubstatus, documentdesc, db):
+async def update_corp_docdata(user_id, corp_doc_id, updates, db):
+    try:
+        docStatus_id, docSubStatus_id = db.query(
+            model.corp_document_tab.documentstatus, model.corp_document_tab.documentsubstatus
+        ).filter(model.corp_document_tab.corp_doc_id == corp_doc_id).first()
+
+        # Fetch the existing record
+        corp_doc = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
+        if not corp_doc:
+            raise ValueError("No record found for the given corp_doc_id")
+
+        consolidated_updates = []
+        
+        corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+        if not corp_doc_tab:
+            raise ValueError("No record found in corp_document_tab for the given corp_doc_id")
+        
+        # Iterate through the list of updates
+        for update in updates:
+            field = update.field
+            old_value = update.OldValue
+            new_value = update.NewValue
+
+            # Ensure the field exists in the model
+            if hasattr(corp_doc, field):
+                field_type = type(getattr(corp_doc, field))  # Get the current field's type
+                
+                # Convert new & old values to the correct data type
+                if field_type == int:
+                    old_value = int(old_value) if old_value is not None else None
+                    new_value = int(new_value) if new_value is not None else None
+                elif field_type == float:
+                    old_value = float(old_value) if old_value is not None else None
+                    new_value = float(new_value) if new_value is not None else None
+                elif field_type == str:
+                    old_value = str(old_value) if old_value is not None else ""
+                    new_value = str(new_value) if new_value is not None else ""
+
+                current_value = getattr(corp_doc, field)  # Get current DB value
+
+                # Only update if the value is actually changing
+                if current_value != new_value:
+                    setattr(corp_doc, field, new_value)  # Update the field
+
+                    # Log the update in CorpDocumentUpdates with the new logic
+                    inv_up_data_id = (
+                        db.query(model.CorpDocumentUpdates.iddocumentupdates)
+                        .filter_by(doc_id=corp_doc_id)
+                        .all()
+                    )
+                    if len(inv_up_data_id) > 0:
+                        # If present, set the active status to false for the old row
+                        if corp_doc_id:
+                            db.query(model.CorpDocumentUpdates).filter_by(
+                                doc_id=corp_doc_id, is_active=1
+                            ).update({"is_active": 0})
+                        
+                        db.flush()
+                    
+                    data = {
+                        "doc_id": corp_doc_id,
+                        "updated_field": field,
+                        "old_value": old_value,  # Keep as original type
+                        "new_value": new_value,  # Keep as original type
+                        "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        "user_id": user_id,
+                        "is_active": 1
+                    }
+                    
+                    update_log = model.CorpDocumentUpdates(**data)
+                    db.add(update_log)
+                    db.flush()
+                    consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
+
+                # If the field is one of the specified ones, update corp_document_tab as well
+                if field in ["invoice_id", "invoicetotal", "invoice_date"]:
+                    setattr(corp_doc_tab, field, new_value)
+                    consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
+        # Updating the consolidated history log for updated fields
+        if consolidated_updates:
+            try:
+                corp_update_docHistory(
+                    corp_doc_id,
+                    user_id,
+                    docStatus_id,  
+                    "; ".join(consolidated_updates),
+                    db,
+                    docSubStatus_id  
+                )
+            except Exception as e:
+                print(f"Error updating document history: {traceback.format_exc()}")
+
+        # Commit changes
+        db.commit()
+    except Exception as e:
+        print(f"Error updating corp_docdata: {traceback.format_exc()}")
+        db.rollback()
+
+async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
+    try:
+        # Fetch document status
+        docStatus_id, docSubStatus_id = db.query(
+            model.corp_document_tab.documentstatus, model.corp_document_tab.documentsubstatus
+        ).filter(model.corp_document_tab.corp_doc_id == corp_doc_id).first() or (None, None)
+
+        # Fetch or create corp_coding record
+        corp_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+
+        if not corp_coding:
+            # If no record exists, create a new one
+            corp_coding = model.corp_coding_tab(corp_doc_id=corp_doc_id)
+            db.add(corp_coding)
+            is_new_record = True
+        else:
+            is_new_record = False
+
+        consolidated_updates = []
+        
+        corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+        if not corp_doc_tab:
+            raise ValueError("No record found in corp_document_tab for the given corp_doc_id")
+        
+        # Process each update
+        for update in updates:
+            field = update.field
+            old_value = update.OldValue
+            new_value = update.NewValue
+            field_type = type(getattr(corp_coding, field))
+            # Ensure the field exists in the model
+            if field_type == dict:
+                # Compare JSON objects
+                if old_value != new_value:
+                    setattr(corp_coding, field, new_value)  # Store as JSON string
+                    # Convert old and new values to JSON string before storing
+                    old_value_str = json.dumps(old_value) if old_value is not None else None
+                    new_value_str = json.dumps(new_value) if new_value is not None else None
+                    
+                    # Log the update in CorpDocumentUpdates with the new logic
+                    inv_up_data_id = (
+                        db.query(model.CorpDocumentUpdates.iddocumentupdates)
+                        .filter_by(doc_id=corp_doc_id)
+                        .all()
+                    )
+                    if len(inv_up_data_id) > 0:
+                        # If present, set the active status to false for the old row
+                        if corp_doc_id:
+                            db.query(model.CorpDocumentUpdates).filter_by(
+                                doc_id=corp_doc_id, is_active=1
+                            ).update({"is_active": 0})
+                        
+                        db.flush()
+                    
+                    data = {
+                        "doc_id": corp_doc_id,
+                        "updated_field": field,
+                        "old_value": old_value_str,  # Keep as original type
+                        "new_value": new_value_str,  # Keep as original type
+                        "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        "user_id": user_id,
+                        "is_active": 1
+                    }
+                    
+                    update_log = model.CorpDocumentUpdates(**data)
+                    db.add(update_log)
+                    db.flush()
+                    consolidated_updates.append(f"{field}: JSON Updated")
+
+            else:
+                # Convert new & old values to the correct data type
+                if field_type == int:
+                    old_value = int(old_value) if old_value not in [None, ""] else None
+                    new_value = int(new_value) if new_value not in [None, ""] else None
+                elif field_type == float:
+                    old_value = float(old_value) if old_value not in [None, ""] else None
+                    new_value = float(new_value) if new_value not in [None, ""] else None
+                elif field_type == str:
+                    old_value = str(old_value) if old_value is not None else ""
+                    new_value = str(new_value) if new_value is not None else ""
+                # Check if the document update table already has rows present in it
+            
+                # Update only if value changes
+                if old_value != new_value:
+                    setattr(corp_coding, field, new_value)
+                    # Log the update in CorpDocumentUpdates with the new logic
+                    inv_up_data_id = (
+                        db.query(model.CorpDocumentUpdates.iddocumentupdates)
+                        .filter_by(doc_id=corp_doc_id)
+                        .all()
+                    )
+                    if len(inv_up_data_id) > 0:
+                        # If present, set the active status to false for the old row
+                        if corp_doc_id:
+                            db.query(model.CorpDocumentUpdates).filter_by(
+                                doc_id=corp_doc_id, is_active=1
+                            ).update({"is_active": 0})
+                        
+                        db.flush()
+                    
+                    data = {
+                        "doc_id": corp_doc_id,
+                        "updated_field": field,
+                        "old_value": old_value_str,  # Keep as original type
+                        "new_value": new_value_str,  # Keep as original type
+                        "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        "user_id": user_id,
+                        "is_active": 1
+                    }
+                    
+                    update_log = model.CorpDocumentUpdates(**data)
+                    db.add(update_log)
+                    db.flush()
+                    consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
+
+                # If the field is one of the specified ones, update corp_document_tab as well
+                if field in ["invoice_id", "invoicetotal", "invoice_date"]:
+                    setattr(corp_doc_tab, field, new_value)
+                    consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
+        # If it's a new record, insert it
+        if is_new_record:
+            db.add(corp_coding)
+
+        # Updating the consolidated history log
+        if consolidated_updates:
+            try:
+                corp_update_docHistory(
+                    corp_doc_id,
+                    user_id,
+                    docStatus_id,
+                    "; ".join(consolidated_updates),
+                    db,
+                    docSubStatus_id
+                )
+            except Exception as e:
+                print(f"Error updating document history: {str(e)}")
+
+        # Commit the transaction
+        db.commit()
+    
+    except Exception as e:
+        print(f"Error in upsert_coding_line_data: {str(e)}")
+        db.rollback()
+
+
+def corp_update_docHistory(documentID, userID, documentstatus, documentdesc, db,docsubstatus=0):
     """Function to update the document history by inserting a new record into
     the DocumentHistoryLogs table.
 
@@ -1429,17 +1673,16 @@ def corp_update_docHistory(documentID, userID, documentstatus, docsubstatus, doc
     """
     try:
         docHistory = {}
-        docHistory["documentID"] = documentID
-        docHistory["userID"] = userID
-        docHistory["documentStatusID"] = documentstatus
-        docHistory["documentdescription"] = documentdesc
-        docHistory["CreatedOn"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        docHistory["document_id"] = documentID
+        docHistory["user_id"] = userID
+        docHistory["document_status"] = documentstatus
+        docHistory["document_desc"] = documentdesc
+        docHistory["created_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         if docsubstatus!=0:
-            docHistory["documentSubStatusID"] = docsubstatus
+            docHistory["document_substatus"] = docsubstatus
         db.add(model.corp_hist_logs(**docHistory))
         db.commit()
     except Exception:
-        # logger.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         db.rollback()
         return {"DB error": "Error while inserting document history"}
-    

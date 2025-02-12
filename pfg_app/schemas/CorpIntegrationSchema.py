@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel
 
 class ProcessResponse(BaseModel):
@@ -94,3 +94,14 @@ class corpcolumnpos(BaseModel):
     id_tab_column: int
     column_pos: int
     is_active: int
+    
+class UpdateCorpInvoiceData(BaseModel):
+    field: str
+    OldValue: str
+    NewValue: str
+
+    
+class UpdateCodinglineData(BaseModel):
+    field: str
+    OldValue: Union[str, int, float, Dict[str, Any], None]  # Can be string, number, or JSON
+    NewValue: Union[str, int, float, Dict[str, Any], None]  # Can be string, number, or JSON
