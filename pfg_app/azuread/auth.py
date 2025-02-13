@@ -29,13 +29,11 @@ class ForbiddenAccess(HTTPException):
     # ],
 
 def get_user(
-    allowed_roles: List[str],
     user: AzureUser = Depends(authorize),
     db: Session = Depends(get_db),
 ) -> AzureUser:
-    
-    # if allow_role in user.roles:
-    if any(role in user.roles for role in allowed_roles):
+
+    if "User" in user.roles:
         # base_user = AzureUser(
         #     id="generic_id",
         #     name="Generic User",
@@ -50,11 +48,9 @@ def get_user(
         if not user_in_db:
             user_in_db = User(
                 azure_id=user.id,
-                email=user.email,
+                email=user.preferred_username,
                 customerID=1,
                 firstName=user.name,
-                employee_id=user.employeeId,
-                user_roles=user.roles
             )
             db.add(user_in_db)
             db.commit()
@@ -63,6 +59,36 @@ def get_user(
         return user_in_db
     raise ForbiddenAccess("User privileges required")
 
+
+def get_user_dependency(allowed_roles: list[str]):
+    def dependency(
+        user: AzureUser = Depends(authorize), 
+        db: Session = Depends(get_db)
+    ) -> AzureUser:
+        # if not isinstance(user, AzureUser):  # Ensure authorization returned a valid user
+        #     raise HTTPException(status_code=500, detail="Authorization failed, user not retrieved")
+
+        if any(role in user.roles for role in allowed_roles):
+            user_in_db = db.query(User).filter(User.azure_id == user.id).first()
+
+            if not user_in_db:
+                user_in_db = User(
+                    azure_id=user.id,
+                    email=user.preferred_username,
+                    customerID=1,
+                    # firstName=user.name,
+                    employee_id=user.employeeId,
+                    user_roles=user.roles
+                )
+                db.add(user_in_db)
+                db.commit()
+                db.refresh(user_in_db)
+
+            return user_in_db
+
+        raise HTTPException(status_code=403, detail="User privileges required")
+
+    return dependency
 
 def get_admin_user(
     user: AzureUser = Depends(authorize), db: Session = Depends(get_db)

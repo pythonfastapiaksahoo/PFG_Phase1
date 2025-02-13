@@ -524,7 +524,7 @@ class User(Base):
     account_type = Column(String(20), nullable=True)
     dept_ids = Column(JSON, nullable=True)
     azure_id = Column(String, nullable=True)
-    user_roles = Column(String, nullable=True)
+    user_role = Column(String, nullable=True)
     employee_id = Column(String, nullable=True)
 
     # customers = relationship("Customer", back_populates="user")
