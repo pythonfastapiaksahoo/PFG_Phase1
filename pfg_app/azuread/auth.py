@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -18,13 +18,24 @@ class ForbiddenAccess(HTTPException):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # )
+    #     "roles": [
+    #     "CORP_ConfigPortal_User",
+    #     "DSD_APPortal_User",
+    #     "DSD_ConfigPortal_User",
+    #     "User",
+    #     "Admin",
+    #     "CORP_APPortal_User"
+    # ],
 
 def get_user(
+    allowed_roles: List[str],
     user: AzureUser = Depends(authorize),
     db: Session = Depends(get_db),
 ) -> AzureUser:
-
-    if "User" in user.roles:
+    
+    # if allow_role in user.roles:
+    if any(role in user.roles for role in allowed_roles):
         # base_user = AzureUser(
         #     id="generic_id",
         #     name="Generic User",
@@ -42,6 +53,8 @@ def get_user(
                 email=user.email,
                 customerID=1,
                 firstName=user.name,
+                employee_id=user.employeeId,
+                user_roles=user.roles
             )
             db.add(user_in_db)
             db.commit()
@@ -62,7 +75,14 @@ def get_admin_user(
     #     roles=["Admin"],
     #     preferred_username="Generic admin",
     # )
-
+    #     "roles": [
+    #     "CORP_ConfigPortal_User",
+    #     "DSD_APPortal_User",
+    #     "DSD_ConfigPortal_User",
+    #     "User",
+    #     "Admin",
+    #     "CORP_APPortal_User"
+    # ],
     if "Admin" in user.roles:
         try:
             all_results = []

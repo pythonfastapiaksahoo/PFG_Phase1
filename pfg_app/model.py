@@ -524,6 +524,8 @@ class User(Base):
     account_type = Column(String(20), nullable=True)
     dept_ids = Column(JSON, nullable=True)
     azure_id = Column(String, nullable=True)
+    user_roles = Column(String, nullable=True)
+    employee_id = Column(String, nullable=True)
 
     # customers = relationship("Customer", back_populates="user")
     # user_access = relationship("UserAccess", back_populates="user")
@@ -1707,4 +1709,33 @@ class CorpDocumentUpdates(Base):
     created_on = Column(DateTime, nullable=True)
     user_id = Column(Integer, nullable=True)
     update_type = Column(String, nullable=True)
+    
+
+
+class CorpVoucherData(Base):
+    __tablename__ = "corp_voucher_data"
+    VOUCHER_ID = Column(Integer, primary_key=True, autoincrement=True)
+    DOCUMENT_ID = Column(Integer, nullable=False)
+    BUSINESS_UNIT = Column(String(5), nullable=True)
+    INVOICE_ID = Column(String(30), nullable=True)
+    INVOICE_DT = Column(String(100), nullable=True)
+    VENDOR_SETID = Column(String(5), nullable=True)
+    Vendor_ID = Column(String(100), nullable=True)
+    VENDOR_ID = Column(String(100), nullable=True)
+    ORIGIN = Column(String(10), nullable=True)
+    ACCOUNTING_DT = Column(String(10), nullable=True)
+    GROSS_AMT = Column(Float, nullable=True)
+    SALETX_AMT = Column(Float, nullable=True)
+    FREIGHT_AMT = Column(Float, nullable=True)
+    MISC_AMT = Column(Float, nullable=True)
+    TXN_CURRENCY_CD = Column(String(3), nullable=True)
+    VAT_ENTRD_AMT = Column(Float, nullable=True)
+    VCHR_SRC = Column(String(5), nullable=True)
+    OPRID = Column(String(10), nullable=True)
+    MERCHANDISE_AMT = Column(Float, nullable=True)
+    VCHR_DIST_STG = Column(JSON, nullable=True)
+    VAT_APPLICABILITY = Column(String(1), nullable=True)
+    SHIPTO_ID = Column(String(10), nullable=True)
+    INVOICE_FILE_PATH = Column(String, nullable=True)
+    EMAIL_PATH = Column(String, nullable=True)
     

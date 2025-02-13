@@ -195,7 +195,9 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
             # Validate audience (if necessary,
             # as authlib does not have explicit 'audience' handling)
             if decoded_token.get("aud") != settings.api_audience:
-                raise InvalidAuthorization("Invalid audience")
+                if "api://"+decoded_token.get("aud") != settings.api_audience:
+                    raise InvalidAuthorization("Invalid audience")
+            
             return decoded_token
 
         except JoseError as e:
