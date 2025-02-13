@@ -547,104 +547,126 @@ def processCorpInvoiceVoucher(doc_id, db):
         # Fetch the invoice details from the voucherdata table
         corpvoucherdata = (
             db.query(model.CorpVoucherData)
-            .filter(model.CorpVoucherData.documentID == doc_id)
+            .filter(model.CorpVoucherData.DOCUMENT_ID == doc_id)
             .scalar()
         )
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
 
-        # Call the function to get the base64 file and content type
-        try:
-            file_data = read_invoice_file_voucher(doc_id, db)
-            if file_data and "result" in file_data:
-                base64file = file_data["result"]["filepath"]
+        # # Call the function to get the base64 file and content type
+        # try:
+        #     file_data = read_invoice_file_voucher(doc_id, db)
+        #     if file_data and "result" in file_data:
+        #         base64file = file_data["result"]["filepath"]
 
-                # If filepath is a bytes object, decode it
-                if isinstance(base64file, bytes):
-                    base64file = base64file.decode("utf-8")
-            else:
-                base64file = "Error retrieving file: No result found in file data."
-        except Exception as e:
-            # Catch any error from the read_invoice_file
-            # function and use the error message
-            base64file = f"Error retrieving file: {str(e)}"
+        #         # If filepath is a bytes object, decode it
+        #         if isinstance(base64file, bytes):
+        #             base64file = base64file.decode("utf-8")
+        #     else:
+        #         base64file = "Error retrieving file: No result found in file data."
+        # except Exception as e:
+        #     # Catch any error from the read_invoice_file
+        #     # function and use the error message
+        #     base64file = f"Error retrieving file: {str(e)}"
 
         # Continue processing the file
-        print(f"Filepath (Base64 Encoded or Error): {base64file}")
+        # print(f"Filepath (Base64 Encoded or Error): {base64file}")
+        
+        if isinstance(corpvoucherdata.VCHR_DIST_STG, str):
+            vchr_dist_stg = json.loads(corpvoucherdata.VCHR_DIST_STG)
+        elif isinstance(corpvoucherdata.VCHR_DIST_STG, dict):
+            vchr_dist_stg = corpvoucherdata.VCHR_DIST_STG
+        else:
+            vchr_dist_stg = {}
+        distrib_data = [
+            {
+                "BUSINESS_UNIT": "NONPO",
+                "VOUCHER_LINE_NUM": 1,
+                "DISTRIB_LINE_NUM": int(key),
+                "BUSINESS_UNIT_GL": "OFG01",
+                "ACCOUNT": dist.get("account", ""),
+                "DEPTID": dist.get("dept", ""),
+                "OPERATING_UNIT": dist.get("store", ""),
+                "PROJECT_ID": dist.get("project", ""),
+                "ACTIVITY_ID": dist.get("activity", ""),
+                "MERCHANDISE_AMT": dist.get("amount", 0),
+                "BUSINESS_UNIT_PC": ""
+            }
+            for key, dist in vchr_dist_stg.items()
+        ]
 
-        request_payload = {
+        voucher_payload = {
             "RequestBody": [
                 {
                     "OF_VCHR_IMPORT_STG": [
                         {
                             "VCHR_HDR_STG": [
                                 {
-                                    "BUSINESS_UNIT": "MERCH",
+                                    "BUSINESS_UNIT": corpvoucherdata.BUSINESS_UNIT or "NONPO",
                                     "VOUCHER_STYLE": "REG",
-                                    "INVOICE_ID": "",
-                                    "INVOICE_DT": "",
-                                    "VENDOR_SETID": "",
-                                    "VENDOR_ID": "",
-                                    "ORIGIN": "IDP",
-                                    "ACCOUNTING_DT": "",
+                                    "INVOICE_ID": corpvoucherdata.INVOICE_ID or "",
+                                    "INVOICE_DT": corpvoucherdata.INVOICE_DT or "",
+                                    "VENDOR_SETID": corpvoucherdata.VENDOR_SETID or "GLOBL",
+                                    "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
+                                    "ORIGIN": corpvoucherdata.ORIGIN or "IDP",
+                                    "ACCOUNTING_DT": corpvoucherdata.ACCOUNTING_DT or "",
                                     "VOUCHER_ID_RELATED": "",
-                                    "GROSS_AMT": 0,
+                                    "GROSS_AMT": corpvoucherdata.GROSS_AMT or 0,
                                     "SALETX_AMT": 0,
                                     "FREIGHT_AMT": 0,
                                     "MISC_AMT": 0,
                                     "PYMNT_TERMS_CD": "",
-                                    "TXN_CURRENCY_CD": "",
-                                    "VAT_ENTRD_AMT": 0,
+                                    "TXN_CURRENCY_CD": corpvoucherdata.TXN_CURRENCY_CD or "CAD",
+                                    "VAT_ENTRD_AMT": corpvoucherdata.VAT_ENTRD_AMT or 0,
+                                    "VCHR_SRC": corpvoucherdata.VCHR_SRC or "CRP",
+                                    "OPRID": corpvoucherdata.OPRID or "",
                                     "VCHR_LINE_STG": [
                                         {
-                                            "BUSINESS_UNIT": "MERCH",
+                                            "BUSINESS_UNIT": "NONPO",
                                             "VOUCHER_LINE_NUM": 1,
                                             "DESCR": "",
-                                            "MERCHANDISE_AMT": 0,
-                                            "QTY_VCHR": 1,
-                                            "UNIT_OF_MEASURE": "",
-                                            "UNIT_PRICE": 0,
-                                            "VAT_APPLICABILITY": "",
+                                            "MERCHANDISE_AMT": corpvoucherdata.MERCHANDISE_AMT or 0,
+                                            "QTY_VCHR": 0.000,
+                                            "UNIT_OF_MEASURE": "EA",
+                                            "UNIT_PRICE": 0.000,
+                                            "VAT_APPLICABILITY": corpvoucherdata.VAT_APPLICABILITY or "",
                                             "BUSINESS_UNIT_RECV": "",
                                             "RECEIVER_ID": "",
                                             "RECV_LN_NBR": 0,
-                                            "SHIPTO_ID": "",
-                                            "VCHR_DIST_STG": [
-                                                {
-                                                    "BUSINESS_UNIT": "MERCH",
-                                                    "VOUCHER_LINE_NUM": 1,
-                                                    "DISTRIB_LINE_NUM": 1,
-                                                    "BUSINESS_UNIT_GL": "OFG01",
-                                                    "ACCOUNT": "",
-                                                    "DEPTID": "",
-                                                    "OPERATING_UNIT": "",
-                                                    "MERCHANDISE_AMT": 0,
-                                                    "BUSINESS_UNIT_PC": " ",
-                                                    "PROJECT_ID": " ",
-                                                    "ACTIVITY_ID": " ",
-                                                }
-                                            ],
+                                            "SHIPTO_ID": corpvoucherdata.SHIPTO_ID or "8000",
+                                            "VCHR_DIST_STG": distrib_data
                                         }
-                                    ],
+                                    ]
                                 }
                             ],
                             "INV_METADATA_STG": [
                                 {
-                                    "BUSINESS_UNIT": "MERCH",
-                                    "INVOICE_ID": "",
-                                    "INVOICE_DT": "",
-                                    "VENDOR_SETID": "",
-                                    "VENDOR_ID": "",
+                                    "BUSINESS_UNIT": "NONPO",
+                                    "INVOICE_ID": corpvoucherdata.INVOICE_ID or "",
+                                    "INVOICE_DT": corpvoucherdata.INVOICE_DT or "",
+                                    "VENDOR_SETID": "GLOBL",
+                                    "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
-                                    "FILE_NAME": "",
-                                    "base64file": "",
+                                    "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH,
+                                    "base64file": "+MDYxCiUlRU9GCg=="
+                                },
+                                {
+                                    "BUSINESS_UNIT": "NONPO",
+                                    "INVOICE_ID": corpvoucherdata.INVOICE_ID or "",
+                                    "INVOICE_DT": corpvoucherdata.INVOICE_DT or "",
+                                    "VENDOR_SETID": "GLOBL",
+                                    "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
+                                    "IMAGE_NBR": 2,
+                                    "FILE_NAME": corpvoucherdata.EMAIL_PATH,
+                                    "base64file": "+MDYxCiUlRU9GCg=="
                                 }
-                            ],
+                            ]
                         }
                     ]
                 }
             ]
         }
+        request_payload = json.dumps(voucher_payload, indent=4)
         logger.info(f"request_payload for doc_id: {doc_id}: {request_payload}")
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
