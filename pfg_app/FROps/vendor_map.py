@@ -214,7 +214,8 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         docStatus = 4
         documentdesc = f"Vendor match found:{vendorID}"
         substatus = 11
-        corp_update_docHistory(docID, userID, docStatus, substatus, documentdesc, db)
+        corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+        
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
         ).update(
             {
@@ -252,7 +253,8 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         docStatus = 26
         substatus = 107
         documentdesc = "vendor not found"
-        corp_update_docHistory(docID, userID, docStatus, substatus, documentdesc, db)
+        corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+        
         
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
             ).update(
@@ -268,7 +270,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         docStatus = 25
         substatus = 106
         documentdesc = "vendor not onboarded"
-        corp_update_docHistory(docID, userID, docStatus, substatus, documentdesc, db)
+        corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
         
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
             ).update(
@@ -314,7 +316,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         substatus = 107
         documentdesc = "vendor not found"
 
-        corp_update_docHistory(docID, userID, docStatus, substatus, documentdesc, db)
+        corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
         
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
             ).update(
