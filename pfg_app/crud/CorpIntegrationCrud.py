@@ -69,228 +69,267 @@ def extract_content_from_eml_file(email_msg):
 
 
 def format_data_for_template1(parsed_data):
+    try:
+        
+        # Extract metadata
+        email_metadata = parsed_data["email_metadata"]
 
-    # Extract metadata
-    email_metadata = parsed_data["email_metadata"]
+        # Extract table data
+        tables = parsed_data["tables_data"]
 
-    # Extract table data
-    tables = parsed_data["tables_data"]
+        # Initialize dictionaries
+        invoice_data = {
+            "store": [],
+            "dept": [],
+            "account": [],
+            "SL": [],
+            "project": [],
+            "activity": [],
+            "subtotal": []
+        }
+        approver_details = {}
 
-    # Initialize dictionaries
-    invoice_data = {
-        "store": [],
-        "dept": [],
-        "account": [],
-        "SL": [],
-        "project": [],
-        "activity": [],
-        "subtotal": []
-    }
-    approver_details = {}
+        # Process the table to differentiate cases
+        for table in tables:
+            for i, row in enumerate(table):
+                # Identify case where "Invoice#" is present in a row
+                if "Invoice#" in row[0]:
+                    # invoice_number = row[1]  # Extract invoice number
+                    # invoice_data["invoice#"] = invoice_number
+                    invoice_data["invoice#"] = row[1] if len(row) > 1 else ""
 
-    # Process the table to differentiate cases
-    for table in tables:
-        for i, row in enumerate(table):
-            # Identify case where "Invoice#" is present in a row
-            if "Invoice#" in row[0]:
-                # invoice_number = row[1]  # Extract invoice number
-                # invoice_data["invoice#"] = invoice_number
-                invoice_data["invoice#"] = row[1] if len(row) > 1 else ""
+                # Check if header matches expected columns without "Invoice" keyword
+                elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Subtotal"]:
+                    headers = row
+                    for data_row in table[i + 1:]:
+                        # Stop processing if GST or Grand Total rows are reached
+                        if "GST:" in data_row[0] or "Grand Total:" in data_row[0]:
+                            break
 
-            # Check if header matches expected columns without "Invoice" keyword
-            elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Subtotal"]:
-                headers = row
-                for data_row in table[i + 1:]:
-                    # Stop processing if GST or Grand Total rows are reached
-                    if "GST:" in data_row[0] or "Grand Total:" in data_row[0]:
-                        break
+                        # Map each column of data to the correct header
+                        invoice_data["store"].append(data_row[0])
+                        invoice_data["dept"].append(data_row[1])
+                        invoice_data["account"].append(data_row[2])
+                        invoice_data["SL"].append(data_row[3])
+                        invoice_data["project"].append(data_row[4])
+                        invoice_data["activity"].append(data_row[5])
+                        invoice_data["subtotal"].append(data_row[6]) # Ensure subtotal remains null
 
-                    # Map each column of data to the correct header
-                    invoice_data["store"].append(data_row[0])
-                    invoice_data["dept"].append(data_row[1])
-                    invoice_data["account"].append(data_row[2])
-                    invoice_data["SL"].append(data_row[3])
-                    invoice_data["project"].append(data_row[4])
-                    invoice_data["activity"].append(data_row[5])
-                    invoice_data["subtotal"].append(data_row[6]) # Ensure subtotal remains null
+                # Extract GST and Grand Total
+                elif "GST:" in row[0]:
+                    # invoice_data["GST"] = row[1]
+                    invoice_data["GST"] = row[1] if len(row) > 1 else ""
+                elif "Grand Total:" in row[0]:
+                    # invoice_data["grandTotal"] = row[1]
+                    invoice_data["invoicetotal"] = row[1] if len(row) > 1 else "" 
 
-            # Extract GST and Grand Total
-            elif "GST:" in row[0]:
-                # invoice_data["GST"] = row[1]
-                invoice_data["GST"] = row[1] if len(row) > 1 else ""
-            elif "Grand Total:" in row[0]:
-                # invoice_data["grandTotal"] = row[1]
-                invoice_data["invoicetotal"] = row[1] if len(row) > 1 else "" 
+                # Extract approver details
+                elif "Approver Name:" in row[0]:
+                    # approver_details["approverName"] = row[1]
+                    approver_details["approverName"] = row[1] if len(row) > 1 else ""
+                elif "Approver TM ID:" in row[0]:
+                    # approver_details["TMID"] = row[1]
+                    approver_details["TMID"] = row[1] if len(row) > 1 else ""
+                elif "Approval Title:" in row[0]:
+                    # approver_details["title"] = row[1]
+                    approver_details["title"] = row[1] if len(row) > 1 else ""
 
-            # Extract approver details
-            elif "Approver Name:" in row[0]:
-                # approver_details["approverName"] = row[1]
-                approver_details["approverName"] = row[1] if len(row) > 1 else ""
-            elif "Approver TM ID:" in row[0]:
-                # approver_details["TMID"] = row[1]
-                approver_details["TMID"] = row[1] if len(row) > 1 else ""
-            elif "Approval Title:" in row[0]:
-                # approver_details["title"] = row[1]
-                approver_details["title"] = row[1] if len(row) > 1 else ""
+        # Combine into final structured JSON
+        structured_output = {
+            "email_metadata": email_metadata,
+            "invoiceDetails": invoice_data,
+            "approverDetails": approver_details
+        }
 
-    # Combine into final structured JSON
-    structured_output = {
-        "email_metadata": email_metadata,
-        "invoiceDetails": invoice_data,
-        "approverDetails": approver_details
-    }
+        # Convert to JSON and print
+        final_json = json.dumps(structured_output, indent=4)
+        return final_json
 
-    # Convert to JSON and print
-    final_json = json.dumps(structured_output, indent=4)
-    return final_json
-
-
+    except Exception:
+        logger.info(f"Error while extracting coding details for template 1:{traceback.format_exc()}")
+        # Combine into final structured JSON
+        structured_output = {
+            "email_metadata": {"Error"},
+            "invoiceDetails": {"Error"},
+            "approverDetails": {"Error"}
+        }
+        # Convert to JSON and print
+        final_json = json.dumps(structured_output, indent=4)
+        return final_json
+    
+    
 def format_data_for_template2(parsed_data):
-    # Extract metadata
-    email_metadata = parsed_data["email_metadata"]
+    try:
+        # Extract metadata
+        email_metadata = parsed_data["email_metadata"]
 
-    # Extract table data
-    tables = parsed_data["tables_data"]
+        # Extract table data
+        tables = parsed_data["tables_data"]
 
-    # Initialize dictionaries
-    invoice_data = {
-        "invoice#": [],
-        "store": [],
-        "dept": [],
-        "account": [],
-        "SL": [],
-        "project": [],
-        "activity": [],
-        "GST": [],
-        "invoicetotal": [],
-        "subtotal": None
-    }
-    approver_details = {}
+        # Initialize dictionaries
+        invoice_data = {
+            "invoice#": [],
+            "store": [],
+            "dept": [],
+            "account": [],
+            "SL": [],
+            "project": [],
+            "activity": [],
+            "GST": [],
+            "invoicetotal": [],
+            "subtotal": None
+        }
+        approver_details = {}
 
-    # Process the single table
-    if tables:
-        table = tables[0]  # There's only one table
-        for i, row in enumerate(table):
-            if i == 0 and "Approver Name:" in row[0]:  # Approver details
-                for detail_row in table[:3]:  # First three rows contain approver details
-                    if "Approver Name:" in detail_row[0]:
-                        approver_details["approverName"] = detail_row[1]
-                    elif "Approver TM ID:" in detail_row[0]:
-                        approver_details["TMID"] = detail_row[1]
-                    elif "Approval Title:" in detail_row[0]:
-                        approver_details["title"] = detail_row[1]
-            elif i == 3 and "Invoice #" in row[0]:  # Invoice headers
-                headers = row
-            elif i > 3:  # Invoice data
-                invoice_data["invoice#"].append(row[0])
-                invoice_data["store"].append(row[1])
-                invoice_data["dept"].append(row[2])
-                invoice_data["account"].append(row[3])
-                invoice_data["SL"].append(row[4])
-                invoice_data["project"].append(row[5])
-                invoice_data["activity"].append(row[6])
-                invoice_data["GST"].append(row[7])
-                invoice_data["invoicetotal"].append(row[8])
+        # Process the single table
+        if tables:
+            table = tables[0]  # There's only one table
+            for i, row in enumerate(table):
+                if i == 0 and "Approver Name:" in row[0]:  # Approver details
+                    for detail_row in table[:3]:  # First three rows contain approver details
+                        if "Approver Name:" in detail_row[0]:
+                            approver_details["approverName"] = detail_row[1]
+                        elif "Approver TM ID:" in detail_row[0]:
+                            approver_details["TMID"] = detail_row[1]
+                        elif "Approval Title:" in detail_row[0]:
+                            approver_details["title"] = detail_row[1]
+                elif i == 3 and "Invoice #" in row[0]:  # Invoice headers
+                    headers = row
+                elif i > 3:  # Invoice data
+                    invoice_data["invoice#"].append(row[0])
+                    invoice_data["store"].append(row[1])
+                    invoice_data["dept"].append(row[2])
+                    invoice_data["account"].append(row[3])
+                    invoice_data["SL"].append(row[4])
+                    invoice_data["project"].append(row[5])
+                    invoice_data["activity"].append(row[6])
+                    invoice_data["GST"].append(row[7])
+                    invoice_data["invoicetotal"].append(row[8])
 
-    # Combine into final structured JSON
-    structured_output = {
-        "email_metadata": email_metadata,
-        "invoiceDetails": invoice_data,
-        "approverDetails": approver_details
-    }
+        # Combine into final structured JSON
+        structured_output = {
+            "email_metadata": email_metadata,
+            "invoiceDetails": invoice_data,
+            "approverDetails": approver_details
+        }
 
-    # Convert to JSON and print
-    final_json = json.dumps(structured_output, indent=4)
-    # print(final_json)
-    return final_json
+        # Convert to JSON and print
+        final_json = json.dumps(structured_output, indent=4)
+        # print(final_json)
+        return final_json
 
+    except Exception:
+        logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
+        # Combine into final structured JSON
+        structured_output = {
+            "email_metadata": {"Error"},
+            "invoiceDetails": {"Error"},
+            "approverDetails": {"Error"}
+        }
+        # Convert to JSON and print
+        final_json = json.dumps(structured_output, indent=4)
+        return final_json
+    
 def format_data_for_template3(parsed_data):
-    # Extract metadata
-    email_metadata = parsed_data["email_metadata"]
+    try:
+        # Extract metadata
+        email_metadata = parsed_data["email_metadata"]
 
-    # Extract table data
-    tables = parsed_data["tables_data"]
+        # Extract table data
+        tables = parsed_data["tables_data"]
 
-    # Initialize dictionaries
-    invoice_data = {
-        "store": [],
-        "dept": [],
-        "account": [],
-        "SL": [],
-        "project": [],
-        "activity": [],
-        "amount": []  # Changed to 'amount' as the column name is "Amount"
-    }
-    approver_details = {}
+        # Initialize dictionaries
+        invoice_data = {
+            "store": [],
+            "dept": [],
+            "account": [],
+            "SL": [],
+            "project": [],
+            "activity": [],
+            "amount": []  # Changed to 'amount' as the column name is "Amount"
+        }
+        approver_details = {}
 
-    # Process the table to differentiate cases
-    for table in tables:
-        for i, row in enumerate(table):
-            # Extract invoice number (from first row in new format)
-            if "Invoice #" in row[0]:
-                # invoice_number = row[1]  # Extract invoice number
-                # invoice_data["invoice#"] = invoice_number
-                invoice_data["invoice#"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+        # Process the table to differentiate cases
+        for table in tables:
+            for i, row in enumerate(table):
+                # Extract invoice number (from first row in new format)
+                if "Invoice #" in row[0]:
+                    # invoice_number = row[1]  # Extract invoice number
+                    # invoice_data["invoice#"] = invoice_number
+                    invoice_data["invoice#"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
 
-            # Extract GST and Grand Total
-            elif "GST:" in row[0]:
-                # invoice_data["GST"] = row[1]
-                invoice_data["GST"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+                # Extract GST and Grand Total
+                elif "GST:" in row[0]:
+                    # invoice_data["GST"] = row[1]
+                    invoice_data["GST"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
 
-            elif "Grand Total:" in row[0]:
-                # invoice_data["grandTotal"] = row[1]
-                invoice_data["invoicetotal"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+                elif "Grand Total:" in row[0]:
+                    # invoice_data["grandTotal"] = row[1]
+                    invoice_data["invoicetotal"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
 
 
-            # Extract approver details
-            elif "Approver Name:" in row[0]:
-                # approver_details["approverName"] = row[1]
-                approver_details["approverName"] = row[1] if len(row) > 1 else ""
+                # Extract approver details
+                elif "Approver Name:" in row[0]:
+                    # approver_details["approverName"] = row[1]
+                    approver_details["approverName"] = row[1] if len(row) > 1 else ""
 
-            elif "Approver TM ID:" in row[0]:
-                # approver_details["TMID"] = row[1]
-                approver_details["TMID"] = row[1] if len(row) > 1 else ""
+                elif "Approver TM ID:" in row[0]:
+                    # approver_details["TMID"] = row[1]
+                    approver_details["TMID"] = row[1] if len(row) > 1 else ""
 
-            elif "Approval Title:" in row[0]:
-                # approver_details["title"] = row[1]
-                approver_details["title"] = row[1] if len(row) > 1 else ""
+                elif "Approval Title:" in row[0]:
+                    # approver_details["title"] = row[1]
+                    approver_details["title"] = row[1] if len(row) > 1 else ""
 
-            # Check if header matches expected columns
-            elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Amount"]:
-                headers = row
-                for data_row in table[i + 1:]:
-                    # Stop processing if GST or Grand Total rows are reached
-                    if "GST:" in data_row[0] or "Grand Total:" in data_row[0]:
-                        break
+                # Check if header matches expected columns
+                elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Amount"]:
+                    headers = row
+                    for data_row in table[i + 1:]:
+                        # Stop processing if GST or Grand Total rows are reached
+                        if "GST:" in data_row[0] or "Grand Total:" in data_row[0]:
+                            break
 
-                    # # Map each column of data to the correct header
-                    # invoice_data["store"].append(data_row[0])
-                    # invoice_data["dept"].append(data_row[1])
-                    # invoice_data["account"].append(data_row[2])
-                    # invoice_data["SL"].append(data_row[3])
-                    # invoice_data["project"].append(data_row[4])
-                    # invoice_data["activity"].append(data_row[5])
-                    # invoice_data["amount"].append(data_row[6])  # Ensure 'Amount' remains
-                    
-                    # Map each column of data to the correct header
-                    invoice_data["store"].append(data_row[0] if len(data_row) > 0 else "")
-                    invoice_data["dept"].append(data_row[1] if len(data_row) > 1 else "")
-                    invoice_data["account"].append(data_row[2] if len(data_row) > 2 else "")
-                    invoice_data["SL"].append(data_row[3] if len(data_row) > 3 else "")
-                    invoice_data["project"].append(data_row[4] if len(data_row) > 4 else "")
-                    invoice_data["activity"].append(data_row[5] if len(data_row) > 5 else "")
-                    invoice_data["amount"].append(data_row[6] if len(data_row) > 6 else "")
+                        # # Map each column of data to the correct header
+                        # invoice_data["store"].append(data_row[0])
+                        # invoice_data["dept"].append(data_row[1])
+                        # invoice_data["account"].append(data_row[2])
+                        # invoice_data["SL"].append(data_row[3])
+                        # invoice_data["project"].append(data_row[4])
+                        # invoice_data["activity"].append(data_row[5])
+                        # invoice_data["amount"].append(data_row[6])  # Ensure 'Amount' remains
+                        
+                        # Map each column of data to the correct header
+                        invoice_data["store"].append(data_row[0] if len(data_row) > 0 else "")
+                        invoice_data["dept"].append(data_row[1] if len(data_row) > 1 else "")
+                        invoice_data["account"].append(data_row[2] if len(data_row) > 2 else "")
+                        invoice_data["SL"].append(data_row[3] if len(data_row) > 3 else "")
+                        invoice_data["project"].append(data_row[4] if len(data_row) > 4 else "")
+                        invoice_data["activity"].append(data_row[5] if len(data_row) > 5 else "")
+                        invoice_data["amount"].append(data_row[6] if len(data_row) > 6 else "")
 
-    # Combine into final structured JSON
-    structured_output = {
-        "email_metadata": email_metadata,
-        "invoiceDetails": invoice_data,
-        "approverDetails": approver_details
-    }
+        # Combine into final structured JSON
+        structured_output = {
+            "email_metadata": email_metadata,
+            "invoiceDetails": invoice_data,
+            "approverDetails": approver_details
+        }
 
-    # Convert to JSON and return
-    final_json = json.dumps(structured_output, indent=4)
-    return final_json
+        # Convert to JSON and return
+        final_json = json.dumps(structured_output, indent=4)
+        return final_json
+    
+    except Exception:
+        logger.info(f"Error while extracting coding details for template 3: {traceback.format_exc()}")
+        # Combine into final structured JSON
+        structured_output = {
+            "email_metadata": {"Error"},
+            "invoiceDetails": {"Error"},
+            "approverDetails": {"Error"}
+        }
+        # Convert to JSON and print
+        final_json = json.dumps(structured_output, indent=4)
+        return final_json
 
 def extract_content_from_msg_file(msg):
     email_metadata = {
@@ -341,43 +380,53 @@ def extract_content_from_msg_file(msg):
 
 
 def identify_template(parsed_data):
-    # Extract tables_data from parsed_data
-    tables_data = parsed_data.get("tables_data", [])
+    try:
+        
+        # Extract tables_data from parsed_data
+        tables_data = parsed_data.get("tables_data", [])
+        
+        # Define the headers for each template
+        template_1_header = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Subtotal']
+        template_2_header = ['Invoice #', 'Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'GST', 'Invoice Total']
+        template_3_header = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount']
+        
+        # Iterate through tables_data to check for headers
+        for table in tables_data:
+            for row in table:  # Check each row in the table
+                # print(row)
+                if row == template_1_header:
+                    return "Template 1"
+                elif row == template_2_header:
+                    return "Template 2"
+                elif row == template_3_header:
+                    return "Template 3"
+        
+        return "Unknown Template"
     
-    # Define the headers for each template
-    template_1_header = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Subtotal']
-    template_2_header = ['Invoice #', 'Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'GST', 'Invoice Total']
-    template_3_header = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount']
-    
-    # Iterate through tables_data to check for headers
-    for table in tables_data:
-        for row in table:  # Check each row in the table
-            # print(row)
-            if row == template_1_header:
-                return "Template 1"
-            elif row == template_2_header:
-                return "Template 2"
-            elif row == template_3_header:
-                return "Template 3"
-    
-    return "Unknown Template"
+    except Exception:
+        logger.info(f"Error while determining template type: {traceback.format_exc()}")
+        return "Unknown Template"
 
 
 def clean_parsed_data(parsed_data):
     """
     Recursively clean all occurrences of '$\xa0' from the parsed_data.
     """
-    if isinstance(parsed_data, dict):
-        # If the data is a dictionary, recursively clean each value
-        return {key: clean_parsed_data(value) for key, value in parsed_data.items()}
-    elif isinstance(parsed_data, list):
-        # If the data is a list, recursively clean each element
-        return [clean_parsed_data(item) for item in parsed_data]
-    elif isinstance(parsed_data, str):
-        # If the data is a string, replace '$\xa0' and any extra whitespace
-        return parsed_data.replace('$\xa0', '').strip()
-    else:
-        # If it's neither dict, list, nor string, return it as is
+    try:
+        if isinstance(parsed_data, dict):
+            # If the data is a dictionary, recursively clean each value
+            return {key: clean_parsed_data(value) for key, value in parsed_data.items()}
+        elif isinstance(parsed_data, list):
+            # If the data is a list, recursively clean each element
+            return [clean_parsed_data(item) for item in parsed_data]
+        elif isinstance(parsed_data, str):
+            # If the data is a string, replace '$\xa0' and any extra whitespace
+            return parsed_data.replace('$\xa0', '').strip()
+        else:
+            # If it's neither dict, list, nor string, return it as is
+            return parsed_data
+    except Exception as e:
+        logger.info(f"Error while cleaning parsed data: {traceback.format_exc()}")
         return parsed_data
 
 def has_extra_empty_strings(parsed_data):
@@ -417,35 +466,39 @@ def clean_tables_data(parsed_data):
 
 
 def extract_eml_to_html(blob_data):
-    # Parse the email message from binary blob data
-    msg = email.message_from_bytes(blob_data)
+    try:
+        # Parse the email message from binary blob data
+        msg = email.message_from_bytes(blob_data)
 
-    html_content = ""
-    for part in msg.walk():
-        if part.get_content_type() == "text/html":
-            charset = part.get_content_charset()  # Detect encoding
-            if charset is None:
-                charset = "utf-8"  # Fallback encoding
-            try:
-                html_content = part.get_payload(decode=True).decode(charset, errors="replace")
-            except UnicodeDecodeError:
-                html_content = part.get_payload(decode=True).decode("latin1")  # Fallback for Windows-1252
-        elif part.get_content_maintype() == "image":
-            # Handle image attachments
-            image_name = part.get_filename()
-            image_data = part.get_payload(decode=True)
+        html_content = ""
+        for part in msg.walk():
+            if part.get_content_type() == "text/html":
+                charset = part.get_content_charset()  # Detect encoding
+                if charset is None:
+                    charset = "utf-8"  # Fallback encoding
+                try:
+                    html_content = part.get_payload(decode=True).decode(charset, errors="replace")
+                except UnicodeDecodeError:
+                    html_content = part.get_payload(decode=True).decode("latin1")  # Fallback for Windows-1252
+            elif part.get_content_maintype() == "image":
+                # Handle image attachments
+                image_name = part.get_filename()
+                image_data = part.get_payload(decode=True)
 
-            # Encode image in Base64
-            if image_data:
-                image_base64 = base64.b64encode(image_data).decode('utf-8')
-                image_type = part.get_content_subtype()  # e.g., "jpeg", "png"
+                # Encode image in Base64
+                if image_data:
+                    image_base64 = base64.b64encode(image_data).decode('utf-8')
+                    image_type = part.get_content_subtype()  # e.g., "jpeg", "png"
 
-                # Replace cid: references in HTML with Base64 data URL
-                cid = part.get("Content-ID").strip("<>")
-                data_url = f"data:image/{image_type};base64,{image_base64}"
-                html_content = html_content.replace(f"cid:{cid}", data_url)
+                    # Replace cid: references in HTML with Base64 data URL
+                    cid = part.get("Content-ID").strip("<>")
+                    data_url = f"data:image/{image_type};base64,{image_base64}"
+                    html_content = html_content.replace(f"cid:{cid}", data_url)
 
-    return html_content
+        return html_content
+    
+    except Exception as e:
+        logger.info(f"Error while extracting HTML from email: {traceback.format_exc()}")
 
 def html_to_base64_image(html_content):
     
@@ -470,7 +523,7 @@ def html_to_base64_image(html_content):
         return encoded_image
     
     except Exception as e:
-        logger.error(f"An error occurred in wkhtmltoimage: {e}")
+        logger.error(f"An error occurred in wkhtmltoimage: {traceback.format_exc()}")
 
 
 def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_name):
@@ -486,7 +539,7 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_nam
         # Extract directory and base name from .eml file path
         eml_directory = os.path.dirname(eml_file_path)  # Directory path in the blob container
         eml_base_name = os.path.splitext(os.path.basename(eml_file_path))[0]  # File name without extension
-        blob_name = f"{eml_directory}/{eml_base_name}_output.pdf"  # PDF will be saved in the same directory
+        blob_name = f"{eml_directory}/{eml_base_name}.pdf"  # PDF will be saved in the same directory
 
         # Decode the base64 image data
         image_data = base64.b64decode(encoded_image)
@@ -537,7 +590,7 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path, container_nam
             )
 
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
+        logger.error(f"An error occurred converting image to pdf: {traceback.format_exc()}")
 
 
 def create_or_update_corp_metadata(u_id, v_id, metadata, db):
@@ -1437,8 +1490,8 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     data = {
                         "doc_id": corp_doc_id,
                         "updated_field": field,
-                        "old_value": old_value_str,  # Keep as original type
-                        "new_value": new_value_str,  # Keep as original type
+                        "old_value": old_value,  # Keep as original type
+                        "new_value": new_value,  # Keep as original type
                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         "user_id": user_id,
                         "is_active": 1
@@ -1470,7 +1523,7 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                 )
             except Exception as e:
                 print(f"Error updating document history: {str(e)}")
-
+            return {"result": "updated", "updated_data": data}
         # Commit the transaction
         db.commit()
     
@@ -1549,7 +1602,7 @@ async def read_corp_invoice_eml_file(inv_id, db):
         # Fetch invoice document record
         invdat = (
             db.query(model.corp_document_tab)
-            .options(load_only("invo_filepath", "email_filepath"))
+            .options(load_only("invo_filepath", "email_filepath","vendor_id"))
             .filter_by(corp_doc_id=inv_id)
             .one()
         )
@@ -1560,17 +1613,16 @@ async def read_corp_invoice_eml_file(inv_id, db):
                 return None, None
             try:
                 blob_client = blob_service_client.get_blob_client(container=container, blob=filepath)
+                # If the file size is within the limit, proceed to read and encode
+                filetype = os.path.splitext(invdat.docPath)[1].lower()
+                if filetype == ".png":
+                    content_type = "image/png"
+                elif filetype == ".jpg" or filetype == ".jpeg":
+                    content_type = "image/jpg"
+                else:
+                    content_type = "application/pdf"
                 file_data = blob_client.download_blob().readall()
-                encoded_data = base64.b64encode(file_data).decode("utf-8")  # Convert bytes to base64 string
-
-                # Determine content type
-                file_ext = os.path.splitext(filepath)[1].lower()
-                content_type = {
-                    ".png": "image/png",
-                    ".jpg": "image/jpg",
-                    ".jpeg": "image/jpg",
-                    ".pdf": "application/pdf"
-                }.get(file_ext, "application/octet-stream")
+                encoded_data = base64.b64encode(file_data)  # Convert bytes to base64 string
 
                 return encoded_data, content_type
             except Exception:
@@ -1578,11 +1630,18 @@ async def read_corp_invoice_eml_file(inv_id, db):
                 return None, None
 
         # Fetch and encode invoice file
-        inv_base64, inv_content_type = fetch_and_encode(invdat.invo_filepath)
-
-        # Fetch and encode email file
-        email_base64, email_content_type = fetch_and_encode(invdat.email_filepath)
-
+        if invdat.vendor_id:
+            try:
+                if invdat.invo_filepath:
+                    inv_base64, inv_content_type = fetch_and_encode(invdat.invo_filepath)
+            except Exception:
+                inv_base64 = ""
+            try:
+                if invdat.email_filepath:
+                    # Fetch and encode email file
+                    email_base64, email_content_type = fetch_and_encode(invdat.email_filepath)
+            except Exception:
+                email_base64 = ""
         return {
             "result": {
                 "invoice": {"filepath": inv_base64, "content_type": inv_content_type},
@@ -1608,7 +1667,10 @@ def processCorpInvoiceVoucher(doc_id, db):
         )
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
-
+        
+        # Initialize variables to avoid UnboundLocalError
+        # base64invoicefile = "Error retrieving invoice file."
+        # base64emailfile = "Error retrieving email file."
         # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_invoice_eml_file(doc_id, db)
@@ -1628,7 +1690,8 @@ def processCorpInvoiceVoucher(doc_id, db):
         except Exception as e:
             # Catch any error from the read_invoice_file
             # function and use the error message
-            base64file = f"Error retrieving file: {str(e)}"
+            base64invoicefile = f"Error retrieving invoice file: {traceback.format_exc()}"
+            base64emailfile = f"Error retrieving email file: {traceback.format_exc()}"
 
         # Continue processing the file
         # print(f"Filepath (Base64 Encoded or Error): {base64file}")
