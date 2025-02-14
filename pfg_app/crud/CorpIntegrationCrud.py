@@ -1001,7 +1001,8 @@ async def read_corp_invoice_file(u_id, inv_id, db):
                 blob_service_client = BlobServiceClient(
                     account_url=account_url, credential=get_credential()
                 )
-                container = settings.container_name
+                # container = settings.container_name
+                container = "apinvoice-mail-container"
                 # if invdat.vendor_id is None:
                 blob_client = blob_service_client.get_blob_client(
                     container=container, blob=invdat.invo_filepath
