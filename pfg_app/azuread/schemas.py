@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -9,3 +9,11 @@ class AzureUser(BaseModel):
     email: str
     preferred_username: str
     roles: List[str]
+    employeeId: Optional[str] = None
+# class AzureUser(BaseModel):
+#     oid: str
+#     # name: str
+#     # email: str
+#     preferred_username: str
+#     roles: List[str]
+#     employeeId: Optional[str]
