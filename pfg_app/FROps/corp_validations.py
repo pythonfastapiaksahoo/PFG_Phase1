@@ -91,6 +91,9 @@ def validate_corpdoc(doc_id,userID,db):
             line_sum = 0
             amt_threshold = 500000
             cod_invoTotal =  df_corp_coding['invoicetotal']
+            cod_gst = df_corp_coding['gst']
+            
+
             pdf_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
             lt = []
             for ln_amt in (list(df_corp_coding['coding_details'])[0]):
@@ -115,7 +118,9 @@ def validate_corpdoc(doc_id,userID,db):
                     # elif pdf_invoTotal >amt_threshold:
                     #     # need approval
                     #     print("need approval")
+                
                     else:
+                        
                         approver_title =list(df_corp_document['approver_title'])[0] 
                         if (('sr' in approver_title.lower()) or ('senior' in approver_title.lower())) or ('vp' in approver_title.lower()) or (('vice' in approver_title.lower()) and ('president' in approver_title.lower())):
                             approvrd_ck = 1

@@ -197,7 +197,7 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
             if decoded_token.get("aud") != settings.api_audience:
                 if "api://"+decoded_token.get("aud") != settings.api_audience:
                     raise InvalidAuthorization("Invalid audience")
-            
+                
             return decoded_token
 
         except JoseError as e:
