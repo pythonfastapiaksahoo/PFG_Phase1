@@ -1202,6 +1202,21 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             }
         try:
             if (documentModelID == 999999 and vdrAccID != 0):
+                
+                InvodocStatus = 26
+                invoSubstatus = 141
+                try:
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                            model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.debug(f"ErrorUpdatingPostingData: {err}")
                 model_count = (
                     db.query(model.DocumentModel)
                     .filter(model.DocumentModel.idVendorAccount == vdrAccID)
