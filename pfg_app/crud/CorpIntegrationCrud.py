@@ -967,7 +967,7 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
         return {"error": str(e), "total_items": 0}
     
     
-async def read_corp_invoice_file(u_id, inv_id, db):
+def read_corp_invoice_file(u_id, inv_id, db):
     """Function to read the invoice file and return its base64 encoded content
     along with the content type.
 
@@ -1575,87 +1575,6 @@ def corp_update_docHistory(documentID, userID, documentstatus, documentdesc, db,
         return {"DB error": "Error while inserting document history"}
     
     
-    
-async def read_corp_invoice_eml_file(inv_id, db):
-    """Function to read the invoice and email files, returning base64 encoded content
-    along with their content types.
-
-    Parameters:
-    ----------
-    u_id : int
-        User ID of the requester.
-    inv_id : int
-        Invoice ID for which the file is to be retrieved.
-    db : Session
-        Database session object used to interact with the backend database.
-
-    Returns:
-    -------
-    dict
-        A dictionary containing base64 encoded invoice and email file contents along 
-        with their respective content types.
-    """
-    try:
-        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
-        blob_service_client = BlobServiceClient(account_url=account_url, credential=get_credential())
-        container = settings.container_name
-
-        # Fetch invoice document record
-        invdat = (
-            db.query(model.corp_document_tab)
-            .options(load_only("invo_filepath", "email_filepath","vendor_id"))
-            .filter_by(corp_doc_id=inv_id)
-            .one()
-        )
-
-        def fetch_and_encode(filepath):
-            """Helper function to fetch and encode a file from Azure Blob Storage."""
-            if not filepath:
-                return None, None
-            try:
-                blob_client = blob_service_client.get_blob_client(container=container, blob=filepath)
-                # If the file size is within the limit, proceed to read and encode
-                filetype = os.path.splitext(invdat.docPath)[1].lower()
-                if filetype == ".png":
-                    content_type = "image/png"
-                elif filetype == ".jpg" or filetype == ".jpeg":
-                    content_type = "image/jpg"
-                else:
-                    content_type = "application/pdf"
-                file_data = blob_client.download_blob().readall()
-                encoded_data = base64.b64encode(file_data)  # Convert bytes to base64 string
-
-                return encoded_data, content_type
-            except Exception:
-                logger.error(f"Error processing file {filepath}: {traceback.format_exc()}")
-                return None, None
-
-        # Fetch and encode invoice file
-        if invdat.vendor_id:
-            try:
-                if invdat.invo_filepath:
-                    inv_base64, inv_content_type = fetch_and_encode(invdat.invo_filepath)
-            except Exception:
-                inv_base64 = ""
-            try:
-                if invdat.email_filepath:
-                    # Fetch and encode email file
-                    email_base64, email_content_type = fetch_and_encode(invdat.email_filepath)
-            except Exception:
-                email_base64 = ""
-        return {
-            "result": {
-                "invoice": {"filepath": inv_base64, "content_type": inv_content_type},
-                "email": {"filepath": email_base64, "content_type": email_content_type}
-            }
-        }
-
-    except Exception:
-        logger.error(traceback.format_exc())
-        return Response(status_code=500, headers={"codeError": "Server Error"})
-    finally:
-        db.close()
-
 
 # CRUD function to process the invoice voucher and send it to peoplesoft
 def processCorpInvoiceVoucher(doc_id, db):
@@ -1669,31 +1588,38 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
-        # Initialize variables to avoid UnboundLocalError
-        # base64invoicefile = "Error retrieving invoice file."
-        # base64emailfile = "Error retrieving email file."
         # Call the function to get the base64 file and content type
         try:
-            file_data = read_corp_invoice_eml_file(doc_id, db)
+            file_data = read_corp_invoice_file(1, doc_id, db)
             if file_data and "result" in file_data:
-                base64invoicefile = file_data["result"]["invoice"]["filepath"]
-                base64emailfile = file_data["result"]["email"]["filepath"]
-                
+                base64file = file_data["result"]["filepath"]
+
                 # If filepath is a bytes object, decode it
-                if isinstance(base64invoicefile, bytes):
-                    base64invoicefile = base64invoicefile.decode("utf-8")
-                # If filepath is a bytes object, decode it
-                if isinstance(base64emailfile, bytes):  
-                    base64emailfile = base64emailfile.decode("utf-8")
+                if isinstance(base64file, bytes):
+                    base64file = base64file.decode("utf-8")
             else:
-                base64invoicefile = "Error retrieving file: No result found in file data."
-                base64emailfile = "Error retrieving file: No result found in file data."
+                base64file = "Error retrieving file: No result found in file data."
         except Exception as e:
             # Catch any error from the read_invoice_file
             # function and use the error message
-            base64invoicefile = f"Error retrieving invoice file: {traceback.format_exc()}"
-            base64emailfile = f"Error retrieving email file: {traceback.format_exc()}"
+            base64file = f"Error retrieving file: {str(e)}"
 
+        # Call the function to get the base64 file and content type
+        try:
+            file_data = read_corp_email_pdf_file(1, doc_id, db)
+            if file_data and "result" in file_data:
+                base64eml = file_data["result"]["filepath"]
+
+                # If filepath is a bytes object, decode it
+                if isinstance(base64eml, bytes):
+                    base64eml = base64eml.decode("utf-8")
+            else:
+                base64eml = "Error retrieving file: No result found in file data."
+        except Exception as e:
+            # Catch any error from the read_invoice_file
+            # function and use the error message
+            base64eml = f"Error retrieving file: {str(e)}"
+            
         # Continue processing the file
         # print(f"Filepath (Base64 Encoded or Error): {base64file}")
         
@@ -1773,7 +1699,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
                                     "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH,
-                                    "base64file": base64invoicefile
+                                    "base64file": base64file
                                 },
                                 {
                                     "BUSINESS_UNIT": "NONPO",
@@ -1783,7 +1709,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
                                     "FILE_NAME": corpvoucherdata.EMAIL_PATH,
-                                    "base64file": base64emailfile
+                                    "base64file": str(base64eml)
                                 }
                             ]
                         }
@@ -1852,3 +1778,69 @@ def processCorpInvoiceVoucher(doc_id, db):
         # )
 
     return responsedata
+
+
+
+def read_corp_email_pdf_file(u_id, inv_id, db):
+    """Function to read the invoice file and return its base64 encoded content
+    along with the content type.
+
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    inv_id : int
+        Invoice ID for which the file is to be retrieved.
+    db : Session
+        Database session object used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the file path in base64 format and its content type.
+    """
+    try:
+        content_type = "application/pdf"
+        # getting invoice data for later operation
+        invdat = (
+            db.query(model.corp_document_tab)
+            .options(load_only("email_filepath"))
+            .filter_by(corp_doc_id=inv_id)
+            .one()
+        )
+        # check if file path is present and give base64 coded image url
+        if invdat.email_filepath:
+            try:
+                account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=get_credential()
+                )
+                # container = settings.container_name
+                container = "apinvoice-mail-container"
+                # if invdat.vendor_id is None:
+                blob_client = blob_service_client.get_blob_client(
+                    container=container, blob=invdat.email_filepath
+                )
+                # invdat.docPath = str(list(blob_client.download_blob().readall()))
+                try:
+                    filetype = os.path.splitext(invdat.email_filepath)[1].lower()
+                    if filetype == ".png":
+                        content_type = "image/png"
+                    elif filetype == ".jpg" or filetype == ".jpeg":
+                        content_type = "image/jpg"
+                    else:
+                        content_type = "application/pdf"
+                except Exception:
+                    print(f"Error in file type : {traceback.format_exc()}")
+                invdat.email_filepath = base64.b64encode(blob_client.download_blob().readall())
+            except Exception:
+                logger.error(traceback.format_exc())
+                invdat.email_filepath = ""
+
+        return {"result": {"filepath": invdat.email_filepath, "content_type": content_type}}
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500, headers={"codeError": "Server Error"})
+    finally:
+        db.close()
