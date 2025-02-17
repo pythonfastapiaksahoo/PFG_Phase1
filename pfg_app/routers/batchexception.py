@@ -49,7 +49,7 @@ async def pfgsyncflw(
 
 
 @router.get("/pfg/customCall/{inv_id}")
-async def pfgsyncflw(
+async def customCall(
     inv_id: int,
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
