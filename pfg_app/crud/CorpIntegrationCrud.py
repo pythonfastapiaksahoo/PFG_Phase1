@@ -1606,7 +1606,7 @@ def processCorpInvoiceVoucher(doc_id, db):
 
         # Call the function to get the base64 file and content type
         try:
-            file_data = read_corp_email_file(1, doc_id, db)
+            file_data = read_corp_email_pdf_file(1, doc_id, db)
             if file_data and "result" in file_data:
                 base64eml = file_data["result"]["filepath"]
 
@@ -1781,7 +1781,7 @@ def processCorpInvoiceVoucher(doc_id, db):
 
 
 
-def read_corp_email_file(u_id, inv_id, db):
+def read_corp_email_pdf_file(u_id, inv_id, db):
     """Function to read the invoice file and return its base64 encoded content
     along with the content type.
 
