@@ -1565,6 +1565,7 @@ class corp_document_tab(Base):
     updated_on = Column(DateTime, nullable=True)
     document_type = Column((String), nullable=True)
     sender = Column((String), nullable=True)
+    voucher_id = Column((String), nullable=True)
 
 class corp_coding_tab(Base):
     __tablename__ = "corp_coding_tab"

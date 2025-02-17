@@ -19,6 +19,8 @@ from sqlalchemy.orm import Load, load_only
 from datetime import datetime, timedelta
 from fastapi import Response
 from azure.storage.blob import BlobServiceClient
+
+from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 # def parse_eml(file_path):
 #     with open(file_path, 'rb') as file:
 #         msg = BytesParser(policy=policy.default).parse(file)
@@ -1844,3 +1846,151 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
         return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()
+        
+
+def updateCorpInvoiceStatus(u_id, doc_id, db):
+    try:
+        userID = u_id
+
+        # Fetch document with status ID 7 (Sent to Peoplesoft)
+        document = (
+            db.query(model.corp_document_tab)
+            .filter(
+                model.corp_document_tab.corp_doc_id == doc_id,
+            )
+            .first()
+        )
+
+        if not document:
+            logger.error(f"Document with ID {doc_id} not found.")
+            
+
+        # Fetch associated voucher data
+        voucher_data = (
+            db.query(model.CorpVoucherData)
+            .filter(model.CorpVoucherData.DOCUMENT_ID == doc_id)
+            .first()
+        )
+
+        if not voucher_data:
+            logger.error(f"Voucher data for document ID {doc_id} not found.")
+
+        # API credentials
+        api_url = settings.erp_invoice_status_endpoint
+        username, password = settings.erp_user, settings.erp_password
+        auth = (username, password)
+        headers = {"Content-Type": "application/json"}
+        
+        # Prepare the payload for the API request
+        invoice_status_payload = {
+            "RequestBody": {
+                "INV_STAT_RQST": {
+                    "BUSINESS_UNIT": "MERCH",
+                    "INVOICE_ID": voucher_data.Invoice_Id,
+                    "INVOICE_DT": voucher_data.Invoice_Dt,
+                    "VENDOR_SETID": voucher_data.Vendor_Setid,
+                    "VENDOR_ID": voucher_data.Vendor_ID,
+                }
+            }
+        }
+
+        try:
+            # Make a POST request to the external API
+            response = requests.post(
+                api_url,
+                json=invoice_status_payload,
+                headers=headers,
+                auth=auth,
+                timeout=60,  # Set a timeout of 60 seconds
+            )
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            logger.info(response.json())
+
+            # Process the response if the status code is 200
+            if response.status_code == 200:
+                invoice_data = response.json()
+                entry_status = invoice_data.get("ENTRY_STATUS")
+                voucher_id = invoice_data.get("VOUCHER_ID")
+
+                # Determine the new document status based on ENTRY_STATUS
+                documentstatusid = None
+                docsubstatusid = None
+                dmsg = None
+                if entry_status == "STG":
+                    documentstatusid = 7
+                    docsubstatusid = 43
+                    dmsg = InvoiceVoucherSchema.SUCCESS_STAGED
+                elif entry_status == "QCK":
+                    documentstatusid = 14
+                    docsubstatusid = 114
+                    dmsg = InvoiceVoucherSchema.QUICK_INVOICE
+                elif entry_status == "R":
+                    documentstatusid = 14
+                    docsubstatusid = 115
+                    dmsg = InvoiceVoucherSchema.RECYCLED_INVOICE
+                elif entry_status == "P":
+                    documentstatusid = 14
+                    docsubstatusid = 116
+                    dmsg = InvoiceVoucherSchema.VOUCHER_CREATED
+                elif entry_status == "NF":
+                    documentstatusid = 14
+                    docsubstatusid = 117
+                    dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
+                elif entry_status == "X":
+                    documentstatusid = 14
+                    docsubstatusid = 119
+                    dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
+                elif entry_status == "S":
+                    documentstatusid = 14
+                    docsubstatusid = 120
+                    dmsg = InvoiceVoucherSchema.VOUCHER_SCHEDULED
+                elif entry_status == "C":
+                    documentstatusid = 14
+                    docsubstatusid = 121
+                    dmsg = InvoiceVoucherSchema.VOUCHER_COMPLETED
+                elif entry_status == "D":
+                    documentstatusid = 14
+                    docsubstatusid = 122
+                    dmsg = InvoiceVoucherSchema.VOUCHER_DEFAULTED
+                elif entry_status == "E":
+                    documentstatusid = 14
+                    docsubstatusid = 123
+                    dmsg = InvoiceVoucherSchema.VOUCHER_EDITED
+                elif entry_status == "L":
+                    documentstatusid = 14
+                    docsubstatusid = 124
+                    dmsg = InvoiceVoucherSchema.VOUCHER_REVIEWED
+                elif entry_status == "M":
+                    documentstatusid = 14
+                    docsubstatusid = 125
+                    dmsg = InvoiceVoucherSchema.VOUCHER_MODIFIED
+                elif entry_status == "O":
+                    documentstatusid = 14
+                    docsubstatusid = 126
+                    dmsg = InvoiceVoucherSchema.VOUCHER_OPEN
+                elif entry_status == "T":
+                    documentstatusid = 14
+                    docsubstatusid = 127
+                    dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
+
+                # Update document status and commit the change if valid
+                if documentstatusid:
+                    document.documentstatus = documentstatusid
+                    document.documentsubstatus = docsubstatusid
+                    document.voucher_id = voucher_id
+                    db.commit()
+
+                    # Update document history
+                    corp_update_docHistory(doc_id, userID, documentstatusid,  dmsg, db, docsubstatusid)
+
+                return {
+                    "response": response.json(),
+                    "status": dmsg,
+                    "message": "Invoice status updated successfully",
+                }
+        except Exception as e:
+            logger.error(f"Error for doc_id {doc_id}: {str(e)}")
+            
+
+    except Exception as e:
+        logger.error(f"Error: {traceback.format_exc()}")
