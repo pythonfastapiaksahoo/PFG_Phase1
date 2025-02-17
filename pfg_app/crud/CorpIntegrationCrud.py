@@ -1885,11 +1885,11 @@ def updateCorpInvoiceStatus(u_id, doc_id, db):
         invoice_status_payload = {
             "RequestBody": {
                 "INV_STAT_RQST": {
-                    "BUSINESS_UNIT": "MERCH",
-                    "INVOICE_ID": voucher_data.Invoice_Id,
-                    "INVOICE_DT": voucher_data.Invoice_Dt,
-                    "VENDOR_SETID": voucher_data.Vendor_Setid,
-                    "VENDOR_ID": voucher_data.Vendor_ID,
+                    "BUSINESS_UNIT": "NONPO",
+                    "INVOICE_ID": voucher_data.INVOICE_ID,
+                    "INVOICE_DT": voucher_data.INVOICE_DT,
+                    "VENDOR_SETID": voucher_data.VENDOR_SETID,
+                    "VENDOR_ID": voucher_data.VENDOR_ID,
                 }
             }
         }
