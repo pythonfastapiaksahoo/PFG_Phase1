@@ -108,20 +108,23 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
-        # # Create subquery for latest history logs
-        # latest_history_log = (
+        # # previous subquery 
+        # sub_query_desc = (
         #     db.query(
-        #         model.DocumentHistoryLogs.documentID,
-        #         func.max(model.DocumentHistoryLogs.CreatedOn).label("latest_created_on"),
-        #     )
+        #     func.max(model.DocumentHistoryLogs.iddocumenthistorylog))
         #     .group_by(model.DocumentHistoryLogs.documentID)
         #     .subquery()
         # )
         
+        # new subquery to increase the loading time
         sub_query_desc = (
             db.query(
-            func.max(model.DocumentHistoryLogs.iddocumenthistorylog))
-            .group_by(model.DocumentHistoryLogs.documentID)
+                model.DocumentHistoryLogs.documentID,
+                model.DocumentHistoryLogs.iddocumenthistorylog,
+                model.DocumentHistoryLogs.userID
+            )
+            .distinct(model.DocumentHistoryLogs.documentID)
+            .order_by(model.DocumentHistoryLogs.documentID, model.DocumentHistoryLogs.iddocumenthistorylog.desc())
             .subquery()
         )
 
@@ -179,34 +182,34 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 == model.Document.documentStatusID,
                 isouter=True,
             )
-            # .join(
-            #     latest_history_log,
-            #     latest_history_log.c.documentID == model.Document.idDocument,
-            #     isouter=True,
-            # )
             .join(
-                model.DocumentHistoryLogs,
-                and_(
-                    model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-                    # model.DocumentHistoryLogs.CreatedOn == latest_history_log.c.latest_created_on,
-                    model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
-                ),
+                sub_query_desc,
+                sub_query_desc.c.documentID == model.Document.idDocument,
                 isouter=True,
             )
+            # # previous query
             # .join(
             #     model.DocumentHistoryLogs,
-            #     model.DocumentHistoryLogs.documentID == model.Document.idDocument,
+            #     and_(
+            #         model.DocumentHistoryLogs.documentID == model.Document.idDocument,
+            #         # model.DocumentHistoryLogs.CreatedOn == latest_history_log.c.latest_created_on,
+            #         model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
+            #     ),
+            #     isouter=True,
+            # )
+            # .join(
+            #     model.User,
+            #     model.User.idUser == model.DocumentHistoryLogs.userID,
             #     isouter=True,
             # )
             .join(
                 model.User,
-                model.User.idUser == model.DocumentHistoryLogs.userID,
+                model.User.idUser == sub_query_desc.c.userID,
                 isouter=True,
             )
             .filter(
                 model.Document.idDocumentType == 3,
                 model.Document.vendorAccountID.isnot(None),
-                # model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
             )
         )
 
