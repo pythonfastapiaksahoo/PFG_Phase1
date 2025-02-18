@@ -611,14 +611,14 @@ def customModelCall(docID,userID,db):
             #         )
             #     )
 
-            if "GST" not in existing_tag_labels:
-                missing_tags.append(
-                    model.DocumentTagDef(
-                        idDocumentModel=InvoModelId,
-                        TagLabel="GST",
-                        CreatedOn=func.now(),
-                    )
-                )
+            # if "GST" not in existing_tag_labels:
+            #     missing_tags.append(
+            #         model.DocumentTagDef(
+            #             idDocumentModel=InvoModelId,
+            #             TagLabel="GST",
+            #             CreatedOn=func.now(),
+            #         )
+            #     )
 
             # Add missing tags if any
             if missing_tags:
