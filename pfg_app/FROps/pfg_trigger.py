@@ -2746,6 +2746,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                     {
                                                         model.Document.documentStatusID: docStatus,  # noqa: E501
                                                         model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                                        model.Document.retry_count: model.Document.retry_count + 1 if docStatus == 21 else model.Document.retry_count, # noqa: E501
                                                     }
                                                 )
                                                 db.commit()
@@ -2782,6 +2783,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 {
                                                     model.Document.documentStatusID: docStatus,  # noqa: E501
                                                     model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                                    model.Document.retry_count: model.Document.retry_count + 1 if docStatus == 21 else model.Document.retry_count, # noqa: E501
                                                 }
                                             )
                                             db.commit()

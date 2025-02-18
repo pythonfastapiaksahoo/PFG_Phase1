@@ -138,6 +138,7 @@ class Document(Base):
     dept = Column(TEXT, nullable=True)
     voucher_id = Column(String, nullable=True)
     mail_row_key = Column(String, nullable=True)
+    retry_count = Column(Integer, nullable=True)
     # __mapper_args__ = {"eager_defaults": True}
 
 
