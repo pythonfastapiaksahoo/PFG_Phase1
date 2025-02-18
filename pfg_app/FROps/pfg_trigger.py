@@ -906,62 +906,114 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
     #-------------
     try:
-        missing_val = []
+        # missing_val = []
 
-        if "GST" in docHdrDt:
-            gst_found = 1
-        else:
-            missing_val.append("GST")
-            gst_found = 0
-        if "Credit Identifier" in docHdrDt:
-            credit_found = 1
-        else:
-            missing_val.append("Credit Identifier")
-            credit_found = 0
-        if missing_val:
-            existing_tags = (
-                db.query(model.DocumentTagDef.TagLabel)
-                .filter(
-                    model.DocumentTagDef.idDocumentModel == documentModelID,
-                    model.DocumentTagDef.TagLabel.in_(
-                        ["Credit Identifier"]
-                    ),
+        # if "GST" in docHdrDt:
+        #     gst_found = 1
+        # else:
+        #     missing_val.append("GST")
+        #     gst_found = 0
+        # if "Credit Identifier" in docHdrDt:
+        #     credit_found = 1
+        # else:
+        #     missing_val.append("Credit Identifier")
+        #     credit_found = 0
+        # if missing_val:
+        #     existing_tags = (
+        #         db.query(model.DocumentTagDef.TagLabel)
+        #         .filter(
+        #             model.DocumentTagDef.idDocumentModel == documentModelID,
+        #             model.DocumentTagDef.TagLabel.in_(
+        #                 ["Credit Identifier"]
+        #             ),
+        #         )
+        #         .all()
+        #     )
+
+        #     # Extract existing tag labels from the result
+        #     existing_tag_labels = {tag.TagLabel for tag in existing_tags}
+
+        #     # Prepare missing tags
+        #     missing_tags = []
+        #     if "Credit Identifier" not in existing_tag_labels:
+        #         missing_tags.append(
+        #             model.DocumentTagDef(
+        #                 idDocumentModel=documentModelID,
+        #                 TagLabel="Credit Identifier",
+        #                 CreatedOn=func.now(),
+        #             )
+        #         )
+
+        #     if "GST" not in existing_tag_labels:
+        #         missing_tags.append(
+        #             model.DocumentTagDef(
+        #                 idDocumentModel=documentModelID,
+        #                 TagLabel="GST",
+        #                 CreatedOn=func.now(),
+        #             )
+        #         )
+
+        #     if missing_tags:
+        #         # db.add_all(missing_tags)
+        #         # db.commit()
+        #         logger.info("Missing Tags Inserted")
+        # custHdrDt_insert_missing=[]
+        # documenttagdef = (
+        #     db.query(model.DocumentTagDef)
+        #     .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
+        #     .all()
+        # )
+        
+        try:
+            missing_val = []
+
+            # Check if "GST" and "Credit Identifier" exist in docHdrDt
+            gst_found = int("GST" in docHdrDt)
+            credit_found = int("Credit Identifier" in docHdrDt)
+
+            if not gst_found:
+                missing_val.append("GST")
+            if not credit_found:
+                missing_val.append("Credit Identifier")
+
+            if missing_val:
+                # Fetch existing tag labels correctly
+                existing_tags = (
+                    db.query(model.DocumentTagDef.TagLabel)
+                    .filter(
+                        model.DocumentTagDef.idDocumentModel == documentModelID,
+                        model.DocumentTagDef.TagLabel.in_(missing_val),  # Check only missing ones
+                    )
+                    .all()
                 )
+
+                # Convert existing tags to a set for quick lookup
+                existing_tag_labels = {tag[0] for tag in existing_tags}  # Fetch as tuples, take first value
+
+                # Prepare only truly missing tags
+                missing_tags = [
+                    model.DocumentTagDef(
+                        idDocumentModel=documentModelID,
+                        TagLabel=tag,
+                        CreatedOn=func.now(),
+                    )
+                    for tag in missing_val if tag not in existing_tag_labels  # Avoid inserting duplicates
+                ]
+
+                # Insert missing tags only if required
+                if missing_tags:
+                    db.add_all(missing_tags)
+                    db.commit()
+
+            # Fetch all tags for the document
+            documenttagdef = (
+                db.query(model.DocumentTagDef)
+                .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
                 .all()
             )
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")
 
-            # Extract existing tag labels from the result
-            existing_tag_labels = {tag.TagLabel for tag in existing_tags}
-
-            # Prepare missing tags
-            missing_tags = []
-            if "Credit Identifier" not in existing_tag_labels:
-                missing_tags.append(
-                    model.DocumentTagDef(
-                        idDocumentModel=documentModelID,
-                        TagLabel="Credit Identifier",
-                        CreatedOn=func.now(),
-                    )
-                )
-
-            if "GST" not in existing_tag_labels:
-                missing_tags.append(
-                    model.DocumentTagDef(
-                        idDocumentModel=documentModelID,
-                        TagLabel="GST",
-                        CreatedOn=func.now(),
-                    )
-                )
-
-            if missing_tags:
-                db.add_all(missing_tags)
-                db.commit()
-        custHdrDt_insert_missing=[]
-        documenttagdef = (
-            db.query(model.DocumentTagDef)
-            .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
-            .all()
-        )
 
         hdr_tags = {}
         for hdrTags in documenttagdef:
