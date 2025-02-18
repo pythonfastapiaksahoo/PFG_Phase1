@@ -593,14 +593,14 @@ def customModelCall(docID,userID,db):
 
             # Prepare missing tags
             missing_tags = []
-            if "Credit Identifier" not in existing_tag_labels:
-                missing_tags.append(
-                    model.DocumentTagDef(
-                        idDocumentModel=InvoModelId,
-                        TagLabel="Credit Identifier",
-                        CreatedOn=func.now(),
-                    )
-                )
+            # if "Credit Identifier" not in existing_tag_labels:
+            #     missing_tags.append(
+            #         model.DocumentTagDef(
+            #             idDocumentModel=InvoModelId,
+            #             TagLabel="Credit Identifier",
+            #             CreatedOn=func.now(),
+            #         )
+            #     )
 
             # if "SubTotal" not in existing_tag_labels:
             #     missing_tags.append(
