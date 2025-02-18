@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 import requests
 from pfg_app import settings
 from pfg_app import model
+from pfg_app.core.openai_data import extract_invoice_details_using_openai
 from pfg_app.core.utils import get_credential, upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger
@@ -2071,3 +2072,64 @@ async def read_corp_doc_history(inv_id, download, db):
     finally:
         # Ensure that the database session is closed after execution
         db.close()
+        
+
+def uploadMissingFile(inv_id, file, db):
+    try:
+        # Fetch invoice data
+        invdat = (
+            db.query(model.corp_document_tab)
+            .options(load_only("invo_filepath"))
+            .filter_by(corp_doc_id=inv_id)
+            .one()
+        )
+        
+        inv_filepath = invdat.invo_filepath
+        if not inv_filepath:
+            raise ValueError("Invalid invoice file path")
+        
+        # Extract directory path
+        dir_path = os.path.dirname(inv_filepath)
+        
+        # Define container and blob names
+        container_name = "apinvoice-mail-container"  # Replace with actual container
+        blob_name = f"{dir_path}/{file.filename}"
+        
+        # Read file bytes
+        pdf_bytes_io = BytesIO(file.read())
+        
+        # Upload the PDF using the secure upload function
+        upload_blob_securely(
+            container_name=container_name,
+            blob_path=blob_name,
+            data=pdf_bytes_io.getvalue(),
+            content_type="application/pdf"
+        )
+        
+        return {"message": "File uploaded successfully", "blob_path": blob_name}
+    
+    except Exception as e:
+        logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
+        
+        
+# def processInvoiceFile(file_data,sender, mail_row_key):
+#     try:
+#         new_trigger = model.corp_trigger_tab(
+#                     corp_queue_id=queue_task.id,
+#                     blobpath=pdf_blob_path,
+#                     status="Blob Error",
+#                     sender = sender,
+#                     created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#                     mail_row_key=mail_row_key
+#                 )
+#                 db.add(new_trigger)
+#                 db.commit()
+#                 db.refresh(new_trigger)
+#         print(f"Processing {file_data.filename} for OpenAI...")
+#         invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(file_data)
+#         # Update corp_trigger_tab record upon successful processing
+#         new_trigger.pagecount = total_pages
+#         new_trigger.filesize = file_size_mb
+#         new_trigger.status = "OpenAI Details Extracted"
+#         new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+#         db.commit()
