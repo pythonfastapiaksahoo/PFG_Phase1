@@ -1,3 +1,4 @@
+from datetime import datetime
 import traceback
 import uuid
 
@@ -8,10 +9,11 @@ from azure.storage.blob import BlobServiceClient
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from starlette.status import HTTP_201_CREATED
 
-from pfg_app import scheduler, scheduler_container_client, settings
+from pfg_app import model, scheduler, scheduler_container_client, settings
 from pfg_app.azuread.auth import get_admin_user
 
 # from pfg_app.core import azure_fr as core_fr
+from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.utils import get_blob_securely, get_credential
 from pfg_app.crud.commonCrud import (
     acquire_lock,
@@ -24,6 +26,7 @@ from pfg_app.crud.ERPIntegrationCrud import (
     newbulkupdateInvoiceStatus,
 )
 from pfg_app.logger_module import logger
+from pfg_app.session.session import get_db
 
 router = APIRouter(
     prefix="/apiv1.1/Common",
@@ -207,8 +210,13 @@ async def run_job(background_tasks: BackgroundTasks, job_name: str):
 
 
 @router.post("/update-schedule")
-async def update_schedule(minutes: int, job_name: str):
+async def update_schedule(
+    minutes: int,
+    job_name: str,
+    user: AzureUser = Depends(get_admin_user)
+    ):
     """Endpoint to update the recurring job interval dynamically."""
+    db = next(get_db())
     if minutes < 5:
         logger.info(f"Updating job schedule to every {minutes} minutes")
         return HTTPException(
@@ -228,6 +236,40 @@ async def update_schedule(minutes: int, job_name: str):
         finally:
             if "lease" in locals():
                 lease.break_lease()
+        # Fetching the first name of the user performing the rejection
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == user.idUser).scalar()
+        )
+        # Fetch the currently active job
+        active_task = (
+            db.query(model.TaskSchedular)
+            .filter(
+                model.TaskSchedular.task_name == "bulk_update_invoice_status",
+                model.TaskSchedular.is_active == 1
+            )
+            .first()
+        )
+
+        # If an active task exists with the same interval, return early
+        if active_task and active_task.time_interval == minutes:
+            return {"message": f"Job schedule already set to every {minutes} minutes"}
+
+        # Deactivate all previous entries for this job
+        db.query(model.TaskSchedular).filter_by(
+            task_name="bulk_update_invoice_status", is_active=1
+        ).update({"is_active": 0})
+
+        # Create a new active task
+        new_task = model.TaskSchedular(
+            task_name="bulk_update_invoice_status",
+            time_interval=minutes,
+            is_active=1,
+            user_id=user.idUser,
+            updated_at=datetime.utcnow(),
+            updated_by=first_name,
+        )
+        db.add(new_task)
+        db.commit()  # Commit all changes
         scheduler.reschedule_job(
             "bulk_update_invoice_status", trigger=IntervalTrigger(minutes=minutes)
         )
@@ -246,6 +288,40 @@ async def update_schedule(minutes: int, job_name: str):
         finally:
             if "lease" in locals():
                 lease.break_lease()
+        # Fetching the first name of the user performing the rejection
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == user.idUser).scalar()
+        )
+        # Fetch the currently active job
+        active_task = (
+            db.query(model.TaskSchedular)
+            .filter(
+                model.TaskSchedular.task_name == "bulk_update_invoice_creation",
+                model.TaskSchedular.is_active == 1
+            )
+            .first()
+        )
+
+        # If an active task exists with the same interval, return early
+        if active_task and active_task.time_interval == minutes:
+            return {"message": f"Job schedule already set to every {minutes} minutes"}
+
+        # Deactivate all previous entries for this job
+        db.query(model.TaskSchedular).filter_by(
+            task_name="bulk_update_invoice_creation", is_active=1
+        ).update({"is_active": 0})
+
+        # Create a new active tas
+        new_task = model.TaskSchedular(
+            task_name="bulk_update_invoice_creation",
+            time_interval=minutes,
+            is_active=1,
+            user_id=user.idUser,
+            updated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            updated_by=first_name,
+        )
+        db.add(new_task)
+        db.commit()  # Commit all changes
         scheduler.reschedule_job(
             "bulk_update_invoice_creation", trigger=IntervalTrigger(minutes=minutes)
         )

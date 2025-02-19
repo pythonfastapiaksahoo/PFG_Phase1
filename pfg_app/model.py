@@ -1738,4 +1738,17 @@ class CorpVoucherData(Base):
     SHIPTO_ID = Column(String(10), nullable=True)
     INVOICE_FILE_PATH = Column(String, nullable=True)
     EMAIL_PATH = Column(String, nullable=True)
+
+
+class TaskSchedular(Base): 
+    __tablename__ = "task_schedular" 
+
+    schedular_id = Column(Integer, primary_key=True, autoincrement=True) 
+    task_name = Column(String, nullable=True )
+    time_interval = Column(Integer, nullable=True )
+    user_id = Column(Integer, nullable=True) 
+    is_active = Column(Integer, nullable=True) 
+    updated_at= Column(DateTime, nullable=True) 
+    updated_by = Column(String, nullable=True)
+    
     

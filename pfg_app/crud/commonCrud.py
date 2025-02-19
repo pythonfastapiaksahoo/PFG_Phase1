@@ -7,12 +7,13 @@ from apscheduler.triggers.interval import IntervalTrigger
 from azure.ai.formrecognizer import DocumentModelAdministrationClient
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
-from pfg_app import scheduler, settings
+from pfg_app import model, scheduler, settings
 from pfg_app.crud.ERPIntegrationCrud import (
     bulkProcessVoucherData,
     newbulkupdateInvoiceStatus,
 )
 from pfg_app.logger_module import logger
+from pfg_app.session.session import get_db
 
 
 def acquire_lock(container_client, LOCK_BLOB_NAME):
@@ -312,10 +313,14 @@ def copy_models_in_background(
 
 def schedule_bulk_update_invoice_status_job():
     """Schedule a recurring job with a locking mechanism."""
-    if not scheduler.get_job("bulk_update_invoice_status"):
+    db = next(get_db())
+    active_task = db.query(model.TaskSchedular).filter_by(
+        task_name="bulk_update_invoice_status", is_active=1
+    ).scalar()
+    if active_task:
         scheduler.add_job(
             newbulkupdateInvoiceStatus,
-            trigger=IntervalTrigger(minutes=5),
+            trigger=IntervalTrigger(minutes=active_task.time_interval),
             id="bulk_update_invoice_status",
             replace_existing=True,
         )
@@ -324,10 +329,14 @@ def schedule_bulk_update_invoice_status_job():
 
 def schedule_bulk_update_invoice_creation_job():
     """Schedule a recurring job with a locking mechanism."""
-    if not scheduler.get_job("bulk_update_invoice_creation"):
+    db = next(get_db())
+    active_task = db.query(model.TaskSchedular).filter_by(
+        task_name="bulk_update_invoice_creation", is_active=1
+    ).scalar()
+    if active_task:
         scheduler.add_job(
             bulkProcessVoucherData,
-            trigger=IntervalTrigger(minutes=5),
+            trigger=IntervalTrigger(minutes=active_task.time_interval),
             id="bulk_update_invoice_creation",
             replace_existing=True,
         )
