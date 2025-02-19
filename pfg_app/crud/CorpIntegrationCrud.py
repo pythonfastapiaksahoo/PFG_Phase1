@@ -16,7 +16,7 @@ from pfg_app.core.openai_data import extract_invoice_details_using_openai
 from pfg_app.core.utils import get_credential, upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
 from pfg_app.logger_module import logger, set_operation_id
-from sqlalchemy import and_, case, func, or_, desc, text
+from sqlalchemy import String, case, func, or_, and_, desc, text, distinct
 from sqlalchemy.orm import Load, load_only
 from datetime import datetime, timedelta
 from fastapi import Response
@@ -1124,7 +1124,9 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "invoicetotal",
                     "gst",
                     "approval_status",
-                    "sender_name"
+                    "sender_name",
+                    "approved_on",
+                    "approval_status",
                 )
             )
         )
@@ -2373,3 +2375,505 @@ def uploadMissingFile(inv_id, file, db):
 #         db.commit()
 #     except Exception:
 #         logger.error(f"{traceback.format_exc()}")
+
+
+
+async def read_corp_paginate_doc_inv_list(
+    u_id,
+    ven_id,
+    stat,
+    off_limit,
+    db,
+    uni_api_filter,
+    ven_status,
+    date_range,
+    sort_column,
+    sort_order,
+):
+    """Function to read the paginated document invoice list.
+
+    Parameters:
+    ----------
+    ven_id : int
+        The ID of the vendor to filter the invoice documents.
+    inv_type : str
+        The type of invoice to filter the results.
+    stat : Optional[str]
+        The status of the invoice for filtering purposes.
+    off_limit : tuple
+        A tuple containing offset and limit for pagination.
+    db : Session
+        Database session object used to interact with the backend database.
+    uni_api_filter : Optional[str]
+        A universal filter for API queries.
+    ven_status : Optional[str]
+        Status of the vendor to filter the results.
+
+    Returns:
+    -------
+    list
+        A list containing the filtered document invoice data.
+    """
+    try:
+        # Mapping document statuses to IDs
+        all_status = {
+            "posted": 14,
+            "rejected": 10,
+            "exception": 4,
+            "VendorNotOnboarded": 25,
+            "VendorUnidentified": 26,
+            "Duplicate Invoice": 32,
+        }
+
+        # new subquery to increase the loading time
+        sub_query_desc = (
+            db.query(
+                model.corp_hist_logs.document_id,
+                model.corp_hist_logs.histlog_id,
+                model.corp_hist_logs.user_id
+            )
+            .distinct(model.corp_hist_logs.document_id)
+            .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
+            .subquery()
+        )
+
+        # Initial query setup for fetching document, status, and related entities
+        data_query = (
+            db.query(
+                model.corp_document_tab,
+                model.DocumentStatus,
+                model.DocumentSubStatus,
+                # model.Vendor,
+                model.corp_docdata,
+                model.User.firstName.label("last_updated_by"),
+            )
+            .options(
+                Load(model.corp_document_tab).load_only(
+                    "invoice_id",
+                    "invoicetotal",
+                    "documentstatus",
+                    "updated_on",
+                    "documentsubstatus",
+                    "sender",
+                    "document_type",
+                    "invoice_date",
+                    "voucher_id",
+                    "mail_row_key",
+                    "vendor_code"
+                ),
+                Load(model.DocumentSubStatus).load_only("status"),
+                Load(model.DocumentStatus).load_only("status", "description"),
+                Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
+                # Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
+                
+            )
+            .join(
+                model.DocumentSubStatus,
+                model.DocumentSubStatus.idDocumentSubstatus
+                == model.corp_document_tab.documentsubstatus,
+                isouter=True,
+            )
+            # .join(
+            #     model.Vendor,
+            #     model.Vendor.idVendor == model.corp_document_tab.vendor_id,
+            #     isouter=True,
+            # )
+            .join(
+                model.DocumentStatus,
+                model.DocumentStatus.idDocumentstatus
+                == model.corp_document_tab.documentstatus,
+                isouter=True,
+            )
+            .join(
+                model.corp_docdata,
+                model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
+                isouter=True,
+            )
+            .join(
+                sub_query_desc,
+                sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
+                isouter=True,
+            )
+            .join(
+                model.User,
+                model.User.idUser == sub_query_desc.c.user_id,
+                isouter=True,
+            )
+            # .filter(
+            #     model.corp_document_tab.vendor_id.isnot(None),
+            # )
+        )
+
+        # Apply vendor ID filter if provided
+        if ven_id:
+            sub_query = db.query(model.Vendor.idVendor).filter_by(
+                idVendor=ven_id
+            )
+            data_query = data_query.filter(
+                model.corp_document_tab.vendor_id.in_(sub_query)
+            )
+
+        status_list = []
+        if stat:
+            # Split the status string by ':' to get a list of statuses
+            status_list = stat.split(":")
+
+            # Map status names to IDs
+            status_ids = [all_status[s] for s in status_list if s in all_status]
+            if status_ids:
+                data_query = data_query.filter(
+                    model.corp_document_tab.documentstatus.in_(status_ids)
+                )
+        # Apply vendor status filter if provided
+        if ven_status:
+            if ven_status == "A":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "A"
+                )
+            elif ven_status == "I":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "I"
+                )
+
+        # Apply date range filter for documentDate
+        if date_range:
+            frdate, todate = date_range.lower().split("to")
+            frdate = datetime.strptime(frdate.strip(), "%Y-%m-%d")
+            
+            todate = datetime.strptime(todate, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
+            # Apply the filter
+            data_query = data_query.filter(
+                model.corp_document_tab.created_on.between(frdate, todate)
+            )
+
+        # Function to normalize strings by removing non-alphanumeric
+        # characters and converting to lowercase
+        def normalize_string(input_str):
+            return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
+        # Apply universal API filter if provided, including line items
+        if uni_api_filter:
+            uni_search_param_list = uni_api_filter.split(":")
+            for param in uni_search_param_list:
+                # Normalize the user input filter
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
+
+                # Create a pattern for the search with wildcards
+                pattern = f"%{normalized_filter}%"
+
+                filter_condition = or_(
+                    normalize_string(model.corp_document_tab.invoice_id).ilike(pattern),
+                    normalize_string(model.corp_document_tab.invoice_date).ilike(pattern),
+                    normalize_string(model.corp_document_tab.sender).ilike(pattern),
+                    # cast(model.corp_document_tab.invoicetotal, String).ilike(
+                    #     f"%{uni_api_filter}%"
+                    # ),
+                    func.to_char(model.corp_document_tab.created_on, "YYYY-MM-DD").ilike(
+                        f"%{uni_api_filter}%"
+                    ),  # noqa: E501
+                    normalize_string(model.corp_document_tab.document_type).ilike(pattern),
+                    normalize_string(model.corp_document_tab.voucher_id).ilike(pattern),
+                    normalize_string(model.corp_document_tab.mail_row_key).ilike(pattern),
+                    normalize_string(model.Vendor.VendorName).ilike(pattern),
+                    normalize_string(model.Vendor.Address).ilike(pattern),
+                    normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.description).ilike(pattern),
+                )
+                data_query = data_query.filter(filter_condition)
+
+        # Get the total count of records before applying limit and offset
+        total_count = data_query.distinct(model.corp_document_tab.corp_doc_id).count()
+        
+        # Pagination
+        offset, limit = off_limit
+        off_val = (offset - 1) * limit
+        if off_val < 0:
+            return Response(
+                status_code=403,
+                headers={"ClientError": "Please provide a valid offset value."},
+            )
+        
+        # Apply sorting
+        sort_columns_map = {
+            "Invoice Number": model.corp_document_tab.invoice_id,
+            "Vendor Code": model.Vendor.VendorCode,
+            "Vendor Name": model.Vendor.VendorName,
+            "Status": model.DocumentStatus.status,
+            "Sub Status": model.DocumentSubStatus.status,
+            "Amount": model.corp_document_tab.invoicetotal,
+            "Upload Date": model.corp_document_tab.created_on,
+        }
+
+        if sort_column in sort_columns_map:
+            # sort_field = sort_columns_map.get(sort_column, model.Document.idDocument)
+            sort_field = sort_columns_map[sort_column]
+            if sort_order.lower() == "desc":
+                # Apply descending order to sort_field
+                data_query = data_query.order_by(sort_field.desc())
+            else:
+                # Apply ascending order to sort_field
+                data_query = data_query.order_by(sort_field.asc())
+
+            Documentdata = (data_query.limit(limit).offset(off_val).all())
+            
+        else:
+            data_query = data_query.order_by(model.corp_document_tab.corp_doc_id.desc())
+            # Apply pagination
+            Documentdata = (
+            data_query.distinct(model.corp_document_tab.corp_doc_id)
+            .limit(limit)
+            .offset(off_val)
+            .all()
+        )
+
+        # Return paginated document data with line items
+        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500)
+    finally:
+        db.close()
+        
+
+
+async def download_corp_paginate_doc_inv_list(
+    u_id,
+    ven_id,
+    stat,
+    date_range,
+    db,
+    uni_api_filter,
+    ven_status,
+    
+):
+    """Function to read the paginated document invoice list.
+
+    Parameters:
+    ----------
+    ven_id : int
+        The ID of the vendor to filter the invoice documents.
+    inv_type : str
+        The type of invoice to filter the results.
+    stat : Optional[str]
+        The status of the invoice for filtering purposes.
+    off_limit : tuple
+        A tuple containing offset and limit for pagination.
+    db : Session
+        Database session object used to interact with the backend database.
+    uni_api_filter : Optional[str]
+        A universal filter for API queries.
+    ven_status : Optional[str]
+        Status of the vendor to filter the results.
+
+    Returns:
+    -------
+    list
+        A list containing the filtered document invoice data.
+    """
+    try:
+        # Mapping document statuses to IDs
+        all_status = {
+            "posted": 14,
+            "rejected": 10,
+            "exception": 4,
+            "VendorNotOnboarded": 25,
+            "VendorUnidentified": 26,
+            "Duplicate Invoice": 32,
+        }
+
+        # new subquery to increase the loading time
+        sub_query_desc = (
+            db.query(
+                model.corp_hist_logs.document_id,
+                model.corp_hist_logs.histlog_id,
+                model.corp_hist_logs.user_id
+            )
+            .distinct(model.corp_hist_logs.document_id)
+            .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
+            .subquery()
+        )
+
+        # Initial query setup for fetching document, status, and related entities
+        data_query = (
+            db.query(
+                model.corp_document_tab,
+                model.DocumentStatus,
+                model.DocumentSubStatus,
+                # model.Vendor,
+                model.corp_docdata,
+                model.User.firstName.label("last_updated_by"),
+            )
+            .options(
+                Load(model.corp_document_tab).load_only(
+                    "invoice_id",
+                    "invoicetotal",
+                    "documentstatus",
+                    "created_on",
+                    "documentsubstatus",
+                    "sender",
+                    "document_type",
+                    "invoice_date",
+                    "voucher_id",
+                    "mail_row_key",
+                    "vendor_code"
+                ),
+                Load(model.DocumentSubStatus).load_only("status"),
+                Load(model.DocumentStatus).load_only("status", "description"),
+                Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
+                # Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
+                
+            )
+            .join(
+                model.DocumentSubStatus,
+                model.DocumentSubStatus.idDocumentSubstatus
+                == model.corp_document_tab.documentsubstatus,
+                isouter=True,
+            )
+            # .join(
+            #     model.Vendor,
+            #     model.Vendor.idVendor == model.corp_document_tab.vendor_id,
+            #     isouter=True,
+            # )
+            .join(
+                model.DocumentStatus,
+                model.DocumentStatus.idDocumentstatus
+                == model.corp_document_tab.documentstatus,
+                isouter=True,
+            )
+            .join(
+                model.corp_docdata,
+                model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
+                isouter=True,
+            )
+            # .join(
+            #     sub_query_desc,
+            #     sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
+            #     isouter=True,
+            # )
+            .join(
+                sub_query_desc,
+                and_(
+                    sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
+                    sub_query_desc.c.histlog_id == db.query(func.max(model.corp_hist_logs.histlog_id)).filter(
+                        model.corp_hist_logs.document_id == model.corp_document_tab.corp_doc_id
+                    ).scalar_subquery(),
+                ),
+                isouter=True,
+            )
+            .join(
+                model.User,
+                model.User.idUser == sub_query_desc.c.user_id,
+                isouter=True,
+            )
+            # .filter(
+            #     model.corp_document_tab.vendor_id.isnot(None),
+            # )
+        )
+
+        # # Apply vendor ID filter if provided
+        # if ven_id:
+        #     sub_query = db.query(model.corp_document_tab.vendor_id).filter_by(
+        #         vendor_id=ven_id
+        #     )
+        #     data_query = data_query.filter(
+        #         model.corp_document_tab.vendor_id.in_(sub_query)
+        #     )
+
+        status_list = []
+        if stat:
+            # Split the status string by ':' to get a list of statuses
+            status_list = stat.split(":")
+
+            # Map status names to IDs
+            status_ids = [all_status[s] for s in status_list if s in all_status]
+            if status_ids:
+                data_query = data_query.filter(
+                    model.corp_document_tab.documentstatus.in_(status_ids)
+                )
+        # # Apply vendor status filter if provided
+        # if ven_status:
+        #     if ven_status == "A":
+        #         data_query = data_query.filter(
+        #             func.jsonb_extract_path_text(
+        #                 model.Vendor.miscellaneous, "VENDOR_STATUS"
+        #             )
+        #             == "A"
+        #         )
+        #     elif ven_status == "I":
+        #         data_query = data_query.filter(
+        #             func.jsonb_extract_path_text(
+        #                 model.Vendor.miscellaneous, "VENDOR_STATUS"
+        #             )
+        #             == "I"
+        #         )
+
+        # Apply date range filter for documentDate
+        if date_range:
+            frdate, todate = date_range.lower().split("to")
+            frdate = datetime.strptime(frdate.strip(), "%Y-%m-%d")
+            
+            todate = datetime.strptime(todate, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
+            # Apply the filter
+            data_query = data_query.filter(
+                model.corp_document_tab.created_on.between(frdate, todate)
+            )
+
+        # Function to normalize strings by removing non-alphanumeric
+        # characters and converting to lowercase
+        def normalize_string(input_str):
+            return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
+        # Apply universal API filter if provided, including line items
+        if uni_api_filter:
+            uni_search_param_list = uni_api_filter.split(":")
+            for param in uni_search_param_list:
+                # Normalize the user input filter
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", param.lower())
+
+                # Create a pattern for the search with wildcards
+                pattern = f"%{normalized_filter}%"
+
+                filter_condition = or_(
+                    normalize_string(model.corp_document_tab.invoice_id).ilike(pattern),
+                    normalize_string(model.corp_document_tab.invoice_date).ilike(pattern),
+                    normalize_string(model.corp_document_tab.sender).ilike(pattern),
+                    # cast(model.corp_document_tab.invoicetotal, String).ilike(
+                    #     f"%{uni_api_filter}%"
+                    # ),
+                    func.to_char(model.corp_document_tab.created_on, "YYYY-MM-DD").ilike(
+                        f"%{uni_api_filter}%"
+                    ),  # noqa: E501
+                    normalize_string(model.corp_document_tab.document_type).ilike(pattern),
+                    normalize_string(model.corp_document_tab.voucher_id).ilike(pattern),
+                    normalize_string(model.corp_document_tab.mail_row_key).ilike(pattern),
+                    normalize_string(model.corp_docdata.vendor_name).ilike(pattern),
+                    normalize_string(model.corp_docdata.vendoraddress).ilike(pattern),
+                    normalize_string(model.DocumentSubStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.status).ilike(pattern),
+                    normalize_string(model.DocumentStatus.description).ilike(pattern),
+                )
+                data_query = data_query.filter(filter_condition)
+
+        # Get the total count of records before applying limit and offset
+        # total_count = data_query.distinct(model.corp_document_tab.corp_doc_id).count()
+        total_count = db.query(func.count(distinct(model.corp_document_tab.corp_doc_id))).scalar()
+
+        
+        Documentdata = data_query.order_by(model.corp_document_tab.corp_doc_id).all()
+            
+        # Return paginated document data with line items
+        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500)
+    finally:
+        db.close()
