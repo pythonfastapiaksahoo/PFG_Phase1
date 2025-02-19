@@ -304,7 +304,7 @@ async def update_schedule(
 
         # If an active task exists with the same interval, return early
         if active_task and active_task.time_interval == minutes:
-            return {"message": f"Job schedule already set to every {minutes} minutes"}
+            return {"message": f"Job schedule already set to every {minutes} minutes by {first_name}"}
 
         # Deactivate all previous entries for this job
         db.query(model.TaskSchedular).filter_by(

@@ -314,10 +314,10 @@ def copy_models_in_background(
 def schedule_bulk_update_invoice_status_job():
     """Schedule a recurring job with a locking mechanism."""
     db = next(get_db())
-    active_task = db.query(model.TaskSchedular).filter_by(
+    if not scheduler.get_job("bulk_update_invoice_status"):
+        active_task = db.query(model.TaskSchedular).filter_by(
         task_name="bulk_update_invoice_status", is_active=1
-    ).scalar()
-    if active_task:
+        ).scalar()
         scheduler.add_job(
             newbulkupdateInvoiceStatus,
             trigger=IntervalTrigger(minutes=active_task.time_interval),
@@ -330,10 +330,10 @@ def schedule_bulk_update_invoice_status_job():
 def schedule_bulk_update_invoice_creation_job():
     """Schedule a recurring job with a locking mechanism."""
     db = next(get_db())
-    active_task = db.query(model.TaskSchedular).filter_by(
+    if not scheduler.get_job("bulk_update_invoice_creation"):
+        active_task = db.query(model.TaskSchedular).filter_by(
         task_name="bulk_update_invoice_creation", is_active=1
-    ).scalar()
-    if active_task:
+        ).scalar()
         scheduler.add_job(
             bulkProcessVoucherData,
             trigger=IntervalTrigger(minutes=active_task.time_interval),
