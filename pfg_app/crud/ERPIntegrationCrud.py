@@ -1125,13 +1125,16 @@ def processInvoiceVoucher(doc_id, db):
 
         except requests.exceptions.HTTPError as e:
             logger.info(f"HTTP error occurred: {traceback.format_exc()}")
-            logger.info(f"Response content: {response.content.decode()}")
-            responsedata = {"message": str(e), "data": response.json()}
+            # logger.info(f"Response content: {response.content.decode()}")
+            responsedata = {
+            "message": "ConnectionResetError",
+            "data": {"Http Response": "104", "Status": "Connection reset by peer"},
+        }
 
     except Exception:
         responsedata = {
             "message": "InternalError",
-            "data": {"Http Response": "500", "Status": "Fail"},
+            "data": {"Http Response": "500", "Status": "ConnectTimeoutError"},
         }
         logger.error(
             f"Error while processing invoice voucher: {traceback.format_exc()}")
