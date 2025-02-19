@@ -1048,11 +1048,28 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             try:
                 if invID_docTab == None:
                     blank_id = 1
+                elif invID_docTab.lower() == "na":
+                    blank_id = 1
                 else:
                     cln_invID = re.sub(r"[^a-zA-Z0-9\s]", "", invID_docTab)
                     if len(cln_invID) == 0:
                         blank_id = 1
                 if blank_id == 1:
+                    InvodocStatus = 4
+                    invoSubstatus = 142
+                    try:
+                        db.query(model.Document).filter(
+                            model.Document.idDocument == docID
+                        ).update(
+                            {
+                                model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                                model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                            }
+                        )
+                        db.commit()
+                    except Exception as err:
+                        logger.debug(f"ErrorUpdatingPostingData: {err}")
+
                     docStatusSync["Invoice ID"] = {
                         "status": 0,
                         "StatusCode":0,
@@ -1199,7 +1216,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 "response": [duplicate_status_ck_msg],
             }
         try:
-            if customCall == 1 or (documentModelID == 999999 and vdrAccID != 0):
+            if (documentModelID == 999999 and vdrAccID != 0):
+                
+                InvodocStatus = 26
+                invoSubstatus = 141
+                try:
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                            model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.debug(f"ErrorUpdatingPostingData: {err}")
                 model_count = (
                     db.query(model.DocumentModel)
                     .filter(model.DocumentModel.idVendorAccount == vdrAccID)
@@ -1232,29 +1264,37 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     return docStatusSync
 
                 else:
+                    docStatusSync["Status overview"] = {
+                        "status": 0,
+                        "StatusCode":0,
+                        "response": [
+                            "Model unmapped, please remap the vendor."  # noqa: E501
+                        ],
+                    }
+                    return docStatusSync
 
-                    customModelCall(docID)
-                    docTb = (
-                        db.query(model.Document)
-                        .filter(model.Document.idDocument == docID)
-                        .all()
-                    )
+                    # customModelCall(docID)
+                    # docTb = (
+                    #     db.query(model.Document)
+                    #     .filter(model.Document.idDocument == docID)
+                    #     .all()
+                    # )
                      # update dochistory table
-                    try:
-                        custModelCall_msg =  "Custom Model Call done"
-                        update_docHistory(
-                            docID, userID, InvodocStatus,custModelCall_msg , db, invoSubStatus
-                        )
-                    except Exception:
-                        logger.debug(traceback.format_exc())
+                    # try:
+                    #     custModelCall_msg =  "Custom Model Call done"
+                    #     update_docHistory(
+                    #         docID, userID, InvodocStatus,custModelCall_msg , db, invoSubStatus
+                    #     )
+                    # except Exception:
+                    #     logger.debug(traceback.format_exc())
 
-                    for dtb_rw in docTb:
-                        InvodocStatus = dtb_rw.documentStatusID
-                        filePath = dtb_rw.docPath
-                        invID_docTab = dtb_rw.docheaderID
-                        vdrAccID = dtb_rw.vendorAccountID
-                        documentModelID = dtb_rw.documentModelID
-                        invoSubStatus = dtb_rw.documentsubstatusID
+                    # for dtb_rw in docTb:
+                    #     InvodocStatus = dtb_rw.documentStatusID
+                    #     filePath = dtb_rw.docPath
+                    #     invID_docTab = dtb_rw.docheaderID
+                    #     vdrAccID = dtb_rw.vendorAccountID
+                    #     documentModelID = dtb_rw.documentModelID
+                    #     invoSubStatus = dtb_rw.documentsubstatusID
         except Exception:
             logger.error(f"{traceback.format_exc()}")
 
