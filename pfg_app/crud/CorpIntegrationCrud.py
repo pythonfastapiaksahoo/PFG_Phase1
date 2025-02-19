@@ -1124,7 +1124,9 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "invoicetotal",
                     "gst",
                     "approval_status",
-                    "sender_name"
+                    "sender_name",
+                    "approved_on",
+                    "approval_status",
                 )
             )
         )
