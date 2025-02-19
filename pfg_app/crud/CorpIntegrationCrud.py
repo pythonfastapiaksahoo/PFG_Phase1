@@ -3,6 +3,7 @@ import json
 import base64
 import os
 import traceback
+from uuid import uuid4
 import imgkit
 import re
 from PIL import Image
@@ -14,7 +15,7 @@ from pfg_app import model
 from pfg_app.core.openai_data import extract_invoice_details_using_openai
 from pfg_app.core.utils import get_credential, upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
-from pfg_app.logger_module import logger
+from pfg_app.logger_module import logger, set_operation_id
 from sqlalchemy import and_, case, func, or_, desc, text
 from sqlalchemy.orm import Load, load_only
 from datetime import datetime, timedelta
@@ -22,6 +23,7 @@ from fastapi import Response
 from azure.storage.blob import BlobServiceClient
 
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
+from pfg_app.session.session import get_db
 # def parse_eml(file_path):
 #     with open(file_path, 'rb') as file:
 #         msg = BytesParser(policy=policy.default).parse(file)
@@ -1997,6 +1999,242 @@ def updateCorpInvoiceStatus(u_id, doc_id, db):
         logger.error(f"Error: {traceback.format_exc()}")
         
 
+def bulkupdateCorpInvoiceStatus():
+    try:
+        db = next(get_db())
+        # Create an operation ID for the background job
+        operation_id = uuid4().hex
+        set_operation_id(operation_id)
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+        container_client = blob_service_client.get_container_client("locks")
+
+        # Update the blob with the latest operation ID and
+        # timestamp after acquiring the lease
+        blob_client = container_client.get_blob_client("status-job-lock")
+        lease = blob_client.acquire_lease()
+
+        logger.info(f"[{datetime.datetime.now()}] Background job `Status` Started!")
+
+        userID = 1
+        # db = next(get_db())
+        # Batch size for processing
+        batch_size = 50  # Define a reasonable batch size
+
+        # # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
+        # doc_query = db.query(model.Document.idDocument).filter(
+        #     model.Document.documentStatusID == 7
+        # )
+        doc_query = db.query(model.corp_document_tab.corp_doc_id).filter(
+            model.corp_document_tab.documentstatus.in_([7, 14]),
+            model.corp_document_tab.documentsubstatus.in_([43, 44, 114, 115, 117,]),
+        )
+        total_docs = doc_query.count()  # Total number of documents to process
+        logger.info(f"Total documents to process: {total_docs}")
+
+        # API credentials
+        api_url = settings.erp_invoice_status_endpoint
+        headers = {"Content-Type": "application/json"}
+        auth = (settings.erp_user, settings.erp_password)
+
+        # Success counter
+        success_count = 0
+
+        # Process in batches
+        for start in range(0, total_docs, batch_size):
+            doc_ids = doc_query.offset(start).limit(batch_size).all()
+
+            # Fetch voucher data for each document in the batch
+            voucher_data_list = (
+                db.query(model.CorpVoucherData)
+                .filter(
+                    model.CorpVoucherData.DOCUMENT_ID.in_([doc_id[0] for doc_id in doc_ids])
+                )
+                .all()
+            )
+
+            # Prepare payloads and make API requests
+            updates = []
+            doc_history_updates = []  # Collect history updates in bulk for the batch
+            for voucherdata in voucher_data_list:
+                dmsg = None  # Initialize dmsg to ensure it's defined
+                documentstatusid = 7
+                docsubstatusid = 43
+                # Prepare the payload for the API request
+                invoice_status_payload = {
+                    "RequestBody": {
+                        "INV_STAT_RQST": {
+                            "BUSINESS_UNIT": "MERCH",
+                            "INVOICE_ID": voucherdata.Invoice_Id,
+                            "INVOICE_DT": voucherdata.Invoice_Dt,
+                            "VENDOR_SETID": voucherdata.Vendor_Setid,
+                            "VENDOR_ID": voucherdata.Vendor_ID,
+                        }
+                    }
+                }
+                logger.info(
+                    f"invoice_status_payload for doc_id: {voucherdata.DOCUMENT_ID}: {invoice_status_payload}"
+                )  # noqa: E501
+                try:
+                    # Make a POST request to the external API
+                    response = requests.post(
+                        api_url,
+                        json=invoice_status_payload,
+                        headers=headers,
+                        auth=auth,
+                        timeout=60,  # Set a timeout of 60 seconds
+                    )
+                    response.raise_for_status()  # Raise an exception for HTTP errors
+                    logger.info(
+                        f"fetching status for document id: {voucherdata.DOCUMENT_ID}"
+                    )
+                    logger.info(f"Response: {response.json()}")
+                    # Process the response if the status code is 200
+                    if response.status_code == 200:
+                        invoice_data = response.json()
+                        entry_status = invoice_data.get("ENTRY_STATUS")
+                        voucher_id = invoice_data.get("VOUCHER_ID")
+
+                        # Determine the new document status based on ENTRY_STATUS
+                        if entry_status == "STG":
+                            documentstatusid = 7
+                            docsubstatusid = 43
+                            # Skip updating if entry_status is "STG"
+                            # because the status is already 7
+                            # continue
+                        elif entry_status == "QCK":
+                            documentstatusid = 14
+                            docsubstatusid = 114
+                            dmsg = InvoiceVoucherSchema.QUICK_INVOICE
+                        elif entry_status == "R":
+                            documentstatusid = 14
+                            docsubstatusid = 115
+                            dmsg = InvoiceVoucherSchema.RECYCLED_INVOICE
+                        elif entry_status == "P":
+                            documentstatusid = 14
+                            docsubstatusid = 116
+                            dmsg = InvoiceVoucherSchema.VOUCHER_CREATED
+                        elif entry_status == "NF":
+                            documentstatusid = 14
+                            docsubstatusid = 117
+                            dmsg = InvoiceVoucherSchema.VOUCHER_NOT_FOUND
+                        elif entry_status == "X":
+                            documentstatusid = 14
+                            docsubstatusid = 119
+                            dmsg = InvoiceVoucherSchema.VOUCHER_CANCELLED
+                        elif entry_status == "S":
+                            documentstatusid = 14
+                            docsubstatusid = 120
+                            dmsg = InvoiceVoucherSchema.VOUCHER_SCHEDULED
+                        elif entry_status == "C":
+                            documentstatusid = 14
+                            docsubstatusid = 121
+                            dmsg = InvoiceVoucherSchema.VOUCHER_COMPLETED
+                        elif entry_status == "D":
+                            documentstatusid = 14
+                            docsubstatusid = 122
+                            dmsg = InvoiceVoucherSchema.VOUCHER_DEFAULTED
+                        elif entry_status == "E":
+                            documentstatusid = 14
+                            docsubstatusid = 123
+                            dmsg = InvoiceVoucherSchema.VOUCHER_EDITED
+                        elif entry_status == "L":
+                            documentstatusid = 14
+                            docsubstatusid = 124
+                            dmsg = InvoiceVoucherSchema.VOUCHER_REVIEWED
+                        elif entry_status == "M":
+                            documentstatusid = 14
+                            docsubstatusid = 125
+                            dmsg = InvoiceVoucherSchema.VOUCHER_MODIFIED
+                        elif entry_status == "O":
+                            documentstatusid = 14
+                            docsubstatusid = 126
+                            dmsg = InvoiceVoucherSchema.VOUCHER_OPEN
+                        elif entry_status == "T":
+                            documentstatusid = 14
+                            docsubstatusid = 127
+                            dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
+                        # If there's a valid document status update,
+                        # add it to the bulk update list
+                        if documentstatusid:
+                            updates.append(
+                                {
+                                    "corp_doc_id": voucherdata.DOCUMENT_ID,
+                                    "documentstatus": documentstatusid,
+                                    "documentsubstatus": docsubstatusid,
+                                    "voucher_id": voucher_id,
+                                }
+                            )
+                            # Collect doc history update data
+                            doc_history_updates.append(
+                                {
+                                    "document_id": voucherdata.DOCUMENT_ID,
+                                    "user_id": userID,
+                                    "document_status": documentstatusid,
+                                    "document_desc": dmsg,
+                                    "created_on": datetime.datetime.utcnow().strftime(
+                                        "%Y-%m-%d %H:%M:%S"
+                                    ),  # noqa: E501
+                                }
+                            )
+                            success_count += 1  # Increment success counter
+                except requests.exceptions.RequestException as e:
+                    # Log the error and skip this document,
+                    # but don't interrupt the batch
+                    logger.error(f"Error for doc_id {voucherdata.DOCUMENT_ID}: {str(e)}")
+
+            try:
+                # Perform bulk database update for the batch
+                if updates:
+                    db.bulk_update_mappings(model.corp_document_tab, updates)
+                    db.commit()  # Commit the changes for this batch
+
+                logger.info(f"Processed batch {start} to {start + batch_size}")
+            except Exception:
+                logger.error(f"Error: {traceback.format_exc()}")
+
+            try:
+                if doc_history_updates:
+                    db.bulk_insert_mappings(
+                        model.corp_hist_logs, doc_history_updates
+                    )
+                    db.commit()  # Commit the history log insertions for this batch
+
+                logger.info(f"Update history log batch {start} to {start + batch_size}")
+            except Exception as err:
+                dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(err)
+                logger.error(f"Error while update dochistlog: {traceback.format_exc()}")
+
+        blob_client.append_block(operation_id + "\n", lease=lease)
+        blob_metadata = blob_client.get_blob_properties().metadata
+        blob_metadata["last_run_time"] = str(datetime.datetime.now())
+        blob_client.set_blob_metadata(blob_metadata, lease=lease)
+        data = {
+            "message": "Bulk update run successfully",
+            "total_docs count": total_docs,
+            "success_count": success_count,
+        }
+        logger.info(
+            f"[{datetime.datetime.now()}] Background job `Status` "
+            + f"Completed! with data: {data}"
+        )
+
+    except Exception:
+        logger.error(f"Error while updating invoice status: {traceback.format_exc()}")
+        # raise HTTPException(
+        #     status_code=500, detail=f"Error updating invoice status: {str(e)}"
+        # )
+        return False
+    finally:
+        db.close()
+        if "lease" in locals():
+            lease.break_lease()
+
 async def read_corp_doc_history(inv_id, download, db):
     """Function to read invoice history logs.
 
@@ -2112,19 +2350,19 @@ def uploadMissingFile(inv_id, file, db):
         logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
         
         
-# def processInvoiceFile(file_data,sender, mail_row_key):
+# def processInvoiceFile(file_data,sender, mail_row_key, db):
 #     try:
 #         new_trigger = model.corp_trigger_tab(
-#                     corp_queue_id=queue_task.id,
-#                     blobpath=pdf_blob_path,
-#                     status="Blob Error",
-#                     sender = sender,
-#                     created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-#                     mail_row_key=mail_row_key
-#                 )
-#                 db.add(new_trigger)
-#                 db.commit()
-#                 db.refresh(new_trigger)
+#             corp_queue_id=,
+#             blobpath=pdf_blob_path,
+#             status="Blob Error",
+#             sender = sender,
+#             created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#             mail_row_key=mail_row_key
+#         )
+#         db.add(new_trigger)
+#         db.commit()
+#         db.refresh(new_trigger)
 #         print(f"Processing {file_data.filename} for OpenAI...")
 #         invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(file_data)
 #         # Update corp_trigger_tab record upon successful processing
@@ -2133,3 +2371,5 @@ def uploadMissingFile(inv_id, file, db):
 #         new_trigger.status = "OpenAI Details Extracted"
 #         new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 #         db.commit()
+#     except Exception:
+#         logger.error(f"{traceback.format_exc()}")
