@@ -192,7 +192,7 @@ def getModelData(vendorAccountID, db):
 
 
 def customModelCall(docID,userID,db):
-    status = 0
+    status = {'msg':'Failed','status':0}
     try:
         # Custom Model Call for unidentified invoices:
         custcall_status = 1
@@ -208,13 +208,76 @@ def customModelCall(docID,userID,db):
 
             docTab = (
                 db.query(model.Document).filter(model.Document.idDocument == docID)
-            ).first()
+            ).first()   
 
             file_path = docTab.docPath
             spltFileName = docTab.docPath
             entityID = docTab.entityID
             vendorAccountID = docTab.vendorAccountID
             InvoModelId = docTab.documentModelID
+
+            try:
+                if InvoModelId==999999:
+                    if vendorAccountID != 0:
+                        docTab = (
+                            db.query(model.DocumentModel)
+                            .filter(
+                                model.DocumentModel.idVendorAccount.in_([vendorAccountID]),
+                                model.DocumentModel.modelStatus.in_([4]),
+                                model.DocumentModel.is_active.in_([1])
+                            )
+                        ).first()
+
+                        if docTab:
+                            # InvoModelId = docTab.idDocumentModel
+                            new_document_model_id = docTab.idDocumentModel
+                            logger.info(f"Model Found: idDocumentModel = {new_document_model_id}")
+                            db.query(model.Document).filter(
+                                model.Document.idDocument == docID
+                            ).update(
+                                {
+                                    model.Document.documentModelID: new_document_model_id,  # noqa: E501
+
+                                }
+                            )
+                            db.commit()
+                            InvoModelId = new_document_model_id
+                        else:
+                            logger.info("No active model found, please train the model")
+                            docStatus = 26
+                            docSubStatus = 141
+                            db.query(model.Document).filter(
+                                model.Document.idDocument == docID
+                            ).update(
+                                {
+                                    model.Document.documentStatusID: docStatus,  # noqa: E501
+                                    model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                }
+                            )
+                            db.commit()
+                            status = {'msg':'"No active model found, please train the model','status':0}
+                            return status
+                    else:
+                        logger.info("Vendor not mapped, please check the model and remap")
+                        docStatus = 26
+                        docSubStatus = 141
+                        db.query(model.Document).filter(
+                            model.Document.idDocument == docID
+                        ).update(
+                            {
+                                model.Document.documentStatusID: docStatus,  # noqa: E501
+                                model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                            }
+                        )
+                        db.commit()
+                        status = {'msg':'Vendor not mapped, please check the model and remap','status':0}
+                            
+                        return status
+
+
+            except Exception as e:
+                logger.error(traceback.format_exc())
+                    
 
             configs = getOcrParameters(customerID, db)
             metadata = getMetaData(vendorAccountID, db)
@@ -228,7 +291,40 @@ def customModelCall(docID,userID,db):
             DateFormat = metadata.DateFormat
             # mandatoryheadertags = configs.mandatoryheadertags
             # mandatorylinetags = configs.mandatorylinetags
-            inv_model_id = modelData.modelID
+            if modelData != None:
+                if modelData.modelID != None:
+                    inv_model_id = modelData.modelID
+                else: 
+                    docStatus = 26
+                    docSubStatus = 141
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: docStatus,  # noqa: E501
+                            model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                    status = {'msg':'No Model found, please train the model','status':0}
+                        
+                    return status
+            else: 
+                    docStatus = 26
+                    docSubStatus = 141
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: docStatus,  # noqa: E501
+                            model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                    status = {'msg':'No active model found, please train the model','status':0}
+                    return status
+            
+
             # API_version = configs.ApiVersion
 
             filename = spltFileName.split("/")[-1]
@@ -593,32 +689,32 @@ def customModelCall(docID,userID,db):
 
             # Prepare missing tags
             missing_tags = []
-            # if "Credit Identifier" not in existing_tag_labels:
-            #     missing_tags.append(
-            #         model.DocumentTagDef(
-            #             idDocumentModel=InvoModelId,
-            #             TagLabel="Credit Identifier",
-            #             CreatedOn=func.now(),
-            #         )
-            #     )
+            if "Credit Identifier" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="Credit Identifier",
+                        CreatedOn=func.now(),
+                    )
+                )
 
-            # if "SubTotal" not in existing_tag_labels:
-            #     missing_tags.append(
-            #         model.DocumentTagDef(
-            #             idDocumentModel=InvoModelId,
-            #             TagLabel="SubTotal",
-            #             CreatedOn=func.now(),
-            #         )
-            #     )
+            if "SubTotal" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="SubTotal",
+                        CreatedOn=func.now(),
+                    )
+                )
 
-            # if "GST" not in existing_tag_labels:
-            #     missing_tags.append(
-            #         model.DocumentTagDef(
-            #             idDocumentModel=InvoModelId,
-            #             TagLabel="GST",
-            #             CreatedOn=func.now(),
-            #         )
-            #     )
+            if "GST" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="GST",
+                        CreatedOn=func.now(),
+                    )
+                )
 
             # Add missing tags if any
             if missing_tags:
@@ -753,9 +849,9 @@ def customModelCall(docID,userID,db):
 
                     db.commit()
             except Exception:
-                custcall_status = 0
-                db.rollback()
-                logger.error(f"{traceback.format_exc()}")
+                    custcall_status = 0
+                    db.rollback()
+                    logger.error(f"{traceback.format_exc()}")
         except Exception:
             custcall_status = 0
             db.rollback()
@@ -765,6 +861,7 @@ def customModelCall(docID,userID,db):
             status = 1
             documentstatus = 4
             documentSubstatus = 26
+            status = {'msg':'Success','status':1}
             try:
                 custModelCall_msg =  "Custom Model Call done"
                 update_docHistory(
@@ -775,6 +872,13 @@ def customModelCall(docID,userID,db):
         else:
             documentstatus = 4
             documentSubstatus = 7
+            try:
+                custModelCall_msg =  status['msg']
+                update_docHistory(
+                    docID, userID, documentstatus,custModelCall_msg , db, documentSubstatus
+                )
+            except Exception:
+                    logger.debug(traceback.format_exc())
 
         try:
         #     invoDate = ""
