@@ -1523,3 +1523,14 @@ class QueueTask(Base):
     __table_args__ = (
         Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
     )
+
+class TaskSchedular(Base): 
+    __tablename__ = "task_schedular" 
+
+    schedular_id = Column(Integer, primary_key=True, autoincrement=True) 
+    task_name = Column(String, nullable=True )
+    time_interval = Column(Integer, nullable=True )
+    user_id = Column(Integer, nullable=True) 
+    is_active = Column(Integer, nullable=True) 
+    updated_at= Column(DateTime, nullable=True) 
+    updated_by = Column(String, nullable=True)

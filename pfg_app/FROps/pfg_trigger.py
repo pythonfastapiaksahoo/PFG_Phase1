@@ -2776,6 +2776,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                             docStatus = 21
                                                             docSubStatus = 112
                                                     else:
+                                                        logger.info(f"error docID: {docID} - No Http Response found")
                                                         dmsg = (
                                                             InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
                                                         )
@@ -2783,12 +2784,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                         docSubStatus = 112
                                                         
                                                 else:
+                                                    logger.info(f"error docID: {docID} - No data found ppl dft response")
                                                     dmsg = (
                                                         InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
                                                     )
                                                     docStatus = 21
                                                     docSubStatus = 112
                                             except Exception as err:
+                                                logger.info(f"error docID: {docID} - No response")
                                                 logger.debug(
                                                     f"PopleSoftResponseError: {traceback.format_exc()}"  # noqa: E501
                                                 )
@@ -2824,7 +2827,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             except Exception:
                                                 logger.error(traceback.format_exc())
                                         except Exception as e:
-
+                                            logger.info(f"error docID: {docID} - No response - failed")
                                             logger.debug(traceback.format_exc())
                                             dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
                                                 e
