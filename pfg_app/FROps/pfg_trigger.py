@@ -2756,6 +2756,13 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                 )
                                                                 docStatus = 21
                                                                 docSubStatus = 53
+                                                            
+                                                            elif RespCodeInt == 104:
+                                                                dmsg = (
+                                                                    InvoiceVoucherSchema.FAILURE_CONNECTION_ERROR  # noqa: E501
+                                                                )
+                                                                docStatus = 21
+                                                                docSubStatus = 108
                                                             else:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
@@ -2796,9 +2803,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                     model.Document.idDocument == docID
                                                 ).update(
                                                     {
-                                                        model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
-                                                        model.Document.retry_count: model.Document.retry_count + 1 if docStatus == 21 else model.Document.retry_count, # noqa: E501
+                                                        model.Document.documentStatusID: docStatus,
+                                                        model.Document.documentsubstatusID: docSubStatus,
+                                                        model.Document.retry_count: case(
+                                                            (model.Document.retry_count.is_(None), 1),  # If NULL, set to 1
+                                                            else_=model.Document.retry_count + 1        # Otherwise, increment
+                                                        ) if docStatus == 21 else model.Document.retry_count
                                                     }
                                                 )
                                                 db.commit()
@@ -2833,9 +2843,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 model.Document.idDocument == docID
                                             ).update(
                                                 {
-                                                    model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                    model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
-                                                    model.Document.retry_count: model.Document.retry_count + 1 if docStatus == 21 else model.Document.retry_count, # noqa: E501
+                                                    model.Document.documentStatusID: docStatus,
+                                                    model.Document.documentsubstatusID: docSubStatus,
+                                                    model.Document.retry_count: case(
+                                                        (model.Document.retry_count.is_(None), 1),  # If NULL, set to 1
+                                                        else_=model.Document.retry_count + 1        # Otherwise, increment
+                                                    ) if docStatus == 21 else model.Document.retry_count
                                                 }
                                             )
                                             db.commit()

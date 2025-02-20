@@ -8,7 +8,7 @@ from uuid import uuid4
 import requests
 from azure.storage.blob import BlobServiceClient
 from fastapi import HTTPException, Response
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, case
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import load_only
 
@@ -1599,13 +1599,26 @@ def bulkProcessVoucherData():
 
                 try:
                     logger.info(f"Updating the document status for doc_id:{docID}")
+                    # db.query(model.Document).filter(
+                    #     model.Document.idDocument == docID
+                    # ).update(
+                    #     {
+                    #         model.Document.documentStatusID: docStatus,
+                    #         model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                    #         model.Document.retry_count: model.Document.retry_count + 1 if docStatus == 21 else model.Document.retry_count
+                    #     }
+                    # )
+                    # db.commit()
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
                     ).update(
                         {
                             model.Document.documentStatusID: docStatus,
-                            model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
-                            model.Document.retry_count: model.Document.retry_count + 1 if docStatus == 21 else model.Document.retry_count
+                            model.Document.documentsubstatusID: docSubStatus,
+                            model.Document.retry_count: case(
+                                (model.Document.retry_count.is_(None), 1),  # If NULL, set to 0
+                                else_=model.Document.retry_count + 1        # Otherwise, increment
+                            ) if docStatus == 21 else model.Document.retry_count
                         }
                     )
                     db.commit()
