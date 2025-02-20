@@ -1563,7 +1563,7 @@ def bulkProcessVoucherData():
                                         InvoiceVoucherSchema.FAILURE_CONNECTION_ERROR  # noqa: E501
                                     )
                                     docStatus = 21
-                                    docSubStatus = 108
+                                    docSubStatus = 143
 
                                 else:
                                     dmsg = (
