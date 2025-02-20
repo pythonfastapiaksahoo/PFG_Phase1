@@ -957,7 +957,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         #         # db.add_all(missing_tags)
         #         # db.commit()
         #         logger.info("Missing Tags Inserted")
-        # custHdrDt_insert_missing=[]
+        custHdrDt_insert_missing=[]
         # documenttagdef = (
         #     db.query(model.DocumentTagDef)
         #     .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
