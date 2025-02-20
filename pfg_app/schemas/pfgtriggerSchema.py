@@ -25,7 +25,7 @@ class InvoiceVoucherSchema(str, Enum):
     INTERNAL_SERVER_ERROR = (
         "Internal Server Error - Could not connect to IICS or to PeopleSoft"
     )
-    FAILURE_CONNECTION_ERROR = "Failure: IICS Connection Error"
+    FAILURE_CONNECTION_ERROR = "Failure: Connection Reset Error"
     FAILURE_RESPONSE_UNDEFINED = "Failure: Response Undefined"
     SUCCESS_POSTED_IN_IRCS = "Success: Invoice Submitted for Batch"
     FAILURE_POST_IN_IRCS = "Failure: Error - IICS could not process the message"
