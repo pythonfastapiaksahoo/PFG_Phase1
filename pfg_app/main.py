@@ -143,10 +143,14 @@ async def app_startup():
         )
         db.commit()
         logger.info("All queues reset to queued state")
-        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
+        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
+            "operation_id": operation_id
+        })
         worker_thread.start()
         logger.info("OCR Worker thread started")
     else:
+        operation_id = uuid.uuid4().hex
+        set_operation_id(operation_id)
         logger.info("Resetting all queues before starting the application")
         db = next(get_db())
         db.query(QueueTask).filter(
@@ -154,7 +158,9 @@ async def app_startup():
         ).update({"status": f"{settings.local_user_name}-queued"})
         db.commit()
         logger.info("All queues reset to queued state")
-        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
+        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
+            "operation_id": operation_id
+        })
         worker_thread.start()
         logger.info("OCR Worker thread started")
     logger.info("Application is ready to process requests")
