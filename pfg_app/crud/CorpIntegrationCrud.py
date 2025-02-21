@@ -1612,7 +1612,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             # Catch any error from the read_invoice_file
             # function and use the error message
             base64file = f"Error retrieving file: {str(e)}"
-        logger.info(f"base64file for doc id: {doc_id}: {base64file}")
+        # logger.info(f"base64file for doc id: {doc_id}: {base64file}")
         # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_email_pdf_file(1, doc_id, db)
@@ -1629,7 +1629,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             # Catch any error from the read_invoice_file
             # function and use the error message
             base64eml = f"Error retrieving file: {str(e)}"
-        logger.info(f"base64eml for doc id: {doc_id}: {base64eml}")
+        # logger.info(f"base64eml for doc id: {doc_id}: {base64eml}")
         # Continue processing the file
         # print(f"Filepath (Base64 Encoded or Error): {base64file}")
         
@@ -1648,6 +1648,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                 "ACCOUNT": dist.get("account", ""),
                 "DEPTID": dist.get("dept", ""),
                 "OPERATING_UNIT": dist.get("store", ""),
+                "CHARTFIELD1": dist.get("SL", ""),
                 "MERCHANDISE_AMT": dist.get("amount", 0),
                 "BUSINESS_UNIT_PC": "",
                 "PROJECT_ID": dist.get("project", ""),
@@ -1709,7 +1710,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
                                     "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH,
-                                    "base64file": base64file
+                                    "base64file": "base64file"
                                 },
                                 {
                                     "BUSINESS_UNIT": "NONPO",
@@ -1719,7 +1720,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
                                     "FILE_NAME": corpvoucherdata.EMAIL_PATH,
-                                    "base64file": base64eml
+                                    "base64file": "base64eml"
                                 }
                             ]
                         }
@@ -1727,8 +1728,9 @@ def processCorpInvoiceVoucher(doc_id, db):
                 }
             ]
         }
+        
+        request_payload = json.dumps(request_payload, indent=4)
         logger.info(f"request_payload for doc_id: {doc_id}: {request_payload}")
-        # request_payload = json.dumps(voucher_payload, indent=4)
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
