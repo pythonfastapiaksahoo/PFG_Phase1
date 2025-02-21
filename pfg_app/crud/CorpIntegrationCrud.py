@@ -1645,15 +1645,15 @@ def processCorpInvoiceVoucher(doc_id, db):
                 "ACCOUNT": dist.get("account", ""),
                 "DEPTID": dist.get("dept", ""),
                 "OPERATING_UNIT": dist.get("store", ""),
+                "MERCHANDISE_AMT": dist.get("amount", 0),
+                "BUSINESS_UNIT_PC": "",
                 "PROJECT_ID": dist.get("project", ""),
                 "ACTIVITY_ID": dist.get("activity", ""),
-                "MERCHANDISE_AMT": dist.get("amount", 0),
-                "BUSINESS_UNIT_PC": ""
             }
             for key, dist in vchr_dist_stg.items()
         ]
 
-        voucher_payload = {
+        request_payload = {
             "RequestBody": [
                 {
                     "OF_VCHR_IMPORT_STG": [
@@ -1692,9 +1692,9 @@ def processCorpInvoiceVoucher(doc_id, db):
                                             "RECEIVER_ID": "",
                                             "RECV_LN_NBR": 0,
                                             "SHIPTO_ID": corpvoucherdata.SHIPTO_ID or "8000",
-                                            "VCHR_DIST_STG": distrib_data
+                                            "VCHR_DIST_STG": distrib_data,
                                         }
-                                    ]
+                                    ],
                                 }
                             ],
                             "INV_METADATA_STG": [
@@ -1716,16 +1716,16 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
                                     "FILE_NAME": corpvoucherdata.EMAIL_PATH,
-                                    "base64file": str(base64eml)
+                                    "base64file": base64eml
                                 }
-                            ]
+                            ],
                         }
                     ]
                 }
             ]
         }
-        request_payload = json.dumps(voucher_payload, indent=4)
         logger.info(f"request_payload for doc_id: {doc_id}: {request_payload}")
+        # request_payload = json.dumps(voucher_payload, indent=4)
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -1749,28 +1749,31 @@ def processCorpInvoiceVoucher(doc_id, db):
             # print("Response Content: ", response.content.decode())  # Full content
 
             # Check for success
-            if response.status_code == 200:
-                try:
-                    response_data = response.json()
-                    if not response_data:
-                        logger.info("Response JSON is empty.")
-                        responsedata = {
-                            "message": "Success, but response JSON is empty."
-                        }
-                    else:
-                        responsedata = {"message": "Success", "data": response_data}
-                except ValueError:
-                    # Handle case where JSON decoding fails
-                    logger.info("Response returned, but not in JSON format.")
+            # if response.status_code == 200:
+            try:
+                response_data = response.json()
+                if not response_data:
+                    logger.info("Response JSON is empty.")
                     responsedata = {
-                        "message": "Success, but response is not JSON.",
-                        "data": response.text,
+                        "message": "Success, but response JSON is empty.",
+                        "data": response_data
                     }
+                else:
+                    responsedata = {"message": "Success", "data": response_data}
+            except ValueError:
+                # Handle case where JSON decoding fails
+                logger.info("Response returned, but not in JSON format.")
+                responsedata = {
+                    "message": "Success, but response is not JSON.",
+                    "data": {"Http Response": "104", "Status": "Connection reset by peer"}
+                }
 
-        except requests.exceptions.HTTPError as e:
+        except Exception:
             logger.info(f"HTTP error occurred: {traceback.format_exc()}")
-            logger.info(f"Response content: {response.content.decode()}")
-            responsedata = {"message": str(e), "data": response.json()}
+            responsedata = {
+            "message": "ConnectionResetError",
+            "data": {"Http Response": "104", "Status": "Connection reset by peer"},
+            }
 
     except Exception:
         responsedata = {
