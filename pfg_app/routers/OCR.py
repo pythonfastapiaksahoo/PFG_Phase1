@@ -1816,47 +1816,47 @@ def queue_process_task(queue_task: QueueTask):
         try:
             splitdoc_id = new_split_doc.splitdoc_id
             # Query all rows in frtrigger_tab with the specific splitdoc_id
-            with db.begin():  # Ensures rollback on failure
-                triggers = (
-                    db.query(model.frtrigger_tab)
-                    .filter(model.frtrigger_tab.splitdoc_id == splitdoc_id)
-                    .all()
-                )
+            # with db.begin():  # Ensures rollback on failure
+            triggers = (
+                db.query(model.frtrigger_tab)
+                .filter(model.frtrigger_tab.splitdoc_id == splitdoc_id)
+                .all()
+            )
 
-                # Check the status of all rows
-                if not triggers:
-                    logger.info(f"No rows found in frtrigger_tab for splitdoc_id: {splitdoc_id}")
-                    overall_status = "Error"
-                else:
-                    
-                    statuses = {trigger.status for trigger in triggers}
-
-                    # Normalize statuses, treating "Processed" and "File Processed" as the same
-                    normalized_statuses = {status if status not in {"Processed", "File Processed"} else "Processed" for status in statuses}
-
-                    # Determine the overall status
-                    if normalized_statuses == {"Processed"}:
-                        overall_status = "Processed-completed"
-                    elif "Processed" in normalized_statuses and len(normalized_statuses) > 1:
-                        overall_status = "Partially-processed"
-                    else:
-                        overall_status = "Error"
+            # Check the status of all rows
+            if not triggers:
+                logger.info(f"No rows found in frtrigger_tab for splitdoc_id: {splitdoc_id}")
+                overall_status = "Error"
+            else:
                 
-                # Update the SplitDocTab status
-                split_doc = (
-                    db.query(model.SplitDocTab)
-                    .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
-                    .first()
-                )
+                statuses = {trigger.status for trigger in triggers}
 
-                if split_doc:
-                    split_doc.status = overall_status
-                    split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
-                    # Commit the update
-                    db.commit()
-                    logger.info(f"Updated SplitDocTab {splitdoc_id} status to {overall_status}")
+                # Normalize statuses, treating "Processed" and "File Processed" as the same
+                normalized_statuses = {status if status not in {"Processed", "File Processed"} else "Processed" for status in statuses}
+
+                # Determine the overall status
+                if normalized_statuses == {"Processed"}:
+                    overall_status = "Processed-completed"
+                elif "Processed" in normalized_statuses and len(normalized_statuses) > 1:
+                    overall_status = "Partially-processed"
                 else:
-                    logger.warning(f"SplitDocTab not found for splitdoc_id: {splitdoc_id}")
+                    overall_status = "Error"
+            
+            # Update the SplitDocTab status
+            split_doc = (
+                db.query(model.SplitDocTab)
+                .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                .first()
+            )
+
+            if split_doc:
+                split_doc.status = overall_status
+                split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+                # Commit the update
+                db.commit()
+                logger.info(f"Updated SplitDocTab {splitdoc_id} status to {overall_status}")
+            else:
+                logger.warning(f"SplitDocTab not found for splitdoc_id: {splitdoc_id}")
 
         except Exception as e:
             logger.error(f"Exception in splitDoc: {traceback.format_exc()}")
