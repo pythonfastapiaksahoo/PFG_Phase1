@@ -1604,13 +1604,15 @@ def processCorpInvoiceVoucher(doc_id, db):
                 # If filepath is a bytes object, decode it
                 if isinstance(base64file, bytes):
                     base64file = base64file.decode("utf-8")
+                    
             else:
                 base64file = "Error retrieving file: No result found in file data."
+            
         except Exception as e:
             # Catch any error from the read_invoice_file
             # function and use the error message
             base64file = f"Error retrieving file: {str(e)}"
-
+        # logger.info(f"base64file for doc id: {doc_id}: {base64file}")
         # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_email_pdf_file(1, doc_id, db)
@@ -1622,11 +1624,12 @@ def processCorpInvoiceVoucher(doc_id, db):
                     base64eml = base64eml.decode("utf-8")
             else:
                 base64eml = "Error retrieving file: No result found in file data."
+                
         except Exception as e:
             # Catch any error from the read_invoice_file
             # function and use the error message
             base64eml = f"Error retrieving file: {str(e)}"
-            
+        # logger.info(f"base64eml for doc id: {doc_id}: {base64eml}")
         # Continue processing the file
         # print(f"Filepath (Base64 Encoded or Error): {base64file}")
         
@@ -1645,10 +1648,11 @@ def processCorpInvoiceVoucher(doc_id, db):
                 "ACCOUNT": dist.get("account", ""),
                 "DEPTID": dist.get("dept", ""),
                 "OPERATING_UNIT": dist.get("store", ""),
+                "CHARTFIELD1": dist.get("SL", ""),
                 "MERCHANDISE_AMT": dist.get("amount", 0),
                 "BUSINESS_UNIT_PC": "",
                 "PROJECT_ID": dist.get("project", ""),
-                "ACTIVITY_ID": dist.get("activity", ""),
+                "ACTIVITY_ID": dist.get("activity", "")
             }
             for key, dist in vchr_dist_stg.items()
         ]
@@ -1692,9 +1696,9 @@ def processCorpInvoiceVoucher(doc_id, db):
                                             "RECEIVER_ID": "",
                                             "RECV_LN_NBR": 0,
                                             "SHIPTO_ID": corpvoucherdata.SHIPTO_ID or "8000",
-                                            "VCHR_DIST_STG": distrib_data,
+                                            "VCHR_DIST_STG": distrib_data
                                         }
-                                    ],
+                                    ]
                                 }
                             ],
                             "INV_METADATA_STG": [
@@ -1706,7 +1710,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
                                     "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH,
-                                    "base64file": base64file
+                                    "base64file": "base64file"
                                 },
                                 {
                                     "BUSINESS_UNIT": "NONPO",
@@ -1716,16 +1720,17 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
                                     "FILE_NAME": corpvoucherdata.EMAIL_PATH,
-                                    "base64file": base64eml
+                                    "base64file": "base64eml"
                                 }
-                            ],
+                            ]
                         }
                     ]
                 }
             ]
         }
+        
+        request_payload = json.dumps(request_payload, indent=4)
         logger.info(f"request_payload for doc_id: {doc_id}: {request_payload}")
-        # request_payload = json.dumps(voucher_payload, indent=4)
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
