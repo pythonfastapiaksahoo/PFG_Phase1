@@ -902,7 +902,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 logger.info(f"updated docHeader: docID: {docID} invID_docTab: {invID_docTab}")
     except Exception:
         logger.info(f"exception: {invID_docTab}")
-
+    
 
     #-------------
     try:
@@ -1059,12 +1059,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 ErrorDesc=entry["ErrorDesc"],
             )
 
-            # db.add(new_record)
+            db.add(new_record)
 
-        # try:
-        #     db.commit()
-        # except Exception as err:
-        #     logger.debug(f"ErrorUpdatingPostingData: {err}")
+        try:
+            db.commit()
+        except Exception as err:
+            logger.debug(f"ErrorUpdatingPostingData: {err}")
 
     except Exception:
         logger.error(f"{traceback.format_exc()}")
