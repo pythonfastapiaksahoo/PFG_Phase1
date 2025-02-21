@@ -868,28 +868,130 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
     except Exception:
         logger.error(traceback.format_exc())
     
+   
 
-    
-    DocDtHdr = (
-        db.query(model.DocumentData, model.DocumentTagDef)
-        .join(
-            model.DocumentTagDef,
-            model.DocumentData.documentTagDefID
-            == model.DocumentTagDef.idDocumentTagDef,
-        )
-        .filter(model.DocumentTagDef.idDocumentModel == docModel)
-        .filter(model.DocumentData.documentID == docID)
-        .all()
+    docTb = (
+        db.query(model.Document).filter(model.Document.idDocument == docID).all()
     )
 
-    docHdrDt = {}
-    tagNames = {}
+    for dtb_rw in docTb:
+        InvodocStatus = dtb_rw.documentStatusID
+        InvodocStatus_bu = dtb_rw.documentStatusID
+        invoSubStatus = dtb_rw.documentsubstatusID
+        filePath = dtb_rw.docPath
+        invID_docTab = dtb_rw.docheaderID
+        vdrAccID = dtb_rw.vendorAccountID
+        documentModelID = dtb_rw.documentModelID
+        vdrAccId = dtb_rw.vendorAccountID
 
-    for document_data, document_tag_def in DocDtHdr:
-        docHdrDt[document_tag_def.TagLabel] = document_data.Value
-        tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+    try: 
+        hd_tags_qry = (
+                db.query(model.DocumentTagDef).filter(model.DocumentTagDef.idDocumentModel == documentModelID).all()
+            )
+        tag_id_mod = {}
+        for idDM in hd_tags_qry:
+            tag_id_mod[idDM.idDocumentTagDef] = idDM.TagLabel
+            
+        DocDtHdr = (
+                db.query(model.DocumentData, model.DocumentTagDef)
+                .join(
+                    model.DocumentTagDef,
+                    model.DocumentData.documentTagDefID
+                    == model.DocumentTagDef.idDocumentTagDef,
+                )
+                # .filter(model.DocumentTagDef.idDocumentModel == docModel)
+                .filter(model.DocumentData.documentID == docID)
+                .all()
+            )
+
+
+        docHdrDt = {}
+        tagNames = {}
+        dup_ck_sm = {}
+        del_otherKeys = []
+        tag_dup_ck = []
+        for document_data, document_tag_def in DocDtHdr:
+            
+            if document_data.documentTagDefID in tag_id_mod.keys():
+                dup_ck_sm[document_data.idDocumentData] = document_tag_def.TagLabel
+                tag_dup_ck.append(document_tag_def.TagLabel)
+                docHdrDt[document_tag_def.TagLabel] = document_data.Value
+                tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+            else:
+                del_otherKeys.append(document_data.idDocumentData)
+        seen = {}
+        filtered_data = {}
+
+        # Sort in ascending order to keep the smallest key and remove higher ones
+        for key in sorted(dup_ck_sm):
+            value = dup_ck_sm[key]
+            if value not in seen:
+                seen[value] = key  # Store the first occurrence (smallest key)
+                filtered_data[key] = value
+            else:
+                del_otherKeys.append(key)  # Track deleted keys
+
+        logger.info("Filtered Data:", filtered_data)
+        logger.info("Deleted Keys:", del_otherKeys)
+
+        # Delete related records in DocumentUpdates
+        db.query(model.DocumentUpdates).filter(
+            model.DocumentUpdates.documentDataID.in_(del_otherKeys)
+        ).delete(synchronize_session=False)
+
+        # Now delete the records in DocumentData
+        db.query(model.DocumentData).filter(
+            model.DocumentData.idDocumentData.in_(del_otherKeys)
+        ).delete(synchronize_session=False)
+
+        # Commit the transaction
+        db.commit()
+
+        DocDtHdr = (
+                db.query(model.DocumentData, model.DocumentTagDef)
+                .join(
+                    model.DocumentTagDef,
+                    model.DocumentData.documentTagDefID
+                    == model.DocumentTagDef.idDocumentTagDef,
+                )
+                # .filter(model.DocumentTagDef.idDocumentModel == docModel)
+                .filter(model.DocumentData.documentID == docID)
+                .all()
+            )
+
+        docHdrDt = {}
+        tagNames = {}
+
+        for document_data, document_tag_def in DocDtHdr:
+
+            docHdrDt[document_tag_def.TagLabel] = document_data.Value
+            tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+        
+
+    except Exception:
+        logger.error(traceback.format_exc())
+    
+        DocDtHdr = (
+            db.query(model.DocumentData, model.DocumentTagDef)
+            .join(
+                model.DocumentTagDef,
+                model.DocumentData.documentTagDefID
+                == model.DocumentTagDef.idDocumentTagDef,
+            )
+            .filter(model.DocumentTagDef.idDocumentModel == docModel)
+            .filter(model.DocumentData.documentID == docID)
+            .all()
+        )
+
+        docHdrDt = {}
+        tagNames = {}
+
+        for document_data, document_tag_def in DocDtHdr:
+            docHdrDt[document_tag_def.TagLabel] = document_data.Value
+            tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
     logger.info(f"docHdrDt: {docHdrDt}")
     logger.info(f"tagNames: {tagNames}")
+
     try:
         if "InvoiceId" in docHdrDt:
             if invID_docTab !=docHdrDt["InvoiceId"]:
