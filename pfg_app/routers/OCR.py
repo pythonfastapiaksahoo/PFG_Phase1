@@ -6,6 +6,7 @@ import traceback
 from datetime import datetime, timezone
 from functools import wraps
 from urllib.parse import urlparse
+import uuid
 
 import Levenshtein
 import pandas as pd
@@ -41,7 +42,7 @@ from pfg_app.FROps.postprocessing import getFrData_MNF, postpro
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.FROps.SplitDoc import splitDoc
 from pfg_app.FROps.validate_currency import validate_currency
-from pfg_app.logger_module import logger
+from pfg_app.logger_module import get_operation_id, logger, set_operation_id
 from pfg_app.model import QueueTask
 from pfg_app.crud.InvoiceCrud import update_docHistory
 
@@ -167,6 +168,7 @@ def runStatus(
             "email_path": email_path,
             "mail_row_key": mail_row_key,
             "subject": subject,
+            "operation_id": get_operation_id()
         }
         if settings.build_type == "debug":
             queued_status = f"{settings.local_user_name}-queued"
@@ -208,6 +210,11 @@ def get_task_status(queue_task_id: int, db=Depends(get_db)):
 
 def queue_process_task(queue_task: QueueTask):
     try:
+        operation_id = queue_task.request_data.get("operation_id", None)
+        if operation_id:
+            set_operation_id(operation_id)
+        else:
+            set_operation_id(uuid.uuid4().hex)
         # Simulate task processing
 
         logger.info(f"Starting Queue task: {queue_task.id}")
@@ -1835,8 +1842,9 @@ def queue_process_task(queue_task: QueueTask):
             logger.error(f"Exception in splitDoc: {e}")
         db.close()
 
-def queue_worker():
+def queue_worker(operation_id):
     while True:
+        set_operation_id(operation_id)
         try:
             db = next(get_db())
             # get the correct queue sattus for `queued` and lock it
