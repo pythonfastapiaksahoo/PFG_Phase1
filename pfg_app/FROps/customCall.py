@@ -376,15 +376,36 @@ def customModelCall(docID,userID,db):
             )
 
             # DI call with trained model
-            cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
-                get_fr_data(
-                    input_data,
-                    API_version,
-                    endpoint,
-                    model_type,
-                    inv_model_id,
+            try:
+                cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
+                    get_fr_data(
+                        input_data,
+                        API_version,
+                        endpoint,
+                        model_type,
+                        inv_model_id,
+                    )
                 )
-            )
+                logger.info(f"cst_model_status: {cst_model_status}")
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+                cst_model_status = 0
+                cst_data = {}
+            if cst_model_status==0:
+                docStatus = 33
+                docSubStatus = 135
+                db.query(model.Document).filter(
+                    model.Document.idDocument == docID
+                ).update(
+                    {
+                        model.Document.documentStatusID: docStatus,  # noqa: E501
+                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                    }
+                )
+                db.commit()
+                status = {'msg':'Custom model not found in DI subscription','status':0}
+                return status
+
 
             documenttagdef = (
                 db.query(model.DocumentTagDef)
