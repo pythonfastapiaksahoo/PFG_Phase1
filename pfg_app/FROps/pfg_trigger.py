@@ -931,8 +931,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             else:
                 del_otherKeys.append(key)  # Track deleted keys
 
-        logger.info("Filtered Data:", filtered_data)
-        logger.info("Deleted Keys:", del_otherKeys)
+        logger.info("Filtered Data: {filtered_data}")
+        logger.info("Deleted Keys: {del_otherKeys}")
 
         # Delete related records in DocumentUpdates
         db.query(model.DocumentUpdates).filter(
