@@ -871,10 +871,15 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
 
                 # If the TagLabel is "VendorName", proceed with fetching VendorCode
                 if label == "VendorName":
-                    # Fetch VendorCode using the NewValue from the Vendor table
+                    # Fetch VendorCode using the NewValue from the Vendor table, filtering only active vendors
                     vendor = (
                         db.query(model.Vendor)
                         .filter_by(VendorName=row.NewValue)
+                        .filter(
+                            func.jsonb_extract_path_text(
+                                model.Vendor.miscellaneous, "VENDOR_STATUS"
+                            ) == "A"
+                        )
                         .first()
                     )
 
