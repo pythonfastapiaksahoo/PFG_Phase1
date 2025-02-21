@@ -495,7 +495,7 @@ def queue_process_task(queue_task: QueueTask):
                 if split_doc:
                     # Update the fields
                     split_doc.pages_processed = grp_pages
-                    split_doc.status = "File Received"
+                    split_doc.status = "File received but not processed"
                     split_doc.totalpagecount = num_pages
                     split_doc.num_pages = num_pages
                     split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
@@ -531,7 +531,7 @@ def queue_process_task(queue_task: QueueTask):
 
                         frtrigger_insert_data = {
                             "blobpath": spltFileName,
-                            "status": "File received",
+                            "status": "File received but not processed",
                             "sender": sender,
                             "splitdoc_id": splitdoc_id,
                             "page_number": spltInv,
@@ -1760,7 +1760,18 @@ def queue_process_task(queue_task: QueueTask):
         except Exception as err:
 
             logger.error(f"API exception ocr.py: {traceback.format_exc()}")
-            status = "error: " + str(err)
+            splitdoc_id = new_split_doc.splitdoc_id
+            split_doc = (
+                db.query(model.SplitDocTab)
+                .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                .first()
+            )
+
+            if split_doc:
+                split_doc.status = "Error"
+                split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+                db.commit()
+                status = "error: " + str(err)
 
         try:
 
@@ -1775,19 +1786,31 @@ def queue_process_task(queue_task: QueueTask):
 
         return status
     except Exception as e:
-        logger.error(f"Error in queue_process_task: {e}")
-        # splitdoc_id = new_split_doc.splitdoc_id
-        # split_doc = (
-        #     db.query(model.SplitDocTab)
-        #     .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
-        #     .first()
-        # )
+        logger.error(f"Error in queue_process_task: {traceback.format_exc()}")
+        splitdoc_id = new_split_doc.splitdoc_id
+        split_doc = (
+            db.query(model.SplitDocTab)
+            .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+            .first()
+        )
 
-        # if split_doc:
-        #     split_doc.status = "Error"
-        #     split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
-        #     db.commit()
-        return f"Error: {e}"
+        if split_doc:
+            split_doc.status = "Error: Unsupported File Format"
+            split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+            db.commit()
+            status = "error: " + str(err)
+        
+        # frtrigger_insert_data = {
+        #     "status": "Error",
+        #     "sender": sender,
+        #     "splitdoc_id": splitdoc_id,
+            
+        # }
+        # fr_db_data = model.frtrigger_tab(**frtrigger_insert_data)
+        # db.add(fr_db_data)
+        # db.commit()
+            
+        # return f"Error: {traceback.format_exc()}"
     finally:
         try:
             splitdoc_id = new_split_doc.splitdoc_id
@@ -1801,7 +1824,7 @@ def queue_process_task(queue_task: QueueTask):
             # Check the status of all rows
             if not triggers:
                 logger.info(f"No rows found in frtrigger_tab for splitdoc_id: {splitdoc_id}")
-                return
+                overall_status = "Error"
 
             statuses = {trigger.status for trigger in triggers}
 
@@ -1832,7 +1855,7 @@ def queue_process_task(queue_task: QueueTask):
                 logger.warning(f"SplitDocTab not found for splitdoc_id: {splitdoc_id}")
 
         except Exception as e:
-            logger.error(f"Exception in splitDoc: {e}")
+            logger.error(f"Exception in splitDoc: {traceback.format_exc()}")
         db.close()
 
 def queue_worker():
