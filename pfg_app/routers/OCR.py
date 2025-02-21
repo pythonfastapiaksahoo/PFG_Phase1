@@ -1765,8 +1765,8 @@ def queue_process_task(queue_task: QueueTask):
             except Exception:
                 logger.debug(f"{traceback.format_exc()}")
         except Exception as err:
-
             logger.error(f"API exception ocr.py: {traceback.format_exc()}")
+            status = "error: " + str(err)
             splitdoc_id = new_split_doc.splitdoc_id
             split_doc = (
                 db.query(model.SplitDocTab)
@@ -1778,7 +1778,7 @@ def queue_process_task(queue_task: QueueTask):
                 split_doc.status = "Error"
                 split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
                 db.commit()
-                status = "error: " + str(err)
+                
 
         try:
 
