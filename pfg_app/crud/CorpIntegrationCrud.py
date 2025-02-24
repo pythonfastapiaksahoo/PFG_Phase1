@@ -1613,6 +1613,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             # function and use the error message
             base64file = f"Error retrieving file: {str(e)}"
         # logger.info(f"base64file for doc id: {doc_id}: {base64file}")
+        
         # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_email_pdf_file(1, doc_id, db)
@@ -1627,11 +1628,8 @@ def processCorpInvoiceVoucher(doc_id, db):
                 
         except Exception as e:
             # Catch any error from the read_invoice_file
-            # function and use the error message
             base64eml = f"Error retrieving file: {str(e)}"
         # logger.info(f"base64eml for doc id: {doc_id}: {base64eml}")
-        # Continue processing the file
-        # print(f"Filepath (Base64 Encoded or Error): {base64file}")
         
         if isinstance(corpvoucherdata.VCHR_DIST_STG, str):
             vchr_dist_stg = json.loads(corpvoucherdata.VCHR_DIST_STG)
