@@ -844,26 +844,51 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         logger.error(f"{str(e)}")
 
     try:
-        if skipConf==1:
-            documentdesc = "Confirmation validations were bypassed by the user."
-            update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db,invoSubStatus
-            )
-        if zero_dollar==1:
-            documentdesc = "Zero-dollar invoice approved by the user."
-            update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db,invoSubStatus
-            )
-        if skip_supplierCk==1:
-            documentdesc = "Supplier ID mismatch approved by the user."
-            update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db, invoSubStatus
-            )
-        if approvalCk==1:
-            documentdesc = f"Amount Approved by the user."
-            update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db, invoSubStatus
-            )
+        sentToPPlSft = {
+            7: "Sent to PeopleSoft",
+            29: "Voucher Created",
+            30: "Voucher Not Found",
+            27: "Quick Invoice",
+            14: "Posted In PeopleSoft",
+            28: "Recycled Invoice",
+        }
+
+        if InvodocStatus in sentToPPlSft.keys():
+            if isinstance(InvodocStatus, int):
+                docStatusSync[sentToPPlSft[InvodocStatus]] = {
+                    "status": 1,
+                    "response": ["Invoice sent to peopleSoft"],
+                }
+                return docStatusSync
+        elif InvodocStatus == 10 and invoSubStatus == 13:
+            # if invoSubStatus == 13:
+            docStatusSync["Rejected"] = {
+                "status": 1,
+                "StatusCode":0,
+                "response": ["Invoice rejected by user"],
+            }
+            return docStatusSync
+        else:
+            if skipConf==1:
+                documentdesc = "Confirmation validations were bypassed by the user."
+                update_docHistory(
+                    docID, userID, InvodocStatus, documentdesc, db,invoSubStatus
+                )
+            if zero_dollar==1:
+                documentdesc = "Zero-dollar invoice approved by the user."
+                update_docHistory(
+                    docID, userID, InvodocStatus, documentdesc, db,invoSubStatus
+                )
+            if skip_supplierCk==1:
+                documentdesc = "Supplier ID mismatch approved by the user."
+                update_docHistory(
+                    docID, userID, InvodocStatus, documentdesc, db, invoSubStatus
+                )
+            if approvalCk==1:
+                documentdesc = f"Amount Approved by the user."
+                update_docHistory(
+                    docID, userID, InvodocStatus, documentdesc, db, invoSubStatus
+                )
 
     except Exception:
         logger.error(traceback.format_exc())
