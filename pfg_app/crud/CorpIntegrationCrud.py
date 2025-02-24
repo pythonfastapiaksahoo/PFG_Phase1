@@ -1657,7 +1657,8 @@ def processCorpInvoiceVoucher(doc_id, db):
             for key, dist in vchr_dist_stg.items()
         ]
 
-        request_payload = {
+        # Construct voucher payload
+        voucher_payload = {
             "RequestBody": [
                 {
                     "OF_VCHR_IMPORT_STG": [
@@ -1698,7 +1699,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                             "SHIPTO_ID": corpvoucherdata.SHIPTO_ID or "8000",
                                             "VCHR_DIST_STG": distrib_data
                                         }
-                                    ]
+                                    ],
                                 }
                             ],
                             "INV_METADATA_STG": [
@@ -1709,7 +1710,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
-                                    "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH,
+                                    "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH or "",
                                     "base64file": "base64file"
                                 },
                                 {
@@ -1719,18 +1720,18 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
-                                    "FILE_NAME": corpvoucherdata.EMAIL_PATH,
+                                    "FILE_NAME": corpvoucherdata.EMAIL_PATH or "",
                                     "base64file": "base64eml"
                                 }
-                            ]
+                            ],
                         }
                     ]
                 }
             ]
         }
         
-        request_payload = json.dumps(request_payload, indent=4)
-        logger.info(f"request_payload for doc_id: {doc_id}: {request_payload}")
+        # request_payload = json.dumps(voucher_payload, indent=4)
+        logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -1741,7 +1742,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             # Make the POST request with basic authentication
             response = requests.post(
                 api_url,
-                json=request_payload,
+                json=voucher_payload,
                 headers=headers,
                 auth=(username, password),
                 timeout=60,  # Set a timeout of 60 seconds

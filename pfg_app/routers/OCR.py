@@ -1776,17 +1776,18 @@ def queue_process_task(queue_task: QueueTask):
         return status
     except Exception as e:
         logger.error(f"Error in queue_process_task: {e}")
-        # splitdoc_id = new_split_doc.splitdoc_id
-        # split_doc = (
-        #     db.query(model.SplitDocTab)
-        #     .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
-        #     .first()
-        # )
+        status = "error: " + str(err)
+        splitdoc_id = new_split_doc.splitdoc_id
+        split_doc = (
+            db.query(model.SplitDocTab)
+            .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+            .first()
+        )
 
-        # if split_doc:
-        #     split_doc.status = "Error"
-        #     split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
-        #     db.commit()
+        if split_doc:
+            split_doc.status = "Error: Unsupported File Format"
+            split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+            db.commit()
         return f"Error: {e}"
     finally:
         try:
@@ -1801,20 +1802,21 @@ def queue_process_task(queue_task: QueueTask):
             # Check the status of all rows
             if not triggers:
                 logger.info(f"No rows found in frtrigger_tab for splitdoc_id: {splitdoc_id}")
-                return
-
-            statuses = {trigger.status for trigger in triggers}
-
-            # Normalize statuses, treating "Processed" and "File Processed" as the same
-            normalized_statuses = {status if status not in {"Processed", "File Processed"} else "Processed" for status in statuses}
-
-            # Determine the overall status
-            if normalized_statuses == {"Processed"}:
-                overall_status = "Processed-completed"
-            elif "Processed" in normalized_statuses and len(normalized_statuses) > 1:
-                overall_status = "Partially-processed"
-            else:
                 overall_status = "Error"
+
+            else:
+                statuses = {trigger.status for trigger in triggers}
+
+                # Normalize statuses, treating "Processed" and "File Processed" as the same
+                normalized_statuses = {status if status not in {"Processed", "File Processed"} else "Processed" for status in statuses}
+
+                # Determine the overall status
+                if normalized_statuses == {"Processed"}:
+                    overall_status = "Processed-completed"
+                elif "Processed" in normalized_statuses and len(normalized_statuses) > 1:
+                    overall_status = "Partially-processed"
+                else:
+                    overall_status = "Error"
             # Update the SplitDocTab status
             split_doc = (
                 db.query(model.SplitDocTab)
@@ -1833,6 +1835,7 @@ def queue_process_task(queue_task: QueueTask):
 
         except Exception as e:
             logger.error(f"Exception in splitDoc: {e}")
+            db.rollback()  # Rollback transaction on failure
         db.close()
 
 def queue_worker():
