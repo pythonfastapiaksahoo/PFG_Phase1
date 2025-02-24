@@ -245,8 +245,8 @@ def customModelCall(docID,userID,db):
                             InvoModelId = new_document_model_id
                         else:
                             logger.info("No active model found, please train the model")
-                            docStatus = 26
-                            docSubStatus = 141
+                            docStatus = 33
+                            docSubStatus = 145
                             db.query(model.Document).filter(
                                 model.Document.idDocument == docID
                             ).update(
@@ -296,8 +296,8 @@ def customModelCall(docID,userID,db):
                 if modelData.modelID != None:
                     inv_model_id = modelData.modelID
                 else: 
-                    docStatus = 26
-                    docSubStatus = 141
+                    docStatus = 33
+                    docSubStatus = 145
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
                     ).update(
@@ -311,8 +311,8 @@ def customModelCall(docID,userID,db):
                         
                     return status
             else: 
-                    docStatus = 26
-                    docSubStatus = 141
+                    docStatus = 33
+                    docSubStatus = 144
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
                     ).update(
