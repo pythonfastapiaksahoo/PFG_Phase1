@@ -332,33 +332,7 @@ def customModelCall(docID,userID,db):
             destination_container_name = configs.ContainerName
             API_version = settings.api_version
             model_type = "custom"
-            try:
-
-            # Fetch the corresponding idDocumentData first
-                document_data = db.query(model.DocumentData).filter(
-                    model.DocumentData.documentID == docID
-                ).first()
-
-                if document_data:
-
-                    # Delete related records in DocumentUpdates
-                    db.query(model.DocumentUpdates).filter(
-                        model.DocumentUpdates.documentDataID == document_data.idDocumentData
-                    ).delete()
-
-                    # Now delete the record in DocumentData
-                    db.query(model.DocumentData).filter(
-                        model.DocumentData.idDocumentData == document_data.idDocumentData
-                    ).delete()
-
-                    # Commit the transaction
-                    db.commit()
-
-
-            except Exception:
-                logger.error(traceback.format_exc())
-                custcall_status = 0
-                db.rollback()
+           
 
             # preprocess the file and get binary data
             fr_preprocessing_status, fr_preprocessing_msg, input_data, ui_status = (
@@ -406,6 +380,33 @@ def customModelCall(docID,userID,db):
                 status = {'msg':'Custom model not found in DI subscription','status':0}
                 return status
 
+            try:
+
+            # Fetch the corresponding idDocumentData first
+                document_data = db.query(model.DocumentData).filter(
+                    model.DocumentData.documentID == docID
+                ).first()
+
+                if document_data:
+
+                    # Delete related records in DocumentUpdates
+                    db.query(model.DocumentUpdates).filter(
+                        model.DocumentUpdates.documentDataID == document_data.idDocumentData
+                    ).delete()
+
+                    # Now delete the record in DocumentData
+                    db.query(model.DocumentData).filter(
+                        model.DocumentData.idDocumentData == document_data.idDocumentData
+                    ).delete()
+
+                    # Commit the transaction
+                    db.commit()
+
+
+            except Exception:
+                logger.error(traceback.format_exc())
+                custcall_status = 0
+                db.rollback()
 
             documenttagdef = (
                 db.query(model.DocumentTagDef)
@@ -699,7 +700,7 @@ def customModelCall(docID,userID,db):
                 .filter(
                     model.DocumentTagDef.idDocumentModel == InvoModelId,
                     model.DocumentTagDef.TagLabel.in_(
-                        ["Credit Identifier", "SubTotal", "GST"]
+                        ["Credit Identifier", "SubTotal", "GST","VendorName","InvoiceId","InvoiceTotal","InvoiceDate"]
                     ),
                 )
                 .all()
@@ -715,6 +716,33 @@ def customModelCall(docID,userID,db):
                     model.DocumentTagDef(
                         idDocumentModel=InvoModelId,
                         TagLabel="Credit Identifier",
+                        CreatedOn=func.now(),
+                    )
+                )
+            
+            if "VendorName" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="VendorName",
+                        CreatedOn=func.now(),
+                    )
+                )
+            
+            if "InvoiceId" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="InvoiceId",
+                        CreatedOn=func.now(),
+                    )
+                )   
+            
+            if "InvoiceTotal" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="InvoiceTotal",
                         CreatedOn=func.now(),
                     )
                 )
@@ -795,6 +823,20 @@ def customModelCall(docID,userID,db):
                                                 "IsUpdated": 0,
                                                 "isError": 0,
                                                 "ErrorDesc": "Defaulting to Invoice Document",
+                                            }
+                                        )
+                except Exception:
+                    logger.error(f"{traceback.format_exc()}")
+            if "VendorName" not in docHdrDt:
+                try:
+                    custHdrDt_insert_missing.append(
+                                            {
+                                                "documentID": docID,
+                                                "documentTagDefID": hdr_tags["VendorName"],
+                                                "Value": "",
+                                                "IsUpdated": 0,
+                                                "isError": 1,
+                                                "ErrorDesc": "Defaulting to Vendor Name",
                                             }
                                         )
                 except Exception:
