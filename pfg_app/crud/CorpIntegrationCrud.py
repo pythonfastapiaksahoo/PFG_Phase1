@@ -1026,7 +1026,7 @@ def read_corp_invoice_file(u_id, inv_id, db):
                 invdat.invo_filepath = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
                 logger.error(traceback.format_exc())
-                invdat.invo_filepath = ""
+                invdat.invo_filepath = f"Blob does not exist: {invdat.invo_filepath}"
 
         return {"result": {"filepath": invdat.invo_filepath, "content_type": content_type}}
 
@@ -1849,7 +1849,7 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 invdat.email_filepath = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
                 logger.error(traceback.format_exc())
-                invdat.email_filepath = ""
+                invdat.email_filepath = f"Blob does not exist: {invdat.email_filepath}"
 
         return {"result": {"filepath": invdat.email_filepath, "content_type": content_type}}
 
