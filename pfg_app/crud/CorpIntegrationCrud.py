@@ -2325,20 +2325,20 @@ async def read_corp_doc_history(inv_id, download, db):
 
 def uploadMissingFile(inv_id, file, db):
     try:
-        # Fetch invoice data
+        # Fetch the invoice data from the database
         invdat = (
             db.query(model.corp_document_tab)
-            .options(load_only("invo_filepath"))
+            .options(load_only("email_filepath"))
             .filter_by(corp_doc_id=inv_id)
             .one()
         )
         
-        inv_filepath = invdat.invo_filepath
-        if not inv_filepath:
+        eml_filepath = invdat.email_filepath
+        if not eml_filepath:
             raise ValueError("Invalid invoice file path")
         
         # Extract directory path
-        dir_path = os.path.dirname(inv_filepath)
+        dir_path = eml_filepath.split(".pdf")[0]
         
         # Define container and blob names
         container_name = "apinvoice-mail-container"  # Replace with actual container
@@ -2360,51 +2360,23 @@ def uploadMissingFile(inv_id, file, db):
     except Exception as e:
         logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
         
-        
-def processInvoiceFile(container_name, pdf_filename, blob_path,sender, mail_row_key, db):
+def processInvoiceFile(inv_id, blob_path, inv_file, db):
     try:
-        mail_rw_dt ={}
-        corp_queue_id = db.query(model.corp_trigger_tab.corp_queue_id).filter(model.corp_trigger_tab.mail_row_key == mail_row_key).first()
+        try:
+            blob_data = inv_file.file.read()
+        except Exception as e:
+            logger.error(f"Error reading file {inv_file.filename}: {traceback.format_exc()}")
+            raise Exception("Failed to read the uploaded file.")
+
+        new_trigger = db.query(model.corp_trigger_tab).filter(model.corp_trigger_tab.documentid == inv_id).first()
         
+        if not new_trigger:
+            raise Exception(f"No record found for invoice ID {inv_id} in corp_trigger_tab.")
+
         try:
-            
-            pdf_blob_data, _ = get_blob_securely(container_name, blob_path)
-            new_trigger = model.corp_trigger_tab(
-                corp_queue_id=corp_queue_id,
-                blobpath=blob_path,
-                status="File received",
-                sender = sender,
-                created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                mail_row_key=mail_row_key
-            )
-            db.add(new_trigger)
-            db.commit()
-            db.refresh(new_trigger)
-            
-        except Exception:
-            logger.error(f"Error getting blob data: {traceback.format_exc()}")
-            # Insert initial record into corp_trigger_tab
-            new_trigger = model.corp_trigger_tab(
-                corp_queue_id=corp_queue_id,
-                blobpath=blob_path,
-                status="Blob Error",
-                sender = sender,
-                created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                mail_row_key=mail_row_key
-            )
-            db.add(new_trigger)
-            db.commit()
-            db.refresh(new_trigger)
-    
-    
-        try:
-            corp_trigger_id = new_trigger.corp_trigger_id
-            mail_rw_dt[pdf_filename] = {"pdf_blob_path":blob_path,
-                                        "corp_trigger_id":corp_trigger_id,
-                                        "mail_row_key":mail_row_key}
-            mail_rw_dt[pdf_filename][corp_trigger_id] = mail_row_key
-            print(f"Processing {blob_path} for OpenAI...")
-            invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(pdf_blob_data)
+            print(f"Processing {blob_path} using OpenAI...")
+            invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(blob_data)
+
             # Update corp_trigger_tab record upon successful processing
             new_trigger.pagecount = total_pages
             new_trigger.filesize = file_size_mb
@@ -2413,13 +2385,77 @@ def processInvoiceFile(container_name, pdf_filename, blob_path,sender, mail_row_
             db.commit()
 
         except Exception as e:
-            print(f"Error processing {pdf_filename}: {traceback.format_exc()}")
-            # Update corp_trigger_tab record with OpenAI Error
+            logger.error(f"Error processing {inv_file.filename}: {traceback.format_exc()}")
             new_trigger.status = "OpenAI Error"
             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             db.commit()
-    except Exception:
-        logger.error(f"{traceback.format_exc()}")
+            raise Exception("Failed to process invoice details using OpenAI.")
+
+        return invoice_data
+
+    except Exception as e:
+        logger.error(f"Critical error in processInvoiceFile: {traceback.format_exc()}")
+        raise Exception("An error occurred while processing the invoice file.")
+        
+# def processInvoiceFile(container_name, pdf_filename, blob_path,sender, mail_row_key, db):
+#     try:
+#         mail_rw_dt ={}
+#         corp_queue_id = db.query(model.corp_trigger_tab.corp_queue_id).filter(model.corp_trigger_tab.mail_row_key == mail_row_key).first()
+        
+#         try:
+            
+#             pdf_blob_data, _ = get_blob_securely(container_name, blob_path)
+#             new_trigger = model.corp_trigger_tab(
+#                 corp_queue_id=corp_queue_id,
+#                 blobpath=blob_path,
+#                 status="File received",
+#                 sender = sender,
+#                 created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#                 mail_row_key=mail_row_key
+#             )
+#             db.add(new_trigger)
+#             db.commit()
+#             db.refresh(new_trigger)
+            
+#         except Exception:
+#             logger.error(f"Error getting blob data: {traceback.format_exc()}")
+#             # Insert initial record into corp_trigger_tab
+#             new_trigger = model.corp_trigger_tab(
+#                 corp_queue_id=corp_queue_id,
+#                 blobpath=blob_path,
+#                 status="Blob Error",
+#                 sender = sender,
+#                 created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#                 mail_row_key=mail_row_key
+#             )
+#             db.add(new_trigger)
+#             db.commit()
+#             db.refresh(new_trigger)
+    
+    
+#         try:
+#             corp_trigger_id = new_trigger.corp_trigger_id
+#             mail_rw_dt[pdf_filename] = {"pdf_blob_path":blob_path,
+#                                         "corp_trigger_id":corp_trigger_id,
+#                                         "mail_row_key":mail_row_key}
+#             mail_rw_dt[pdf_filename][corp_trigger_id] = mail_row_key
+#             print(f"Processing {blob_path} for OpenAI...")
+#             invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(pdf_blob_data)
+#             # Update corp_trigger_tab record upon successful processing
+#             new_trigger.pagecount = total_pages
+#             new_trigger.filesize = file_size_mb
+#             new_trigger.status = "OpenAI Details Extracted"
+#             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+#             db.commit()
+
+#         except Exception as e:
+#             print(f"Error processing {pdf_filename}: {traceback.format_exc()}")
+#             # Update corp_trigger_tab record with OpenAI Error
+#             new_trigger.status = "OpenAI Error"
+#             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+#             db.commit()
+#     except Exception:
+#         logger.error(f"{traceback.format_exc()}")
 
 
 async def read_corp_paginate_doc_inv_list(
