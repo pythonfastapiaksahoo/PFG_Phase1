@@ -868,6 +868,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 "response": ["Invoice rejected by user"],
             }
             return docStatusSync
+        elif InvodocStatus == 33:
+            docStatusSync["Custom model mapping required"] = {
+                "status": 0,
+                "StatusCode":0,
+                "response": [],
+            }
+            if invoSubStatus==145:
+                docStatusSync["Custom model mapping required"]["response"] = ["No active model found"]
+            elif invoSubStatus ==144:
+                docStatusSync["Custom model mapping required"]["response"] = ["Model mapping failed"]
+            elif invoSubStatus ==135:
+                docStatusSync["Custom model mapping required"]["response"] = ["Model not found in DI subscription"]
+            else:
+                docStatusSync["Custom model mapping required"]["response"] = ["Custom model mapping required"]
+                
+            return docStatusSync
         else:
             if skipConf==1:
                 documentdesc = "Confirmation validations were bypassed by the user."
@@ -1382,8 +1398,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         try:
             if (documentModelID == 999999 and vdrAccID != 0):
                 
-                InvodocStatus = 26
-                invoSubstatus = 141
+                InvodocStatus = 33
+                invoSubstatus = 144
                 try:
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
