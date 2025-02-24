@@ -594,15 +594,10 @@ async def read_invoice_file(u_id, inv_id, db):
                 blob_service_client = BlobServiceClient(
                     account_url=account_url, credential=get_credential()
                 )
-                if invdat.supplierAccountID is not None:
-                    blob_client = blob_service_client.get_blob_client(
+                
+                blob_client = blob_service_client.get_blob_client(
                         container=fr_data.ContainerName, blob=invdat.docPath
                     )
-                if invdat.vendorAccountID is not None:
-                    blob_client = blob_service_client.get_blob_client(
-                        container=fr_data.ContainerName, blob=invdat.docPath
-                    )
-
                 # invdat.docPath = str(list(blob_client.download_blob().readall()))
                 try:
                     filetype = os.path.splitext(invdat.docPath)[1].lower()
@@ -617,7 +612,7 @@ async def read_invoice_file(u_id, inv_id, db):
                 invdat.docPath = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
                 logger.error(traceback.format_exc())
-                invdat.docPath = ""
+                invdat.docPath = f"Blob does not exist: {invdat.docPath}"
 
         return {"result": {"filepath": invdat.docPath, "content_type": content_type}}
 
