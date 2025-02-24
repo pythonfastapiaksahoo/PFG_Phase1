@@ -1489,7 +1489,7 @@ def bulkProcessVoucherData():
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
         doc_query = db.query(model.Document.idDocument).filter(
             model.Document.documentStatusID == 21,
-            or_(model.Document.retry_count < 50, model.Document.retry_count == None)  # Handle NULL values
+            or_(model.Document.retry_count < 30, model.Document.retry_count == None)  # Handle NULL values
         )
 
         total_docs = doc_query.count()  # Total number of documents to process
@@ -1645,8 +1645,11 @@ def bulkProcessVoucherData():
                     ).update(
                         {
                             model.Document.documentStatusID: docStatus,
-                            model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
-                            model.Document.retry_count: model.Document.retry_count + 1 if docStatus == 21 else model.Document.retry_count,
+                            model.Document.documentsubstatusID: docSubStatus,
+                            model.Document.retry_count: case(
+                                (model.Document.retry_count.is_(None), 1),  # If NULL, set to 0
+                                else_=model.Document.retry_count + 1        # Otherwise, increment
+                            ) if docStatus == 21 else model.Document.retry_count
                         }
                     )
                     db.commit()
