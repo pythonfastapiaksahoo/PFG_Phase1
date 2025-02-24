@@ -193,6 +193,7 @@ def getModelData(vendorAccountID, db):
 
 def customModelCall(docID,userID,db):
     status = {'msg':'Failed','status':0}
+    logger.info(f"customModelCall for docID:{docID} started")
     try:
         # Custom Model Call for unidentified invoices:
         custcall_status = 1
@@ -456,8 +457,9 @@ def customModelCall(docID,userID,db):
             custHdrDt_update = []
             custHdrDt_insert = []
             custHdrDt = {}
+            logger.info(f"cust data docID:{docID}; Data: {cst_data}")
             for hdr in cst_data[0]["documents"][0]["fields"]:
-                print(hdr)
+                
                 tmp_rw = []
                 tmp_rw.append(hdr)
                 if "value_type" in cst_data[0]["documents"][0]["fields"][hdr]:
@@ -767,6 +769,7 @@ def customModelCall(docID,userID,db):
 
             # Add missing tags if any
             if missing_tags:
+                logger.info(f"docID:{docID} - Adding missing tags: {missing_tags}")
                 db.add_all(missing_tags)
                 db.commit()
 
@@ -789,7 +792,7 @@ def customModelCall(docID,userID,db):
             for document_data, document_tag_def in DocDtHdr:
                 docHdrDt[document_tag_def.TagLabel] = document_data.Value
                 tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
-            logger.info(f"customcall docHdrDt: {docHdrDt}")
+            logger.info(f"docID:{docID}customcall docHdrDt: {docHdrDt}")
             logger.info(f"customcall tagNames: {tagNames}")
             custHdrDt_insert_missing = []
             # if "SubTotal" not in docHdrDt:
@@ -827,6 +830,7 @@ def customModelCall(docID,userID,db):
                                         )
                 except Exception:
                     logger.error(f"{traceback.format_exc()}")
+            
             if "VendorName" not in docHdrDt:
                 try:
                     custHdrDt_insert_missing.append(
@@ -858,7 +862,7 @@ def customModelCall(docID,userID,db):
                     logger.error(f"{traceback.format_exc()}")
 
             # add missing values to the invoice data:
-            logger.info(f"custHdrDt_insert_missing: {custHdrDt_insert_missing}")
+            logger.info(f"docID:{docID}- custHdrDt_insert_missing: {custHdrDt_insert_missing}")
             for entry in custHdrDt_insert_missing:
                 new_record = model.DocumentData(
                     documentID=entry["documentID"],
@@ -963,4 +967,5 @@ def customModelCall(docID,userID,db):
         
     except Exception as err:
         logger.error(f"{traceback.format_exc()}")
+    logger.info(f"customModelCall for docID:{docID} ended with status:{status}")
     return status
