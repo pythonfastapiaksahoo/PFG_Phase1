@@ -1711,7 +1711,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
                                     "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH or "",
-                                    "base64file": "base64file"
+                                    "base64file": base64file
                                 },
                                 {
                                     "BUSINESS_UNIT": "NONPO",
@@ -1721,7 +1721,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
                                     "FILE_NAME": corpvoucherdata.EMAIL_PATH or "",
-                                    "base64file": "base64eml"
+                                    "base64file": base64eml
                                 }
                             ],
                         }
