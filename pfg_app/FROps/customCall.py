@@ -193,7 +193,7 @@ def getModelData(vendorAccountID, db):
 
 def customModelCall(docID,userID,db):
     status = {'msg':'Failed','status':0}
-    logger.info(f"customModelCall for docID:{docID} started")
+    logger.info(f"customModelCall for docID:{docID} started,userID: {userID}")
     try:
         # Custom Model Call for unidentified invoices:
         custcall_status = 1
@@ -457,9 +457,9 @@ def customModelCall(docID,userID,db):
             custHdrDt_update = []
             custHdrDt_insert = []
             custHdrDt = {}
-            logger.info(f"cust data docID:{docID}; Data: {cst_data[0]["documents"][0]["fields"]}")
+            # logger.info(f"cust data docID:{docID}; Data: {cst_data[0]["documents"][0]["fields"]}")
             for hdr in cst_data[0]["documents"][0]["fields"]:
-                
+                logger.info(f"cust data docID:{docID} - for loop:{cst_data[0]["documents"][0]["fields"][hdr]} ")
                 tmp_rw = []
                 tmp_rw.append(hdr)
                 logger.info(f"cust data docID:{docID}; Hdr: {hdr}")
