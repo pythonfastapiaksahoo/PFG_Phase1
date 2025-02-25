@@ -1451,9 +1451,9 @@ def newbulkupdateInvoiceStatus():
             lease.break_lease()
 
 
-def bulkProcessVoucherData():
+def bulkProcessVoucherData(db):
     try:
-        db = next(get_db())
+        # db = next(get_db())
 
         # Create an operation ID for the background job
         operation_id = uuid4().hex
@@ -1475,13 +1475,20 @@ def bulkProcessVoucherData():
         logger.info(f"[{datetime.datetime.now()}] Background job `Creation` Started!")
 
         userID = 1
-        # db = next(get_db())
+        # Get the retry frequency from the SetRetryCount table
+        frequency = db.query(model.SetRetryCount.frequency).filter(
+            model.SetRetryCount.is_active==1,
+            model.SetRetryCount.task_name=='retry_invoice_creation').first() 
+        if frequency:
+            frequency = frequency[0]  # Extract the integer value
+            
         # Batch size for processing
         batch_size = 50  # Define a reasonable batch size
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
         doc_query = db.query(model.Document.idDocument).filter(
             model.Document.documentStatusID == 21,
-            or_(model.Document.retry_count < 30, model.Document.retry_count == None)  # Handle NULL values
+            model.Document.documentsubstatusID.in_([53,112,143]),
+            or_(model.Document.retry_count < frequency, model.Document.retry_count == None)  # Handle NULL values
         )
 
         total_docs = doc_query.count()  # Total number of documents to process
@@ -1530,6 +1537,20 @@ def bulkProcessVoucherData():
                                     docStatus = 21
                                     docSubStatus = 109
 
+                                elif RespCodeInt == 408:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 34
+                                    docSubStatus = 146
+                                    
+                                elif RespCodeInt == 409:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.BLOB_STORAGE_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 34
+                                    docSubStatus = 147
+                                    
                                 elif RespCodeInt == 422:
                                     dmsg = (
                                         InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501

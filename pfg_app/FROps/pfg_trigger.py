@@ -2879,6 +2879,20 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                 docStatus = 21
                                                                 docSubStatus = 109
 
+                                                            elif RespCodeInt == 408:
+                                                                dmsg = (
+                                                                    InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
+                                                                )
+                                                                docStatus = 34
+                                                                docSubStatus = 146
+                                                                
+                                                            elif RespCodeInt == 409:
+                                                                dmsg = (
+                                                                    InvoiceVoucherSchema.BLOB_STORAGE_ERROR  # noqa: E501
+                                                                )
+                                                                docStatus = 34
+                                                                docSubStatus = 147
+                                                                
                                                             elif RespCodeInt == 422:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
