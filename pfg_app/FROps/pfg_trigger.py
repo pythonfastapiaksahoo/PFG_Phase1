@@ -2689,36 +2689,50 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 108
+                                                                docStatus = 35
+                                                                docSubStatus = 149
 
                                                             elif RespCodeInt == 406:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_INVOICE  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 109
-
+                                                                docStatus = 35
+                                                                docSubStatus = 148
+                                                            
+                                                            elif RespCodeInt == 408:
+                                                                dmsg = (
+                                                                    InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
+                                                                )
+                                                                docStatus = 4
+                                                                docSubStatus = 146
+                                                                
+                                                            elif RespCodeInt == 409:
+                                                                dmsg = (
+                                                                    InvoiceVoucherSchema.BLOB_STORAGE_ERROR  # noqa: E501
+                                                                )
+                                                                docStatus = 4
+                                                                docSubStatus = 147
+                                    
                                                             elif RespCodeInt == 422:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 110
+                                                                docStatus = 35
+                                                                docSubStatus = 150
 
                                                             elif RespCodeInt == 424:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_FILE_ATTACHMENT  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 111
+                                                                docStatus = 35
+                                                                docSubStatus = 151
 
                                                             elif RespCodeInt == 500:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.INTERNAL_SERVER_ERROR  # noqa: E501
                                                                 )
                                                                 docStatus = 21
-                                                                docSubStatus = 53
+                                                                docSubStatus = 152
                                                                 
                                                             elif RespCodeInt == 104:
                                                                 dmsg = (
@@ -2762,12 +2776,17 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 docSubStatus = 112
 
                                             try:
+                                                logger.info(f"Updating the document status for doc_id:{docID}")
                                                 db.query(model.Document).filter(
                                                     model.Document.idDocument == docID
                                                 ).update(
                                                     {
-                                                        model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                                        model.Document.documentStatusID: docStatus,
+                                                        model.Document.documentsubstatusID: docSubStatus,
+                                                        model.Document.retry_count: case(
+                                                            (model.Document.retry_count.is_(None), 1),  # If NULL, set to 0
+                                                            else_=model.Document.retry_count + 1        # Otherwise, increment
+                                                        ) if docStatus == 21 else model.Document.retry_count
                                                     }
                                                 )
                                                 db.commit()
@@ -2802,8 +2821,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 model.Document.idDocument == docID
                                             ).update(
                                                 {
-                                                    model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                    model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                                    model.Document.documentStatusID: docStatus,
+                                                    model.Document.documentsubstatusID: docSubStatus,
+                                                    model.Document.retry_count: case(
+                                                        (model.Document.retry_count.is_(None), 1),  # If NULL, set to 0
+                                                        else_=model.Document.retry_count + 1        # Otherwise, increment
+                                                    ) if docStatus == 21 else model.Document.retry_count
                                                 }
                                             )
                                             db.commit()
