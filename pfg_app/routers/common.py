@@ -346,7 +346,7 @@ async def get_current_schedule(job_name: str):
         return {"message": "No job scheduled"}
     
     
-@router.get("/update-retry-count")
+@router.post("/update-retry-count")
 async def update_retry_count(count: int, job_name: str, user: AzureUser = Depends(get_admin_user)):
     """Endpoint to update the retry count for a given invoice."""
     db = next(get_db())
