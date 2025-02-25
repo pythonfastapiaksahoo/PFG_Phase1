@@ -819,6 +819,15 @@ def customModelCall(docID,userID,db):
             #                             )
             #     except Exception:
             #         logger.error(f"{traceback.format_exc()}")
+            documenttagdef = (
+                db.query(model.DocumentTagDef)
+                .filter(model.DocumentTagDef.idDocumentModel == InvoModelId)
+                .all()
+            )
+
+            hdr_tags = {}
+            for hdrTags in documenttagdef:
+                hdr_tags[hdrTags.TagLabel] = hdrTags.idDocumentTagDef
 
             if "Credit Identifier" not in docHdrDt:
                 try:

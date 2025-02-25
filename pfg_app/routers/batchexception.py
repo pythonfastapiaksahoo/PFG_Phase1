@@ -55,6 +55,6 @@ async def customCall(
     user: AzureUser = Depends(get_user),
 
 ):
-    status = customModelCall(inv_id,user,db)
+    status = customModelCall(inv_id,user.idUser,db)
 
     return status
