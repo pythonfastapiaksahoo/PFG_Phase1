@@ -266,7 +266,15 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
                 currency_code = "CAD"
         else:
             currency_code = "CAD"
-
+        try:
+            if gst_amt > 0:
+                vat_applicability = 'T'
+            else:
+                vat_applicability = 'O'
+        except Exception:
+            logger.debug(traceback.format_exc())   
+            vat_applicability = 'O' 
+        
         if voucher_data_status == 1:
 
             existing_record = (
@@ -298,6 +306,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
                 existing_record.currency = currency_code
                 existing_record.freight_amt = freight_charges
                 existing_record.misc_amt = misc_amt
+                existing_record.vat_applicability = vat_applicability
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -325,6 +334,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
                     "currency_code": currency_code,
                     "freight_amt": freight_charges,
                     "misc_amt": misc_amt,
+                    "vat_applicability": vat_applicability
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
@@ -611,6 +621,15 @@ def nonIntegratedVoucherData(
             #     VENDOR_SETID = department.SETID
             #     BUSINESS_UNIT = "OFGDS"
             #     ACCOUNT = "71999"
+        try:
+            if gst_amt > 0:
+                vat_applicability = 'T'
+            else:
+                vat_applicability = 'O'
+        except Exception:
+            logger.debug(traceback.format_exc())   
+            vat_applicability = 'O' 
+        
         if nonIntStatus == 1:
 
             existing_record = (
@@ -641,6 +660,7 @@ def nonIntegratedVoucherData(
                 existing_record.currency_code = currency_code
                 existing_record.freight_amt = freight_charges
                 existing_record.misc_amt = misc_amt
+                existing_record.vat_applicability = vat_applicability
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -668,6 +688,7 @@ def nonIntegratedVoucherData(
                     "currency_code": currency_code,
                     "freight_amt": freight_charges,
                     "misc_amt": misc_amt,
+                    "vat_applicability": vat_applicability
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
@@ -2869,15 +2890,15 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 108
+                                                                docStatus = 35
+                                                                docSubStatus = 149
 
                                                             elif RespCodeInt == 406:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_INVOICE  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 109
+                                                                docStatus = 35
+                                                                docSubStatus = 148
 
                                                             elif RespCodeInt == 408:
                                                                 dmsg = (
@@ -2897,22 +2918,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 110
+                                                                docStatus = 35
+                                                                docSubStatus = 150
 
                                                             elif RespCodeInt == 424:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_FILE_ATTACHMENT  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 111
+                                                                docStatus = 35
+                                                                docSubStatus = 151
 
                                                             elif RespCodeInt == 500:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.INTERNAL_SERVER_ERROR  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 53
+                                                                docStatus = 36
+                                                                docSubStatus = 152
                                                             
                                                             elif RespCodeInt == 104:
                                                                 dmsg = (
