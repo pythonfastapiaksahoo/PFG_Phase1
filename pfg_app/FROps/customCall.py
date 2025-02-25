@@ -457,11 +457,12 @@ def customModelCall(docID,userID,db):
             custHdrDt_update = []
             custHdrDt_insert = []
             custHdrDt = {}
-            logger.info(f"cust data docID:{docID}; Data: {cst_data}")
+            logger.info(f"cust data docID:{docID}; Data: {cst_data[0]["documents"][0]["fields"]}")
             for hdr in cst_data[0]["documents"][0]["fields"]:
                 
                 tmp_rw = []
                 tmp_rw.append(hdr)
+                logger.info(f"cust data docID:{docID}; Hdr: {hdr}")
                 if "value_type" in cst_data[0]["documents"][0]["fields"][hdr]:
                     if "value" or "content" in cst_data[0]["documents"][0]["fields"][hdr]:
                         if (
@@ -504,6 +505,9 @@ def customModelCall(docID,userID,db):
                                 val = "NA"
                                 iserror = 0
                                 errorDesc = "The specified value could not be retrieved."
+                                logger.info(f"cust data docID:{docID}; Hdr: {hdr}; Val: {errorDesc}") 
+                            logger.info(f"cust data docID:{docID}; Hdr: {hdr}; Val: {val}")
+                            
                             if hdr == "InvoiceDate":
                                 val, status = date_cnv(val, DateFormat)
                                 invoDate = val
@@ -583,7 +587,7 @@ def customModelCall(docID,userID,db):
                                         }
                                     )
                                 custHdr_data.append(custHdrDt)
-
+            logger.info(f"cust data docID:{docID}; custHdrDt_update: {custHdrDt_update}")
             for entry in custHdrDt_update:
                 record_to_update = (
                     db.query(model.DocumentData)
@@ -608,7 +612,7 @@ def customModelCall(docID,userID,db):
                 logger.error(traceback.format_exc())
                 custcall_status = 0
                 db.rollback()  # Roll back the transaction if there's an error
-
+            logger.info(f"cust data docID:{docID}; custHdrDt_insert: {custHdrDt_insert}")
             for entry in custHdrDt_insert:
 
                 new_record = model.DocumentData(
