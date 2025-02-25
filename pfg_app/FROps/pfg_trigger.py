@@ -714,6 +714,7 @@ def format_and_validate_date(date_str):
 
 
 def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
+    logger.info(f"pfg_sync start: docID: {docID}, userID: {userID}, customCall: {customCall}, skipCk: {skipCk}")
     
     if '2' in str(skipCk):
         zero_dollar = 1
@@ -855,14 +856,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             documentModelID = dtb_rw.documentModelID
             vdrAccId = dtb_rw.vendorAccountID
         logger.info(
-            f"InvodocStatus:{InvodocStatus},"
+            f"docID: {docID}, InvodocStatus:{InvodocStatus},"
             + "filePath:{filePath},"
             + "invID_docTab:{invID_docTab},"
             + "vdrAccID:{vdrAccID}"
         )
 
     except Exception as e:
-        logger.error(f"{str(e)}")
+        logger.error(f"docID: {docID},{str(e)}")
 
     try:
         sentToPPlSft = {
@@ -928,7 +929,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 )
 
     except Exception:
-        logger.error(traceback.format_exc())
+        logger.error(f"docID: {docID},{traceback.format_exc()}")
     
    
 
@@ -993,8 +994,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             else:
                 del_otherKeys.append(key)  # Track deleted keys
 
-        logger.info("Filtered Data: {filtered_data}")
-        logger.info("Deleted Keys: {del_otherKeys}")
+        logger.info("docID: {docID} - Filtered Data: {filtered_data}")
+        logger.info("docID: {docID} - Deleted Keys: {del_otherKeys}")
 
         # Delete related records in DocumentUpdates
         db.query(model.DocumentUpdates).filter(
@@ -1031,7 +1032,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         
 
     except Exception:
-        logger.error(traceback.format_exc())
+        logger.error(f"docID: {docID} - {traceback.format_exc()}")
     
         DocDtHdr = (
             db.query(model.DocumentData, model.DocumentTagDef)
@@ -1051,8 +1052,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         for document_data, document_tag_def in DocDtHdr:
             docHdrDt[document_tag_def.TagLabel] = document_data.Value
             tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
-    logger.info(f"docHdrDt: {docHdrDt}")
-    logger.info(f"tagNames: {tagNames}")
+    logger.info(f"docID: {docID} -docHdrDt: {docHdrDt}")
+    logger.info(f"docID: {docID} - tagNames: {tagNames}")
 
     try:
         if "InvoiceId" in docHdrDt:
@@ -1063,9 +1064,9 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 ).update({model.Document.docheaderID: docHdrDt["InvoiceId"]})
                 db.commit()
                 invID_docTab = docHdrDt["InvoiceId"]
-                logger.info(f"updated docHeader: docID: {docID} invID_docTab: {invID_docTab}")
+                logger.info(f"docID: {docID} - updated docHeader: docID: {docID} invID_docTab: {invID_docTab}")
     except Exception:
-        logger.info(f"exception: {invID_docTab}")
+        logger.info(f"docID: {docID} - exception: {invID_docTab}")
     
 
     #-------------
@@ -1176,7 +1177,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 .all()
             )
         except Exception:
-            logger.error(f"{traceback.format_exc()}")
+            logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
 
         hdr_tags = {}
@@ -1195,7 +1196,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         }
                                     )
             except Exception:
-                logger.error(f"{traceback.format_exc()}")
+                logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
         if "GST" not in docHdrDt:
             try:
@@ -1210,7 +1211,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         }
                                     )
             except Exception:
-                logger.error(f"{traceback.format_exc()}")
+                logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
         # add missing values to the invoice data:
         for entry in custHdrDt_insert_missing:
@@ -1228,10 +1229,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         try:
             db.commit()
         except Exception as err:
-            logger.debug(f"ErrorUpdatingPostingData: {err}")
+            logger.debug(f"docID: {docID} - ErrorUpdatingPostingData: {err}")
 
     except Exception:
-        logger.error(f"{traceback.format_exc()}")
+        logger.error(f"docID: {docID} - {traceback.format_exc()}")
     #-------------
 
     sentToPPlSft = {
@@ -1312,7 +1313,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         db.commit()
                         invID_docTab = cln_invID
             except Exception:
-                logger.error(f"{traceback.format_exc()}")
+                logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
             #
 
@@ -1357,7 +1358,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     )
                     db.commit()
                 except Exception as err:
-                    logger.debug(f"ErrorUpdatingPostingData: {err}")
+                    logger.debug(f"docID: {docID} - ErrorUpdatingPostingData: {err}")
 
                 # logger.error(f"Duplicate Document Header ID: {invID_docTab}")
             else:
@@ -1376,11 +1377,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         )
                         db.commit()
                     except Exception as err:
-                        logger.debug(f"ErrorUpdatingPostingData: {err}")
+                        logger.debug(f"docID: {docID} - ErrorUpdatingPostingData: {err}")
 
             print(f"Count of rows: {docTb_docHdr_count}")
         except Exception as e:
-            logger.debug(f" {str(e)}")
+            logger.debug(f"docID: {docID} - {str(e)}")
 
         if InvodocStatus == 32:
             duplicate_status_ck = 0
@@ -1432,7 +1433,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     )
                     db.commit()
                 except Exception as err:
-                    logger.debug(f"ErrorUpdatingPostingData: {err}")
+                    logger.debug(f"docID: {docID} - ErrorUpdatingPostingData: {err}")
                 model_count = (
                     db.query(model.DocumentModel)
                     .filter(model.DocumentModel.idVendorAccount == vdrAccID)
@@ -1497,7 +1498,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     #     documentModelID = dtb_rw.documentModelID
                     #     invoSubStatus = dtb_rw.documentsubstatusID
         except Exception:
-            logger.error(f"{traceback.format_exc()}")
+            logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
         if vdrAccID == 0:
             docStatusSync["Status overview"] = {
@@ -1825,7 +1826,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                     # Commit the transaction
                                     db.commit()
                         except Exception:
-                            logger.info(f"Error occurred: {traceback.format_exc()}")
+                            logger.info(f" Error occurred: {traceback.format_exc()}")
 
                             invTotalMth = 0
                             invTotalMth_msg = "Invoice total mismatch, please review."                                                                                                      
@@ -1892,8 +1893,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                             )
                                                         )
                                             subTl_gst_sm = crd_clean_amount(subTotal+gst_amt)
-                                            if (round(abs(subTl_gst_sm-invoTotal)),2) < 0.09:
-                                                invTotalMth = 1
+                                            # if (round(abs(subTl_gst_sm-invoTotal)),2) < 0.09:
+                                            try:
+                                                # Ensure values are extracted from tuples if needed
+                                                subTl_gst_sm = subTl_gst_sm[0] if isinstance(subTl_gst_sm, tuple) else subTl_gst_sm
+                                                invoTotal = invoTotal[0] if isinstance(invoTotal, tuple) else invoTotal
+
+                                                # Ensure both values are floats
+                                                subTl_gst_sm = float(subTl_gst_sm)
+                                                invoTotal = float(invoTotal)
+
+                                                # Now perform the calculation safely
+                                                if round(abs(subTl_gst_sm - invoTotal), 2) < 0.09:
+
+                                                    invTotalMth = 1
+                                            except Exception:
+                                                logger.info(f"docID: {docID} - Error occurred: {traceback.format_exc()}")
 
 
                                             # # if (gst_amt is not None) and abs(
