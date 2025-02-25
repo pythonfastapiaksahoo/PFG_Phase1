@@ -252,6 +252,7 @@ def train_model(endpoint, model_id, blob_container_url, prefix, max_retries=3):
         except HttpResponseError as e:
             if "InvalidContentSourceFormat" in str(e):
                 logger.error(f"Error: Invalid content source. Retrying... Attempt {attempt + 1} of {max_retries}")
+                return {f"message": f"Invalid content source. Retrying... Attempt {attempt + 1} of {max_retries}", "result": None}
             else:
                 logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
                 return {
