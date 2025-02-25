@@ -1895,6 +1895,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             if (round(abs(subTl_gst_sm-invoTotal)),2) < 0.09:
                                                 invTotalMth = 1
 
+
                                             # # if (gst_amt is not None) and abs(
                                             # #     gst_amt
                                             # # ) > 0:  # noqa: E501
@@ -2003,7 +2004,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         invTotalMth = 0
                                         invo_StatusCode = 2
                                         invTotalMth_msg = "Approval required for Zero $ invoice."
-                                if invoTotal >= amt_threshold:
+                                elif invoTotal >= amt_threshold:
                                     if approvalCk==1:
                                         invo_StatusCode = 4
                                         invTotalMth = 1
@@ -2013,6 +2014,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         invTotalMth = 0
                                         invo_StatusCode = 4
                                         invTotalMth_msg =  f"Needs user approval,(Invoice total >= ${amt_threshold})"
+                                else:
+                                    invTotalMth = 0
+                                    invTotalMth_msg = "Success"
+
                         else:
 
                             # TAX validations:
