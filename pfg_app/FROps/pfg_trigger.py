@@ -2030,7 +2030,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         invo_StatusCode = 4
                                         invTotalMth_msg =  f"Needs user approval,(Invoice total >= ${amt_threshold})"
                                 else:
-                                    invTotalMth = 0
+                                    invTotalMth = 1
                                     invTotalMth_msg = "Success"
 
                         else:
