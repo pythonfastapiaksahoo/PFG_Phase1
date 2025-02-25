@@ -1451,7 +1451,7 @@ def newbulkupdateInvoiceStatus():
             lease.break_lease()
 
 
-def bulkProcessVoucherData(db):
+def bulkProcessVoucherData():
     try:
         # db = next(get_db())
 
