@@ -1535,3 +1535,14 @@ class TaskSchedular(Base):
     is_active = Column(Integer, nullable=True) 
     updated_at= Column(DateTime, nullable=True) 
     updated_by = Column(String, nullable=True)
+
+class SetRetryCount(Base): 
+    __tablename__ = "set_retry_count" 
+
+    set_id = Column(Integer, primary_key=True, autoincrement=True) 
+    frequency = Column(Integer, nullable=True )
+    user_id = Column(Integer, nullable=True) 
+    is_active = Column(Integer, nullable=True) 
+    updated_at= Column(DateTime, nullable=True) 
+    updated_by = Column(String, nullable=True)
+    task_name = Column(String, nullable=True )
