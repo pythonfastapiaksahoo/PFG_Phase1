@@ -1019,7 +1019,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "QTY_VCHR": 1,
                                             "UNIT_OF_MEASURE": "",
                                             "UNIT_PRICE": 0,
-                                            "VAT_APPLICABILITY": "",
+                                            "VAT_APPLICABILITY": voucherdata.vat_applicability or "",
                                             "BUSINESS_UNIT_RECV": (
                                                 voucherdata.Business_unit
                                                 if voucherdata.Business_unit
