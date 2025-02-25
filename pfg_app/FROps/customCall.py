@@ -457,9 +457,9 @@ def customModelCall(docID,userID,db):
             custHdrDt_update = []
             custHdrDt_insert = []
             custHdrDt = {}
-            # logger.info(f"cust data docID:{docID}; Data: {cst_data[0]["documents"][0]["fields"]}")
+             # logger.info(f"cust data docID:{docID}; Data: {cst_data[0]["documents"][0]["fields"]}")
             for hdr in cst_data[0]["documents"][0]["fields"]:
-                logger.info(f"cust data docID:{docID} - for loop:{cst_data[0]["documents"][0]["fields"][hdr]} ")
+                logger.info(f"cust data docID:{docID} - for loop:{cst_data[0]['documents'][0]['fields'][hdr]} ")
                 tmp_rw = []
                 tmp_rw.append(hdr)
                 logger.info(f"cust data docID:{docID}; Hdr: {hdr}")
