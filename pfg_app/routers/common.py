@@ -344,3 +344,60 @@ async def get_current_schedule(job_name: str):
         }
     else:
         return {"message": "No job scheduled"}
+    
+    
+@router.get("/update-retry-count")
+async def update_retry_count(count: int, job_name: str, user: AzureUser = Depends(get_admin_user)):
+    """Endpoint to update the retry count for a given invoice."""
+    db = next(get_db())
+    if job_name == "retry_invoice_creation":
+        # Fetching the first name of the user performing the rejection
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == user.idUser).scalar()
+        )
+        
+        # Fetch the currently active job
+        active_task = (
+            db.query(model.SetRetryCount)
+            .filter(
+                model.SetRetryCount.task_name == "retry_invoice_creation",
+                model.SetRetryCount.is_active == 1
+            )
+            .first()
+        )
+
+        # If an active task exists with the same interval, return early
+        if active_task and active_task.frequency == count:
+            return {"message": f"Retry Frequency already set to {count} by {first_name}"}
+
+        # Deactivate all previous entries for this job
+        db.query(model.SetRetryCount).filter_by(
+            task_name="retry_invoice_creation", is_active=1
+        ).update({"is_active": 0})
+
+        # Create a new active tas
+        new_task = model.SetRetryCount(
+            task_name="retry_invoice_creation",
+            frequency=count,
+            is_active=1,
+            user_id=user.idUser,
+            updated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            updated_by=first_name,
+        )
+        db.add(new_task)
+        db.commit()  # Commit all changes
+        return {"message": f"Retry count updated to {count} by {first_name}"}
+    else:
+        logger.error(f"Recurring job [{job_name}] not found")
+        return {"error": f"Recurring job [{job_name}] not found"}
+
+@router.get("/get-retry-count")
+async def get_retry_count(job_name: str):
+    """Endpoint to get the current job schedule."""
+    db = next(get_db())
+    job_name = job_name.lower()
+    if job_name == "retry_invoice_creation":
+        job = db.query(model.SetRetryCount).filter_by(task_name=job_name, is_active=1).first()
+        return {"retry_count": f"{job.frequency}"}
+    else:
+        logger.error(f"Recurring job [{job_name}] not found")

@@ -25,6 +25,8 @@ class InvoiceVoucherSchema(str, Enum):
     INTERNAL_SERVER_ERROR = (
         "Internal Server Error - Could not connect to IICS or to PeopleSoft"
     )
+    PAYLOAD_DATA_ERROR = "Payload Data Error - invalid date format"
+    BLOB_STORAGE_ERROR = "Failure: Error - Blob Storage could not be accessed"
     FAILURE_RESPONSE_UNDEFINED = "Failure: Response Undefined"
     FAILURE_CONNECTION_ERROR = "Failure: Connection Reset Error"
     SUCCESS_POSTED_IN_IRCS = "Success: Invoice Submitted for Batch"

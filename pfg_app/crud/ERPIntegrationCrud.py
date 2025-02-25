@@ -2,6 +2,7 @@ import base64
 import datetime
 import json
 import os
+import re
 import traceback
 from uuid import uuid4
 
@@ -940,6 +941,14 @@ def processInvoiceVoucher(doc_id, db):
         if not voucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
 
+        # Validate invoice date format (yyyy-mm-dd)
+        date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+        if not date_pattern.match(voucherdata.Invoice_Dt):
+            return {
+                "message": "Invalid Date Format",
+                "data": {"Http Response": "408", "Status": "Invalid date format"},
+            }
+        
         # Call the function to get the base64 file and content type
         try:
             file_data = read_invoice_file_voucher(doc_id, db)
@@ -950,11 +959,15 @@ def processInvoiceVoucher(doc_id, db):
                 if isinstance(base64file, bytes):
                     base64file = base64file.decode("utf-8")
             else:
-                base64file = "Error retrieving file: No result found in file data."
+                raise Exception("Error retrieving file: No result found in file data.")
         except Exception as e:
             # Catch any error from the read_invoice_file
-            # function and use the error message
-            base64file = f"Error retrieving file: {str(e)}"
+            logger.error(f"Error in read_invoice_file_voucher: {traceback.format_exc()}")
+            return {
+                "message": "Failure: File Attachment could not be loaded",
+                "data": {"Http Response": "409", "Status": "Error retrieving file"},
+            }
+            # base64file = f"Error retrieving file: {str(e)}"
 
         # Continue processing the file
         # print(f"Filepath (Base64 Encoded or Error): {base64file}")
@@ -1087,7 +1100,7 @@ def processInvoiceVoucher(doc_id, db):
         headers = {"Content-Type": "application/json"}
         username = settings.erp_user
         password = settings.erp_password
-        responsedata = {}
+        # responsedata = {}
         try:
             # Make the POST request with basic authentication
             response = requests.post(
@@ -1106,44 +1119,39 @@ def processInvoiceVoucher(doc_id, db):
 
             # Check for success
             # if response.status_code == 200:
-            try:
-                response_data = response.json()
-                if not response_data:
-                    logger.info("Response JSON is empty.")
-                    responsedata = {
-                        "message": "Success, but response JSON is empty.",
-                        "data": response_data
-                    }
-                else:
-                    responsedata = {"message": "Success", "data": response_data}
-            except ValueError:
-                # Handle case where JSON decoding fails
-                logger.info("Response returned, but not in JSON format.")
-                responsedata = {
-                    "message": "Success, but response is not JSON.",
-                    "data": {"Http Response": "104", "Status": "Connection reset by peer"}
-                }
-
+            # try:
+            #     response_data = response.json()
+            #     if not response_data:
+            #         logger.info("Response JSON is empty.")
+            #         responsedata = {
+            #             "message": "Success, but response JSON is empty.",
+            #             "data": response_data
+            #         }
+            #     else:
+            #         responsedata = {"message": "Success", "data": response_data}
+            # except ValueError:
+            #     # Handle case where JSON decoding fails
+            #     logger.info("Response returned, but not in JSON format.")
+            #     responsedata = {
+            #         "message": "Success, but response is not JSON.",
+            #         "data": {"Http Response": "104", "Status": "Connection reset by peer"}
+            #     }
+            response_data = response.json() if response.content else {}
+            return {"message": "Success", "data": response_data} if response_data else {"message": "Success, but response JSON is empty.", "data": response_data}
         except Exception:
             logger.info(f"ConnectionResetError occurred: {traceback.format_exc()}")
-            responsedata = {
-            "message": "ConnectionResetError",
-            "data": {"Http Response": "104", "Status": "Connection reset by peer"},
-            }
+            return {
+                "message": "ConnectionResetError","data": {"Http Response": "104", "Status": "Connection reset by peer"}}
 
     except Exception:
-        responsedata = {
-            "message": "InternalError",
-            "data": {"Http Response": "500", "Status": "Fail"},
-        }
         logger.error(
             f"Error while processing invoice voucher: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing invoice voucher: {str(traceback.format_exc())}",
-        )
+        return {
+            "message": "InternalSeverError",
+            "data": {"Http Response": "500", "Status": "InternalServerError"},
+        }
 
-    return responsedata
+    
 
 
 def read_invoice_file_voucher(inv_id, db):
@@ -1487,7 +1495,8 @@ def bulkProcessVoucherData():
         batch_size = 50  # Define a reasonable batch size
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
         doc_query = db.query(model.Document.idDocument).filter(
-            model.Document.documentStatusID == 21
+            model.Document.documentStatusID == 21,
+            model.Document.documentsubstatusID.in_([53,112,143]),
         )
 
         total_docs = doc_query.count()  # Total number of documents to process
@@ -1535,6 +1544,20 @@ def bulkProcessVoucherData():
                                     )
                                     docStatus = 21
                                     docSubStatus = 109
+                                    
+                                elif RespCodeInt == 408:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 34
+                                    docSubStatus = 146
+                                    
+                                elif RespCodeInt == 409:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.BLOB_STORAGE_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 34
+                                    docSubStatus = 147
 
                                 elif RespCodeInt == 422:
                                     dmsg = (
