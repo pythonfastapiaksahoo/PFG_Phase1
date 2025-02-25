@@ -509,6 +509,7 @@ def customModelCall(docID,userID,db):
                             logger.info(f"cust data docID:{docID}; Hdr: {hdr}; Val: {val}")
                             
                             if hdr == "InvoiceDate":
+                                logger.info(f"Date check docID:{docID}; DateFormat: {DateFormat}; Val: {val}")
                                 val, status = date_cnv(val, DateFormat)
                                 invoDate = val
                                 if status == 0:
