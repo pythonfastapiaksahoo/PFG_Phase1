@@ -1453,7 +1453,7 @@ def newbulkupdateInvoiceStatus():
 
 def bulkProcessVoucherData():
     try:
-        # db = next(get_db())
+        db = next(get_db())
 
         # Create an operation ID for the background job
         operation_id = uuid4().hex
