@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 import requests
 from pfg_app import settings
 from pfg_app import model
+from pfg_app.FROps.corp_postpro import postProInvoiceData
 from pfg_app.core.openai_data import extract_invoice_details_using_openai
 from pfg_app.core.utils import get_blob_securely, get_credential, upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
@@ -2389,71 +2390,13 @@ def processInvoiceFile(inv_id, blob_path, inv_file, db):
             db.commit()
             raise Exception("Failed to process invoice details using OpenAI.")
 
-        return invoice_data
+        postProInvoiceData(invoice_data, blob_path, inv_id)
+        # return invoice_data
 
     except Exception as e:
         logger.error(f"Critical error in processInvoiceFile: {traceback.format_exc()}")
         raise Exception("An error occurred while processing the invoice file.")
-        
-# def processInvoiceFile(container_name, pdf_filename, blob_path,sender, mail_row_key, db):
-#     try:
-#         mail_rw_dt ={}
-#         corp_queue_id = db.query(model.corp_trigger_tab.corp_queue_id).filter(model.corp_trigger_tab.mail_row_key == mail_row_key).first()
-        
-#         try:
-            
-#             pdf_blob_data, _ = get_blob_securely(container_name, blob_path)
-#             new_trigger = model.corp_trigger_tab(
-#                 corp_queue_id=corp_queue_id,
-#                 blobpath=blob_path,
-#                 status="File received",
-#                 sender = sender,
-#                 created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-#                 mail_row_key=mail_row_key
-#             )
-#             db.add(new_trigger)
-#             db.commit()
-#             db.refresh(new_trigger)
-            
-#         except Exception:
-#             logger.error(f"Error getting blob data: {traceback.format_exc()}")
-#             # Insert initial record into corp_trigger_tab
-#             new_trigger = model.corp_trigger_tab(
-#                 corp_queue_id=corp_queue_id,
-#                 blobpath=blob_path,
-#                 status="Blob Error",
-#                 sender = sender,
-#                 created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-#                 mail_row_key=mail_row_key
-#             )
-#             db.add(new_trigger)
-#             db.commit()
-#             db.refresh(new_trigger)
-    
-    
-#         try:
-#             corp_trigger_id = new_trigger.corp_trigger_id
-#             mail_rw_dt[pdf_filename] = {"pdf_blob_path":blob_path,
-#                                         "corp_trigger_id":corp_trigger_id,
-#                                         "mail_row_key":mail_row_key}
-#             mail_rw_dt[pdf_filename][corp_trigger_id] = mail_row_key
-#             print(f"Processing {blob_path} for OpenAI...")
-#             invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(pdf_blob_data)
-#             # Update corp_trigger_tab record upon successful processing
-#             new_trigger.pagecount = total_pages
-#             new_trigger.filesize = file_size_mb
-#             new_trigger.status = "OpenAI Details Extracted"
-#             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-#             db.commit()
 
-#         except Exception as e:
-#             print(f"Error processing {pdf_filename}: {traceback.format_exc()}")
-#             # Update corp_trigger_tab record with OpenAI Error
-#             new_trigger.status = "OpenAI Error"
-#             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-#             db.commit()
-#     except Exception:
-#         logger.error(f"{traceback.format_exc()}")
 
 
 async def read_corp_paginate_doc_inv_list(
