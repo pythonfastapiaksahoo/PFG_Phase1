@@ -2254,8 +2254,7 @@ async def get_get_email_row_associated_files_new(
             ):
                 data_to_insert["status"] = "Partially-Completed"
             elif (
-                all([attachment["status"] != "Processed-completed" for attachment in data_to_insert["attachment"]])
-                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
+                all([attachment["status"].lower().startswith("error") for attachment in data_to_insert["attachment"]])                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
             ):
                 data_to_insert["status"] = "Error"
             
