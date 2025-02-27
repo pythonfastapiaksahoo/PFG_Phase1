@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 import requests
 from pfg_app import settings
 from pfg_app import model
-from pfg_app.FROps.corp_postpro import postProInvoiceData
+# from pfg_app.FROps.corp_postpro import postProInvoiceData
 from pfg_app.core.openai_data import extract_invoice_details_using_openai
 from pfg_app.core.utils import get_blob_securely, get_credential, upload_blob_securely
 from pfg_app.crud.ERPIntegrationCrud import read_invoice_file_voucher
@@ -2358,44 +2358,85 @@ def uploadMissingFile(inv_id, file, db):
     
     except Exception as e:
         logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
-        
-def processInvoiceFile(inv_id, blob_path, inv_file, db):
+
+def uploadMissingEmailFile(inv_id, file, db):
     try:
-        try:
-            blob_data = inv_file.file.read()
-        except Exception as e:
-            logger.error(f"Error reading file {inv_file.filename}: {traceback.format_exc()}")
-            raise Exception("Failed to read the uploaded file.")
-
-        new_trigger = db.query(model.corp_trigger_tab).filter(model.corp_trigger_tab.documentid == inv_id).first()
+        # Fetch the invoice data from the database
+        invdat = (
+            db.query(model.corp_document_tab)
+            .options(load_only("email_filepath"))
+            .filter_by(corp_doc_id=inv_id)
+            .one()
+        )
         
-        if not new_trigger:
-            raise Exception(f"No record found for invoice ID {inv_id} in corp_trigger_tab.")
-
-        try:
-            print(f"Processing {blob_path} using OpenAI...")
-            invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(blob_data)
-
-            # Update corp_trigger_tab record upon successful processing
-            new_trigger.pagecount = total_pages
-            new_trigger.filesize = file_size_mb
-            new_trigger.status = "OpenAI Details Extracted"
-            new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-            db.commit()
-
-        except Exception as e:
-            logger.error(f"Error processing {inv_file.filename}: {traceback.format_exc()}")
-            new_trigger.status = "OpenAI Error"
-            new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-            db.commit()
-            raise Exception("Failed to process invoice details using OpenAI.")
-
-        postProInvoiceData(invoice_data, blob_path, inv_id)
-        # return invoice_data
-
+        eml_filepath = invdat.email_filepath
+        if not eml_filepath:
+            raise ValueError("Invalid invoice file path")
+        
+        # Extract directory path
+        dir_path = os.path.dirname(eml_filepath)
+        if not dir_path:
+            raise ValueError("Failed to extract directory path from email_filepath")
+        # Define container and blob names
+        container_name = "apinvoice-mail-container"  # Replace with actual container
+        blob_path = f"{dir_path}/{file.filename}"
+        
+        # Read file bytes
+        file.seek(0)  # Ensure we read from the beginning
+        pdf_bytes_io = BytesIO(file.read())
+        
+        # Upload the PDF using the secure upload function
+        upload_blob_securely(
+            container_name=container_name,
+            blob_path=blob_path,
+            data=pdf_bytes_io.getvalue(),
+            content_type="application/pdf"
+        )
+        pdf_bytes_io.close()  # Free memory
+        
+        return {"message": "File uploaded successfully", "blob_path": blob_path}
+    
     except Exception as e:
-        logger.error(f"Critical error in processInvoiceFile: {traceback.format_exc()}")
-        raise Exception("An error occurred while processing the invoice file.")
+        logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
+        
+        
+# def processInvoiceFile(inv_id, blob_path, inv_file, db):
+#     try:
+#         try:
+#             blob_data = inv_file.file.read()
+#         except Exception as e:
+#             logger.error(f"Error reading file {inv_file.filename}: {traceback.format_exc()}")
+#             raise Exception("Failed to read the uploaded file.")
+
+#         new_trigger = db.query(model.corp_trigger_tab).filter(model.corp_trigger_tab.documentid == inv_id).first()
+        
+#         if not new_trigger:
+#             raise Exception(f"No record found for invoice ID {inv_id} in corp_trigger_tab.")
+
+#         try:
+#             print(f"Processing {blob_path} using OpenAI...")
+#             invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(blob_data)
+
+#             # Update corp_trigger_tab record upon successful processing
+#             new_trigger.pagecount = total_pages
+#             new_trigger.filesize = file_size_mb
+#             new_trigger.status = "OpenAI Details Extracted"
+#             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+#             db.commit()
+
+#         except Exception as e:
+#             logger.error(f"Error processing {inv_file.filename}: {traceback.format_exc()}")
+#             new_trigger.status = "OpenAI Error"
+#             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+#             db.commit()
+#             raise Exception("Failed to process invoice details using OpenAI.")
+
+#         postProInvoiceData(invoice_data, blob_path, inv_id)
+#         # return invoice_data
+
+#     except Exception as e:
+#         logger.error(f"Critical error in processInvoiceFile: {traceback.format_exc()}")
+#         raise Exception("An error occurred while processing the invoice file.")
 
 
 
