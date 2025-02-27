@@ -1394,7 +1394,8 @@ def newbulkupdateInvoiceStatus():
                                     "documentdescription": dmsg,
                                     "CreatedOn": datetime.datetime.utcnow().strftime(
                                         "%Y-%m-%d %H:%M:%S"
-                                    ),  # noqa: E501
+                                    ),
+                                    "documentSubStatusID": docsubstatusid,
                                 }
                             )
                             success_count += 1  # Increment success counter
