@@ -1,3 +1,5 @@
+import datetime
+
 from sqlalchemy import (
     JSON,
     TEXT,
@@ -7,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     SmallInteger,
@@ -135,6 +138,7 @@ class Document(Base):
     dept = Column(TEXT, nullable=True)
     voucher_id = Column(String, nullable=True)
     mail_row_key = Column(String, nullable=True)
+    retry_count = Column(Integer, nullable=True)
     # __mapper_args__ = {"eager_defaults": True}
 
 
@@ -1390,6 +1394,16 @@ class PFGReceipt(Base):
     DEPTID = Column(String(10), nullable=True)
     LOCATION = Column(String(10), nullable=True)
 
+class PFGStrategicLedger(Base):
+    __tablename__ = "pfgstrategicledger"
+    ID = Column(Integer, primary_key=True, autoincrement=True)
+    SETID = Column(String(5), nullable=True)
+    CHARTFIELD1 = Column(String(10), nullable=True)
+    EFFDT = Column(String(10), nullable=True)
+    EFF_STATUS = Column(String(1), nullable=True)
+    DESCR = Column(String(50), nullable=True)
+    DESCRSHORT = Column(String(10), nullable=True)
+    
 
 class StampData(Base):
     __tablename__ = "stampdata"
@@ -1465,6 +1479,7 @@ class VoucherData(Base):
     currency_code = Column(String, nullable=True)
     freight_amt = Column(Float, nullable=True)
     misc_amt = Column(Float, nullable=True)
+    vat_applicability = Column(String, nullable=True)
 
 
 class NonintegratedStores(Base):
@@ -1493,3 +1508,41 @@ class SplitDocTab(Base):
     sender = Column(String, nullable=True)
     updated_on = Column(DateTime, nullable=True)
     mail_row_key = Column(String, nullable=True)
+
+
+class QueueTask(Base):
+    __tablename__ = "queue_tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    request_data = Column(JSONB, nullable=False, index=False)  # JSONB column
+    status = Column(String(50), nullable=False, default="queued")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
+
+    # Define a GIN index on the request_data column
+    __table_args__ = (
+        Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
+    )
+
+class TaskSchedular(Base): 
+    __tablename__ = "task_schedular" 
+
+    schedular_id = Column(Integer, primary_key=True, autoincrement=True) 
+    task_name = Column(String, nullable=True )
+    time_interval = Column(Integer, nullable=True )
+    user_id = Column(Integer, nullable=True) 
+    is_active = Column(Integer, nullable=True) 
+    updated_at= Column(DateTime, nullable=True) 
+    updated_by = Column(String, nullable=True)
+
+class SetRetryCount(Base): 
+    __tablename__ = "set_retry_count" 
+
+    set_id = Column(Integer, primary_key=True, autoincrement=True) 
+    frequency = Column(Integer, nullable=True )
+    user_id = Column(Integer, nullable=True) 
+    is_active = Column(Integer, nullable=True) 
+    updated_at= Column(DateTime, nullable=True) 
+    updated_by = Column(String, nullable=True)
+    task_name = Column(String, nullable=True )

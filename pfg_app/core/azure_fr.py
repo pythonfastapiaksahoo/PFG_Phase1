@@ -10,7 +10,7 @@ from azure.core.pipeline.policies import RetryPolicy
 
 from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
-
+from azure.core.exceptions import HttpResponseError
 
 def get_fr_data(
     inputdata_list, API_version, endpoint, model_type, inv_model_id="prebuilt-invoice"
@@ -21,10 +21,20 @@ def get_fr_data(
     fr_status = "Fail"
     isComposed = False
     template = ""
+    # Create a custom retry policy
+    custom_retry_policy = RetryPolicy(
+        retry_on_status_codes=[429],  # Retry on HTTP 429 Too Many Requests
+        retry_total=20,  # Maximum retries
+        retry_backoff_factor=1,  # Exponential backoff factor
+        retry_backoff_max=60,  # Max backoff time in seconds
+    )
 
     # Initialize the Form Recognizer client
     document_analysis_client = DocumentAnalysisClient(
-        endpoint, get_credential(), api_version=API_version
+        endpoint,
+        get_credential(),
+        api_version=API_version,
+        retry_policy=custom_retry_policy,
     )
     # if model_type is custom, then we use the inv_model_id to get the data
     # else we use the prebuilt-invoice model
@@ -141,7 +151,7 @@ def call_form_recognizer(
     # Create a custom retry policy
     custom_retry_policy = RetryPolicy(
         retry_on_status_codes=[429],  # Retry on HTTP 429 Too Many Requests
-        retry_total=10,  # Maximum retries
+        retry_total=20,  # Maximum retries
         retry_backoff_factor=1,  # Exponential backoff factor
         retry_backoff_max=60,  # Max backoff time in seconds
     )
@@ -190,30 +200,87 @@ def analyze_form(
         return {"message": "failure to fetch"}
 
 
+# def train_model(endpoint, model_id, blob_container_url, prefix):
+#     try:
+#         # Initialize the Form Recognizer client
+#         document_model_admin_client = DocumentModelAdministrationClient(
+#             endpoint, get_credential()
+#         )
+#         #
+#         poller = document_model_admin_client.begin_build_document_model(
+#             build_mode="template",
+#             model_id=model_id,
+#             blob_container_url=blob_container_url,
+#             description=f"Model for {model_id}",
+#             prefix=prefix,
+#         )
+
+#         model = poller.result().to_dict()
+#         logger.info(f"FUNC => [train_model] model: {model}")
+
+#         return {"message": "success", "result": model}
+
+#     except Exception:
+#         logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
+#         return {"message": f"error {traceback.format_exc()}", "result": None}
+
+
 def train_model(endpoint, model_id, blob_container_url, prefix):
-    try:
-        # Initialize the Form Recognizer client
-        document_model_admin_client = DocumentModelAdministrationClient(
-            endpoint, get_credential()
-        )
-        #
-        poller = document_model_admin_client.begin_build_document_model(
-            build_mode="template",
-            model_id=model_id,
-            blob_container_url=blob_container_url,
-            description=f"Model for {model_id}",
-            prefix=prefix,
-        )
+    attempt = 0
+    max_retries=3
+    while attempt < max_retries:
+        try:
+            # Initialize the Form Recognizer client
+            document_model_admin_client = DocumentModelAdministrationClient(
+                endpoint, get_credential()
+            )
 
-        model = poller.result().to_dict()
-        logger.info(f"FUNC => [train_model] model: {model}")
+            # Start training
+            poller = document_model_admin_client.begin_build_document_model(
+                build_mode="template",
+                model_id=model_id,
+                blob_container_url=blob_container_url,
+                description=f"Model for {model_id}",
+                prefix=prefix,
+            )
 
-        return {"message": "success", "result": model}
+            model = poller.result().to_dict()
+            logger.info(f"FUNC => [train_model] model: {model}")
 
-    except Exception:
-        logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
-        return {"message": f"error {traceback.format_exc()}", "result": None}
+            return {"message": "success", "result": model}
 
+        except HttpResponseError as e:
+            error_message = str(e)
+            
+            if "InternalServerError" in error_message:
+                logger.warning(f"Internal Server Error. Retrying... Attempt {attempt + 1} of {max_retries}")
+                attempt += 1
+                time.sleep(5)
+                continue  # Retry the loop
+            elif "ContentSourceNotAccessible" in error_message:
+                logger.warning(f"Internal Server Error. Retrying... Attempt {attempt + 1} of {max_retries}")
+                attempt += 1
+                time.sleep(5)
+                continue  # Retry the loop
+            
+            else:
+                logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
+                return {
+                    "message": "An unexpected error occurred. Please try again later.",
+                    "result": {traceback.format_exc()}
+                }
+
+        except Exception as e:
+            logger.error(f"Unexpected error: {traceback.format_exc()}")
+            return {
+                "message": f"Unexpected error: {str(e)}",
+                "result": None
+            }
+
+    return {
+        "message": "Training failed after multiple attempts. Please check your data and try again later.",
+        "result": None
+    }
 
 def compose_model(endpoint, model_id, model_ids):
 

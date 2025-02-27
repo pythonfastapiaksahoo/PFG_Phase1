@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from pfg_app.FROps.customCall import customModelCall
 from pfg_app.auth import AuthHandler
 from pfg_app.azuread.auth import get_user
 from pfg_app.azuread.schemas import AzureUser
@@ -45,3 +46,15 @@ async def pfgsyncflw(
     overall_status = pfg_sync(inv_id, user.idUser, db, customCall, skipConf)
 
     return overall_status
+
+
+@router.get("/pfg/customCall/{inv_id}")
+async def customCall(
+    inv_id: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user),
+
+):
+    status = customModelCall(inv_id,user.idUser,db)
+
+    return status
