@@ -107,6 +107,7 @@ def date_cnv(doc_date, date_format):
             "dd mm yyyy",
             "dd/mmm/yyyy",
             "dd/mmm/yy",
+            "dd/mm/yy"
         ]:
             doc_dt_slt = re.findall(r"\d+", doc_date)
             if len(doc_dt_slt) == 3:
