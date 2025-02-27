@@ -48,7 +48,7 @@ def crd_clean_amount(amount_str):
 
 
 # db = SCHEMA
-def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_supplierCk, db: Session):
+def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Session):
     voucher_data_status = 1
     intStatus = 0
     recvLineNum = 0
@@ -2650,7 +2650,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 docID,
                                                 gst_amt,
                                                 payload_subtotal,
-                                                CreditNote,skip_supplierCk,
+                                                CreditNote,
                                                 db,
                                             )
 
