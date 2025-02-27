@@ -16,7 +16,7 @@ class InvoiceVoucherSchema(str, Enum):
     VOUCHER_EDITED = "Voucher Edited"
     VOUCHER_REVIEWED = "Voucher Reviewed"
     VOUCHER_MODIFIED = "Voucher Modified"
-    VOUCHER_OPEN = "Voucher Open"
+    VOUCHER_OPEN = "Voucher Open" 
     VOUCHER_TEMPLATE = "Voucher Template"
     FAILURE_IICS = "Failure: Data Error - IICS could not process the message"
     FAILURE_INVOICE = "Failure: Data Error - Invoice could not be staged"
@@ -25,6 +25,9 @@ class InvoiceVoucherSchema(str, Enum):
     INTERNAL_SERVER_ERROR = (
         "Internal Server Error - Could not connect to IICS or to PeopleSoft"
     )
+    PAYLOAD_DATA_ERROR = "Payload Data Error - invalid date format"
+    BLOB_STORAGE_ERROR = "Failure: Error - Blob Storage could not be accessed"
+    FAILURE_CONNECTION_ERROR = "Failure: Connection Reset Error"
     FAILURE_RESPONSE_UNDEFINED = "Failure: Response Undefined"
     SUCCESS_POSTED_IN_IRCS = "Success: Invoice Submitted for Batch"
     FAILURE_POST_IN_IRCS = "Failure: Error - IICS could not process the message"

@@ -1,3 +1,4 @@
+#pfg_sync
 import json
 import re
 import traceback
@@ -12,6 +13,7 @@ from sqlalchemy.sql import case
 import pfg_app.model as model
 from pfg_app.crud.ERPIntegrationCrud import processInvoiceVoucher
 from pfg_app.crud.InvoiceCrud import update_docHistory
+# from pfg_app.routers.OCR import update_docHistory
 from pfg_app.FROps.customCall import customModelCall
 from pfg_app.FROps.validate_currency import validate_currency
 from pfg_app.logger_module import logger
@@ -264,7 +266,15 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
                 currency_code = "CAD"
         else:
             currency_code = "CAD"
-
+        try:
+            if gst_amt > 0:
+                vat_applicability = 'T'
+            else:
+                vat_applicability = 'O'
+        except Exception:
+            logger.debug(traceback.format_exc())   
+            vat_applicability = 'O' 
+        
         if voucher_data_status == 1:
 
             existing_record = (
@@ -296,6 +306,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
                 existing_record.currency = currency_code
                 existing_record.freight_amt = freight_charges
                 existing_record.misc_amt = misc_amt
+                existing_record.vat_applicability = vat_applicability
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -323,6 +334,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote,skip_sup
                     "currency_code": currency_code,
                     "freight_amt": freight_charges,
                     "misc_amt": misc_amt,
+                    "vat_applicability": vat_applicability
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
@@ -609,6 +621,15 @@ def nonIntegratedVoucherData(
             #     VENDOR_SETID = department.SETID
             #     BUSINESS_UNIT = "OFGDS"
             #     ACCOUNT = "71999"
+        try:
+            if gst_amt > 0:
+                vat_applicability = 'T'
+            else:
+                vat_applicability = 'O'
+        except Exception:
+            logger.debug(traceback.format_exc())   
+            vat_applicability = 'O' 
+        
         if nonIntStatus == 1:
 
             existing_record = (
@@ -639,6 +660,7 @@ def nonIntegratedVoucherData(
                 existing_record.currency_code = currency_code
                 existing_record.freight_amt = freight_charges
                 existing_record.misc_amt = misc_amt
+                existing_record.vat_applicability = vat_applicability
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -666,6 +688,7 @@ def nonIntegratedVoucherData(
                     "currency_code": currency_code,
                     "freight_amt": freight_charges,
                     "misc_amt": misc_amt,
+                    "vat_applicability": vat_applicability
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
@@ -691,6 +714,7 @@ def format_and_validate_date(date_str):
 
 
 def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
+    logger.info(f"pfg_sync start: docID: {docID}, userID: {userID}, customCall: {customCall}, skipCk: {skipCk}")
     
     if '2' in str(skipCk):
         zero_dollar = 1
@@ -770,6 +794,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
     amt_threshold = 10000
     otrCrg_ck_zdr = 0
     otrTax_total = 0
+    invoSubStatus = 0
     ocr_msg = "Please review invoice details."
     try:
         hdr_ck_list = [
@@ -831,62 +856,205 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             documentModelID = dtb_rw.documentModelID
             vdrAccId = dtb_rw.vendorAccountID
         logger.info(
-            f"InvodocStatus:{InvodocStatus},"
+            f"docID: {docID}, InvodocStatus:{InvodocStatus},"
             + "filePath:{filePath},"
             + "invID_docTab:{invID_docTab},"
             + "vdrAccID:{vdrAccID}"
         )
 
     except Exception as e:
-        logger.error(f"{str(e)}")
+        logger.error(f"docID: {docID},{str(e)}")
 
     try:
-        if skipConf==1:
-            documentdesc = "Confirmation validations were bypassed by the user."
-            update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db
-            )
-        if zero_dollar==1:
-            documentdesc = "Zero-dollar invoice approved by the user."
-            update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db
-            )
-        if skip_supplierCk==1:
-            documentdesc = "Supplier ID mismatch approved by the user."
-            update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db
-            )
-        if approvalCk==1:
-            documentdesc = f"Amount Approved by the user."
-            update_docHistory(
-                docID, userID, InvodocStatus, documentdesc, db
-            )
+        sentToPPlSft = {
+            7: "Sent to PeopleSoft",
+            29: "Voucher Created",
+            30: "Voucher Not Found",
+            27: "Quick Invoice",
+            14: "Posted In PeopleSoft",
+            28: "Recycled Invoice",
+        }
+
+        if InvodocStatus in sentToPPlSft.keys():
+            if isinstance(InvodocStatus, int):
+                docStatusSync[sentToPPlSft[InvodocStatus]] = {
+                    "status": 1,
+                    "response": ["Invoice sent to peopleSoft"],
+                }
+                return docStatusSync
+        elif InvodocStatus == 10 and invoSubStatus == 13:
+            # if invoSubStatus == 13:
+            docStatusSync["Rejected"] = {
+                "status": 1,
+                "StatusCode":0,
+                "response": ["Invoice rejected by user"],
+            }
+            return docStatusSync
+        elif InvodocStatus == 33:
+            docStatusSync["Custom model mapping required"] = {
+                "status": 0,
+                "StatusCode":0,
+                "response": [],
+            }
+            if invoSubStatus==145:
+                docStatusSync["Custom model mapping required"]["response"] = ["No active model found"]
+            elif invoSubStatus ==144:
+                docStatusSync["Custom model mapping required"]["response"] = ["Model mapping failed"]
+            elif invoSubStatus ==135:
+                docStatusSync["Custom model mapping required"]["response"] = ["Model not found in DI subscription"]
+            else:
+                docStatusSync["Custom model mapping required"]["response"] = ["Custom model mapping required"]
+                
+            return docStatusSync
+        else:
+            if skipConf==1:
+                documentdesc = "Confirmation validations were bypassed by the user."
+                update_docHistory(
+                    docID, userID, InvodocStatus, documentdesc, db,invoSubStatus
+                )
+            if zero_dollar==1:
+                documentdesc = "Zero-dollar invoice approved by the user."
+                update_docHistory(
+                    docID, userID, InvodocStatus, documentdesc, db,invoSubStatus
+                )
+            if skip_supplierCk==1:
+                documentdesc = "Supplier ID mismatch approved by the user."
+                update_docHistory(
+                    docID, userID, InvodocStatus, documentdesc, db, invoSubStatus
+                )
+            if approvalCk==1:
+                documentdesc = f"Amount Approved by the user."
+                update_docHistory(
+                    docID, userID, InvodocStatus, documentdesc, db, invoSubStatus
+                )
 
     except Exception:
-        logger.error(traceback.format_exc())
+        logger.error(f"docID: {docID},{traceback.format_exc()}")
     
+   
 
-    
-    DocDtHdr = (
-        db.query(model.DocumentData, model.DocumentTagDef)
-        .join(
-            model.DocumentTagDef,
-            model.DocumentData.documentTagDefID
-            == model.DocumentTagDef.idDocumentTagDef,
-        )
-        .filter(model.DocumentTagDef.idDocumentModel == docModel)
-        .filter(model.DocumentData.documentID == docID)
-        .all()
+    docTb = (
+        db.query(model.Document).filter(model.Document.idDocument == docID).all()
     )
 
-    docHdrDt = {}
-    tagNames = {}
+    for dtb_rw in docTb:
+        InvodocStatus = dtb_rw.documentStatusID
+        InvodocStatus_bu = dtb_rw.documentStatusID
+        invoSubStatus = dtb_rw.documentsubstatusID
+        filePath = dtb_rw.docPath
+        invID_docTab = dtb_rw.docheaderID
+        vdrAccID = dtb_rw.vendorAccountID
+        documentModelID = dtb_rw.documentModelID
+        vdrAccId = dtb_rw.vendorAccountID
 
-    for document_data, document_tag_def in DocDtHdr:
-        docHdrDt[document_tag_def.TagLabel] = document_data.Value
-        tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
-    logger.info(f"docHdrDt: {docHdrDt}")
-    logger.info(f"tagNames: {tagNames}")
+    try: 
+        hd_tags_qry = (
+                db.query(model.DocumentTagDef).filter(model.DocumentTagDef.idDocumentModel == documentModelID).all()
+            )
+        tag_id_mod = {}
+        for idDM in hd_tags_qry:
+            tag_id_mod[idDM.idDocumentTagDef] = idDM.TagLabel
+            
+        DocDtHdr = (
+                db.query(model.DocumentData, model.DocumentTagDef)
+                .join(
+                    model.DocumentTagDef,
+                    model.DocumentData.documentTagDefID
+                    == model.DocumentTagDef.idDocumentTagDef,
+                )
+                # .filter(model.DocumentTagDef.idDocumentModel == docModel)
+                .filter(model.DocumentData.documentID == docID)
+                .all()
+            )
+
+
+        docHdrDt = {}
+        tagNames = {}
+        dup_ck_sm = {}
+        del_otherKeys = []
+        tag_dup_ck = []
+        for document_data, document_tag_def in DocDtHdr:
+            
+            if document_data.documentTagDefID in tag_id_mod.keys():
+                dup_ck_sm[document_data.idDocumentData] = document_tag_def.TagLabel
+                tag_dup_ck.append(document_tag_def.TagLabel)
+                docHdrDt[document_tag_def.TagLabel] = document_data.Value
+                tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+            else:
+                del_otherKeys.append(document_data.idDocumentData)
+        seen = {}
+        filtered_data = {}
+
+        # Sort in ascending order to keep the smallest key and remove higher ones
+        for key in sorted(dup_ck_sm):
+            value = dup_ck_sm[key]
+            if value not in seen:
+                seen[value] = key  # Store the first occurrence (smallest key)
+                filtered_data[key] = value
+            else:
+                del_otherKeys.append(key)  # Track deleted keys
+
+        logger.info("docID: {docID} - Filtered Data: {filtered_data}")
+        logger.info("docID: {docID} - Deleted Keys: {del_otherKeys}")
+
+        # Delete related records in DocumentUpdates
+        db.query(model.DocumentUpdates).filter(
+            model.DocumentUpdates.documentDataID.in_(del_otherKeys)
+        ).delete(synchronize_session=False)
+
+        # Now delete the records in DocumentData
+        db.query(model.DocumentData).filter(
+            model.DocumentData.idDocumentData.in_(del_otherKeys)
+        ).delete(synchronize_session=False)
+
+        # Commit the transaction
+        db.commit()
+
+        DocDtHdr = (
+                db.query(model.DocumentData, model.DocumentTagDef)
+                .join(
+                    model.DocumentTagDef,
+                    model.DocumentData.documentTagDefID
+                    == model.DocumentTagDef.idDocumentTagDef,
+                )
+                # .filter(model.DocumentTagDef.idDocumentModel == docModel)
+                .filter(model.DocumentData.documentID == docID)
+                .all()
+            )
+
+        docHdrDt = {}
+        tagNames = {}
+
+        for document_data, document_tag_def in DocDtHdr:
+
+            docHdrDt[document_tag_def.TagLabel] = document_data.Value
+            tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+        
+
+    except Exception:
+        logger.error(f"docID: {docID} - {traceback.format_exc()}")
+    
+        DocDtHdr = (
+            db.query(model.DocumentData, model.DocumentTagDef)
+            .join(
+                model.DocumentTagDef,
+                model.DocumentData.documentTagDefID
+                == model.DocumentTagDef.idDocumentTagDef,
+            )
+            .filter(model.DocumentTagDef.idDocumentModel == docModel)
+            .filter(model.DocumentData.documentID == docID)
+            .all()
+        )
+
+        docHdrDt = {}
+        tagNames = {}
+
+        for document_data, document_tag_def in DocDtHdr:
+            docHdrDt[document_tag_def.TagLabel] = document_data.Value
+            tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
+    logger.info(f"docID: {docID} -docHdrDt: {docHdrDt}")
+    logger.info(f"docID: {docID} - tagNames: {tagNames}")
+
     try:
         if "InvoiceId" in docHdrDt:
             if invID_docTab !=docHdrDt["InvoiceId"]:
@@ -896,69 +1064,121 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 ).update({model.Document.docheaderID: docHdrDt["InvoiceId"]})
                 db.commit()
                 invID_docTab = docHdrDt["InvoiceId"]
-                logger.info(f"updated docHeader: docID: {docID} invID_docTab: {invID_docTab}")
+                logger.info(f"docID: {docID} - updated docHeader: docID: {docID} invID_docTab: {invID_docTab}")
     except Exception:
-        logger.info(f"exception: {invID_docTab}")
-
+        logger.info(f"docID: {docID} - exception: {invID_docTab}")
+    
 
     #-------------
     try:
-        missing_val = []
+        # missing_val = []
 
-        if "GST" in docHdrDt:
-            gst_found = 1
-        else:
-            missing_val.append("GST")
-            gst_found = 0
-        if "Credit Identifier" in docHdrDt:
-            credit_found = 1
-        else:
-            missing_val.append("Credit Identifier")
-            credit_found = 0
-        if missing_val:
-            existing_tags = (
-                db.query(model.DocumentTagDef.TagLabel)
-                .filter(
-                    model.DocumentTagDef.idDocumentModel == documentModelID,
-                    model.DocumentTagDef.TagLabel.in_(
-                        ["Credit Identifier"]
-                    ),
+        # if "GST" in docHdrDt:
+        #     gst_found = 1
+        # else:
+        #     missing_val.append("GST")
+        #     gst_found = 0
+        # if "Credit Identifier" in docHdrDt:
+        #     credit_found = 1
+        # else:
+        #     missing_val.append("Credit Identifier")
+        #     credit_found = 0
+        # if missing_val:
+        #     existing_tags = (
+        #         db.query(model.DocumentTagDef.TagLabel)
+        #         .filter(
+        #             model.DocumentTagDef.idDocumentModel == documentModelID,
+        #             model.DocumentTagDef.TagLabel.in_(
+        #                 ["Credit Identifier"]
+        #             ),
+        #         )
+        #         .all()
+        #     )
+
+        #     # Extract existing tag labels from the result
+        #     existing_tag_labels = {tag.TagLabel for tag in existing_tags}
+
+        #     # Prepare missing tags
+        #     missing_tags = []
+        #     if "Credit Identifier" not in existing_tag_labels:
+        #         missing_tags.append(
+        #             model.DocumentTagDef(
+        #                 idDocumentModel=documentModelID,
+        #                 TagLabel="Credit Identifier",
+        #                 CreatedOn=func.now(),
+        #             )
+        #         )
+
+        #     if "GST" not in existing_tag_labels:
+        #         missing_tags.append(
+        #             model.DocumentTagDef(
+        #                 idDocumentModel=documentModelID,
+        #                 TagLabel="GST",
+        #                 CreatedOn=func.now(),
+        #             )
+        #         )
+
+        #     if missing_tags:
+        #         # db.add_all(missing_tags)
+        #         # db.commit()
+        #         logger.info("Missing Tags Inserted")
+        custHdrDt_insert_missing=[]
+        # documenttagdef = (
+        #     db.query(model.DocumentTagDef)
+        #     .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
+        #     .all()
+        # )
+        
+        try:
+            missing_val = []
+
+            # Check if "GST" and "Credit Identifier" exist in docHdrDt
+            gst_found = int("GST" in docHdrDt)
+            credit_found = int("Credit Identifier" in docHdrDt)
+
+            if not gst_found:
+                missing_val.append("GST")
+            if not credit_found:
+                missing_val.append("Credit Identifier")
+
+            if missing_val:
+                # Fetch existing tag labels correctly
+                existing_tags = (
+                    db.query(model.DocumentTagDef.TagLabel)
+                    .filter(
+                        model.DocumentTagDef.idDocumentModel == documentModelID,
+                        model.DocumentTagDef.TagLabel.in_(missing_val),  # Check only missing ones
+                    )
+                    .all()
                 )
+
+                # Convert existing tags to a set for quick lookup
+                existing_tag_labels = {tag[0] for tag in existing_tags}  # Fetch as tuples, take first value
+
+                # Prepare only truly missing tags
+                missing_tags = [
+                    model.DocumentTagDef(
+                        idDocumentModel=documentModelID,
+                        TagLabel=tag,
+                        CreatedOn=func.now(),
+                    )
+                    for tag in missing_val if tag not in existing_tag_labels  # Avoid inserting duplicates
+                ]
+
+                # Insert missing tags only if required
+                if missing_tags:
+                    db.add_all(missing_tags)
+                    db.commit()
+
+            # Fetch all tags for the document
+            documenttagdef = (
+                db.query(model.DocumentTagDef)
+                .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
                 .all()
             )
+        except Exception:
+            logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
-            # Extract existing tag labels from the result
-            existing_tag_labels = {tag.TagLabel for tag in existing_tags}
-
-            # Prepare missing tags
-            missing_tags = []
-            if "Credit Identifier" not in existing_tag_labels:
-                missing_tags.append(
-                    model.DocumentTagDef(
-                        idDocumentModel=documentModelID,
-                        TagLabel="Credit Identifier",
-                        CreatedOn=func.now(),
-                    )
-                )
-
-            if "GST" not in existing_tag_labels:
-                missing_tags.append(
-                    model.DocumentTagDef(
-                        idDocumentModel=documentModelID,
-                        TagLabel="GST",
-                        CreatedOn=func.now(),
-                    )
-                )
-
-            if missing_tags:
-                db.add_all(missing_tags)
-                db.commit()
-        custHdrDt_insert_missing=[]
-        documenttagdef = (
-            db.query(model.DocumentTagDef)
-            .filter(model.DocumentTagDef.idDocumentModel == documentModelID)
-            .all()
-        )
 
         hdr_tags = {}
         for hdrTags in documenttagdef:
@@ -976,7 +1196,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         }
                                     )
             except Exception:
-                logger.error(f"{traceback.format_exc()}")
+                logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
         if "GST" not in docHdrDt:
             try:
@@ -991,7 +1211,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         }
                                     )
             except Exception:
-                logger.error(f"{traceback.format_exc()}")
+                logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
         # add missing values to the invoice data:
         for entry in custHdrDt_insert_missing:
@@ -1009,10 +1229,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
         try:
             db.commit()
         except Exception as err:
-            logger.debug(f"ErrorUpdatingPostingData: {err}")
+            logger.debug(f"docID: {docID} - ErrorUpdatingPostingData: {err}")
 
     except Exception:
-        logger.error(f"{traceback.format_exc()}")
+        logger.error(f"docID: {docID} - {traceback.format_exc()}")
     #-------------
 
     sentToPPlSft = {
@@ -1044,6 +1264,8 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
             try:
                 if invID_docTab == None:
+                    blank_id = 1
+                elif invID_docTab.lower() == "na":
                     blank_id = 1
                 else:
                     cln_invID = re.sub(r"[^a-zA-Z0-9\s]", "", invID_docTab)
@@ -1091,7 +1313,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         db.commit()
                         invID_docTab = cln_invID
             except Exception:
-                logger.error(f"{traceback.format_exc()}")
+                logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
             #
 
@@ -1136,7 +1358,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     )
                     db.commit()
                 except Exception as err:
-                    logger.debug(f"ErrorUpdatingPostingData: {err}")
+                    logger.debug(f"docID: {docID} - ErrorUpdatingPostingData: {err}")
 
                 # logger.error(f"Duplicate Document Header ID: {invID_docTab}")
             else:
@@ -1155,11 +1377,11 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         )
                         db.commit()
                     except Exception as err:
-                        logger.debug(f"ErrorUpdatingPostingData: {err}")
+                        logger.debug(f"docID: {docID} - ErrorUpdatingPostingData: {err}")
 
             print(f"Count of rows: {docTb_docHdr_count}")
         except Exception as e:
-            logger.debug(f" {str(e)}")
+            logger.debug(f"docID: {docID} - {str(e)}")
 
         if InvodocStatus == 32:
             duplicate_status_ck = 0
@@ -1196,7 +1418,22 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                 "response": [duplicate_status_ck_msg],
             }
         try:
-            if customCall == 1 or (documentModelID == 999999 and vdrAccID != 0):
+            if (documentModelID == 999999 and vdrAccID != 0):
+                
+                InvodocStatus = 33
+                invoSubstatus = 144
+                try:
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                            model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.debug(f"docID: {docID} - ErrorUpdatingPostingData: {err}")
                 model_count = (
                     db.query(model.DocumentModel)
                     .filter(model.DocumentModel.idVendorAccount == vdrAccID)
@@ -1229,30 +1466,39 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     return docStatusSync
 
                 else:
+                    docStatusSync["Status overview"] = {
+                        "status": 0,
+                        "StatusCode":0,
+                        "response": [
+                            "Model unmapped, please remap the vendor."  # noqa: E501
+                        ],
+                    }
+                    return docStatusSync
 
-                    customModelCall(docID)
-                    docTb = (
-                        db.query(model.Document)
-                        .filter(model.Document.idDocument == docID)
-                        .all()
-                    )
+                    # customModelCall(docID)
+                    # docTb = (
+                    #     db.query(model.Document)
+                    #     .filter(model.Document.idDocument == docID)
+                    #     .all()
+                    # )
                      # update dochistory table
-                    try:
-                        custModelCall_msg =  "Custom Model Call done"
-                        update_docHistory(
-                            docID, userID, InvodocStatus,custModelCall_msg , db
-                        )
-                    except Exception:
-                        logger.debug(traceback.format_exc())
+                    # try:
+                    #     custModelCall_msg =  "Custom Model Call done"
+                    #     update_docHistory(
+                    #         docID, userID, InvodocStatus,custModelCall_msg , db, invoSubStatus
+                    #     )
+                    # except Exception:
+                    #     logger.debug(traceback.format_exc())
 
-                    for dtb_rw in docTb:
-                        InvodocStatus = dtb_rw.documentStatusID
-                        filePath = dtb_rw.docPath
-                        invID_docTab = dtb_rw.docheaderID
-                        vdrAccID = dtb_rw.vendorAccountID
-                        documentModelID = dtb_rw.documentModelID
+                    # for dtb_rw in docTb:
+                    #     InvodocStatus = dtb_rw.documentStatusID
+                    #     filePath = dtb_rw.docPath
+                    #     invID_docTab = dtb_rw.docheaderID
+                    #     vdrAccID = dtb_rw.vendorAccountID
+                    #     documentModelID = dtb_rw.documentModelID
+                    #     invoSubStatus = dtb_rw.documentsubstatusID
         except Exception:
-            logger.error(f"{traceback.format_exc()}")
+            logger.error(f"docID: {docID} - {traceback.format_exc()}")
 
         if vdrAccID == 0:
             docStatusSync["Status overview"] = {
@@ -1273,7 +1519,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             if duplicate_status_ck == 1:
                 try:
                     update_docHistory(
-                        docID, userID, InvodocStatus, duplicate_status_ck_msg, db
+                        docID, userID, InvodocStatus, duplicate_status_ck_msg, db,invoSubStatus
                     )
                 except Exception:
                     logger.debug(traceback.format_exc())
@@ -1384,7 +1630,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                         userID,
                                                         InvodocStatus,
                                                         documentdesc,
-                                                        db,  # noqa: E501
+                                                        db,invoSubStatus,  # noqa: E501
                                                     )
                                                 except Exception:
                                                     logger.debug(
@@ -1425,7 +1671,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 userID,
                                                 InvodocStatus,
                                                 documentdesc,
-                                                db,  # noqa: E501
+                                                db,invoSubStatus  # noqa: E501
                                             )
                                         except Exception:
                                             logger.debug(f"{traceback.format_exc()}")
@@ -1470,7 +1716,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                     userID,
                                                     InvodocStatus,
                                                     documentdesc,
-                                                    db,  # noqa: E501
+                                                    db,invoSubStatus  # noqa: E501
                                                 )
                                             except Exception:
                                                 logger.debug(
@@ -1512,7 +1758,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 userID,
                                                 InvodocStatus,
                                                 documentdesc,
-                                                db,  # noqa: E501
+                                                db,invoSubStatus  # noqa: E501
                                             )
                                         except Exception:
                                             logger.debug(f"{traceback.format_exc()}")
@@ -1580,7 +1826,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                     # Commit the transaction
                                     db.commit()
                         except Exception:
-                            logger.info(f"Error occurred: {traceback.format_exc()}")
+                            logger.info(f" Error occurred: {traceback.format_exc()}")
 
                             invTotalMth = 0
                             invTotalMth_msg = "Invoice total mismatch, please review."                                                                                                      
@@ -1647,8 +1893,23 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                             )
                                                         )
                                             subTl_gst_sm = crd_clean_amount(subTotal+gst_amt)
-                                            if (round(abs(subTl_gst_sm-invoTotal)),2) < 0.09:
-                                                invTotalMth = 1
+                                            # if (round(abs(subTl_gst_sm-invoTotal)),2) < 0.09:
+                                            try:
+                                                # Ensure values are extracted from tuples if needed
+                                                subTl_gst_sm = subTl_gst_sm[0] if isinstance(subTl_gst_sm, tuple) else subTl_gst_sm
+                                                invoTotal = invoTotal[0] if isinstance(invoTotal, tuple) else invoTotal
+
+                                                # Ensure both values are floats
+                                                subTl_gst_sm = float(subTl_gst_sm)
+                                                invoTotal = float(invoTotal)
+
+                                                # Now perform the calculation safely
+                                                if round(abs(subTl_gst_sm - invoTotal), 2) < 0.09:
+
+                                                    invTotalMth = 1
+                                            except Exception:
+                                                logger.info(f"docID: {docID} - Error occurred: {traceback.format_exc()}")
+
 
                                             # # if (gst_amt is not None) and abs(
                                             # #     gst_amt
@@ -1758,7 +2019,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         invTotalMth = 0
                                         invo_StatusCode = 2
                                         invTotalMth_msg = "Approval required for Zero $ invoice."
-                                if invoTotal >= amt_threshold:
+                                elif invoTotal >= amt_threshold:
                                     if approvalCk==1:
                                         invo_StatusCode = 4
                                         invTotalMth = 1
@@ -1768,6 +2029,10 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                         invTotalMth = 0
                                         invo_StatusCode = 4
                                         invTotalMth_msg =  f"Needs user approval,(Invoice total >= ${amt_threshold})"
+                                else:
+                                    invTotalMth = 1
+                                    invTotalMth_msg = "Success"
+
                         else:
 
                             # TAX validations:
@@ -2087,7 +2352,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                         documentdesc = "OCR validations success"
                         try:
                             update_docHistory(
-                                docID, userID, documentstatus, documentdesc, db
+                                docID, userID, documentstatus, documentdesc, db,invoSubStatus
                             )
                         except Exception:
                             logger.error(traceback.format_exc())
@@ -2232,7 +2497,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 documentdesc = "Storetype validation Success"
                                 try:
                                     update_docHistory(
-                                        docID, userID, documentstatus, documentdesc, db
+                                        docID, userID, documentstatus, documentdesc, db,invoSubStatus
                                     )
                                 except Exception:
                                     logger.debug(traceback.format_exc)
@@ -2591,7 +2856,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             userID,
                                             documentstatus,
                                             documentdesc,
-                                            db,  # noqa: E501
+                                            db,invoSubStatus,  # noqa: E501
                                         )
                                     except Exception:
                                         logger.debug(traceback.format_exc())
@@ -2645,36 +2910,57 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 108
+                                                                docStatus = 35
+                                                                docSubStatus = 149
 
                                                             elif RespCodeInt == 406:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_INVOICE  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 109
+                                                                docStatus = 35
+                                                                docSubStatus = 148
 
+                                                            elif RespCodeInt == 408:
+                                                                dmsg = (
+                                                                    InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
+                                                                )
+                                                                docStatus = 4
+                                                                docSubStatus = 146
+                                                                
+                                                            elif RespCodeInt == 409:
+                                                                dmsg = (
+                                                                    InvoiceVoucherSchema.BLOB_STORAGE_ERROR  # noqa: E501
+                                                                )
+                                                                docStatus = 4
+                                                                docSubStatus = 147
+                                                                
                                                             elif RespCodeInt == 422:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 110
+                                                                docStatus = 35
+                                                                docSubStatus = 150
 
                                                             elif RespCodeInt == 424:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_FILE_ATTACHMENT  # noqa: E501
                                                                 )
-                                                                docStatus = 21
-                                                                docSubStatus = 111
+                                                                docStatus = 35
+                                                                docSubStatus = 151
 
                                                             elif RespCodeInt == 500:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.INTERNAL_SERVER_ERROR  # noqa: E501
                                                                 )
                                                                 docStatus = 21
-                                                                docSubStatus = 53
+                                                                docSubStatus = 152
+                                                            
+                                                            elif RespCodeInt == 104:
+                                                                dmsg = (
+                                                                    InvoiceVoucherSchema.FAILURE_CONNECTION_ERROR  # noqa: E501
+                                                                )
+                                                                docStatus = 21
+                                                                docSubStatus = 143
                                                             else:
                                                                 dmsg = (
                                                                     InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
@@ -2688,6 +2974,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                             docStatus = 21
                                                             docSubStatus = 112
                                                     else:
+                                                        logger.info(f"error docID: {docID} - No Http Response found")
                                                         dmsg = (
                                                             InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
                                                         )
@@ -2695,12 +2982,14 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                         docSubStatus = 112
                                                         
                                                 else:
+                                                    logger.info(f"error docID: {docID} - No data found ppl dft response")
                                                     dmsg = (
                                                         InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
                                                     )
                                                     docStatus = 21
                                                     docSubStatus = 112
                                             except Exception as err:
+                                                logger.info(f"error docID: {docID} - No response")
                                                 logger.debug(
                                                     f"PopleSoftResponseError: {traceback.format_exc()}"  # noqa: E501
                                                 )
@@ -2715,8 +3004,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                     model.Document.idDocument == docID
                                                 ).update(
                                                     {
-                                                        model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                                        model.Document.documentStatusID: docStatus,
+                                                        model.Document.documentsubstatusID: docSubStatus,
+                                                        model.Document.retry_count: case(
+                                                            (model.Document.retry_count.is_(None), 1),  # If NULL, set to 1
+                                                            else_=model.Document.retry_count + 1        # Otherwise, increment
+                                                        ) if docStatus == 21 else model.Document.retry_count
                                                     }
                                                 )
                                                 db.commit()
@@ -2726,13 +3019,13 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             try:
 
                                                 update_docHistory(
-                                                    docID, userID, docStatus, dmsg, db
+                                                    docID, userID, docStatus, dmsg, db, docSubStatus
                                                 )
 
                                             except Exception:
                                                 logger.error(traceback.format_exc())
                                         except Exception as e:
-
+                                            logger.info(f"error docID: {docID} - No response - failed")
                                             logger.debug(traceback.format_exc())
                                             dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
                                                 e
@@ -2751,8 +3044,12 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 model.Document.idDocument == docID
                                             ).update(
                                                 {
-                                                    model.Document.documentStatusID: docStatus,  # noqa: E501
-                                                    model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                                    model.Document.documentStatusID: docStatus,
+                                                    model.Document.documentsubstatusID: docSubStatus,
+                                                    model.Document.retry_count: case(
+                                                        (model.Document.retry_count.is_(None), 1),  # If NULL, set to 1
+                                                        else_=model.Document.retry_count + 1        # Otherwise, increment
+                                                    ) if docStatus == 21 else model.Document.retry_count
                                                 }
                                             )
                                             db.commit()
@@ -2766,7 +3063,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 userID,
                                                 documentstatus,
                                                 dmsg,
-                                                db,  # noqa: E501
+                                                db,docSubStatus,  # noqa: E501
                                             )
                                         except Exception:
                                             logger.debug(f"{traceback.format_exc()}")
@@ -2784,7 +3081,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             userID,
                                             documentstatus,
                                             documentdesc,
-                                            db,  # noqa: E501
+                                            db,documentSubstatus  # noqa: E501
                                         )
                                     except Exception:
                                         logger.debug(f"{traceback.format_exc()}")
@@ -2808,7 +3105,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                 documentdesc = "Invalid Store Type"
                                 try:
                                     update_docHistory(
-                                        docID, userID, documentstatus, documentdesc, db
+                                        docID, userID, documentstatus, documentdesc, db,documentSubstatus,
                                     )
                                 except Exception:
                                     logger.debug(f"{traceback.format_exc()}")
@@ -2835,7 +3132,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                             documentdesc = "No Stamp Data Found"
                             try:
                                 update_docHistory(
-                                    docID, userID, documentstatus, documentdesc, db
+                                    docID, userID, documentstatus, documentdesc, db,documentSubstatus
                                 )
                             except Exception:
                                 logger.debug(f"{traceback.format_exc()}")
@@ -2867,7 +3164,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                             documentdesc = "OCR / invoice total validation failed"
                         try:
                             update_docHistory(
-                                docID, userID, documentstatus, documentdesc, db
+                                docID, userID, documentstatus, documentdesc, db,documentSubstatus
                             )
                         except Exception:
 
@@ -2894,7 +3191,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             else:
                 try:
                     update_docHistory(
-                        docID, userID, InvodocStatus, duplicate_status_ck_msg, db
+                        docID, userID, InvodocStatus, duplicate_status_ck_msg, db,invoSubStatus
                     )
                 except Exception as e:
                     logger.error(f"pfg_sync line 886: {str(e)}")
@@ -2904,7 +3201,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
             try:
                 docHrd_msg = "No Header Data found"
                 docHrd_status = 0
-                update_docHistory(docID, userID, docHrd_status, docHrd_msg, db)
+                update_docHistory(docID, userID, docHrd_status, docHrd_msg, db,invoSubStatus)
             except Exception:
                 logger.debug(traceback)
             overAllstatus_msg = "Failed"

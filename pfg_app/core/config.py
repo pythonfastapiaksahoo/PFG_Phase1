@@ -46,3 +46,6 @@ class Settings(BaseSettings):
     erp_invoice_status_endpoint: str = ""
     erp_user: str = ""
     erp_password: str = ""
+
+    # local setup for testing
+    local_user_name: str = "local"
