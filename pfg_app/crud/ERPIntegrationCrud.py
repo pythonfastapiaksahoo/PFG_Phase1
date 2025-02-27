@@ -1319,6 +1319,7 @@ def newbulkupdateInvoiceStatus():
                         if entry_status == "STG":
                             documentstatusid = 7
                             docsubstatusid = 43
+                            dmsg = InvoiceVoucherSchema.SUCCESS_STAGED
                             # Skip updating if entry_status is "STG"
                             # because the status is already 7
                             # continue
