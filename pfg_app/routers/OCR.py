@@ -2472,6 +2472,7 @@ def push_frdata(
                     db.add(db_data)
                     db.commit()
     invoiceID = db_data.idDocument
+    logger.info(f"invoiceID: {invoiceID}, invoice_data: {invoice_data}")
     for dh in doc_header_data:
         dh["documentID"] = invoiceID
         db_header = model.DocumentData(**dh)
