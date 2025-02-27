@@ -2414,8 +2414,8 @@ def push_frdata(
 
     try:
         try:
-            if invoice_data.get("vendorAccountID") == 0:
-                invoice_data.pop("vendorAccountID")
+            # if invoice_data.get("vendorAccountID") == 0:
+            #     invoice_data.pop("vendorAccountID")
 
             # Convert totalAmount to a float
             invoice_data["totalAmount"] = float(invoice_data["totalAmount"]) if invoice_data["totalAmount"] else 0.0
