@@ -2299,6 +2299,15 @@ def push_frdata(
 ):
     # credit invoice processsing:
     try:
+        try:
+
+            logger.info(f"In pushFR :, modelID: {modelID}, vendorAccountID:{vendorAccountID} docStatus:{docStatus},")
+            if not vendorAccountID:
+                vendorAccountID = 0
+                logger.info(f" vendorAccountId updated to 0")
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
         hdr_ck_list = [
             "SubTotal",
             "InvoiceTotal",
