@@ -225,9 +225,9 @@ def analyze_form(
 #         return {"message": f"error {traceback.format_exc()}", "result": None}
 
 
-def train_model(endpoint, model_id, blob_container_url, prefix, max_retries=3):
+def train_model(endpoint, model_id, blob_container_url, prefix):
     attempt = 0
-
+    max_retries=3
     while attempt < max_retries:
         try:
             # Initialize the Form Recognizer client
@@ -250,14 +250,24 @@ def train_model(endpoint, model_id, blob_container_url, prefix, max_retries=3):
             return {"message": "success", "result": model}
 
         except HttpResponseError as e:
-            if "InvalidContentSourceFormat" in str(e):
-                logger.error(f"Error: Invalid content source. Retrying... Attempt {attempt + 1} of {max_retries}")
-                return {f"message": f"Invalid content source. Retrying... Attempt {attempt + 1} of {max_retries}", "result": None}
+            error_message = str(e)
+            
+            if "InternalServerError" in error_message:
+                logger.warning(f"Internal Server Error. Retrying... Attempt {attempt + 1} of {max_retries}")
+                attempt += 1
+                time.sleep(5)
+                continue  # Retry the loop
+            elif "ContentSourceNotAccessible" in error_message:
+                logger.warning(f"Internal Server Error. Retrying... Attempt {attempt + 1} of {max_retries}")
+                attempt += 1
+                time.sleep(5)
+                continue  # Retry the loop
+            
             else:
                 logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
                 return {
                     "message": "An unexpected error occurred. Please try again later.",
-                    "result": None
+                    "result": {traceback.format_exc()}
                 }
 
         except Exception as e:
@@ -266,9 +276,6 @@ def train_model(endpoint, model_id, blob_container_url, prefix, max_retries=3):
                 "message": f"Unexpected error: {str(e)}",
                 "result": None
             }
-
-        attempt += 1
-        time.sleep(5)  # Wait for 5 seconds before retrying
 
     return {
         "message": "Training failed after multiple attempts. Please check your data and try again later.",
