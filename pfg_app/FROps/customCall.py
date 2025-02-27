@@ -512,6 +512,7 @@ def customModelCall(docID,userID,db):
                                 logger.info(f"Date check docID:{docID}; DateFormat: {DateFormat}; Val: {val}")
                                 val, status = date_cnv(val, DateFormat)
                                 invoDate = val
+                                logger.info(f"Date check docID:{docID}; DateFormat: {DateFormat}; formatted Val: {val}")
                                 if status == 0:
                                     iserror = 1
                                     errorDesc = "Invalid Date Format"
