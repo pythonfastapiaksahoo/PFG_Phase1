@@ -136,10 +136,10 @@ def get_db():
                     refresh_access_token_and_get_session()
             db = Session()
             current_schema = db.execute("SELECT current_schema();").scalar()
-            logger.info(f"Current schema before setting: {current_schema}")
+            # logger.info(f"Current schema before setting: {current_schema}")
             db.execute("SET search_path TO pfg_schema;")
             current_schema = db.execute("SELECT current_schema();").scalar()
-            logger.info(f"Current schema after setting: {current_schema}")
+            # logger.info(f"Current schema after setting: {current_schema}")
             yield db  # Provide the session to the endpoint
             return  # Exit after successful execution
         except OperationalError as e:
