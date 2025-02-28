@@ -2306,16 +2306,14 @@ async def get_get_email_row_associated_files_new(
             if '@' in term:
                 # If the term looks like an email, treat it as such and sanitize it minimally
                 term = re.sub(r"[^a-zA-Z0-9@.]", "", term)  # Allow `@` and `.` for emails
-            else:
-                # General sanitize for other text inputs
-                term = re.sub(r"[^a-zA-Z0-9 ]", "", term)  # Allow alphanumeric and space
-            # Try parsing term as a date
-            try:
+            if ',' in term:  # Process date only if it contains a comma
                 date_obj = datetime.strptime(term, "%b %d, %Y")
                 start_date = date_obj.strftime("%Y-%m-%d 00:00:00")
                 end_date = date_obj.strftime("%Y-%m-%d 23:59:59")
                 date_filters.append(model.QueueTask.created_at.between(start_date, end_date))
-            except ValueError:
+            else:
+                # General sanitize for other text inputs
+                term = re.sub(r"[^a-zA-Z0-9 ]", "", term)  # Allow alphanumeric and space
                 # General text search
                 pattern = f"%{term}%"
                 text_filters.append(
