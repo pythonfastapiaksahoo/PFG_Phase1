@@ -781,7 +781,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
     """
     try:
         # avoid data updates by other users if in lock
-        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         docStatus_id, docSubStatus_id = db.query(
             model.Document.documentStatusID, model.Document.documentsubstatusID
             ).filter(model.Document.idDocument==inv_id).first()
@@ -1029,7 +1029,7 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
         A dictionary containing the result of the update operation.
     """
     try:
-        UpdatedOn = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        UpdatedOn = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         for items in col_data:
             items = dict(items)
             items["UpdatedOn"] = UpdatedOn
@@ -1642,7 +1642,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     :param db: Session to interact with the database.
     :return: List of updated or newly inserted StampData objects.
     """
-    dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
+    dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     updated_records = []
     consolidated_updates = []
     docStatus_id, docSubStatus_id = db.query(
@@ -1720,7 +1720,8 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     # Update the Department field if stamptagname is 'Department'
                     elif stamptagname == "Department":
                         document_record.dept = new_value
-
+                    # Update the UpdatedOn field
+                    document_record.UpdatedOn = dt
                     # Add the updated document to the session for commit
                     db.add(document_record)
                     
@@ -2273,14 +2274,21 @@ async def read_all_doc_inv_list(
 
 
 async def get_get_email_row_associated_files_new(
-    u_id, off_limit, uni_api_filter, column_filter, db, sort_column, sort_order
+    u_id,
+    off_limit,
+    uni_api_filter,
+    column_filter,
+    db,
+    sort_column,
+    sort_order
 ):
     try:
         data_query = db.query(model.QueueTask)
-
+        
         # Helper function: Normalize strings (convert to lowercase, remove non-alphanumeric characters)
         def normalize_string(input_column):
-            return func.lower(func.regexp_replace(input_column, r'[^a-zA-Z0-9]', '', 'g'))
+            # Make sure the string is converted to lowercase and remove non-alphanumeric characters except spaces
+            return func.lower(func.regexp_replace(input_column, r'[^a-zA-Z0-9 ]', '', 'g'))
 
         # Process Universal API Filter (uni_api_filter)
         if isinstance(uni_api_filter, str):
@@ -2291,10 +2299,16 @@ async def get_get_email_row_associated_files_new(
         # Lists to store filters
         date_filters = []
         text_filters = []
-
+        
         for term in search_terms:
-            term = re.sub(r"[^a-zA-Z0-9@. ]", "", term)  # Allow `@` for emails
-            
+            # term = re.sub(r"[^a-zA-Z0-9@. ]", "", term)  # Allow `@` for emails
+            # Avoid overly restrictive sanitization for emails
+            if '@' in term:
+                # If the term looks like an email, treat it as such and sanitize it minimally
+                term = re.sub(r"[^a-zA-Z0-9@.]", "", term)  # Allow `@` and `.` for emails
+            else:
+                # General sanitize for other text inputs
+                term = re.sub(r"[^a-zA-Z0-9 ]", "", term)  # Allow alphanumeric and space
             # Try parsing term as a date
             try:
                 date_obj = datetime.strptime(term, "%b %d, %Y")
@@ -2309,9 +2323,10 @@ async def get_get_email_row_associated_files_new(
                         normalize_string(func.coalesce(model.QueueTask.request_data["mail_row_key"].astext, '')).ilike(pattern),
                         normalize_string(func.coalesce(model.QueueTask.request_data["sender"].astext, '')).ilike(pattern),
                         normalize_string(func.coalesce(model.QueueTask.request_data["subject"].astext, '')).ilike(pattern),
+                        normalize_string(func.coalesce(model.QueueTask.request_data["email_path"].astext, '')).ilike(pattern),
                     )
                 )
-
+    
         # Apply Filters
         if date_filters or text_filters:
             data_query = data_query.filter(and_(*date_filters, *text_filters))
@@ -2798,7 +2813,7 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
 
     try:
         # avoid data updates by other users if in lock
-        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         docStatus_id, docSubStatus_id = db.query(
             model.Document.documentStatusID, model.Document.documentsubstatusID
             ).filter(model.Document.idDocument==inv_id).first()
@@ -2980,7 +2995,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
     :param db: Session to interact with the database.
     :return: Updated or newly inserted StampDataValidation object or error details.
     """
-    dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
+    dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     docStatus_id, docSubStatus_id = db.query(
             model.Document.documentStatusID, model.Document.documentsubstatusID
             ).filter(model.Document.idDocument==inv_id).first()
