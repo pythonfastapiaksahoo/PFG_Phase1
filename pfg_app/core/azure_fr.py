@@ -14,6 +14,7 @@ from azure.core.exceptions import HttpResponseError
 import socket
 from azure.core.pipeline.policies import SansIOHTTPPolicy
 
+
 class LogResolvedIPPolicy(SansIOHTTPPolicy):
     def on_request(self, request):
         # Extract the hostname from the URL
@@ -24,8 +25,11 @@ class LogResolvedIPPolicy(SansIOHTTPPolicy):
             ip_address = socket.gethostbyname(hostname)
             logger.info(f"Calling IP for hostname '{hostname}': {ip_address}")
         except Exception:
-            logger.info(f"Error resolving hostname '{hostname}': {traceback.format_exc()}")
-            
+            logger.info(
+                f"Error resolving hostname '{hostname}': {traceback.format_exc()}"
+            )
+
+
 def get_fr_data(
     inputdata_list, API_version, endpoint, model_type, inv_model_id="prebuilt-invoice"
 ):
@@ -37,7 +41,7 @@ def get_fr_data(
     template = ""
     # Create a custom retry policy
     custom_retry_policy = RetryPolicy(
-        retry_on_status_codes=[429,403],  # Retry on HTTP 429 Too Many Requests
+        retry_on_status_codes=[429, 403],  # Retry on HTTP 429 Too Many Requests
         retry_total=20,  # Maximum retries
         retry_backoff_factor=1,  # Exponential backoff factor
         retry_backoff_max=60,  # Max backoff time in seconds
@@ -49,7 +53,7 @@ def get_fr_data(
         get_credential(),
         api_version=API_version,
         retry_policy=custom_retry_policy,
-        additional_pipeline_policies=[LogResolvedIPPolicy()]
+        additional_pipeline_policies=[LogResolvedIPPolicy()],
     )
     # if model_type is custom, then we use the inv_model_id to get the data
     # else we use the prebuilt-invoice model
@@ -165,7 +169,7 @@ def call_form_recognizer(
 
     # Create a custom retry policy
     custom_retry_policy = RetryPolicy(
-        retry_on_status_codes=[429],  # Retry on HTTP 429 Too Many Requests
+        retry_on_status_codes=[429, 403],  # Retry on HTTP 429 Too Many Requests
         retry_total=20,  # Maximum retries
         retry_backoff_factor=1,  # Exponential backoff factor
         retry_backoff_max=60,  # Max backoff time in seconds
@@ -177,6 +181,7 @@ def call_form_recognizer(
         get_credential(),
         api_version=api_version,
         retry_policy=custom_retry_policy,
+        additional_pipeline_policies=[LogResolvedIPPolicy()],
     )
     if invoice_model_id == "prebuilt-invoice":
         # Call the Form Recognizer service
@@ -242,7 +247,7 @@ def analyze_form(
 
 def train_model(endpoint, model_id, blob_container_url, prefix):
     attempt = 0
-    max_retries=3
+    max_retries = 3
     while attempt < max_retries:
         try:
             # Initialize the Form Recognizer client
@@ -266,36 +271,40 @@ def train_model(endpoint, model_id, blob_container_url, prefix):
 
         except HttpResponseError as e:
             error_message = str(e)
-            
+
             if "InternalServerError" in error_message:
-                logger.warning(f"Internal Server Error. Retrying... Attempt {attempt + 1} of {max_retries}")
+                logger.warning(
+                    f"Internal Server Error. Retrying... Attempt {attempt + 1} of {max_retries}"
+                )
                 attempt += 1
                 time.sleep(5)
                 continue  # Retry the loop
             elif "ContentSourceNotAccessible" in error_message:
-                logger.warning(f"Internal Server Error. Retrying... Attempt {attempt + 1} of {max_retries}")
+                logger.warning(
+                    f"Internal Server Error. Retrying... Attempt {attempt + 1} of {max_retries}"
+                )
                 attempt += 1
                 time.sleep(5)
                 continue  # Retry the loop
-            
+
             else:
-                logger.error(f"Error in Form Recognizer: train_model {traceback.format_exc()}")
+                logger.error(
+                    f"Error in Form Recognizer: train_model {traceback.format_exc()}"
+                )
                 return {
                     "message": "An unexpected error occurred. Please try again later.",
-                    "result": {traceback.format_exc()}
+                    "result": {traceback.format_exc()},
                 }
 
         except Exception as e:
             logger.error(f"Unexpected error: {traceback.format_exc()}")
-            return {
-                "message": f"Unexpected error: {str(e)}",
-                "result": None
-            }
+            return {"message": f"Unexpected error: {str(e)}", "result": None}
 
     return {
         "message": "Training failed after multiple attempts. Please check your data and try again later.",
-        "result": None
+        "result": None,
     }
+
 
 def compose_model(endpoint, model_id, model_ids):
 
