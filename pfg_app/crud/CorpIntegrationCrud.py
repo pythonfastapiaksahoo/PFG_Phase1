@@ -943,27 +943,29 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
                 data_to_insert["email_path"] = queue_task.request_data.get("eml_path")
                 data_to_insert["sender"] = queue_task.request_data.get("sender")
                 data_to_insert["subject"] = queue_task.request_data.get("subject")
+                data_to_insert["status"] = queue_task.status
             else:
                 data_to_insert["email_path"] = None
                 data_to_insert["sender"] = None
                 data_to_insert["subject"] = None
+                data_to_insert["status"] = queue_task.status
 
             # Count total attachments
             data_to_insert["total_attachment_count"] = len(data_to_insert["associated_invoice_files"])
 
-            # Determine Overallstatus
-            statuses = {attachment["status"] for attachment in data_to_insert["associated_invoice_files"]}
+            # # Determine Overallstatus
+            # statuses = {attachment["status"] for attachment in data_to_insert["associated_invoice_files"]}
 
-            if not data_to_insert["associated_invoice_files"]:
-                data_to_insert["Overallstatus"] = "Queued"
-            elif statuses == {"Processed"}:
-                data_to_insert["Overallstatus"] = "Completed"
-            elif "Processed" in statuses:
-                data_to_insert["Overallstatus"] = "Partially Completed"
-            elif statuses:
-                data_to_insert["Overallstatus"] = "Error"
-            else:
-                data_to_insert["Overallstatus"] = "Unknown"
+            # if not data_to_insert["associated_invoice_files"]:
+            #     data_to_insert["Overallstatus"] = "Queued"
+            # elif statuses == {"Processed"}:
+            #     data_to_insert["Overallstatus"] = "Completed"
+            # elif "Processed" in statuses:
+            #     data_to_insert["Overallstatus"] = "Partially Completed"
+            # elif statuses:
+            #     data_to_insert["Overallstatus"] = "Error"
+            # else:
+            #     data_to_insert["Overallstatus"] = "Unknown"
 
             data.append(data_to_insert)
 
