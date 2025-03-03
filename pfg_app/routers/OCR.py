@@ -651,9 +651,8 @@ def queue_process_task(queue_task: QueueTask):
                                         break
                                         # print("syn: ",syn,"   v_id: ",v_id)
 
-                                    if (syn is not None or str(syn) != "None") and (
-                                        vdrFound == 0
-                                    ):
+                                    # if (syn is not None or str(syn) != "None") and (vdrFound == 0):
+                                    if syn and syn.strip().lower() != "none" and vdrFound == 0:
                                         synlt = json.loads(syn)
                                         if isinstance(synlt, list):
                                             for syn1 in synlt:
