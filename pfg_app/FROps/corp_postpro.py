@@ -576,4 +576,99 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     except Exception:
         logger.error(traceback.format_exc())
             
+
+
+
+# def postProInvoiceData(content, blob_path, corp_doc_id):
+#     try:
+#         db = next(get_db())
+#         timestmp = utc_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+#         # Determine if it's a credit invoice
+#         credit_invoice = 1 if content.get("CreditNote", "No").lower() == "yes" else 0
+#         if credit_invoice==1:
+#             document_type = "Credit"
+#         else:
+#             document_type = "Invoice"
+#         # Clean amounts
+#         cleaned_data = {
+#             "invoicetotal": cleanAmt_all(credit_invoice, content.get("InvoiceTotal", "0.00")),
+#             "subtotal": cleanAmt_all(credit_invoice, content.get("SubTotal", "0.00")),
+#             "gst": cleanAmt_all(credit_invoice, content.get("GST", "0.00")),
+#             "pst": cleanAmt_all(credit_invoice, content.get("PST", "0.00")),
+#             "pst_sk": cleanAmt_all(credit_invoice, content.get("PST-SK", "0.00")),
+#             "pst_bc": cleanAmt_all(credit_invoice, content.get("PST-BC", "0.00")),
+#             "bottledeposit": cleanAmt_all(credit_invoice, content.get("Bottle Deposit", "0.00")),
+#             "shippingcharges": cleanAmt_all(credit_invoice, content.get("Shipping Charges", "0.00")),
+#             "litterdeposit": cleanAmt_all(credit_invoice, content.get("Litter Deposit", "0.00")),
+#             "ecology_fee": cleanAmt_all(credit_invoice, content.get("Ecology Fee", "0.00")),
+#             "misc": cleanAmt_all(credit_invoice, content.get("misc", "0.00")),
+#         }
+#         try:
+            
+#             # Update corp_document_tab
+#             doc_entry = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+#             if doc_entry:
+#                 doc_entry.invoice_id = content.get("InvoiceID")
+#                 doc_entry.invoice_date = content.get("InvoiceDate")
+#                 doc_entry.invoicetotal = cleaned_data["invoicetotal"]
+#                 doc_entry.gst = cleaned_data["gst"]
+#                 doc_entry.invo_filepath = blob_path
+#                 doc_entry.updated_on = timestmp
+#                 doc_entry.document_type = document_type
+            
+#             # Update corp_docdata
+#             docdata_entry = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
+#             if not docdata_entry:
+#                 docdata_entry = model.corp_docdata(corp_doc_id=corp_doc_id)
+#                 db.add(docdata_entry)
+            
+#             docdata_entry.invoice_id = content.get("InvoiceID")
+#             docdata_entry.invoice_date = content.get("InvoiceDate")
+#             docdata_entry.vendor_name = content.get("VendorName")
+#             docdata_entry.vendoraddress = content.get("VendorAddress")
+#             docdata_entry.currency = content.get("Currency")
+#             docdata_entry.invoicetotal = cleaned_data["invoicetotal"]
+#             docdata_entry.subtotal = cleaned_data["subtotal"]
+#             docdata_entry.gst = cleaned_data["gst"]
+#             docdata_entry.pst = cleaned_data["pst"]
+#             docdata_entry.pst_sk = cleaned_data["pst_sk"]
+#             docdata_entry.pst_bc = cleaned_data["pst_bc"]
+#             docdata_entry.bottledeposit = cleaned_data["bottledeposit"]
+#             docdata_entry.shippingcharges = cleaned_data["shippingcharges"]
+#             docdata_entry.litterdeposit = cleaned_data["litterdeposit"]
+#             docdata_entry.ecology_fee = cleaned_data["ecology_fee"]
+#             docdata_entry.misc = cleaned_data["misc"]
+#             docdata_entry.created_on = timestmp
+
+#             db.commit()
+#         except Exception as er:
+#             db.rollback()
+#             try:
+#                 corp_trg_id = content.get("corp_trg_id", "")
+#                 if corp_trg_id:
+#                     corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+#                     if corp_trigger:
+#                         corp_trigger.status = f"Error - {str(er)}"
+#                         corp_trigger.updated_at = datetime.utcnow()
+#                         db.commit()
+#             except Exception as e:
+#                 logger.error(f"Error updating corp_trigger_tab: {e}")
+#                 db.rollback()
+#             raise Exception(f"Error in postProInvoiceData: {er}")
+#         # Update corp_trigger_tab
+#         try:
+#             corp_trg_id = content.get("corp_trg_id", "")
+#             if corp_trg_id:
+#                 corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+#                 if corp_trigger:
+#                     corp_trigger.status = "Processed"
+#                     corp_trigger.documentid = corp_doc_id
+#                     corp_trigger.updated_at = timestmp
+#                     db.commit()
+#         except Exception as e:
+#             logger.error(f"Error updating corp_trigger_tab: {traceback.format_exc()}")
+#             db.rollback()
     
+#     except Exception as e:
+#         logger.error(f"Error in postProInvoiceData: {traceback.format_exc()}")
+#         db.rollback()
