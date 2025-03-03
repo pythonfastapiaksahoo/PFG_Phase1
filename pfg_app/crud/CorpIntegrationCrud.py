@@ -52,7 +52,7 @@ def extract_content_from_eml_file(email_msg):
     }
     # Get the HTML content from the email body
     html_content = email_msg.get_body(preferencelist=('html', 'plain')).get_content()
-    # print(html_content)
+    # logger.info(html_content)
     soup = BeautifulSoup(html_content, 'html.parser')
         
     # Find all tables in the HTML
@@ -1311,14 +1311,15 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
         # Fetch the existing record
         corp_doc = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
         if not corp_doc:
-            raise ValueError("No record found for the given corp_doc_id")
+            return {"message": "No record found for the given corp_doc_id", "status": "error"}
+
 
         consolidated_updates = []
         
         corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
         if not corp_doc_tab:
-            raise ValueError("No record found in corp_document_tab for the given corp_doc_id")
-        
+            return {"message": "No record found in corp_document_tab for the given corp_doc_id", "status": "error"}
+        any_updates = False
         # Iterate through the list of updates
         for update in updates:
             field = update.field
@@ -1345,7 +1346,8 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                 # Only update if the value is actually changing
                 if current_value != new_value:
                     setattr(corp_doc, field, new_value)  # Update the field
-
+                    any_updates = True  # Mark that an update has been made
+                    
                     # Log the update in CorpDocumentUpdates with the new logic
                     inv_up_data_id = (
                         db.query(model.CorpDocumentUpdates.iddocumentupdates)
@@ -1376,12 +1378,12 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                     db.flush()
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
-                # If the field is one of the specified ones, update corp_document_tab as well
-                if field in ["invoice_id", "invoicetotal", "invoice_date"]:
-                    setattr(corp_doc_tab, field, new_value)
-                    consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
+                    # If the field is one of the specified ones, update corp_document_tab as well
+                    if field in ["invoice_id", "invoicetotal", "invoice_date"]:
+                        setattr(corp_doc_tab, field, new_value)
+                        consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
         # Updating the consolidated history log for updated fields
-        if consolidated_updates:
+        if any_updates:
             try:
                 corp_update_docHistory(
                     corp_doc_id,
@@ -1392,13 +1394,17 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                     docSubStatus_id  
                 )
             except Exception as e:
-                print(f"Error updating document history: {traceback.format_exc()}")
+                logger.info(f"Error updating document history: {traceback.format_exc()}")
 
-        # Commit changes
-        db.commit()
+            # Commit changes
+            db.commit()
+            return {"message": "Field(s) updated successfully", "status": "success"}
+        else:
+            return {"message": "Field(s) already exist or are the same", "status": "no_change"}
     except Exception as e:
-        print(f"Error updating corp_docdata: {traceback.format_exc()}")
+        logger.info(f"Error updating corp_docdata: {traceback.format_exc()}")
         db.rollback()
+        return {"message": "An error occurred while updating", "status": "error"}
 
 async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
     try:
@@ -1422,8 +1428,8 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
         
         corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
         if not corp_doc_tab:
-            raise ValueError("No record found in corp_document_tab for the given corp_doc_id")
-        
+            return {"message": "No record found in corp_document_tab for the given corp_doc_id", "status": "error"}
+        any_updates = False
         # Process each update
         for update in updates:
             field = update.field
@@ -1438,7 +1444,7 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     # Convert old and new values to JSON string before storing
                     old_value_str = json.dumps(old_value) if old_value is not None else None
                     new_value_str = json.dumps(new_value) if new_value is not None else None
-                    
+                    any_updates = True
                     # Log the update in CorpDocumentUpdates with the new logic
                     inv_up_data_id = (
                         db.query(model.CorpDocumentUpdates.iddocumentupdates)
@@ -1485,6 +1491,7 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                 # Update only if value changes
                 if old_value != new_value:
                     setattr(corp_coding, field, new_value)
+                    any_updates = True
                     # Log the update in CorpDocumentUpdates with the new logic
                     inv_up_data_id = (
                         db.query(model.CorpDocumentUpdates.iddocumentupdates)
@@ -1524,7 +1531,7 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
             db.add(corp_coding)
 
         # Updating the consolidated history log
-        if consolidated_updates:
+        if any_updates:
             try:
                 corp_update_docHistory(
                     corp_doc_id,
@@ -1535,15 +1542,18 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     docSubStatus_id
                 )
             except Exception as e:
-                print(f"Error updating document history: {str(e)}")
+                logger.info(f"Error updating document history: {traceback.format_exc()}")
+            
+            # Commit the transaction
+            db.commit()
             return {"result": "updated", "updated_data": data}
-        # Commit the transaction
-        db.commit()
-    
+        else:
+            return {"message": "Field(s) already exist or are the same", "status": "no_change"}
+        
     except Exception as e:
-        print(f"Error in upsert_coding_line_data: {str(e)}")
+        logger.info(f"Error in upsert_coding_line_data: {str(e)}")
         db.rollback()
-
+        return {"message": "An error occurred while updating", "status": "error"}
 
 def corp_update_docHistory(documentID, userID, documentstatus, documentdesc, db,docsubstatus=0):
     """Function to update the document history by inserting a new record into
@@ -1769,7 +1779,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             # Log full response details
             logger.info(f"Response Status : {response.status_code}")
             logger.info(f"Response Headers : {response.headers}")
-            # print("Response Content: ", response.content.decode())  # Full content
+            # logger.info("Response Content: ", response.content.decode())  # Full content
 
             # Check for success
             # if response.status_code == 200:
@@ -1849,7 +1859,7 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                     else:
                         content_type = "application/pdf"
                 except Exception:
-                    print(f"Error in file type : {traceback.format_exc()}")
+                    logger.info(f"Error in file type : {traceback.format_exc()}")
                 invdat.email_filepath = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
                 logger.error(traceback.format_exc())
@@ -2431,7 +2441,7 @@ def processInvoiceFile(inv_id, blob_path, inv_file, db):
             raise Exception(f"No record found for invoice ID {inv_id} in corp_trigger_tab.")
 
         try:
-            print(f"Processing {blob_path} using OpenAI...")
+            logger.info(f"Processing {blob_path} using OpenAI...")
             invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(blob_data)
 
             # Update corp_trigger_tab record upon successful processing
