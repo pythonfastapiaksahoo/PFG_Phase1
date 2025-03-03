@@ -944,11 +944,13 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
                 data_to_insert["sender"] = queue_task.request_data.get("sender")
                 data_to_insert["subject"] = queue_task.request_data.get("subject")
                 data_to_insert["status"] = queue_task.status
+                data_to_insert["queue_task_id"] = queue_task.id
             else:
                 data_to_insert["email_path"] = None
                 data_to_insert["sender"] = None
                 data_to_insert["subject"] = None
                 data_to_insert["status"] = queue_task.status
+                data_to_insert["queue_task_id"] = queue_task.id
 
             # Count total attachments
             data_to_insert["total_attachment_count"] = len(data_to_insert["associated_invoice_files"])
@@ -1598,6 +1600,14 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
+        # Validate invoice date format (yyyy-mm-dd)
+        date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+        if not date_pattern.match(model.CorpVoucherData.INVOICE_DT):
+            return {
+                "message": "Invalid Date Format",
+                "data": {"Http Response": "408", "Status": "Invalid date format"},
+            }
+            
         # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_invoice_file(1, doc_id, db)
@@ -1609,12 +1619,15 @@ def processCorpInvoiceVoucher(doc_id, db):
                     base64file = base64file.decode("utf-8")
                     
             else:
-                base64file = "Error retrieving file: No result found in file data."
+                raise Exception("Error retrieving file: No result found in file data.")
             
         except Exception as e:
             # Catch any error from the read_invoice_file
-            # function and use the error message
-            base64file = f"Error retrieving file: {str(e)}"
+            logger.error(f"Error in read_invoice_file_voucher: {traceback.format_exc()}")
+            return {
+                "message": "Failure: File Attachment could not be loaded",
+                "data": {"Http Response": "409", "Status": "Error retrieving file"},
+            }
         # logger.info(f"base64file for doc id: {doc_id}: {base64file}")
         
         # Call the function to get the base64 file and content type
@@ -1627,11 +1640,14 @@ def processCorpInvoiceVoucher(doc_id, db):
                 if isinstance(base64eml, bytes):
                     base64eml = base64eml.decode("utf-8")
             else:
-                base64eml = "Error retrieving file: No result found in file data."
+                raise Exception("Error retrieving email file: No result found in file data.")
                 
         except Exception as e:
-            # Catch any error from the read_invoice_file
-            base64eml = f"Error retrieving file: {str(e)}"
+            logger.error(f"Error in read_corp_email_pdf_file: {traceback.format_exc()}")
+            return {
+                "message": "Failure: File Attachment could not be loaded",
+                "data": {"Http Response": "409", "Status": "Error retrieving file"},
+            }
         # logger.info(f"base64eml for doc id: {doc_id}: {base64eml}")
         
         if isinstance(corpvoucherdata.VCHR_DIST_STG, str):
@@ -1757,26 +1773,11 @@ def processCorpInvoiceVoucher(doc_id, db):
 
             # Check for success
             # if response.status_code == 200:
-            try:
-                response_data = response.json()
-                if not response_data:
-                    logger.info("Response JSON is empty.")
-                    responsedata = {
-                        "message": "Success, but response JSON is empty.",
-                        "data": response_data
-                    }
-                else:
-                    responsedata = {"message": "Success", "data": response_data}
-            except ValueError:
-                # Handle case where JSON decoding fails
-                logger.info("Response returned, but not in JSON format.")
-                responsedata = {
-                    "message": "Success, but response is not JSON.",
-                    "data": {"Http Response": "104", "Status": "Connection reset by peer"}
-                }
-
+            response_data = response.json() if response.content else {}
+            return {"message": "Success", "data": response_data} if response_data else {"message": "Success, but response JSON is empty.", "data": response_data}
+            
         except Exception:
-            logger.info(f"HTTP error occurred: {traceback.format_exc()}")
+            logger.info(f"ConnectionError occurred: {traceback.format_exc()}")
             responsedata = {
             "message": "ConnectionResetError",
             "data": {"Http Response": "104", "Status": "Connection reset by peer"},
@@ -1784,7 +1785,7 @@ def processCorpInvoiceVoucher(doc_id, db):
 
     except Exception:
         responsedata = {
-            "message": "InternalError",
+            "message": "InternalServerError",
             "data": {"Http Response": "500", "Status": "Fail"},
         }
         logger.error(
@@ -2116,9 +2117,7 @@ def bulkupdateCorpInvoiceStatus():
                         if entry_status == "STG":
                             documentstatusid = 7
                             docsubstatusid = 43
-                            # Skip updating if entry_status is "STG"
-                            # because the status is already 7
-                            # continue
+                            dmsg = InvoiceVoucherSchema.SUCCESS_STAGED
                         elif entry_status == "QCK":
                             documentstatusid = 14
                             docsubstatusid = 114
@@ -2324,19 +2323,20 @@ async def read_corp_doc_history(inv_id, download, db):
         db.close()
         
 
-def uploadMissingFile(inv_id, file, db):
+async def uploadMissingFile(inv_id, file, db):
     try:
         # Fetch the invoice data from the database
         invdat = (
             db.query(model.corp_document_tab)
-            .options(load_only("email_filepath"))
+            .options(load_only("email_filepath","invo_filepath","mail_row_key"))
             .filter_by(corp_doc_id=inv_id)
             .one()
         )
         
         eml_filepath = invdat.email_filepath
+        mail_row_key = invdat.mail_row_key
         if not eml_filepath:
-            raise ValueError("Invalid invoice file path")
+            return "Email file path not found. Please upload the email file first and try again."
         
         # Extract directory path
         dir_path = eml_filepath.split(".pdf")[0]
@@ -2346,7 +2346,8 @@ def uploadMissingFile(inv_id, file, db):
         blob_path = f"{dir_path}/{file.filename}"
         
         # Read file bytes
-        pdf_bytes_io = BytesIO(file.read())
+        file_bytes = await file.read()  # Awaiting file read
+        pdf_bytes_io = BytesIO(file_bytes)
         
         # Upload the PDF using the secure upload function
         upload_blob_securely(
@@ -2355,28 +2356,36 @@ def uploadMissingFile(inv_id, file, db):
             data=pdf_bytes_io.getvalue(),
             content_type="application/pdf"
         )
-        
-        return {"message": "File uploaded successfully", "blob_path": blob_path}
+        pdf_bytes_io.close()  # Free memory
+        # **Update the email_filepath in the database**
+        invdat.invo_filepath = blob_path
+        db.commit()  # Commit the transaction to save changes
+        return {"message": "File uploaded and path updated successfully", "blob_path": blob_path}
     
     except Exception as e:
+        db.rollback()  # Rollback in case of an error
         logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
+        return {"error": "File upload failed"}
 
-def uploadMissingEmailFile(inv_id, file, db):
+async def uploadMissingEmailFile(inv_id, file, db):
     try:
         # Fetch the invoice data from the database
         invdat = (
             db.query(model.corp_document_tab)
-            .options(load_only("email_filepath"))
+            .options(load_only("email_filepath","mail_row_key"))
             .filter_by(corp_doc_id=inv_id)
             .one()
         )
         
         eml_filepath = invdat.email_filepath
+        mail_row_key = invdat.mail_row_key
         if not eml_filepath:
-            raise ValueError("Invalid invoice file path")
+            # raise ValueError("Invalid invoice email pdf file path")
+            dir_path = f"ap-portal-invoices/CORPORATE/{mail_row_key}"
+        else:
+            # Extract directory path
+            dir_path = os.path.dirname(eml_filepath)
         
-        # Extract directory path
-        dir_path = os.path.dirname(eml_filepath)
         if not dir_path:
             raise ValueError("Failed to extract directory path from email_filepath")
         # Define container and blob names
@@ -2384,8 +2393,8 @@ def uploadMissingEmailFile(inv_id, file, db):
         blob_path = f"{dir_path}/{file.filename}"
         
         # Read file bytes
-        file.seek(0)  # Ensure we read from the beginning
-        pdf_bytes_io = BytesIO(file.read())
+        file_bytes = await file.read()  # Awaiting file read
+        pdf_bytes_io = BytesIO(file_bytes)
         
         # Upload the PDF using the secure upload function
         upload_blob_securely(
@@ -2396,49 +2405,55 @@ def uploadMissingEmailFile(inv_id, file, db):
         )
         pdf_bytes_io.close()  # Free memory
         
-        return {"message": "File uploaded successfully", "blob_path": blob_path}
+        # **Update the email_filepath in the database**
+        invdat.email_filepath = blob_path
+        db.commit()  # Commit the transaction to save changes
+
+        return {"message": "File uploaded and path updated successfully", "blob_path": blob_path}
     
     except Exception as e:
+        db.rollback()  # Rollback in case of an error
         logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
+        return {"error": "File upload failed"}
         
         
-# def processInvoiceFile(inv_id, blob_path, inv_file, db):
-#     try:
-#         try:
-#             blob_data = inv_file.file.read()
-#         except Exception as e:
-#             logger.error(f"Error reading file {inv_file.filename}: {traceback.format_exc()}")
-#             raise Exception("Failed to read the uploaded file.")
+def processInvoiceFile(inv_id, blob_path, inv_file, db):
+    try:
+        try:
+            blob_data = inv_file.file.read()
+        except Exception as e:
+            logger.error(f"Error reading file {inv_file.filename}: {traceback.format_exc()}")
+            raise Exception("Failed to read the uploaded file.")
 
-#         new_trigger = db.query(model.corp_trigger_tab).filter(model.corp_trigger_tab.documentid == inv_id).first()
+        new_trigger = db.query(model.corp_trigger_tab).filter(model.corp_trigger_tab.documentid == inv_id).first()
         
-#         if not new_trigger:
-#             raise Exception(f"No record found for invoice ID {inv_id} in corp_trigger_tab.")
+        if not new_trigger:
+            raise Exception(f"No record found for invoice ID {inv_id} in corp_trigger_tab.")
 
-#         try:
-#             print(f"Processing {blob_path} using OpenAI...")
-#             invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(blob_data)
+        try:
+            print(f"Processing {blob_path} using OpenAI...")
+            invoice_data, total_pages, file_size_mb = extract_invoice_details_using_openai(blob_data)
 
-#             # Update corp_trigger_tab record upon successful processing
-#             new_trigger.pagecount = total_pages
-#             new_trigger.filesize = file_size_mb
-#             new_trigger.status = "OpenAI Details Extracted"
-#             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-#             db.commit()
+            # Update corp_trigger_tab record upon successful processing
+            new_trigger.pagecount = total_pages
+            new_trigger.filesize = file_size_mb
+            new_trigger.status = "OpenAI Details Extracted"
+            new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            db.commit()
 
-#         except Exception as e:
-#             logger.error(f"Error processing {inv_file.filename}: {traceback.format_exc()}")
-#             new_trigger.status = "OpenAI Error"
-#             new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-#             db.commit()
-#             raise Exception("Failed to process invoice details using OpenAI.")
+        except Exception as e:
+            logger.error(f"Error processing {inv_file.filename}: {traceback.format_exc()}")
+            new_trigger.status = "OpenAI Error"
+            new_trigger.updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            db.commit()
+            raise Exception("Failed to process invoice details using OpenAI.")
 
-#         postProInvoiceData(invoice_data, blob_path, inv_id)
-#         # return invoice_data
+        # postProInvoiceData(invoice_data, blob_path, inv_id)
+        # return invoice_data
 
-#     except Exception as e:
-#         logger.error(f"Critical error in processInvoiceFile: {traceback.format_exc()}")
-#         raise Exception("An error occurred while processing the invoice file.")
+    except Exception as e:
+        logger.error(f"Critical error in processInvoiceFile: {traceback.format_exc()}")
+        raise Exception("An error occurred while processing the invoice file.")
 
 
 

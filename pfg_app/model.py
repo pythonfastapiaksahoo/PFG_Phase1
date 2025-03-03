@@ -1537,10 +1537,10 @@ class CorpQueueTask(Base):
     )
     mail_row_key = Column(String(50), nullable=False)
 
-    # # Define a GIN index on the request_data column
-    # __table_args__ = (
-    #     Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
-    # )
+    # Define a GIN index on the request_data column
+    __table_args__ = (
+        Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
+    )
 
 class corp_document_tab(Base):
     __tablename__ = "corp_document_tab"
