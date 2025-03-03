@@ -204,8 +204,11 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
     elif len(matching_vendors)>1:
         openAIcall_required = 1
         vendorFound = 0
-        
+    logger.info(f"line 207-vendorFound:{vendorFound},openAIcall_required: {openAIcall_required}, ")
     if vendorFound==1:
+        vendorNotFound = 0
+        notOnboarded = 0
+        
         # map vendor
         matched_id_vendor = matching_vendors[list(matching_vendors.keys())[0]]["vendor_id"]
         vendorID = matched_id_vendor
@@ -231,6 +234,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
 
     elif (openAIcall_required == 0) and (vendorFound==0):
         NotOnboarded_matching_vendors = find_best_vendor_match_not_onboarded(openai_vendor_name, openai_vendor_address, vendorName_df)
+        logger.info(f"NotOnboarded_matching_vendors: {NotOnboarded_matching_vendors}")
         if len(NotOnboarded_matching_vendors) == 1:
             if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Full Match' :
                 if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Name Match' :
@@ -327,6 +331,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
                 }
             )
         db.commit()
+        logger.info(f"line 334-vendorFound:{vendorFound} ")
     return 
             
             
