@@ -90,6 +90,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
             "Duplicate Invoice": 32,
+            "Custom model not found": 33,
         }
 
         # Dictionary to handle different types of invoices (ServiceProvider or Vendor)
@@ -779,7 +780,7 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
     """
     try:
         # avoid data updates by other users if in lock
-        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         docStatus_id, docSubStatus_id = db.query(
             model.Document.documentStatusID, model.Document.documentsubstatusID
             ).filter(model.Document.idDocument==inv_id).first()
@@ -1022,7 +1023,7 @@ async def update_column_pos(u_id, tabtype, col_data, bg_task, db):
         A dictionary containing the result of the update operation.
     """
     try:
-        UpdatedOn = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        UpdatedOn = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         for items in col_data:
             items = dict(items)
             items["UpdatedOn"] = UpdatedOn
@@ -1635,7 +1636,7 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
     :param db: Session to interact with the database.
     :return: List of updated or newly inserted StampData objects.
     """
-    dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
+    dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     updated_records = []
     consolidated_updates = []
     docStatus_id, docSubStatus_id = db.query(
@@ -1714,6 +1715,8 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     elif stamptagname == "Department":
                         document_record.dept = new_value
 
+                    # Update the UpdatedOn field
+                    document_record.UpdatedOn = dt
                     # Add the updated document to the session for commit
                     db.add(document_record)
                     
@@ -2073,12 +2076,255 @@ async def read_all_doc_inv_list(
         db.close()
 
 
+# async def get_get_email_row_associated_files_new(
+#     u_id, off_limit, uni_api_filter, column_filter, db, sort_column, sort_order
+# ):
+#     try:
+#         data_query = db.query(model.QueueTask)
+#         split_doc_table_alias = aliased(model.SplitDocTab)
+
+#         # Count distinct mail_row_key
+#         total_items = (
+#             data_query.with_entities(
+#                 func.count(
+#                     func.distinct(model.QueueTask.request_data["mail_row_key"].astext)
+#                 )
+#             )
+#             .filter(
+#                 model.QueueTask.request_data["mail_row_key"].isnot(None)
+#             )  # Ensure not null
+#             .scalar()  # Get the scalar result
+#         )
+
+#         # Extract offset and limit for pagination
+#         try:
+#             offset, limit = off_limit
+#             off_val = (offset - 1) * limit
+#         except (TypeError, ValueError):
+#             logger.error(
+#                 f"Invalid pagination parameters: {str(traceback.format_exc())}"
+#             )
+#             off_val = 0
+#             limit = 10
+#         data = []
+#         # Query to get the latest 10 unique mail_row_keys
+#         latest_mail_row_keys = (
+#             db.query(
+#                 model.QueueTask.request_data["mail_row_key"].astext.label(
+#                     "mail_row_key"
+#                 ),
+#                 func.max(model.QueueTask.created_at).label("latest_created_at"),
+#                 func.count(model.QueueTask.id).label("attachment_count"),
+#             )
+#             .filter(
+#                 model.QueueTask.request_data["mail_row_key"].isnot(None)
+#             )  # Exclude NULL values
+#             .group_by(
+#                 model.QueueTask.request_data["mail_row_key"].astext
+#             )  # Group by mail_row_key
+#             .order_by(
+#                 desc(func.max(model.QueueTask.created_at))
+#             )  # Order by the latest created_at
+#             .offset(off_val)
+#             .limit(limit)
+#             .all()
+#         )
+
+#         for row in latest_mail_row_keys:
+#             data_to_insert = {
+#                 "mail_number": row.mail_row_key,
+#                 "attachment_count": row.attachment_count,
+#                 "created_at": row.latest_created_at,
+#                 "attachment": [],
+#             }
+#             # Query to get the related attachments for each mail_row_key
+#             related_attachments = (
+#                 db.query(model.SplitDocTab)
+#                 .filter(
+#                     model.SplitDocTab.mail_row_key == row.mail_row_key,
+#                 )
+#                 .all()
+#             )
+#             for attachment in related_attachments:
+#                 attachment_dict = attachment.__dict__
+#                 attachment_dict.pop("_sa_instance_state")
+#                 attachment_dict["file_path"] = attachment_dict["invoice_path"]
+#                 attachment_dict.pop("invoice_path")
+#                 attachment_dict["type"] = attachment_dict["file_path"].split(".")[-1]
+#                 attachment_dict["total_page_count"] = attachment_dict["totalpagecount"]
+#                 attachment_dict.pop("totalpagecount")
+
+#                 associated_invoices = (
+#                     db.query(model.frtrigger_tab)
+#                     .filter(
+#                         model.frtrigger_tab.splitdoc_id == attachment.splitdoc_id,
+#                     )
+#                     .all()
+#                 )
+
+#                 # remove unnecessary fields
+#                 attachment_dict.pop("splitdoc_id")
+#                 attachment_dict.pop("vendortype")
+#                 # attachment_dict.pop('email_subject')
+#                 attachment_dict.pop("emailbody_path")
+#                 # attachment_dict.pop('sender')
+#                 attachment_dict.pop("mail_row_key")
+
+#                 attachment_dict["associated_invoice_file"] = []
+#                 for invoice in associated_invoices:
+#                     invoice_dict = invoice.__dict__
+#                     invoice_dict.pop("_sa_instance_state")
+#                     invoice_dict["filepath"] = invoice_dict["blobpath"]
+#                     invoice_dict.pop("blobpath")
+#                     invoice_dict["file_size"] = invoice_dict["filesize"]
+#                     invoice_dict.pop("filesize")
+#                     invoice_dict["type"] = invoice_dict["filepath"].split(".")[-1]
+#                     invoice_dict["vendor_id"] = invoice_dict["vendorID"]
+#                     invoice_dict.pop("vendorID")
+#                     invoice_dict["document_id"] = invoice_dict["documentid"]
+#                     invoice_dict.pop("documentid")
+
+#                     # remove unnecessary fields
+#                     invoice_dict.pop("splitdoc_id")
+#                     invoice_dict.pop("prebuilt_linedata")
+#                     invoice_dict.pop("pagecount")
+#                     invoice_dict.pop("frtrigger_id")
+#                     invoice_dict.pop("prebuilt_headerdata")
+#                     invoice_dict.pop("sender")
+
+#                     attachment_dict["associated_invoice_file"].append(invoice_dict)
+#                 data_to_insert["attachment"].append(attachment_dict)
+            
+#             queue_task = (
+#                 db.query(model.QueueTask)
+#                 .filter(
+#                     # model.QueueTask.request_data["mail_row_key"]
+#                     # == data_to_insert["mail_number"]
+#                     text("(request_data->>'mail_row_key') = :mail_row_key")
+#                 )
+#                 .params(mail_row_key=data_to_insert["mail_number"])
+#                 .first()
+#             )
+#             if queue_task and queue_task.request_data:
+#                 data_to_insert["email_path"] = queue_task.request_data["email_path"]
+#                 data_to_insert["sender"] = queue_task.request_data["sender"]
+#                 data_to_insert["email_subject"] = queue_task.request_data["subject"]
+#             else:
+#                 # Handle the case where queue_task is None or does not have request_data
+#                 data_to_insert["email_path"] = None
+#                 data_to_insert["sender"] = None
+#                 data_to_insert["email_subject"] = None
+#             # if len(data_to_insert["attachment"]):
+#                 # data_to_insert["email_path"] = (
+#                 #     "/".join(data_to_insert["attachment"][0]["file_path"].split("/")[:8])
+#                 #     + ".eml"
+#                 # )
+#                 # data_to_insert["sender"] = data_to_insert["attachment"][0]["sender"]
+#                 # data_to_insert["email_subject"] = data_to_insert["attachment"][0][
+#                 #     "email_subject"
+#                 # ]
+#             data_to_insert["overall_page_count"] = sum(
+#                 [
+#                     attachment["total_page_count"] or 0
+#                     for attachment in data_to_insert["attachment"]
+#                 ]
+#             )
+#             # else:
+                
+#             #     data_to_insert["overall_page_count"] = 0
+#             # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
+            
+            
+#             if len(data_to_insert["attachment"]) == 0:
+#                 data_to_insert["status"] = "Queued"
+#             elif all(
+#                 [
+#                     attachment["status"] == "Processed-completed"
+#                     for attachment in data_to_insert["attachment"]
+#                 ]
+#             ) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
+#                 data_to_insert["status"] = "Completed"
+            
+#             elif (
+#                 any([attachment["status"] == "Processed-completed" for attachment in data_to_insert["attachment"]])
+#                 and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
+#             ):
+#                 data_to_insert["status"] = "Partially-Completed"
+#             elif (
+#                 all([attachment["status"] != "Processed-completed" for attachment in data_to_insert["attachment"]])
+#                 and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
+#             ):
+#                 data_to_insert["status"] = "Error"
+            
+#             elif len(data_to_insert["attachment"]):
+#                 data_to_insert["status"] = "In Progress"
+#             else:
+#                 data_to_insert["status"] = "Unknown"
+#             data.append(data_to_insert)
+#         return {"data": data, "total_items": total_items}
+
+#     except Exception:
+#         logger.error(traceback.format_exc())
+#         return Response(status_code=500)
+
+
 async def get_get_email_row_associated_files_new(
-    u_id, off_limit, uni_api_filter, column_filter, db, sort_column, sort_order
+    u_id,
+    off_limit,
+    uni_api_filter,
+    column_filter,
+    db,
+    sort_column,
+    sort_order
 ):
     try:
         data_query = db.query(model.QueueTask)
-        split_doc_table_alias = aliased(model.SplitDocTab)
+        
+        # Helper function: Normalize strings (convert to lowercase, remove non-alphanumeric characters)
+        def normalize_string(input_column):
+            # Make sure the string is converted to lowercase and remove non-alphanumeric characters except spaces
+            return func.lower(func.regexp_replace(input_column, r'[^a-zA-Z0-9 ]', '', 'g'))
+
+        # Process Universal API Filter (uni_api_filter)
+        if isinstance(uni_api_filter, str):
+            search_terms = [term.strip() for term in uni_api_filter.split(":")]
+        else:
+            search_terms = []
+
+        # Lists to store filters
+        date_filters = []
+        text_filters = []
+        
+        for term in search_terms:
+            # term = re.sub(r"[^a-zA-Z0-9@. ]", "", term)  # Allow `@` for emails
+            # Avoid overly restrictive sanitization for emails
+            if '@' in term:
+                # If the term looks like an email, treat it as such and sanitize it minimally
+                term = re.sub(r"[^a-zA-Z0-9@.]", "", term)  # Allow `@` and `.` for emails
+            else:
+                # General sanitize for other text inputs
+                term = re.sub(r"[^a-zA-Z0-9 ]", "", term)  # Allow alphanumeric and space
+            # Try parsing term as a date
+            try:
+                date_obj = datetime.strptime(term, "%b %d, %Y")
+                start_date = date_obj.strftime("%Y-%m-%d 00:00:00")
+                end_date = date_obj.strftime("%Y-%m-%d 23:59:59")
+                date_filters.append(model.QueueTask.created_at.between(start_date, end_date))
+            except ValueError:
+                # General text search
+                pattern = f"%{term}%"
+                text_filters.append(
+                    or_(
+                        normalize_string(func.coalesce(model.QueueTask.request_data["mail_row_key"].astext, '')).ilike(pattern),
+                        normalize_string(func.coalesce(model.QueueTask.request_data["sender"].astext, '')).ilike(pattern),
+                        normalize_string(func.coalesce(model.QueueTask.request_data["subject"].astext, '')).ilike(pattern),
+                        normalize_string(func.coalesce(model.QueueTask.request_data["email_path"].astext, '')).ilike(pattern),
+                    )
+                )
+    
+        # Apply Filters
+        if date_filters or text_filters:
+            data_query = data_query.filter(and_(*date_filters, *text_filters))
 
         # Count distinct mail_row_key
         total_items = (
@@ -2087,41 +2333,30 @@ async def get_get_email_row_associated_files_new(
                     func.distinct(model.QueueTask.request_data["mail_row_key"].astext)
                 )
             )
-            .filter(
-                model.QueueTask.request_data["mail_row_key"].isnot(None)
-            )  # Ensure not null
-            .scalar()  # Get the scalar result
+            .filter(model.QueueTask.request_data["mail_row_key"].isnot(None))
+            .scalar()
         )
 
-        # Extract offset and limit for pagination
+        # Extract offset & limit
         try:
             offset, limit = off_limit
             off_val = (offset - 1) * limit
         except (TypeError, ValueError):
-            logger.error(
-                f"Invalid pagination parameters: {str(traceback.format_exc())}"
-            )
-            off_val = 0
-            limit = 10
+            logger.error(f"Invalid pagination parameters: {str(traceback.format_exc())}")
+            off_val, limit = 0, 10
+
         data = []
-        # Query to get the latest 10 unique mail_row_keys
+        
+        # Query latest 10 unique mail_row_keys
         latest_mail_row_keys = (
-            db.query(
-                model.QueueTask.request_data["mail_row_key"].astext.label(
-                    "mail_row_key"
-                ),
+            data_query.with_entities(
+                model.QueueTask.request_data["mail_row_key"].astext.label("mail_row_key"),
                 func.max(model.QueueTask.created_at).label("latest_created_at"),
                 func.count(model.QueueTask.id).label("attachment_count"),
             )
-            .filter(
-                model.QueueTask.request_data["mail_row_key"].isnot(None)
-            )  # Exclude NULL values
-            .group_by(
-                model.QueueTask.request_data["mail_row_key"].astext
-            )  # Group by mail_row_key
-            .order_by(
-                desc(func.max(model.QueueTask.created_at))
-            )  # Order by the latest created_at
+            .filter(model.QueueTask.request_data["mail_row_key"].isnot(None))
+            .group_by(model.QueueTask.request_data["mail_row_key"].astext)
+            .order_by(desc(func.max(model.QueueTask.created_at)))
             .offset(off_val)
             .limit(limit)
             .all()
@@ -2134,130 +2369,83 @@ async def get_get_email_row_associated_files_new(
                 "created_at": row.latest_created_at,
                 "attachment": [],
             }
-            # Query to get the related attachments for each mail_row_key
+
+            # Query related attachments for mail_row_key
             related_attachments = (
                 db.query(model.SplitDocTab)
-                .filter(
-                    model.SplitDocTab.mail_row_key == row.mail_row_key,
-                )
+                .filter(model.SplitDocTab.mail_row_key == row.mail_row_key)
                 .all()
             )
+
             for attachment in related_attachments:
                 attachment_dict = attachment.__dict__
                 attachment_dict.pop("_sa_instance_state")
-                attachment_dict["file_path"] = attachment_dict["invoice_path"]
-                attachment_dict.pop("invoice_path")
+                attachment_dict["file_path"] = attachment_dict.pop("invoice_path")
                 attachment_dict["type"] = attachment_dict["file_path"].split(".")[-1]
-                attachment_dict["total_page_count"] = attachment_dict["totalpagecount"]
-                attachment_dict.pop("totalpagecount")
+                attachment_dict["total_page_count"] = attachment_dict.pop("totalpagecount")
 
                 associated_invoices = (
                     db.query(model.frtrigger_tab)
-                    .filter(
-                        model.frtrigger_tab.splitdoc_id == attachment.splitdoc_id,
-                    )
+                    .filter(model.frtrigger_tab.splitdoc_id == attachment.splitdoc_id)
                     .all()
                 )
 
-                # remove unnecessary fields
-                attachment_dict.pop("splitdoc_id")
-                attachment_dict.pop("vendortype")
-                # attachment_dict.pop('email_subject')
-                attachment_dict.pop("emailbody_path")
-                # attachment_dict.pop('sender')
-                attachment_dict.pop("mail_row_key")
+                # Remove unnecessary fields
+                for field in ["splitdoc_id", "vendortype", "emailbody_path", "mail_row_key"]:
+                    attachment_dict.pop(field, None)
 
                 attachment_dict["associated_invoice_file"] = []
                 for invoice in associated_invoices:
                     invoice_dict = invoice.__dict__
                     invoice_dict.pop("_sa_instance_state")
-                    invoice_dict["filepath"] = invoice_dict["blobpath"]
-                    invoice_dict.pop("blobpath")
-                    invoice_dict["file_size"] = invoice_dict["filesize"]
-                    invoice_dict.pop("filesize")
+                    invoice_dict["filepath"] = invoice_dict.pop("blobpath")
+                    invoice_dict["file_size"] = invoice_dict.pop("filesize")
                     invoice_dict["type"] = invoice_dict["filepath"].split(".")[-1]
-                    invoice_dict["vendor_id"] = invoice_dict["vendorID"]
-                    invoice_dict.pop("vendorID")
-                    invoice_dict["document_id"] = invoice_dict["documentid"]
-                    invoice_dict.pop("documentid")
+                    invoice_dict["vendor_id"] = invoice_dict.pop("vendorID")
+                    invoice_dict["document_id"] = invoice_dict.pop("documentid")
 
-                    # remove unnecessary fields
-                    invoice_dict.pop("splitdoc_id")
-                    invoice_dict.pop("prebuilt_linedata")
-                    invoice_dict.pop("pagecount")
-                    invoice_dict.pop("frtrigger_id")
-                    invoice_dict.pop("prebuilt_headerdata")
-                    invoice_dict.pop("sender")
+                    # Remove unnecessary fields
+                    for field in ["splitdoc_id", "prebuilt_linedata", "pagecount", "frtrigger_id", "prebuilt_headerdata", "sender"]:
+                        invoice_dict.pop(field, None)
 
                     attachment_dict["associated_invoice_file"].append(invoice_dict)
+
                 data_to_insert["attachment"].append(attachment_dict)
-            
+
             queue_task = (
                 db.query(model.QueueTask)
-                .filter(
-                    # model.QueueTask.request_data["mail_row_key"]
-                    # == data_to_insert["mail_number"]
-                    text("(request_data->>'mail_row_key') = :mail_row_key")
-                )
+                .filter(text("(request_data->>'mail_row_key') = :mail_row_key"))
                 .params(mail_row_key=data_to_insert["mail_number"])
                 .first()
             )
+
             if queue_task and queue_task.request_data:
-                data_to_insert["email_path"] = queue_task.request_data["email_path"]
-                data_to_insert["sender"] = queue_task.request_data["sender"]
-                data_to_insert["email_subject"] = queue_task.request_data["subject"]
+                data_to_insert.update({
+                    "email_path": queue_task.request_data.get("email_path"),
+                    "sender": queue_task.request_data.get("sender"),
+                    "email_subject": queue_task.request_data.get("subject"),
+                })
             else:
-                # Handle the case where queue_task is None or does not have request_data
-                data_to_insert["email_path"] = None
-                data_to_insert["sender"] = None
-                data_to_insert["email_subject"] = None
-            # if len(data_to_insert["attachment"]):
-                # data_to_insert["email_path"] = (
-                #     "/".join(data_to_insert["attachment"][0]["file_path"].split("/")[:8])
-                #     + ".eml"
-                # )
-                # data_to_insert["sender"] = data_to_insert["attachment"][0]["sender"]
-                # data_to_insert["email_subject"] = data_to_insert["attachment"][0][
-                #     "email_subject"
-                # ]
+                data_to_insert.update({"email_path": None, "sender": None, "email_subject": None})
+
             data_to_insert["overall_page_count"] = sum(
-                [
-                    attachment["total_page_count"] or 0
-                    for attachment in data_to_insert["attachment"]
-                ]
+                [attachment["total_page_count"] or 0 for attachment in data_to_insert["attachment"]]
             )
-            # else:
-                
-            #     data_to_insert["overall_page_count"] = 0
-            # if related_attachments is zero then queued ,if the status of any of the attachment is not queued then it is in progress , if all the attachment's status is completed then it is completed and if the status of any of associated invoice is Error then it is in error
-            
-            
-            if len(data_to_insert["attachment"]) == 0:
+
+            # Determine Status
+            if not data_to_insert["attachment"]:
                 data_to_insert["status"] = "Queued"
-            elif all(
-                [
-                    attachment["status"] == "Processed-completed"
-                    for attachment in data_to_insert["attachment"]
-                ]
-            ) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
+            elif all(a.get("status") == "Processed-completed" for a in data_to_insert["attachment"]) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
                 data_to_insert["status"] = "Completed"
-            
-            elif (
-                any([attachment["status"] == "Processed-completed" for attachment in data_to_insert["attachment"]])
-                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
-            ):
+            elif any(a.get("status") == "Processed-completed" for a in data_to_insert["attachment"]) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
                 data_to_insert["status"] = "Partially-Completed"
-            elif (
-                all([attachment["status"] != "Processed-completed" for attachment in data_to_insert["attachment"]])
-                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
-            ):
+            elif all(a.get("status", "").lower().startswith("error") for a in data_to_insert["attachment"]) and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"])):
                 data_to_insert["status"] = "Error"
-            
-            elif len(data_to_insert["attachment"]):
-                data_to_insert["status"] = "In Progress"
             else:
-                data_to_insert["status"] = "Unknown"
+                data_to_insert["status"] = "In Progress"
+
             data.append(data_to_insert)
+
         return {"data": data, "total_items": total_items}
 
     except Exception:
@@ -2621,7 +2809,7 @@ async def upsert_line_items(u_id, inv_id, inv_data, db):
 
     try:
         # avoid data updates by other users if in lock
-        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         docStatus_id, docSubStatus_id = db.query(
             model.Document.documentStatusID, model.Document.documentsubstatusID
             ).filter(model.Document.idDocument==inv_id).first()
@@ -2803,7 +2991,7 @@ async def update_credit_identifier_to_stamp_data(u_id, inv_id, update_data, db):
     :param db: Session to interact with the database.
     :return: Updated or newly inserted StampDataValidation object or error details.
     """
-    dt = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
+    dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     docStatus_id, docSubStatus_id = db.query(
             model.Document.documentStatusID, model.Document.documentsubstatusID
             ).filter(model.Document.idDocument==inv_id).first()
