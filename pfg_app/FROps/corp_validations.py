@@ -9,7 +9,16 @@ import traceback
 # userID = 1
 def validate_corpdoc(doc_id,userID,db):
     return_status = {}
-    
+    invoTotal_status = 0
+    invoTotal_msg = ""
+    gst_status = 0
+    gst_msg = ""
+    invDate_status = 0
+    invDate_msg = ""
+    subTotal_status = 0
+    subTotal_msg = ""
+    document_type_status = 0
+    document_type_msg = ""
 
     corp_document_data = (
         db.query(model.corp_document_tab)
@@ -151,15 +160,16 @@ def validate_corpdoc(doc_id,userID,db):
                             }
                         )
                     db.commit()
-                    return_status["Status overview"] = {"status": 0,
-                                    "StatusCode":0,
-                                        "response": [
-                                                    "Validation pending"
-                                                ],
-                                            }
+                    # return_status["Status overview"] = {"status": 0,
+                    #                 "StatusCode":0,
+                    #                     "response": [
+                    #                                 "Validation pending"
+                    #                             ],
+                    #                         }
                     
                     # return return_status
                     
+
 
                     corp_coding_data = (
                         db.query(model.corp_coding_tab)
@@ -182,6 +192,29 @@ def validate_corpdoc(doc_id,userID,db):
                             if str(document_type).lower() in ('invoice','credit'):
                                 print(document_type)
 
+                    # Get metadata for the document:
+                    corp_metadata_qry = (
+                        db.query(model.corp_metadata)
+                        .filter(model.corp_metadata.vendorid == vendor_id)
+                        .all()
+                    )
+                    
+
+                    df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                    date_format = list(df_corp_metadata['dateformat'])[0]
+
+                    # Check for mandatory fields:
+                    mand_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
+                    mand_gst = list(df_corp_docdata['gst'])[0]
+                    mand_invDate = list(df_corp_docdata['invoice_date'])[0]
+                    mand_subTotal = list(df_corp_docdata['subtotal'])[0]
+                    mand_document_type = list(df_corp_docdata['document_type'])[0]
+
+                    doc_updates_status = {'invoicetotal':{'status':invoTotal_status,'status_message':invoTotal_msg},
+                                          'gst':{'status':gst_status,'status_message':gst_msg},
+                                          'invoice_date':{'status':invDate_status,'status_message':invDate_msg},
+                                          'subtotal':{'status':subTotal_status,'status_message':subTotal_msg},
+                                          'document_type':{'status':document_type_status,'status_message':document_type_msg}}
 
                     line_sum = 0
                     amt_threshold = 250000
@@ -206,6 +239,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                             "Coding - Line total mismatch"
                                                         ],
                                                     }
+                        return return_status
                     else:
                         #line total match success
                         if abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09:
@@ -223,6 +257,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                             f"Coding - GST exceeding 15% of invoice total"
                                                         ],
                                                     }
+                                return return_status
                             #total match pass:
                             elif pdf_invoTotal == 0:
                                 docStatu = 4
@@ -235,6 +270,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                             f"Coding - GST exceeding 15% of invoice total"
                                                         ],
                                                     }
+                                return return_status
                                 print("Zero $ invoice approved")
                             elif pdf_invoTotal > amt_threshold:
                                 # need approval
@@ -248,6 +284,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                             f"User approval required if invoice total meets threshold"
                                                         ],
                                                     }
+                                return return_status
                         
                             else:
                                 
@@ -272,6 +309,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                             f"Invoice - Not Approved"
                                                         ],
                                                     }
+                                    return return_status
                                 elif approvrd_ck ==1:
                                 
                                     if list(df_corp_coding['approval_status'])[0].lower() == "approved":
@@ -284,6 +322,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                             f"Invoice - ready for PeopleSoft"
                                                         ],
                                                     }
+                                        return return_status
                                     else: 
                                         docStatu = 24
                                         substatus = 137
@@ -294,6 +333,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                             f"Invoice - Pending Approval"
                                                         ],
                                                     }
+                                        return return_status
                 except Exception as e:
                     logger.error(f"Error in validate_corpdoc: {e}")
                     logger.info(traceback.format_exc())
