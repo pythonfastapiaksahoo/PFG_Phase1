@@ -156,7 +156,7 @@ def validate_corpdoc(doc_id,userID,db):
                                             ],
                                         }
                 
-                return
+                return return_status
                 
 
                 corp_coding_data = (
