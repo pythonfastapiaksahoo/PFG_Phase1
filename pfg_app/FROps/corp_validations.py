@@ -208,12 +208,12 @@ def validate_corpdoc(doc_id,userID,db):
                                                     }
                     else:
                         #line total match success
-                        if abs(cod_invoTotal - pdf_invoTotal) >0.09:
+                        if abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09:
                             docStatu = 4
                             substatus = 131
                             documentdesc = "Invoice - Total mismatch with coding total"
                         else:
-                            if cod_gst > invoTotal_15:
+                            if (cod_gst > invoTotal_15).any():
                                 docStatu = 4
                                 substatus = 138
                                 documentdesc = "Coding -GST exceeding 15%"
@@ -281,13 +281,19 @@ def validate_corpdoc(doc_id,userID,db):
                                         return_status["Approval needed"] = {"status": 0,
                                             "StatusCode":0,
                                             "response": [
-                                                            f"Invoice - Not Approved"
+                                                            f"Invoice - ready for PeopleSoft"
                                                         ],
                                                     }
                                     else: 
                                         docStatu = 24
                                         substatus = 137
                                         documentdesc = "Pending Approval"
+                                        return_status["Approval needed"] = {"status": 0,
+                                            "StatusCode":0,
+                                            "response": [
+                                                            f"Invoice - Pending Approval"
+                                                        ],
+                                                    }
                 except Exception as e:
                     logger.error(f"Error in validate_corpdoc: {e}")
                     logger.info(traceback.format_exc())
