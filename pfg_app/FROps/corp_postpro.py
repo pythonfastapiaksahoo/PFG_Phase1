@@ -413,6 +413,15 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["invoicetotal"]
                 else:
                     cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceTotal"]
+                try:
+                    crd_nt = doc_dt_rw[list(doc_dt_rw.keys())[0]]["CreditNote"]
+                   
+                    if crd_nt.lower() == "yes":
+                        document_type = "credit"
+                    else:
+                        document_type = "invoice"
+                except Exception:
+                    document_type = ""
 
                 pdf_invoTotal = cleanAmt_all(credit_invo,cln_invoTotal)
                 pdf_gst = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["GST"])
@@ -424,7 +433,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             "customername":"",
                             "customeraddress": "",
                             "currency":doc_dt_rw[list(doc_dt_rw.keys())[0]]["Currency"],
-                            
+                            "document_type" : document_type,
                             "invoicetotal":pdf_invoTotal,
                             "subtotal":pdf_subTotal,
                             "corp_doc_id":corp_doc_id,
@@ -539,6 +548,14 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             pdf_invoTotal = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"])
             pdf_gst = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"])
             pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
+            try:
+                crd_nt = miss_code[list(miss_code.keys())[0]]["CreditNote"]
+                if crd_nt.lower() == "yes":
+                    document_type = "credit"
+                else:
+                    document_type = "invoice"
+            except Exception:
+                document_type = ""
             # update document data tab:
             # insert doc data:
             corp_docdata_insert = {"invoice_id":miss_code[list(miss_code.keys())[0]]["InvoiceID"],
@@ -548,7 +565,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                         "customername":"",
                         "customeraddress": "",
                         "currency":miss_code[list(miss_code.keys())[0]]["Currency"],
-                        
+                        "document_type" : document_type,
                         "invoicetotal":pdf_invoTotal,
                         "subtotal": pdf_subTotal,
                         "corp_doc_id":corp_doc_id,
