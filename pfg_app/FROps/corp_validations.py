@@ -27,12 +27,28 @@ def validate_corpdoc(doc_id,userID,db):
 
 
     if docStatus in (26,25):
-        print("Vendor mapping required")
-        return_status["Status overview"] = {"status": 0,
-                                        "StatusCode":0,
-                                         "response": [
-                                                        "Vendor mapping required"
-                                                    ],
+
+        if vendor_id is None:
+            docStatus = 4
+            docSubStatus = 11
+            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                ).update(
+                    {
+                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                        model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                        model.corp_document_tab.last_updated_by: userID,
+                        # model.corp_document_tab.vendor_id: vendorID,
+
+                    }
+                )
+            db.commit()
+        else:
+            print("Vendor mapping required")
+            return_status["Status overview"] = {"status": 0,
+                                            "StatusCode":0,
+                                            "response": [
+                                                            "Vendor mapping required"
+                                                        ],
                                                 }
         logger.info(f"return corp validations(ln 37): {return_status}")
         return return_status
@@ -48,7 +64,7 @@ def validate_corpdoc(doc_id,userID,db):
         logger.info(f"return corp validations(ln 48): {return_status}")
         return return_status
         
-    elif docStatus in (32,4):
+    if docStatus in (32,4):
         # duplicate check:
         if docSubStatus == 134:
                 print("Coding - No Coding Lines Found")
