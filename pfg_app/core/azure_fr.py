@@ -15,19 +15,17 @@ import socket
 from azure.core.pipeline.policies import SansIOHTTPPolicy
 
 
-class LogResolvedIPPolicy(SansIOHTTPPolicy):
-    def on_request(self, request):
-        # Extract the hostname from the URL
-        url = request.http_request.url
-        hostname = url.split("://")[-1].split("/")[0].split(":")[0]
+class LoggingTransport(RequestsTransport):
+    def send(self, request, **kwargs):
+        print("Request URL:", request.url)
+        hostname = request.url.split("://")[-1].split("/")[0].split(":")[0]
         try:
-            # Resolve the IP address
             ip_address = socket.gethostbyname(hostname)
-            logger.info(f"Calling IP for hostname '{hostname}': {ip_address}")
+            logger.debug(f"Calling IP for hostname '{hostname}': {ip_address}")
         except Exception:
-            logger.info(
-                f"Error resolving hostname '{hostname}': {traceback.format_exc()}"
-            )
+            logger.debug(f"Error resolving hostname '{hostname}': {traceback.format_exc()}")
+        
+        return super().send(request, **kwargs)
 
 
 def get_fr_data(
@@ -53,7 +51,7 @@ def get_fr_data(
         get_credential(),
         api_version=API_version,
         retry_policy=custom_retry_policy,
-        additional_pipeline_policies=[LogResolvedIPPolicy()],
+        transport=LoggingTransport(),
     )
     # if model_type is custom, then we use the inv_model_id to get the data
     # else we use the prebuilt-invoice model
@@ -181,7 +179,7 @@ def call_form_recognizer(
         get_credential(),
         api_version=api_version,
         retry_policy=custom_retry_policy,
-        additional_pipeline_policies=[LogResolvedIPPolicy()],
+        transport=LoggingTransport(),
     )
     if invoice_model_id == "prebuilt-invoice":
         # Call the Form Recognizer service
