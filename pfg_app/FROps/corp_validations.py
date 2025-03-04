@@ -24,8 +24,8 @@ def validate_corpdoc(doc_id,userID,db):
     docSubStatus = list(df_corp_document['documentsubstatus'])[0]
     vendor_id = list(df_corp_document['vendor_id'])[0]
     document_type = list(df_corp_document['document_type'])[0]
-
-
+    invoice_id = list(df_corp_document['invoice_id'])[0]
+    logger.info(f"doc_id: {doc_id}, vendor_id: {vendor_id}, document_type: {document_type}, invoice_id: {invoice_id}")
     if docStatus in (26,25):
 
         if vendor_id is not None:
@@ -93,7 +93,8 @@ def validate_corpdoc(doc_id,userID,db):
             .filter(
                 model.corp_document_tab.corp_doc_id != doc_id,
                 model.corp_document_tab.vendor_id == vendor_id,
-                model.corp_document_tab.documentstatus != 10
+                model.corp_document_tab.documentstatus != 10,
+                 model.corp_document_tab.invoice_id == invoice_id
             )
             .all()
             )
