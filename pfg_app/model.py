@@ -1628,6 +1628,7 @@ class corp_docdata(Base):
     ecology_fee = Column(Float,nullable=True)
     misc = Column(Float,nullable=True)
     doc_updates = Column(JSON, nullable=True)
+    document_type = Column(String, nullable=True)
 
 class corp_metadata(Base):
     __tablename__ = "corp_metadata"

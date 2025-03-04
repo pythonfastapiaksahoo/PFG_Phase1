@@ -50,8 +50,8 @@ def validate_corpdoc(doc_id,userID,db):
                                                             "Vendor mapping required"
                                                         ],
                                                 }
-        logger.info(f"return corp validations(ln 37): {return_status}")
-        return return_status
+            logger.info(f"return corp validations(ln 37): {return_status}")
+            return return_status
         
     elif docStatus in (10,):
         print("Document rejected")
@@ -132,9 +132,10 @@ def validate_corpdoc(doc_id,userID,db):
                 return return_status
             else:
                 # invoice total validation:
-                print("ready for validations")
+                logger.info(f"ready for validations-docID: {doc_id}")
                 # Query corp_coding_tab:
-                    
+                
+
                 corp_coding_data = (
                     db.query(model.corp_coding_tab)
                     .filter(model.corp_coding_tab.corp_doc_id == doc_id)
