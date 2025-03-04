@@ -13,6 +13,8 @@ from pfg_app.logger_module import logger
 from azure.core.exceptions import HttpResponseError
 import socket
 from azure.core.pipeline.policies import SansIOHTTPPolicy
+from azure.core.pipeline.transport import RequestsTransport
+
 
 
 class LoggingTransport(RequestsTransport):
