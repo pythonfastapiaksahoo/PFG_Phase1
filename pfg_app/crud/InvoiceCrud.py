@@ -588,7 +588,7 @@ async def read_invoice_file(u_id, inv_id, db):
                         )
                     )
                     .filter_by(idCustomer=1)
-                    .one()
+                    .first()
                 )
                 account_url = (
                     f"https://{settings.storage_account_name}.blob.core.windows.net"
