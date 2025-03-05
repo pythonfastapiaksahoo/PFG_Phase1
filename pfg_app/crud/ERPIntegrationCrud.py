@@ -1595,6 +1595,7 @@ def bulkProcessVoucherData():
                                     )
                                     docStatus = 21
                                     docSubStatus = 143
+
                                 else:
                                     dmsg = (
                                         InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
