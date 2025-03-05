@@ -36,9 +36,8 @@ class LogResolvedIPPolicy(SansIOHTTPPolicy):
         url = request.http_request.url
         hostname = url.split("://")[-1].split("/")[0].split(":")[0]
         try:
-            # Resolve the IP address
             ip_address = socket.gethostbyname(hostname)
-            logger.info(f"Calling IP for hostname '{hostname}': {ip_address}")
+            logger.debug(f"Calling IP for hostname '{hostname}': {ip_address}")
         except Exception:
             logger.info(
                 f"Error resolving hostname '{hostname}': {traceback.format_exc()}"

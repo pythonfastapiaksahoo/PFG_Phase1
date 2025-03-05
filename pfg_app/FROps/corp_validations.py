@@ -202,6 +202,7 @@ def validate_corpdoc(doc_id,userID,db):
 
                     df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
                     date_format = list(df_corp_metadata['dateformat'])[0]
+                    
 
                     # Check for mandatory fields:
                     mand_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
