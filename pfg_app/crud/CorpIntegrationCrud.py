@@ -867,7 +867,8 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
                         func.lower(model.CorpQueueTask.mail_row_key).ilike(pattern),
                         func.lower(model.CorpQueueTask.request_data["subject"].astext).ilike(pattern),
                         func.lower(model.CorpQueueTask.request_data["sender"].astext).ilike(pattern),
-                        func.to_char(model.CorpQueueTask.created_at, "YYYY-MM-DD").ilike(pattern)
+                        func.to_char(model.CorpQueueTask.created_at, "YYYY-MM-DD").ilike(pattern),
+                        func.lower(model.CorpQueueTask.status).ilike(pattern),
                     )
                 )
             
@@ -1320,6 +1321,7 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
         if not corp_doc_tab:
             return {"message": "No record found in corp_document_tab for the given corp_doc_id", "status": "error"}
         any_updates = False
+        vendor_updated = False
         # Iterate through the list of updates
         for update in updates:
             field = update.field
@@ -1334,6 +1336,7 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                 corp_doc_tab.vendor_code = vendor_record.vendorcode
                 corp_doc_tab.vendor_id = vendor_record.vendorid
                 any_updates = True
+                vendor_updated = True
                 consolidated_updates.append(f"vendor_code: {vendor_record.vendorcode}, vendor_id: {vendor_record.vendorid}")
                 continue
             # Ensure the field exists in the model
@@ -1408,6 +1411,8 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
 
             # Commit changes
             db.commit()
+            if vendor_updated:
+                return {"message": "Vendorcode and vendor_id is updated in corp_document_tab table", "status": "success"}
             return {"message": "Field(s) updated successfully", "status": "success"}
         else:
             return {"message": "Field(s) already exist or are the same", "status": "no_change"}
