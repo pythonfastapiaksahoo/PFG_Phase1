@@ -867,7 +867,8 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
                         func.lower(model.CorpQueueTask.mail_row_key).ilike(pattern),
                         func.lower(model.CorpQueueTask.request_data["subject"].astext).ilike(pattern),
                         func.lower(model.CorpQueueTask.request_data["sender"].astext).ilike(pattern),
-                        func.to_char(model.CorpQueueTask.created_at, "YYYY-MM-DD").ilike(pattern)
+                        func.to_char(model.CorpQueueTask.created_at, "YYYY-MM-DD").ilike(pattern),
+                        func.lower(model.CorpQueueTask.status).ilike(pattern),
                     )
                 )
             
@@ -1320,14 +1321,26 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
         if not corp_doc_tab:
             return {"message": "No record found in corp_document_tab for the given corp_doc_id", "status": "error"}
         any_updates = False
+        vendor_updated = False
         # Iterate through the list of updates
         for update in updates:
             field = update.field
             old_value = update.OldValue
             new_value = update.NewValue
-
+            if field == "vendor_name":
+                vendor_code = update.vendorCode
+                vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
+                if not vendor_record:
+                    return {"message": "Vendor is not onboarded. Please onboard it before updating the vendor name."}
+                
+                corp_doc_tab.vendor_code = vendor_record.vendorcode
+                corp_doc_tab.vendor_id = vendor_record.vendorid
+                any_updates = True
+                vendor_updated = True
+                consolidated_updates.append(f"vendor_code: {vendor_record.vendorcode}, vendor_id: {vendor_record.vendorid}")
+                continue
             # Ensure the field exists in the model
-            if hasattr(corp_doc, field):
+            if hasattr(corp_doc, field) and field != "vendor_name":
                 field_type = type(getattr(corp_doc, field))  # Get the current field's type
                 
                 # Convert new & old values to the correct data type
@@ -1398,6 +1411,8 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
 
             # Commit changes
             db.commit()
+            if vendor_updated:
+                return {"message": "Vendorcode and vendor_id is updated in corp_document_tab table", "status": "success"}
             return {"message": "Field(s) updated successfully", "status": "success"}
         else:
             return {"message": "Field(s) already exist or are the same", "status": "no_change"}
@@ -2532,8 +2547,8 @@ async def read_corp_paginate_doc_inv_list(
                 model.corp_document_tab,
                 model.DocumentStatus,
                 model.DocumentSubStatus,
-                # model.Vendor,
-                model.corp_docdata,
+                model.Vendor,
+                # model.corp_docdata,
                 model.User.firstName.label("last_updated_by"),
             )
             .options(
@@ -2554,8 +2569,8 @@ async def read_corp_paginate_doc_inv_list(
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
-                Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
-                # Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
+                # Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
+                Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
                 
             )
             .join(
@@ -2564,22 +2579,22 @@ async def read_corp_paginate_doc_inv_list(
                 == model.corp_document_tab.documentsubstatus,
                 isouter=True,
             )
-            # .join(
-            #     model.Vendor,
-            #     model.Vendor.idVendor == model.corp_document_tab.vendor_id,
-            #     isouter=True,
-            # )
+            .join(
+                model.Vendor,
+                model.Vendor.idVendor == model.corp_document_tab.vendor_id,
+                isouter=True,
+            )
             .join(
                 model.DocumentStatus,
                 model.DocumentStatus.idDocumentstatus
                 == model.corp_document_tab.documentstatus,
                 isouter=True,
             )
-            .join(
-                model.corp_docdata,
-                model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
-                isouter=True,
-            )
+            # .join(
+            #     model.corp_docdata,
+            #     model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
+            #     isouter=True,
+            # )
             .join(
                 sub_query_desc,
                 sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
@@ -2590,9 +2605,9 @@ async def read_corp_paginate_doc_inv_list(
                 model.User.idUser == sub_query_desc.c.user_id,
                 isouter=True,
             )
-            # .filter(
-            #     model.corp_document_tab.vendor_id.isnot(None),
-            # )
+            .filter(
+                model.corp_document_tab.vendor_id.isnot(None),
+            )
         )
 
         # Apply vendor ID filter if provided
