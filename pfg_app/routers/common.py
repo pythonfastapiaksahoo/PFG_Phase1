@@ -325,7 +325,7 @@ async def update_schedule(
         scheduler.reschedule_job(
             "bulk_update_invoice_creation", trigger=IntervalTrigger(minutes=minutes)
         )
-        return {"message": f"Job schedule updated to every {minutes} minutes"}
+        return {"message": f"Job schedule updated to every {minutes} minutes by {first_name}"}
     else:
         logger.error(f"Recurring job [{job_name}] not found")
         return {"error": f"Recurring job [{job_name}] not found"}
@@ -344,8 +344,8 @@ async def get_current_schedule(job_name: str):
         }
     else:
         return {"message": "No job scheduled"}
-    
-    
+
+
 @router.post("/update-retry-count")
 async def update_retry_count(count: int, job_name: str, user: AzureUser = Depends(get_admin_user)):
     """Endpoint to update the retry count for a given invoice."""

@@ -34,6 +34,8 @@ class OperationIdFilter(Filter):
 def set_operation_id(operation_id):
     operation_id_var.set(operation_id)
 
+def get_operation_id():
+    return operation_id_var.get()
 
 if settings.build_type != "debug":
     os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"] = (
