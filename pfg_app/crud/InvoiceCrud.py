@@ -109,6 +109,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
+        # # previous subquery 
         # sub_query_desc = (
         #     db.query(
         #     func.max(model.DocumentHistoryLogs.iddocumenthistorylog))
@@ -116,6 +117,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
         #     .subquery()
         # )
         
+        # new subquery to increase the loading time
         sub_query_desc = (
             db.query(
                 model.DocumentHistoryLogs.documentID,
@@ -586,7 +588,7 @@ async def read_invoice_file(u_id, inv_id, db):
                         )
                     )
                     .filter_by(idCustomer=1)
-                    .one()
+                    .first()
                 )
                 account_url = (
                     f"https://{settings.storage_account_name}.blob.core.windows.net"
@@ -866,10 +868,15 @@ async def update_invoice_data(u_id, inv_id, inv_data, db):
 
                 # If the TagLabel is "VendorName", proceed with fetching VendorCode
                 if label == "VendorName":
-                    # Fetch VendorCode using the NewValue from the Vendor table
+                    # Fetch VendorCode using the NewValue from the Vendor table, filtering only active vendors
                     vendor = (
                         db.query(model.Vendor)
                         .filter_by(VendorName=row.NewValue)
+                        .filter(
+                            func.jsonb_extract_path_text(
+                                model.Vendor.miscellaneous, "VENDOR_STATUS"
+                            ) == "A"
+                        )
                         .first()
                     )
 
@@ -1714,7 +1721,6 @@ async def new_update_stamp_data_fields(u_id, inv_id, update_data_list, db):
                     # Update the Department field if stamptagname is 'Department'
                     elif stamptagname == "Department":
                         document_record.dept = new_value
-
                     # Update the UpdatedOn field
                     document_record.UpdatedOn = dt
                     # Add the updated document to the session for commit
@@ -2251,8 +2257,7 @@ async def read_all_doc_inv_list(
 #             ):
 #                 data_to_insert["status"] = "Partially-Completed"
 #             elif (
-#                 all([attachment["status"] != "Processed-completed" for attachment in data_to_insert["attachment"]])
-#                 and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
+#                 all([attachment["status"].lower().startswith("error") for attachment in data_to_insert["attachment"]])                and (data_to_insert["attachment_count"] == len(data_to_insert["attachment"]))
 #             ):
 #                 data_to_insert["status"] = "Error"
             
@@ -2266,6 +2271,7 @@ async def read_all_doc_inv_list(
 #     except Exception:
 #         logger.error(traceback.format_exc())
 #         return Response(status_code=500)
+
 
 
 async def get_get_email_row_associated_files_new(
@@ -2301,16 +2307,14 @@ async def get_get_email_row_associated_files_new(
             if '@' in term:
                 # If the term looks like an email, treat it as such and sanitize it minimally
                 term = re.sub(r"[^a-zA-Z0-9@.]", "", term)  # Allow `@` and `.` for emails
-            else:
-                # General sanitize for other text inputs
-                term = re.sub(r"[^a-zA-Z0-9 ]", "", term)  # Allow alphanumeric and space
-            # Try parsing term as a date
-            try:
+            if ',' in term:  # Process date only if it contains a comma
                 date_obj = datetime.strptime(term, "%b %d, %Y")
                 start_date = date_obj.strftime("%Y-%m-%d 00:00:00")
                 end_date = date_obj.strftime("%Y-%m-%d 23:59:59")
                 date_filters.append(model.QueueTask.created_at.between(start_date, end_date))
-            except ValueError:
+            else:
+                # General sanitize for other text inputs
+                term = re.sub(r"[^a-zA-Z0-9 ]", "", term)  # Allow alphanumeric and space
                 # General text search
                 pattern = f"%{term}%"
                 text_filters.append(
@@ -2451,7 +2455,6 @@ async def get_get_email_row_associated_files_new(
     except Exception:
         logger.error(traceback.format_exc())
         return Response(status_code=500)
-
 
 async def get_email_row_associated_files(
     u_id, off_limit, uni_api_filter, column_filter, db, sort_column, sort_order
