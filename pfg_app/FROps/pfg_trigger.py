@@ -1272,6 +1272,21 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                     if len(cln_invID) == 0:
                         blank_id = 1
                 if blank_id == 1:
+                    InvodocStatus = 4
+                    invoSubstatus = 142
+                    try:
+                        db.query(model.Document).filter(
+                            model.Document.idDocument == docID
+                        ).update(
+                            {
+                                model.Document.documentStatusID: InvodocStatus,  # noqa: E501
+                                model.Document.documentsubstatusID: invoSubstatus,  # noqa: E501
+                            }
+                        )
+                        db.commit()
+                    except Exception as err:
+                        logger.debug(f"ErrorUpdatingPostingData: {err}")
+
                     docStatusSync["Invoice ID"] = {
                         "status": 0,
                         "StatusCode":0,
@@ -3000,6 +3015,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 docSubStatus = 112
 
                                             try:
+                                                logger.info(f"Updating the document status for doc_id:{docID}")
                                                 db.query(model.Document).filter(
                                                     model.Document.idDocument == docID
                                                 ).update(

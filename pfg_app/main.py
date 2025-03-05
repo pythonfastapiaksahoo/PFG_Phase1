@@ -16,7 +16,7 @@ from pfg_app.crud.commonCrud import (
     schedule_bulk_update_invoice_status_job,
 )
 from pfg_app.logger_module import logger, set_operation_id, tracer
-from pfg_app.model import QueueTask
+from pfg_app.model import QueueTask, CorpQueueTask
 from pfg_app.routers import (
     FR,
     OCR,
@@ -26,6 +26,7 @@ from pfg_app.routers import (
     invoice,
     modelonboarding,
     vendor,
+    CorpIntegrationapi,
 )
 from pfg_app.session.session import get_db
 
@@ -142,12 +143,22 @@ async def app_startup():
             {"status": "queued"}
         )
         db.commit()
-        logger.info("All queues reset to queued state")
+        logger.info("All DSD queues reset to queued state")
         worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
             "operation_id": operation_id
         })
         worker_thread.start()
         logger.info("OCR Worker thread started")
+        
+        # Resetting Corp Queue task before starting the application
+        db.query(CorpQueueTask).filter(CorpQueueTask.status == "processing").update(
+            {"status": "queued"}
+        )
+        db.commit()
+        logger.info("All Corp queues reset to queued state")
+        corp_worker_thread = threading.Thread(target=CorpIntegrationapi.queue_worker, daemon=True)
+        corp_worker_thread.start()
+        logger.info("CorpIntegration Worker thread started")
     else:
         operation_id = uuid.uuid4().hex
         set_operation_id(operation_id)
@@ -157,12 +168,22 @@ async def app_startup():
             QueueTask.status == f"{settings.local_user_name}-processing"
         ).update({"status": f"{settings.local_user_name}-queued"})
         db.commit()
-        logger.info("All queues reset to queued state")
+        logger.info("All DSD queues reset to queued state")
         worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
             "operation_id": operation_id
         })
         worker_thread.start()
         logger.info("OCR Worker thread started")
+        
+        # Resetting Corp Queue task before starting the application
+        db.query(CorpQueueTask).filter(
+            CorpQueueTask.status == f"{settings.local_user_name}-processing"
+        ).update({"status": f"{settings.local_user_name}-queued"})
+        db.commit()
+        logger.info("All Corp queues reset to queued state")
+        corp_worker_thread = threading.Thread(target=CorpIntegrationapi.queue_worker, daemon=True)
+        corp_worker_thread.start()
+        logger.info("CorpIntegration Worker thread started")
     logger.info("Application is ready to process requests")
 
 
@@ -206,9 +227,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.98.14"
-
-
+            response.headers["api-version"] = "0.99.28"
 
             logger.info(
                 "Sending response from FastAPI"
@@ -227,6 +246,7 @@ app.include_router(modelonboarding.router)
 app.include_router(ERPIntegrationapi.router)
 app.include_router(batchexception.router)
 app.include_router(common.router)
+app.include_router(CorpIntegrationapi.router)
 
 
 @app.get("/")

@@ -13,6 +13,7 @@ from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import (
     AccountSasPermissions,
     BlobServiceClient,
+    ContentSettings,
     generate_container_sas,
 )
 
@@ -216,6 +217,52 @@ def get_blob_securely(container_name, blob_path):
         logger.error(f"An unexpected error occurred: {str(e)}")
         raise
 
+
+def upload_blob_securely(container_name, blob_path, data, content_type):
+    """
+    Function to securely upload a blob to Azure Blob Storage.
+
+    Parameters:
+    ----------
+    container_name : str
+        Name of the container in Azure Blob Storage.
+    blob_path : str
+        Path where the blob will be uploaded in Azure Blob Storage.
+    data : bytes
+        The data to upload.
+    content_type : str
+        Content type of the blob.
+    """
+    try:
+        # Get the credential
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+
+        # Create a BlobClient
+        blob_client = blob_service_client.get_blob_client(
+            container=container_name, blob=blob_path
+        )
+
+        # Upload the blob data with proper content settings
+        blob_client.upload_blob(
+            data,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=content_type)
+        )
+        print(f"Blob successfully uploaded to: {container_name}/{blob_path}")
+
+    except AzureError as e:
+        logger.error(f"Error uploading to Azure Blob Storage: {str(e)}")
+        raise
+
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {str(e)}")
+        raise
 
 # Recursive function to convert date objects to ISO format strings
 def convert_dates(obj):
