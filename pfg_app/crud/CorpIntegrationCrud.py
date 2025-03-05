@@ -998,6 +998,8 @@ def read_corp_invoice_file(u_id, inv_id, db):
     """
     try:
         content_type = "application/pdf"
+        file_name = None
+        file_size_mb = None
         # getting invoice data for later operation
         invdat = (
             db.query(model.corp_document_tab)
@@ -1018,6 +1020,14 @@ def read_corp_invoice_file(u_id, inv_id, db):
                 blob_client = blob_service_client.get_blob_client(
                     container=container, blob=invdat.invo_filepath
                 )
+                
+                # Get file name
+                file_name = os.path.basename(invdat.invo_filepath)
+
+                # Get file size in MB
+                properties = blob_client.get_blob_properties()
+                file_size = round(properties.size / (1024 * 1024), 2)  # Convert bytes to MB
+                file_size_mb = f"{file_size} MB"
                 # invdat.docPath = str(list(blob_client.download_blob().readall()))
                 try:
                     filetype = os.path.splitext(invdat.invo_filepath)[1].lower()
@@ -1034,8 +1044,14 @@ def read_corp_invoice_file(u_id, inv_id, db):
                 logger.error(traceback.format_exc())
                 invdat.invo_filepath = f"Blob does not exist: {invdat.invo_filepath}"
 
-        return {"result": {"filepath": invdat.invo_filepath, "content_type": content_type}}
-
+        return {
+            "result": {
+                "filepath": invdat.invo_filepath,
+                "content_type": content_type,
+                "file_name": file_name,
+                "file_size_mb": file_size_mb
+            }
+        }
     except Exception:
         logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"codeError": "Server Error"})
@@ -1111,6 +1127,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "pst",
                     "invoicetotal",
                     "subtotal",
+                    "document_type",
                 )
             )
         )
@@ -1845,6 +1862,8 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
     """
     try:
         content_type = "application/pdf"
+        file_name = None
+        file_size_mb = None
         # getting invoice data for later operation
         invdat = (
             db.query(model.corp_document_tab)
@@ -1865,6 +1884,13 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 blob_client = blob_service_client.get_blob_client(
                     container=container, blob=invdat.email_filepath
                 )
+                # Get file name
+                file_name = os.path.basename(invdat.invo_filepath)
+
+                # Get file size in MB
+                properties = blob_client.get_blob_properties()
+                file_size = round(properties.size / (1024 * 1024), 2)  # Convert bytes to MB
+                file_size_mb = f"{file_size} MB"
                 # invdat.docPath = str(list(blob_client.download_blob().readall()))
                 try:
                     filetype = os.path.splitext(invdat.email_filepath)[1].lower()
@@ -1881,8 +1907,14 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 logger.error(traceback.format_exc())
                 invdat.email_filepath = f"Blob does not exist: {invdat.email_filepath}"
 
-        return {"result": {"filepath": invdat.email_filepath, "content_type": content_type}}
-
+        return {
+            "result": {
+                "filepath": invdat.email_filepath,
+                "content_type": content_type,
+                "file_name": file_name,
+                "file_size_mb": file_size_mb
+            }
+        }
     except Exception:
         logger.error(traceback.format_exc())
         return Response(status_code=500, headers={"codeError": "Server Error"})
