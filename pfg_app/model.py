@@ -525,6 +525,8 @@ class User(Base):
     account_type = Column(String(20), nullable=True)
     dept_ids = Column(JSON, nullable=True)
     azure_id = Column(String, nullable=True)
+    user_role = Column(String, nullable=True)
+    employee_id = Column(String, nullable=True)
 
     # customers = relationship("Customer", back_populates="user")
     # user_access = relationship("UserAccess", back_populates="user")
@@ -1525,6 +1527,222 @@ class QueueTask(Base):
         Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
     )
 
+class CorpQueueTask(Base):
+    __tablename__ = "corp_queue_task"
+    id = Column(Integer, primary_key=True, index=True)
+    request_data = Column(JSONB, nullable=False, index=False)  # JSONB column
+    status = Column(String(50), nullable=False, default="queued")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
+    mail_row_key = Column(String(50), nullable=False)
+
+    # Define a GIN index on the request_data column
+    __table_args__ = (
+        Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
+    )
+
+class corp_document_tab(Base):
+    __tablename__ = "corp_document_tab"
+
+    corp_doc_id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_id = Column(String(30), nullable=True)
+    invoicetotal = Column(Float, nullable=True)
+    gst = Column(Float, nullable=True)
+    invo_filepath = Column(String(1255), nullable=True)
+    email_filepath = Column(String(1255), nullable=True)
+    approved_by = Column(String(45), nullable=True)
+    vendor_code = Column(String(45), nullable=True)
+    uploaded_date = Column(DateTime, nullable=True)
+    approver_title = Column(String(45), nullable=True)
+    last_updated_by = Column(String(45), nullable=True)
+    vendor_id = Column(Integer, nullable=True)
+    documentstatus = Column((Integer), nullable=True)
+    documentsubstatus = Column((Integer), nullable=True)
+    mail_row_key = Column((String), nullable=True)
+    invo_page_count = Column((Integer), nullable=True)
+    invoice_date = Column(String, nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    updated_on = Column(DateTime, nullable=True)
+    document_type = Column((String), nullable=True)
+    sender = Column((String), nullable=True)
+    voucher_id = Column((String), nullable=True)
+
+class corp_coding_tab(Base):
+    __tablename__ = "corp_coding_tab"
+
+    corp_coding_id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_id = Column(String(30), nullable=True)
+    corp_doc_id = Column((Integer), nullable=True)
+    coding_details = Column(JSON, nullable=True)
+    supplier_id = Column(String, nullable=True)
+    approver_name = Column(String, nullable=True)
+    tmid = Column(String, nullable=True)
+    approver_title = Column(String, nullable=True)
+    invoicetotal = Column(Float, nullable=True)
+    gst = Column(Float, nullable=True)
+    voucher_status = Column(String, nullable=True)
+    sent_erp = Column(DateTime, nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    updated_on = Column(DateTime, nullable=True)
+    filesize = Column(Float, nullable=True)
+    sender_name = Column(String, nullable=True)
+    sender_email = Column(String, nullable=True)
+    sent_to = Column(String, nullable=True)
+    sent_time = Column(String, nullable=True)
+    approver_email = Column(String, nullable=True)
+    approved_on = Column(String, nullable=True)
+    approval_status = Column(String, nullable=True)
+    document_type = Column(String, nullable=True)
+
+
+
+
+class corp_docdata(Base):
+    __tablename__ = "corp_docdata"
+
+    docdata_id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_id = Column(String(30), nullable=True)
+    invoice_date = Column(String, nullable=True)
+    vendor_name = Column(String, nullable=True)
+    vendoraddress = Column(String, nullable=True)
+    customeraddress = Column(String, nullable=True)
+    customername = Column(String, nullable=True)
+    currency = Column(String, nullable=True)
+    invoicetotal = Column(Float, nullable=True)
+    subtotal = Column(Float, nullable=True)
+
+    corp_doc_id = Column(Integer, nullable=True)
+    bottledeposit = Column(Float, nullable=True)
+    shippingcharges =Column(Float, nullable=True)
+    litterdeposit =Column(Float, nullable=True)
+    gst = Column(Float, nullable=True)
+    pst = Column(Float, nullable=True)
+    pst_sk = Column(Float,nullable=True)
+    pst_bc = Column(Float,nullable=True)
+    ecology_fee = Column(Float,nullable=True)
+    misc = Column(Float,nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    pst_sk = Column(Float,nullable=True)
+    pst_bc = Column(Float,nullable=True)
+    ecology_fee = Column(Float,nullable=True)
+    misc = Column(Float,nullable=True)
+    doc_updates = Column(JSON, nullable=True)
+    document_type = Column(String, nullable=True)
+
+class corp_metadata(Base):
+    __tablename__ = "corp_metadata"
+    
+    vendorcode = Column(String(50), nullable=False)
+    vendorid = Column(Integer, nullable=False)
+    synonyms_name = Column(TEXT, nullable=False)
+    synonyms_address = Column(TEXT, nullable=False)
+    dateformat = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False)
+    created_on = Column(DateTime, nullable=True)
+    updated_on = Column(DateTime, nullable=True)
+    metadata_id = Column(Integer, primary_key=True, index=True)
+    currency = Column(String, nullable=True)
+    vendorname = Column(String, nullable=True)
+    vendoraddress = Column(String, nullable=True)
+
+
+
+class corp_trigger_tab(Base):
+    __tablename__ = "corp_trigger_tab"
+
+
+    corp_trigger_id = Column(Integer, primary_key=True, autoincrement=True)
+    corp_queue_id = Column(Integer, nullable=True)
+    pagecount = Column(Integer, nullable=True)
+    blobpath = Column(String(350), nullable=True)
+    vendor_id = Column(Integer, nullable=True)
+    status = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+    sender = Column(String, nullable=True)
+    filesize = Column(String, nullable=True)
+    documentid = Column(Integer, nullable=True)
+    mail_row_key = Column(String, nullable=True)
+    
+class CorpColumnNameDef(Base):
+
+    __tablename__ = "corp_column_def" 
+
+    id_column = Column(Integer, primary_key=True, index=True)
+    column_name = Column(String(45), nullable=True)
+    column_description = Column(String(60), nullable=True)
+    table_name = Column(String(45), nullable=True)
+    db_columnname = Column(String(45), nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    updated_on = Column(DateTime, nullable=True)
+    
+    
+class CorpDocumentColumnPos(Base):
+    __tablename__ = "corp_doc_column"
+
+    id_document_column = Column(Integer, primary_key=True, index=True)
+    column_name_def_id = Column(Integer, nullable=True)
+    document_column_pos = Column(Integer, nullable=True)
+    user_id = Column(Integer, nullable=True)
+    is_active = Column(Integer, nullable=True)
+    tab_type = Column(Integer, nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    updated_on = Column(DateTime, nullable=True)
+
+class corp_hist_logs(Base):
+    __tablename__ = "corp_hist_logs"
+    document_desc = Column(TEXT, nullable=True)
+    document_status = Column(Integer, nullable=True)
+    document_substatus = Column(Integer, nullable=True)
+    user_id =  Column(Integer, nullable=True)
+    created_on = Column(DateTime, nullable=True)
+    document_id = Column(Integer, nullable=True)
+    histlog_id = Column(Integer, primary_key=True, autoincrement=True)
+
+class CorpDocumentUpdates(Base): 
+    __tablename__ = "corp_documentupdates" 
+
+    iddocumentupdates = Column(Integer, primary_key=True, autoincrement=True) 
+    doc_id = Column(Integer, nullable=True )
+    updated_field = Column(Integer, nullable=True )
+    is_active = Column(Integer, nullable=True) 
+    old_value = Column(String, nullable=True) 
+    new_value= Column(String, nullable=True) 
+    created_on = Column(DateTime, nullable=True)
+    user_id = Column(Integer, nullable=True)
+    update_type = Column(String, nullable=True)
+    
+
+
+class CorpVoucherData(Base):
+    __tablename__ = "corp_voucher_data"
+    VOUCHER_ID = Column(Integer, primary_key=True, autoincrement=True)
+    DOCUMENT_ID = Column(Integer, nullable=False)
+    BUSINESS_UNIT = Column(String(5), nullable=True)
+    INVOICE_ID = Column(String(30), nullable=True)
+    INVOICE_DT = Column(String(100), nullable=True)
+    VENDOR_SETID = Column(String(5), nullable=True)
+    VENDOR_ID = Column(String(10), nullable=True)
+    ORIGIN = Column(String(10), nullable=True)
+    ACCOUNTING_DT = Column(String(10), nullable=True)
+    GROSS_AMT = Column(Float, nullable=True)
+    SALETX_AMT = Column(Float, nullable=True)
+    FREIGHT_AMT = Column(Float, nullable=True)
+    MISC_AMT = Column(Float, nullable=True)
+    TXN_CURRENCY_CD = Column(String(3), nullable=True)
+    VAT_ENTRD_AMT = Column(Float, nullable=True)
+    VCHR_SRC = Column(String(5), nullable=True)
+    OPRID = Column(String(10), nullable=True)
+    MERCHANDISE_AMT = Column(Float, nullable=True)
+    VCHR_DIST_STG = Column(JSON, nullable=True)
+    VAT_APPLICABILITY = Column(String(1), nullable=True)
+    SHIPTO_ID = Column(String(10), nullable=True)
+    INVOICE_FILE_PATH = Column(String, nullable=True)
+    EMAIL_PATH = Column(String, nullable=True)
+
+
 class TaskSchedular(Base): 
     __tablename__ = "task_schedular" 
 
@@ -1535,6 +1753,7 @@ class TaskSchedular(Base):
     is_active = Column(Integer, nullable=True) 
     updated_at= Column(DateTime, nullable=True) 
     updated_by = Column(String, nullable=True)
+    
 
 class SetRetryCount(Base): 
     __tablename__ = "set_retry_count" 

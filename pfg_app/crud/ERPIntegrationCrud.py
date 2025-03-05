@@ -3,12 +3,14 @@ import datetime
 import json
 import os
 import re
+import re
 import traceback
 from uuid import uuid4
 
 import requests
 from azure.storage.blob import BlobServiceClient
 from fastapi import HTTPException, Response
+from sqlalchemy import func, or_, case
 from sqlalchemy import func, or_, case
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import load_only
@@ -1118,12 +1120,27 @@ def processInvoiceVoucher(doc_id, db):
 
             # Check for success
             # if response.status_code == 200:
+            # try:
+            #     response_data = response.json()
+            #     if not response_data:
+            #         logger.info("Response JSON is empty.")
+            #         responsedata = {
+            #             "message": "Success, but response JSON is empty.",
+            #             "data": response_data
+            #         }
+            #     else:
+            #         responsedata = {"message": "Success", "data": response_data}
+            # except ValueError:
+            #     # Handle case where JSON decoding fails
+            #     logger.info("Response returned, but not in JSON format.")
+            #     responsedata = {
+            #         "message": "Success, but response is not JSON.",
+            #         "data": {"Http Response": "104", "Status": "Connection reset by peer"}
+            #     }
             response_data = response.json() if response.content else {}
             return {"message": "Success", "data": response_data} if response_data else {"message": "Success, but response JSON is empty.", "data": response_data}
-
         except Exception:
-            logger.info(f"HTTP error occurred: {traceback.format_exc()}")
-            # logger.info(f"Response content: {response.content.decode()}")
+            logger.info(f"ConnectionResetError occurred: {traceback.format_exc()}")
             return {
                 "message": "ConnectionResetError","data": {"Http Response": "104", "Status": "Connection reset by peer"}}
 

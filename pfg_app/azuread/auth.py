@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -18,6 +18,15 @@ class ForbiddenAccess(HTTPException):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # )
+    #     "roles": [
+    #     "CORP_ConfigPortal_User",
+    #     "DSD_APPortal_User",
+    #     "DSD_ConfigPortal_User",
+    #     "User",
+    #     "Admin",
+    #     "CORP_APPortal_User"
+    # ],
 
 def get_user(
     user: AzureUser = Depends(authorize),
@@ -39,7 +48,7 @@ def get_user(
         if not user_in_db:
             user_in_db = User(
                 azure_id=user.id,
-                email=user.email,
+                email=user.preferred_username,
                 customerID=1,
                 firstName=user.name,
             )
@@ -50,6 +59,36 @@ def get_user(
         return user_in_db
     raise ForbiddenAccess("User privileges required")
 
+
+def get_user_dependency(allowed_roles: list[str]):
+    def dependency(
+        user: AzureUser = Depends(authorize), 
+        db: Session = Depends(get_db)
+    ) -> AzureUser:
+        # if not isinstance(user, AzureUser):  # Ensure authorization returned a valid user
+        #     raise HTTPException(status_code=500, detail="Authorization failed, user not retrieved")
+
+        if any(role in user.roles for role in allowed_roles):
+            user_in_db = db.query(User).filter(User.azure_id == user.id).first()
+
+            if not user_in_db:
+                user_in_db = User(
+                    azure_id=user.id,
+                    email=user.preferred_username,
+                    customerID=1,
+                    # firstName=user.name,
+                    employee_id=user.employeeId,
+                    user_roles=user.roles
+                )
+                db.add(user_in_db)
+                db.commit()
+                db.refresh(user_in_db)
+
+            return user_in_db
+
+        raise HTTPException(status_code=403, detail="User privileges required")
+
+    return dependency
 
 def get_admin_user(
     user: AzureUser = Depends(authorize), db: Session = Depends(get_db)
@@ -62,7 +101,14 @@ def get_admin_user(
     #     roles=["Admin"],
     #     preferred_username="Generic admin",
     # )
-
+    #     "roles": [
+    #     "CORP_ConfigPortal_User",
+    #     "DSD_APPortal_User",
+    #     "DSD_ConfigPortal_User",
+    #     "User",
+    #     "Admin",
+    #     "CORP_APPortal_User"
+    # ],
     if "Admin" in user.roles:
         try:
             all_results = []

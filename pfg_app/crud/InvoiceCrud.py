@@ -211,6 +211,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             .filter(
                 model.Document.idDocumentType == 3,
                 model.Document.vendorAccountID.isnot(None),
+                # model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
             )
         )
 
@@ -587,7 +588,7 @@ async def read_invoice_file(u_id, inv_id, db):
                         )
                     )
                     .filter_by(idCustomer=1)
-                    .one()
+                    .first()
                 )
                 account_url = (
                     f"https://{settings.storage_account_name}.blob.core.windows.net"
@@ -595,10 +596,10 @@ async def read_invoice_file(u_id, inv_id, db):
                 blob_service_client = BlobServiceClient(
                     account_url=account_url, credential=get_credential()
                 )
-                
                 blob_client = blob_service_client.get_blob_client(
                         container=fr_data.ContainerName, blob=invdat.docPath
                     )
+
                 # invdat.docPath = str(list(blob_client.download_blob().readall()))
                 try:
                     filetype = os.path.splitext(invdat.docPath)[1].lower()
