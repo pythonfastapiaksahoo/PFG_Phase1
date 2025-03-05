@@ -948,7 +948,7 @@ def processInvoiceVoucher(doc_id, db):
                 "message": "Invalid Date Format",
                 "data": {"Http Response": "408", "Status": "Invalid date format"},
             }
-        
+            
         # Call the function to get the base64 file and content type
         try:
             file_data = read_invoice_file_voucher(doc_id, db)
@@ -1020,7 +1020,7 @@ def processInvoiceVoucher(doc_id, db):
                                             "QTY_VCHR": 1,
                                             "UNIT_OF_MEASURE": "",
                                             "UNIT_PRICE": 0,
-                                            "VAT_APPLICABILITY": "",
+                                            "VAT_APPLICABILITY": voucherdata.vat_applicability or "",
                                             "BUSINESS_UNIT_RECV": (
                                                 voucherdata.Business_unit
                                                 if voucherdata.Business_unit
@@ -1334,6 +1334,7 @@ def newbulkupdateInvoiceStatus():
                         if entry_status == "STG":
                             documentstatusid = 7
                             docsubstatusid = 43
+                            dmsg = InvoiceVoucherSchema.SUCCESS_STAGED
                             # Skip updating if entry_status is "STG"
                             # because the status is already 7
                             # continue
@@ -1409,7 +1410,8 @@ def newbulkupdateInvoiceStatus():
                                     "documentdescription": dmsg,
                                     "CreatedOn": datetime.datetime.utcnow().strftime(
                                         "%Y-%m-%d %H:%M:%S"
-                                    ),  # noqa: E501
+                                    ),
+                                    "documentSubStatusID": docsubstatusid,
                                 }
                             )
                             success_count += 1  # Increment success counter
@@ -1496,7 +1498,7 @@ def bulkProcessVoucherData():
             model.SetRetryCount.task_name=='retry_invoice_creation').first() 
         if frequency:
             frequency = frequency[0]  # Extract the integer value
-        
+            
         # Batch size for processing
         batch_size = 50  # Define a reasonable batch size
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
@@ -1551,7 +1553,7 @@ def bulkProcessVoucherData():
                                     )
                                     docStatus = 35
                                     docSubStatus = 148
-                                    
+
                                 elif RespCodeInt == 408:
                                     dmsg = (
                                         InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
@@ -1565,7 +1567,7 @@ def bulkProcessVoucherData():
                                     )
                                     docStatus = 4
                                     docSubStatus = 147
-
+                                    
                                 elif RespCodeInt == 422:
                                     dmsg = (
                                         InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
@@ -1627,6 +1629,16 @@ def bulkProcessVoucherData():
 
                 try:
                     logger.info(f"Updating the document status for doc_id:{docID}")
+                    # db.query(model.Document).filter(
+                    #     model.Document.idDocument == docID
+                    # ).update(
+                    #     {
+                    #         model.Document.documentStatusID: docStatus,
+                    #         model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                    #         model.Document.retry_count: model.Document.retry_count + 1 if docStatus == 21 else model.Document.retry_count
+                    #     }
+                    # )
+                    # db.commit()
                     db.query(model.Document).filter(
                         model.Document.idDocument == docID
                     ).update(

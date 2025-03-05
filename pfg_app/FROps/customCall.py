@@ -1,5 +1,3 @@
-# custcall:
-
 #cust_call
 import re
 import traceback
@@ -51,40 +49,152 @@ def getOcrParameters(customerID, db):
         )
 
 
-def date_cnv(doc_date, date_format):
-    # clean date and convert to "yyyy-mm-dd"
+# def date_cnv(doc_date, date_format):
+#     # clean date and convert to "yyyy-mm-dd"
 
+#     get_date = {
+#         "jan": "01",
+#         "feb": "02",
+#         "mar": "03",
+#         "apr": "04",
+#         "may": "05",
+#         "jun": "06",
+#         "jul": "07",
+#         "aug": "08",
+#         "sep": "09",
+#         "oct": "10",
+#         "nov": "11",
+#         "dec": "12",
+#     }
+
+#     date_status = 0
+#     req_date = doc_date
+
+#     try:
+#         # Handling various date formats using regex
+#         if date_format in [
+#             "mm.dd.yyyy",
+#             "mm-dd-yyyy",
+#             "mm/dd/yyyy",
+#             "mm dd yyyy",
+#             "mm.dd.yy",
+#             "mm/dd/yy",
+#             "mmm-dd-yyyy",
+#             "mmm dd yyyy",
+#         ]:
+#             doc_dt_slt = re.findall(r"\d+", doc_date)
+#             if len(doc_dt_slt) == 3:
+#                 mm, dd, yy = doc_dt_slt
+#                 dd = dd.zfill(2)
+#                 yy = "20" + yy if len(yy) == 2 else yy
+#                 mm = mm.zfill(2)
+#                 req_date = f"{yy}-{mm}-{dd}"
+#                 date_status = 1
+#             # Handle cases where the month is abbreviated (e.g., "jan")
+#             elif len(doc_dt_slt) == 2 and doc_date[:3].lower() in get_date:
+#                 dd, yy = doc_dt_slt
+#                 mm = get_date[doc_date[:3].lower()]
+#                 dd = dd.zfill(2)
+#                 yy = "20" + yy if len(yy) == 2 else yy
+#                 req_date = f"{yy}-{mm}-{dd}"
+#                 date_status = 1
+
+#         elif date_format in [
+#             "dd-mm-yy",
+#             "dd.mm.yy",
+#             "dd.mm.yyyy",
+#             "dd-mm-yyyy",
+#             "dd mm yyyy",
+#             "dd/mmm/yyyy",
+#             "dd/mmm/yy",
+#             "dd/mm/yy",
+#         ]:
+#             logger.info(f"in date format: {date_format}")
+#             #
+#             doc_dt_slt = re.findall(r"\d+", doc_date)
+        
+#             if len(doc_dt_slt) == 3:
+#                 dd, mm, yy = doc_dt_slt
+#                 dd = dd.zfill(2)
+#                 mm = mm.zfill(2)
+#                 yy = "20" + yy if len(yy) == 2 else yy
+#                 return f"{yy}-{mm}-{dd}", 1
+            
+#             elif len(doc_dt_slt) == 2:
+#                 dd, yy = doc_dt_slt
+#                 for month_abbr in get_date:
+#                     if month_abbr in doc_date.lower():
+#                         mm = get_date[month_abbr]
+#                         break
+#                 else:
+#                     return None, 0  # Return failure status if month not found
+
+#                 dd = dd.zfill(2)
+#                 yy = "20" + yy if len(yy) == 2 else yy
+#                 return f"{yy}-{mm}-{dd}", 1
+        
+#         # return None, 0
+#             #
+
+#             # doc_dt_slt = re.findall(r"\d+", doc_date)
+#             # if len(doc_dt_slt) == 3:
+#             #     dd, mm, yy = doc_dt_slt
+#             #     dd = dd.zfill(2)
+#             #     yy = "20" + yy if len(yy) == 2 else yy
+#             #     mm = mm.zfill(2)
+#             #     req_date = f"{yy}-{mm}-{dd}"
+#             #     date_status = 1
+#             # # Handle cases with abbreviated months
+#             # elif len(doc_dt_slt) == 2 and any(
+#             #     month in doc_date.lower() for month in get_date
+#             # ):
+#             #     dd, yy = doc_dt_slt
+#             #     for month in get_date:
+#             #         if month in doc_date.lower():
+#             #             mm = get_date[month]
+#             #             break
+#             #     dd = dd.zfill(2)
+#             #     yy = "20" + yy if len(yy) == 2 else yy
+#             #     req_date = f"{yy}-{mm}-{dd}"
+#             #     date_status = 1
+
+#         elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd"]:
+#             doc_dt_slt = re.findall(r"\d+", doc_date)
+#             if len(doc_dt_slt) == 3:
+#                 yy, mm, dd = doc_dt_slt
+#                 dd = dd.zfill(2)
+#                 mm = mm.zfill(2)
+#                 req_date = f"{yy}-{mm}-{dd}"
+#                 date_status = 1
+
+#     except Exception:
+#         logger.debug(traceback.format_exc())
+#         date_status = 0
+#         req_date = doc_date
+
+#     return req_date, date_status
+
+
+def date_cnv(doc_date, date_format):
+    # Clean date and convert to "yyyy-mm-dd"
+    
     get_date = {
-        "jan": "01",
-        "feb": "02",
-        "mar": "03",
-        "apr": "04",
-        "may": "05",
-        "jun": "06",
-        "jul": "07",
-        "aug": "08",
-        "sep": "09",
-        "oct": "10",
-        "nov": "11",
-        "dec": "12",
+        "jan": "01", "feb": "02", "mar": "03", "apr": "04",
+        "may": "05", "jun": "06", "jul": "07", "aug": "08",
+        "sep": "09", "oct": "10", "nov": "11", "dec": "12"
     }
 
     date_status = 0
-    req_date = doc_date
+    req_date = doc_date  # Default to original date string if conversion fails
 
     try:
-        # Handling various date formats using regex
+        # MM-DD-YYYY, MM/DD/YYYY, MM.DD.YY, MMM-DD-YYYY
         if date_format in [
-            "mm.dd.yyyy",
-            "mm-dd-yyyy",
-            "mm/dd/yyyy",
-            "mm dd yyyy",
-            "mm.dd.yy",
-            "mm/dd/yy",
-            "mmm-dd-yyyy",
-            "mmm dd yyyy",
+            "mm.dd.yyyy", "mm-dd-yyyy", "mm/dd/yyyy", "mm dd yyyy",
+            "mm.dd.yy", "mm/dd/yy", "mmm-dd-yyyy", "mmm dd yyyy"
         ]:
             doc_dt_slt = re.findall(r"\d+", doc_date)
+            
             if len(doc_dt_slt) == 3:
                 mm, dd, yy = doc_dt_slt
                 dd = dd.zfill(2)
@@ -92,25 +202,29 @@ def date_cnv(doc_date, date_format):
                 mm = mm.zfill(2)
                 req_date = f"{yy}-{mm}-{dd}"
                 date_status = 1
-            # Handle cases where the month is abbreviated (e.g., "jan")
-            elif len(doc_dt_slt) == 2 and doc_date[:3].lower() in get_date:
+            
+            elif len(doc_dt_slt) == 2:
                 dd, yy = doc_dt_slt
-                mm = get_date[doc_date[:3].lower()]
+                for month_abbr in get_date:
+                    if month_abbr in doc_date.lower():
+                        mm = get_date[month_abbr]
+                        break
+                else:
+                    return doc_date, 0  # Return original string if month not found
+                
                 dd = dd.zfill(2)
                 yy = "20" + yy if len(yy) == 2 else yy
                 req_date = f"{yy}-{mm}-{dd}"
                 date_status = 1
 
+        # DD-MM-YYYY, DD/MM/YY, DD/MMM/YYYY
         elif date_format in [
-            "dd-mm-yy",
-            "dd.mm.yy",
-            "dd.mm.yyyy",
-            "dd-mm-yyyy",
-            "dd mm yyyy",
-            "dd/mmm/yyyy",
-            "dd/mmm/yy",
+            "dd-mm-yy", "dd.mm.yy", "dd.mm.yyyy", "dd-mm-yyyy",
+            "dd mm yyyy", "dd/mmm/yyyy", "dd/mmm/yy", "dd/mm/yy"
         ]:
+            logger.info(f"Processing date format: {date_format}")
             doc_dt_slt = re.findall(r"\d+", doc_date)
+            
             if len(doc_dt_slt) == 3:
                 dd, mm, yy = doc_dt_slt
                 dd = dd.zfill(2)
@@ -118,22 +232,25 @@ def date_cnv(doc_date, date_format):
                 mm = mm.zfill(2)
                 req_date = f"{yy}-{mm}-{dd}"
                 date_status = 1
-            # Handle cases with abbreviated months
-            elif len(doc_dt_slt) == 2 and any(
-                month in doc_date.lower() for month in get_date
-            ):
+            
+            elif len(doc_dt_slt) == 2:
                 dd, yy = doc_dt_slt
-                for month in get_date:
-                    if month in doc_date.lower():
-                        mm = get_date[month]
+                for month_abbr in get_date:
+                    if month_abbr in doc_date.lower():
+                        mm = get_date[month_abbr]
                         break
+                else:
+                    return doc_date, 0  # Return original string if month not found
+                
                 dd = dd.zfill(2)
                 yy = "20" + yy if len(yy) == 2 else yy
                 req_date = f"{yy}-{mm}-{dd}"
                 date_status = 1
 
+        # YYYY-MM-DD, YYYY/MM/DD
         elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd"]:
             doc_dt_slt = re.findall(r"\d+", doc_date)
+            
             if len(doc_dt_slt) == 3:
                 yy, mm, dd = doc_dt_slt
                 dd = dd.zfill(2)
@@ -143,10 +260,11 @@ def date_cnv(doc_date, date_format):
 
     except Exception:
         logger.debug(traceback.format_exc())
-        date_status = 0
-        req_date = doc_date
-
+        date_status = 0  # Keep original string if an error occurs
+    
     return req_date, date_status
+
+
 
 
 def clean_amount(amount_str):
@@ -194,7 +312,8 @@ def getModelData(vendorAccountID, db):
 
 
 def customModelCall(docID,userID,db):
-    status = 0
+    status = {'msg':'Failed','status':0}
+    logger.info(f"customModelCall for docID:{docID} started,userID: {userID}")
     try:
         # Custom Model Call for unidentified invoices:
         custcall_status = 1
@@ -210,13 +329,76 @@ def customModelCall(docID,userID,db):
 
             docTab = (
                 db.query(model.Document).filter(model.Document.idDocument == docID)
-            ).first()
+            ).first()   
 
             file_path = docTab.docPath
             spltFileName = docTab.docPath
             entityID = docTab.entityID
             vendorAccountID = docTab.vendorAccountID
             InvoModelId = docTab.documentModelID
+
+            try:
+                if InvoModelId==999999:
+                    if vendorAccountID != 0:
+                        docTab = (
+                            db.query(model.DocumentModel)
+                            .filter(
+                                model.DocumentModel.idVendorAccount.in_([vendorAccountID]),
+                                model.DocumentModel.modelStatus.in_([4]),
+                                model.DocumentModel.is_active.in_([1])
+                            )
+                        ).first()
+
+                        if docTab:
+                            # InvoModelId = docTab.idDocumentModel
+                            new_document_model_id = docTab.idDocumentModel
+                            logger.info(f"Model Found: idDocumentModel = {new_document_model_id}")
+                            db.query(model.Document).filter(
+                                model.Document.idDocument == docID
+                            ).update(
+                                {
+                                    model.Document.documentModelID: new_document_model_id,  # noqa: E501
+
+                                }
+                            )
+                            db.commit()
+                            InvoModelId = new_document_model_id
+                        else:
+                            logger.info("No active model found, please train the model")
+                            docStatus = 33
+                            docSubStatus = 145
+                            db.query(model.Document).filter(
+                                model.Document.idDocument == docID
+                            ).update(
+                                {
+                                    model.Document.documentStatusID: docStatus,  # noqa: E501
+                                    model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                                }
+                            )
+                            db.commit()
+                            status = {'msg':'"No active model found, please train the model','status':0}
+                            return status
+                    else:
+                        logger.info("Vendor not mapped, please check the model and remap")
+                        docStatus = 26
+                        docSubStatus = 141
+                        db.query(model.Document).filter(
+                            model.Document.idDocument == docID
+                        ).update(
+                            {
+                                model.Document.documentStatusID: docStatus,  # noqa: E501
+                                model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                            }
+                        )
+                        db.commit()
+                        status = {'msg':'Vendor not mapped, please check the model and remap','status':0}
+                            
+                        return status
+
+
+            except Exception as e:
+                logger.error(traceback.format_exc())
+                    
 
             configs = getOcrParameters(customerID, db)
             metadata = getMetaData(vendorAccountID, db)
@@ -230,7 +412,40 @@ def customModelCall(docID,userID,db):
             DateFormat = metadata.DateFormat
             # mandatoryheadertags = configs.mandatoryheadertags
             # mandatorylinetags = configs.mandatorylinetags
-            inv_model_id = modelData.modelID
+            if modelData != None:
+                if modelData.modelID != None:
+                    inv_model_id = modelData.modelID
+                else: 
+                    docStatus = 33
+                    docSubStatus = 145
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: docStatus,  # noqa: E501
+                            model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                    status = {'msg':'No Model found, please train the model','status':0}
+                        
+                    return status
+            else: 
+                    docStatus = 33
+                    docSubStatus = 144
+                    db.query(model.Document).filter(
+                        model.Document.idDocument == docID
+                    ).update(
+                        {
+                            model.Document.documentStatusID: docStatus,  # noqa: E501
+                            model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                        }
+                    )
+                    db.commit()
+                    status = {'msg':'No active model found, please train the model','status':0}
+                    return status
+            
+
             # API_version = configs.ApiVersion
 
             filename = spltFileName.split("/")[-1]
@@ -238,6 +453,54 @@ def customModelCall(docID,userID,db):
             destination_container_name = configs.ContainerName
             API_version = settings.api_version
             model_type = "custom"
+           
+
+            # preprocess the file and get binary data
+            fr_preprocessing_status, fr_preprocessing_msg, input_data, ui_status = (
+                fr_preprocessing(
+                    vendorAccountID,
+                    entityID,
+                    file_path,
+                    accepted_file_type,
+                    file_size_accepted,
+                    filename,
+                    spltFileName,
+                    destination_container_name,
+                    db,
+                )
+            )
+
+            # DI call with trained model
+            try:
+                cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
+                    get_fr_data(
+                        input_data,
+                        API_version,
+                        endpoint,
+                        model_type,
+                        inv_model_id,
+                    )
+                )
+                logger.info(f"cst_model_status: {cst_model_status}")
+            except Exception:
+                logger.error(f"{traceback.format_exc()}")
+                cst_model_status = 0
+                cst_data = {}
+            if cst_model_status==0:
+                docStatus = 33
+                docSubStatus = 135
+                db.query(model.Document).filter(
+                    model.Document.idDocument == docID
+                ).update(
+                    {
+                        model.Document.documentStatusID: docStatus,  # noqa: E501
+                        model.Document.documentsubstatusID: docSubStatus,  # noqa: E501
+                    }
+                )
+                db.commit()
+                status = {'msg':'Custom model not found in DI subscription','status':0}
+                return status
+
             try:
 
             # Fetch the corresponding idDocumentData first
@@ -265,32 +528,6 @@ def customModelCall(docID,userID,db):
                 logger.error(traceback.format_exc())
                 custcall_status = 0
                 db.rollback()
-
-            # preprocess the file and get binary data
-            fr_preprocessing_status, fr_preprocessing_msg, input_data, ui_status = (
-                fr_preprocessing(
-                    vendorAccountID,
-                    entityID,
-                    file_path,
-                    accepted_file_type,
-                    file_size_accepted,
-                    filename,
-                    spltFileName,
-                    destination_container_name,
-                    db,
-                )
-            )
-
-            # DI call with trained model
-            cst_model_status, cst_model_msg, cst_data, cst_status, isComposed, template = (
-                get_fr_data(
-                    input_data,
-                    API_version,
-                    endpoint,
-                    model_type,
-                    inv_model_id,
-                )
-            )
 
             documenttagdef = (
                 db.query(model.DocumentTagDef)
@@ -340,10 +577,12 @@ def customModelCall(docID,userID,db):
             custHdrDt_update = []
             custHdrDt_insert = []
             custHdrDt = {}
+             # logger.info(f"cust data docID:{docID}; Data: {cst_data[0]["documents"][0]["fields"]}")
             for hdr in cst_data[0]["documents"][0]["fields"]:
-                print(hdr)
+                logger.info(f"cust data docID:{docID} - for loop:{cst_data[0]['documents'][0]['fields'][hdr]} ")
                 tmp_rw = []
                 tmp_rw.append(hdr)
+                logger.info(f"cust data docID:{docID}; Hdr: {hdr}")
                 if "value_type" in cst_data[0]["documents"][0]["fields"][hdr]:
                     if "value" or "content" in cst_data[0]["documents"][0]["fields"][hdr]:
                         if (
@@ -386,9 +625,14 @@ def customModelCall(docID,userID,db):
                                 val = "NA"
                                 iserror = 0
                                 errorDesc = "The specified value could not be retrieved."
+                                logger.info(f"cust data docID:{docID}; Hdr: {hdr}; Val: {errorDesc}") 
+                            logger.info(f"cust data docID:{docID}; Hdr: {hdr}; Val: {val}")
+                            
                             if hdr == "InvoiceDate":
+                                logger.info(f"Date check docID:{docID}; DateFormat: {DateFormat}; Val: {val}")
                                 val, status = date_cnv(val, DateFormat)
                                 invoDate = val
+                                logger.info(f"Date check docID:{docID}; DateFormat: {DateFormat}; formatted Val: {val}")
                                 if status == 0:
                                     iserror = 1
                                     errorDesc = "Invalid Date Format"
@@ -465,7 +709,7 @@ def customModelCall(docID,userID,db):
                                         }
                                     )
                                 custHdr_data.append(custHdrDt)
-
+            logger.info(f"cust data docID:{docID}; custHdrDt_update: {custHdrDt_update}")
             for entry in custHdrDt_update:
                 record_to_update = (
                     db.query(model.DocumentData)
@@ -490,7 +734,7 @@ def customModelCall(docID,userID,db):
                 logger.error(traceback.format_exc())
                 custcall_status = 0
                 db.rollback()  # Roll back the transaction if there's an error
-
+            logger.info(f"cust data docID:{docID}; custHdrDt_insert: {custHdrDt_insert}")
             for entry in custHdrDt_insert:
 
                 new_record = model.DocumentData(
@@ -584,7 +828,7 @@ def customModelCall(docID,userID,db):
                 .filter(
                     model.DocumentTagDef.idDocumentModel == InvoModelId,
                     model.DocumentTagDef.TagLabel.in_(
-                        ["Credit Identifier", "SubTotal", "GST"]
+                        ["Credit Identifier", "SubTotal", "GST","VendorName","InvoiceId","InvoiceTotal","InvoiceDate"]
                     ),
                 )
                 .all()
@@ -603,15 +847,42 @@ def customModelCall(docID,userID,db):
                         CreatedOn=func.now(),
                     )
                 )
+            
+            if "VendorName" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="VendorName",
+                        CreatedOn=func.now(),
+                    )
+                )
+            
+            if "InvoiceId" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="InvoiceId",
+                        CreatedOn=func.now(),
+                    )
+                )   
+            
+            if "InvoiceTotal" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="InvoiceTotal",
+                        CreatedOn=func.now(),
+                    )
+                )
 
-            # if "SubTotal" not in existing_tag_labels:
-            #     missing_tags.append(
-            #         model.DocumentTagDef(
-            #             idDocumentModel=InvoModelId,
-            #             TagLabel="SubTotal",
-            #             CreatedOn=func.now(),
-            #         )
-            #     )
+            if "SubTotal" not in existing_tag_labels:
+                missing_tags.append(
+                    model.DocumentTagDef(
+                        idDocumentModel=InvoModelId,
+                        TagLabel="SubTotal",
+                        CreatedOn=func.now(),
+                    )
+                )
 
             if "GST" not in existing_tag_labels:
                 missing_tags.append(
@@ -624,6 +895,7 @@ def customModelCall(docID,userID,db):
 
             # Add missing tags if any
             if missing_tags:
+                logger.info(f"docID:{docID} - Adding missing tags: {missing_tags}")
                 db.add_all(missing_tags)
                 db.commit()
 
@@ -646,7 +918,7 @@ def customModelCall(docID,userID,db):
             for document_data, document_tag_def in DocDtHdr:
                 docHdrDt[document_tag_def.TagLabel] = document_data.Value
                 tagNames[document_tag_def.TagLabel] = document_tag_def.idDocumentTagDef
-            logger.info(f"customcall docHdrDt: {docHdrDt}")
+            logger.info(f"docID:{docID}customcall docHdrDt: {docHdrDt}")
             logger.info(f"customcall tagNames: {tagNames}")
             custHdrDt_insert_missing = []
             # if "SubTotal" not in docHdrDt:
@@ -669,6 +941,15 @@ def customModelCall(docID,userID,db):
             #                             )
             #     except Exception:
             #         logger.error(f"{traceback.format_exc()}")
+            documenttagdef = (
+                db.query(model.DocumentTagDef)
+                .filter(model.DocumentTagDef.idDocumentModel == InvoModelId)
+                .all()
+            )
+
+            hdr_tags = {}
+            for hdrTags in documenttagdef:
+                hdr_tags[hdrTags.TagLabel] = hdrTags.idDocumentTagDef
 
             if "Credit Identifier" not in docHdrDt:
                 try:
@@ -680,6 +961,21 @@ def customModelCall(docID,userID,db):
                                                 "IsUpdated": 0,
                                                 "isError": 0,
                                                 "ErrorDesc": "Defaulting to Invoice Document",
+                                            }
+                                        )
+                except Exception:
+                    logger.error(f"{traceback.format_exc()}")
+            
+            if "VendorName" not in docHdrDt:
+                try:
+                    custHdrDt_insert_missing.append(
+                                            {
+                                                "documentID": docID,
+                                                "documentTagDefID": hdr_tags["VendorName"],
+                                                "Value": "",
+                                                "IsUpdated": 0,
+                                                "isError": 1,
+                                                "ErrorDesc": "Defaulting to Vendor Name",
                                             }
                                         )
                 except Exception:
@@ -701,7 +997,7 @@ def customModelCall(docID,userID,db):
                     logger.error(f"{traceback.format_exc()}")
 
             # add missing values to the invoice data:
-            logger.info(f"custHdrDt_insert_missing: {custHdrDt_insert_missing}")
+            logger.info(f"docID:{docID}- custHdrDt_insert_missing: {custHdrDt_insert_missing}")
             for entry in custHdrDt_insert_missing:
                 new_record = model.DocumentData(
                     documentID=entry["documentID"],
@@ -755,9 +1051,9 @@ def customModelCall(docID,userID,db):
 
                     db.commit()
             except Exception:
-                custcall_status = 0
-                db.rollback()
-                logger.error(f"{traceback.format_exc()}")
+                    custcall_status = 0
+                    db.rollback()
+                    logger.error(f"{traceback.format_exc()}")
         except Exception:
             custcall_status = 0
             db.rollback()
@@ -767,6 +1063,7 @@ def customModelCall(docID,userID,db):
             status = 1
             documentstatus = 4
             documentSubstatus = 26
+            status = {'msg':'Success','status':1}
             try:
                 custModelCall_msg =  "Custom Model Call done"
                 update_docHistory(
@@ -777,6 +1074,13 @@ def customModelCall(docID,userID,db):
         else:
             documentstatus = 4
             documentSubstatus = 7
+            try:
+                custModelCall_msg =  status['msg']
+                update_docHistory(
+                    docID, userID, documentstatus,custModelCall_msg , db, documentSubstatus
+                )
+            except Exception:
+                    logger.debug(traceback.format_exc())
 
         try:
         #     invoDate = ""
@@ -798,4 +1102,5 @@ def customModelCall(docID,userID,db):
         
     except Exception as err:
         logger.error(f"{traceback.format_exc()}")
+    logger.info(f"customModelCall for docID:{docID} ended with status:{status}")
     return status
