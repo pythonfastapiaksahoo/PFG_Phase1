@@ -6,6 +6,7 @@ import traceback
 from datetime import datetime, timezone
 from functools import wraps
 from urllib.parse import urlparse
+import uuid
 
 import Levenshtein
 import pandas as pd
@@ -41,7 +42,7 @@ from pfg_app.FROps.postprocessing import getFrData_MNF, postpro
 from pfg_app.FROps.preprocessing import fr_preprocessing
 from pfg_app.FROps.SplitDoc import splitDoc
 from pfg_app.FROps.validate_currency import validate_currency
-from pfg_app.logger_module import logger
+from pfg_app.logger_module import get_operation_id, logger, set_operation_id
 from pfg_app.model import QueueTask
 from pfg_app.crud.InvoiceCrud import update_docHistory
 
@@ -167,6 +168,7 @@ def runStatus(
             "email_path": email_path,
             "mail_row_key": mail_row_key,
             "subject": subject,
+            "operation_id": get_operation_id()
         }
         if settings.build_type == "debug":
             queued_status = f"{settings.local_user_name}-queued"
@@ -208,6 +210,11 @@ def get_task_status(queue_task_id: int, db=Depends(get_db)):
 
 def queue_process_task(queue_task: QueueTask):
     try:
+        operation_id = queue_task.request_data.get("operation_id", None)
+        if operation_id:
+            set_operation_id(operation_id)
+        else:
+            set_operation_id(uuid.uuid4().hex)
         # Simulate task processing
 
         logger.info(f"Starting Queue task: {queue_task.id}")
@@ -337,7 +344,7 @@ def queue_process_task(queue_task: QueueTask):
                                 if "Freshpoint Nanaimo" is present on the invoice with any other vendor name, extract "Freshpoint Nanaimo" only not "Freshpoint Vancouver".
                                 if "Centennial" is present on the invoice with any other vendor name, extract "Centennial FoodService"
                                 if "Alsco Canada Corporation 2992 88 Ave Surrey" is present on the invoice with any other vendor name, extract "Alsco Canada Corporation" only
-                                if "Alsco Canada Corporation 91 Comox Rd" is present on the invoice with any other vendor name, extract "Alsco Canada Corp" only
+                                if "Alsco Canada Corporation 91 Comox Rd" is present on the invoice with any other vendor name, extract "Alsco Canada Corp" only.
                                 if SYSCO Canada, Inc Vancouver is present on the invoice with any other vendor name, extract "SYSCO FOOD SERVICES" only.
                                 if SYSCO Canada, Inc Edmonton is present on the invoice with any other vendor name, extract "SYSCO FOOD (EDMONTON)" only.
                                 if SYSCO Canada, Inc Calgary is present on the invoice with any other vendor name, extract "SYSCO CALGARY" only.
@@ -495,7 +502,7 @@ def queue_process_task(queue_task: QueueTask):
                 if split_doc:
                     # Update the fields
                     split_doc.pages_processed = grp_pages
-                    split_doc.status = "File Received"
+                    split_doc.status = "File received but not processed"
                     split_doc.totalpagecount = num_pages
                     split_doc.num_pages = num_pages
                     split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
@@ -531,7 +538,7 @@ def queue_process_task(queue_task: QueueTask):
 
                         frtrigger_insert_data = {
                             "blobpath": spltFileName,
-                            "status": "File received",
+                            "status": "File received but not processed",
                             "sender": sender,
                             "splitdoc_id": splitdoc_id,
                             "page_number": spltInv,
@@ -644,9 +651,8 @@ def queue_process_task(queue_task: QueueTask):
                                         break
                                         # print("syn: ",syn,"   v_id: ",v_id)
 
-                                    if (syn is not None or str(syn) != "None") and (
-                                        vdrFound == 0
-                                    ):
+                                    # if (syn is not None or str(syn) != "None") and (vdrFound == 0):
+                                    if syn and syn.strip().lower() != "none" and vdrFound == 0:
                                         synlt = json.loads(syn)
                                         if isinstance(synlt, list):
                                             for syn1 in synlt:
@@ -1758,9 +1764,20 @@ def queue_process_task(queue_task: QueueTask):
             except Exception:
                 logger.debug(f"{traceback.format_exc()}")
         except Exception as err:
-
             logger.error(f"API exception ocr.py: {traceback.format_exc()}")
             status = "error: " + str(err)
+            splitdoc_id = new_split_doc.splitdoc_id
+            split_doc = (
+                db.query(model.SplitDocTab)
+                .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
+                .first()
+            )
+
+            if split_doc:
+                split_doc.status = "Error"
+                split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
+                db.commit()
+                
 
         try:
 
@@ -1775,7 +1792,7 @@ def queue_process_task(queue_task: QueueTask):
 
         return status
     except Exception as e:
-        logger.error(f"Error in queue_process_task: {e}")
+        logger.error(f"Error in queue_process_task: {traceback.format_exc()}")
         status = "error: " + str(err)
         splitdoc_id = new_split_doc.splitdoc_id
         split_doc = (
@@ -1788,11 +1805,24 @@ def queue_process_task(queue_task: QueueTask):
             split_doc.status = "Error: Unsupported File Format"
             split_doc.updated_on = datetime.now(tz_region)  # Update the timestamp
             db.commit()
-        return f"Error: {e}"
+            
+        
+        # frtrigger_insert_data = {
+        #     "status": "Error",
+        #     "sender": sender,
+        #     "splitdoc_id": splitdoc_id,
+            
+        # }
+        # fr_db_data = model.frtrigger_tab(**frtrigger_insert_data)
+        # db.add(fr_db_data)
+        # db.commit()
+            
+        # return f"Error: {traceback.format_exc()}"
     finally:
         try:
             splitdoc_id = new_split_doc.splitdoc_id
             # Query all rows in frtrigger_tab with the specific splitdoc_id
+            # with db.begin():  # Ensures rollback on failure
             triggers = (
                 db.query(model.frtrigger_tab)
                 .filter(model.frtrigger_tab.splitdoc_id == splitdoc_id)
@@ -1803,8 +1833,8 @@ def queue_process_task(queue_task: QueueTask):
             if not triggers:
                 logger.info(f"No rows found in frtrigger_tab for splitdoc_id: {splitdoc_id}")
                 overall_status = "Error"
-
             else:
+                
                 statuses = {trigger.status for trigger in triggers}
 
                 # Normalize statuses, treating "Processed" and "File Processed" as the same
@@ -1817,6 +1847,7 @@ def queue_process_task(queue_task: QueueTask):
                     overall_status = "Partially-processed"
                 else:
                     overall_status = "Error"
+            
             # Update the SplitDocTab status
             split_doc = (
                 db.query(model.SplitDocTab)
@@ -1834,12 +1865,13 @@ def queue_process_task(queue_task: QueueTask):
                 logger.warning(f"SplitDocTab not found for splitdoc_id: {splitdoc_id}")
 
         except Exception as e:
-            logger.error(f"Exception in splitDoc: {e}")
+            logger.error(f"Exception in splitDoc: {traceback.format_exc()}")
             db.rollback()  # Rollback transaction on failure
         db.close()
 
-def queue_worker():
+def queue_worker(operation_id):
     while True:
+        set_operation_id(operation_id)
         try:
             db = next(get_db())
             # get the correct queue sattus for `queued` and lock it
@@ -2266,6 +2298,15 @@ def push_frdata(
 ):
     # credit invoice processsing:
     try:
+        try:
+
+            logger.info(f"In pushFR :, modelID: {modelID}, vendorAccountID:{vendorAccountID} docStatus:{docStatus},")
+            if not vendorAccountID:
+                vendorAccountID = 0
+                logger.info(f" vendorAccountId updated to 0")
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
         hdr_ck_list = [
             "SubTotal",
             "InvoiceTotal",
@@ -2372,8 +2413,8 @@ def push_frdata(
 
     try:
         try:
-            if invoice_data.get("vendorAccountID") == 0:
-                invoice_data.pop("vendorAccountID")
+            # if invoice_data.get("vendorAccountID") == 0:
+            #     invoice_data.pop("vendorAccountID")
 
             # Convert totalAmount to a float
             invoice_data["totalAmount"] = float(invoice_data["totalAmount"]) if invoice_data["totalAmount"] else 0.0
@@ -2430,6 +2471,7 @@ def push_frdata(
                     db.add(db_data)
                     db.commit()
     invoiceID = db_data.idDocument
+    logger.info(f"invoiceID: {invoiceID}, invoice_data: {invoice_data}")
     for dh in doc_header_data:
         dh["documentID"] = invoiceID
         db_header = model.DocumentData(**dh)

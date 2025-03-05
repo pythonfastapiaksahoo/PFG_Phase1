@@ -144,7 +144,9 @@ async def app_startup():
         )
         db.commit()
         logger.info("All DSD queues reset to queued state")
-        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
+        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
+            "operation_id": operation_id
+        })
         worker_thread.start()
         logger.info("OCR Worker thread started")
         
@@ -158,6 +160,8 @@ async def app_startup():
         corp_worker_thread.start()
         logger.info("CorpIntegration Worker thread started")
     else:
+        operation_id = uuid.uuid4().hex
+        set_operation_id(operation_id)
         logger.info("Resetting all queues before starting the application")
         db = next(get_db())
         db.query(QueueTask).filter(
@@ -165,7 +169,9 @@ async def app_startup():
         ).update({"status": f"{settings.local_user_name}-queued"})
         db.commit()
         logger.info("All DSD queues reset to queued state")
-        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True)
+        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
+            "operation_id": operation_id
+        })
         worker_thread.start()
         logger.info("OCR Worker thread started")
         
@@ -221,7 +227,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.99.20"
+            response.headers["api-version"] = "0.99.25"
 
             logger.info(
                 "Sending response from FastAPI"
