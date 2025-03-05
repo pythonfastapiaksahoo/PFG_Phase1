@@ -2532,8 +2532,8 @@ async def read_corp_paginate_doc_inv_list(
                 model.corp_document_tab,
                 model.DocumentStatus,
                 model.DocumentSubStatus,
-                # model.Vendor,
-                model.corp_docdata,
+                model.Vendor,
+                # model.corp_docdata,
                 model.User.firstName.label("last_updated_by"),
             )
             .options(
@@ -2554,8 +2554,8 @@ async def read_corp_paginate_doc_inv_list(
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
-                Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
-                # Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
+                # Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
+                Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
                 
             )
             .join(
@@ -2564,22 +2564,22 @@ async def read_corp_paginate_doc_inv_list(
                 == model.corp_document_tab.documentsubstatus,
                 isouter=True,
             )
-            # .join(
-            #     model.Vendor,
-            #     model.Vendor.idVendor == model.corp_document_tab.vendor_id,
-            #     isouter=True,
-            # )
+            .join(
+                model.Vendor,
+                model.Vendor.idVendor == model.corp_document_tab.vendor_id,
+                isouter=True,
+            )
             .join(
                 model.DocumentStatus,
                 model.DocumentStatus.idDocumentstatus
                 == model.corp_document_tab.documentstatus,
                 isouter=True,
             )
-            .join(
-                model.corp_docdata,
-                model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
-                isouter=True,
-            )
+            # .join(
+            #     model.corp_docdata,
+            #     model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
+            #     isouter=True,
+            # )
             .join(
                 sub_query_desc,
                 sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
@@ -2590,9 +2590,9 @@ async def read_corp_paginate_doc_inv_list(
                 model.User.idUser == sub_query_desc.c.user_id,
                 isouter=True,
             )
-            # .filter(
-            #     model.corp_document_tab.vendor_id.isnot(None),
-            # )
+            .filter(
+                model.corp_document_tab.vendor_id.isnot(None),
+            )
         )
 
         # Apply vendor ID filter if provided
