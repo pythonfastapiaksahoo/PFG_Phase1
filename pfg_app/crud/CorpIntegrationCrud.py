@@ -1329,15 +1329,16 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
             new_value = update.NewValue
             if field == "vendor_name":
                 vendor_code = update.vendorCode
-                vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
+                vendor_record = db.query(model.Vendor).filter_by(VendorName=new_value, VendorCode=vendor_code).first()
+                # vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
                 if not vendor_record:
-                    return {"message": "Vendor is not onboarded. Please onboard it before updating the vendor name."}
+                    return {"message": "Vendor not exist in Vendor Master"}
                 
-                corp_doc_tab.vendor_code = vendor_record.vendorcode
-                corp_doc_tab.vendor_id = vendor_record.vendorid
+                corp_doc_tab.vendor_code = vendor_record.VendorCode
+                corp_doc_tab.vendor_id = vendor_record.idVendor
                 any_updates = True
                 vendor_updated = True
-                consolidated_updates.append(f"vendor_code: {vendor_record.vendorcode}, vendor_id: {vendor_record.vendorid}")
+                consolidated_updates.append(f"vendor_code: {vendor_record.VendorCode}, vendor_id: {vendor_record.idVendor}")
                 continue
             # Ensure the field exists in the model
             if hasattr(corp_doc, field) and field != "vendor_name":
