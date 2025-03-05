@@ -1325,9 +1325,19 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
             field = update.field
             old_value = update.OldValue
             new_value = update.NewValue
-
+            if field == "vendor_name":
+                vendor_code = update.vendorCode
+                vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
+                if not vendor_record:
+                    return {"message": "Vendor is not onboarded. Please onboard it before updating the vendor name."}
+                
+                corp_doc_tab.vendor_code = vendor_record.vendorcode
+                corp_doc_tab.vendor_id = vendor_record.vendorid
+                any_updates = True
+                consolidated_updates.append(f"vendor_code: {vendor_record.vendorcode}, vendor_id: {vendor_record.vendorid}")
+                continue
             # Ensure the field exists in the model
-            if hasattr(corp_doc, field):
+            if hasattr(corp_doc, field) and field != "vendor_name":
                 field_type = type(getattr(corp_doc, field))  # Get the current field's type
                 
                 # Convert new & old values to the correct data type
