@@ -30,6 +30,19 @@ class LoggingTransport(RequestsTransport):
         return super().send(request, **kwargs)
 
 
+class LogResolvedIPPolicy(SansIOHTTPPolicy):
+    def on_request(self, request):
+        # Extract the hostname from the URL
+        url = request.http_request.url
+        hostname = url.split("://")[-1].split("/")[0].split(":")[0]
+        try:
+            ip_address = socket.gethostbyname(hostname)
+            logger.debug(f"Calling IP for hostname '{hostname}': {ip_address}")
+        except Exception:
+            logger.info(
+                f"Error resolving hostname '{hostname}': {traceback.format_exc()}"
+            )
+
 def get_fr_data(
     inputdata_list, API_version, endpoint, model_type, inv_model_id="prebuilt-invoice"
 ):

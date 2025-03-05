@@ -3,14 +3,12 @@ import datetime
 import json
 import os
 import re
-import re
 import traceback
 from uuid import uuid4
 
 import requests
 from azure.storage.blob import BlobServiceClient
 from fastapi import HTTPException, Response
-from sqlalchemy import func, or_, case
 from sqlalchemy import func, or_, case
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import load_only
@@ -947,7 +945,7 @@ def processInvoiceVoucher(doc_id, db):
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
         if not date_pattern.match(voucherdata.Invoice_Dt):
             return {
-                "message": "InternalError",
+                "message": "Invalid Date Format",
                 "data": {"Http Response": "408", "Status": "Invalid date format"},
             }
             
@@ -963,6 +961,7 @@ def processInvoiceVoucher(doc_id, db):
             else:
                 raise Exception("Error retrieving file: No result found in file data.")
         except Exception as e:
+            # Catch any error from the read_invoice_file
             logger.error(f"Error in read_invoice_file_voucher: {traceback.format_exc()}")
             return {
                 "message": "Failure: File Attachment could not be loaded",
@@ -1148,12 +1147,11 @@ def processInvoiceVoucher(doc_id, db):
         logger.error(
             f"Error while processing invoice voucher: {traceback.format_exc()}")
         return {
-            "message": "InternalError",
+            "message": "InternalSeverError",
             "data": {"Http Response": "500", "Status": "InternalServerError"},
         }
-        
-        
 
+    
 
 
 def read_invoice_file_voucher(inv_id, db):

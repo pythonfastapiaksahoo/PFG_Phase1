@@ -29,7 +29,6 @@ class InvoiceVoucherSchema(str, Enum):
     BLOB_STORAGE_ERROR = "Failure: Error - Blob Storage could not be accessed"
     FAILURE_CONNECTION_ERROR = "Failure: Connection Reset Error"
     FAILURE_RESPONSE_UNDEFINED = "Failure: Response Undefined"
-    FAILURE_CONNECTION_ERROR = "Failure: Connection Reset Error"
     SUCCESS_POSTED_IN_IRCS = "Success: Invoice Submitted for Batch"
     FAILURE_POST_IN_IRCS = "Failure: Error - IICS could not process the message"
     FAILURE_POST_IN_PEOPLESOFT = (
