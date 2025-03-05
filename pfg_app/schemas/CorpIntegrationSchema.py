@@ -99,7 +99,7 @@ class UpdateCorpInvoiceData(BaseModel):
     field: str
     OldValue: str
     NewValue: str
-    vendorCode: Optional[str]
+    vendorCode: Optional[str] = None
 
     
 class UpdateCodinglineData(BaseModel):
