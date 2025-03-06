@@ -316,6 +316,7 @@ def db_push_data(
 
 
 def model_validate_final(
+    u_id,
     model_path,
     fr_modelid,
     req_fields_accuracy,

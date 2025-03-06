@@ -19,7 +19,7 @@ from pfg_app.session.session import DB, SQLALCHEMY_DATABASE_URL
 tz_region = tz.timezone("US/Pacific")
 
 
-async def getFRConfig(userID, db):
+async def getFRConfig(u_id, userID, db):
     """This function gets the form recognizer configurations set for the user,
     contains following parameters.
 
@@ -278,7 +278,7 @@ def copymodelsSP(serviceaccountId, modelname, db):
 
 
 # -------------------Updated Frmetadata function synonyms included --------------
-async def updateMetadata(documentId, frmetadata, db):
+async def updateMetadata(u_id, documentId, frmetadata, db):
     try:
         frmetadata = dict(frmetadata)
         frmetadata_copy = frmetadata.copy()
@@ -305,7 +305,7 @@ async def updateMetadata(documentId, frmetadata, db):
         db.close()
 
 
-def createInvoiceModel(userID, user, invoiceModel, db):
+def createInvoiceModel(u_id, user, invoiceModel, db):
     """This function creates a new invoice model, contains following parameters
     :param userID: unique identifier for a particular user :param invoiceModel:
     It is function parameter that is of a Pydantic class object, It takes
@@ -393,7 +393,7 @@ def updateInvoiceModel(modelID, invoiceModel, db):
         db.close()
 
 
-def getmodellist(vendorID, db):
+def getmodellist(u_id, vendorID, db):
     """This function gets the form recognizer configurations set for the user,
     contains following parameters.
 
@@ -653,7 +653,7 @@ async def addfrMetadata(m_id: int, r_id: int, n_fr_mdata, db):
         db.close()
 
 
-async def getMetaData(documentId: int, db):
+async def getMetaData(u_id, documentId: int, db):
     """Retrieve metadata for a specific document, including vendor synonyms and
     FR metadata.
 
@@ -719,7 +719,7 @@ async def getMetaData(documentId: int, db):
         db.close()
 
 
-async def getTrainTestRes(modelId: int, db):
+async def getTrainTestRes(u_id, modelId: int, db):
     """Retrieve the training and test results for a specific document model.
 
     Parameters:
@@ -758,7 +758,7 @@ async def getTrainTestRes(modelId: int, db):
         db.close()
 
 
-async def getActualAccuracy(tp: str, nm: str, db):
+async def getActualAccuracy(u_id, tp: str, nm: str, db):
     """Retrieve accuracy metrics for documents associated with a specific
     vendor.
 
@@ -908,7 +908,7 @@ async def getActualAccuracy(tp: str, nm: str, db):
         db.close()
 
 
-async def getActualAccuracyByEntity(type, db):
+async def getActualAccuracyByEntity(u_id, type, db):
     """This function retrieves accuracy metrics of documents based on the
     entity type.
 
@@ -1113,7 +1113,7 @@ async def getall_tags(tagtype, db):
         db.close()
 
 
-async def get_entity_level_taggedInfo(db):
+async def get_entity_level_taggedInfo(u_id, db):
     """Retrieves the entity-level tagged information for vendors and saves the
     result as an Excel file.
 
