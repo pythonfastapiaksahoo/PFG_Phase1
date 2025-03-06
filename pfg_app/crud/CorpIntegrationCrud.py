@@ -1242,6 +1242,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "pst",
                     "invoicetotal",
                     "subtotal",
+                    "doc_updates",
                     "document_type",
                 )
             )
@@ -1525,7 +1526,7 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
                     # If the field is one of the specified ones, update corp_document_tab as well
-                    if field in ["invoice_id", "invoicetotal", "invoice_date"]:
+                    if field in ["invoice_id", "invoicetotal", "invoice_date", "document_type"]:
                         setattr(corp_doc_tab, field, new_value)
                         consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
         # Updating the consolidated history log for updated fields
