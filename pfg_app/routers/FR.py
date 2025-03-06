@@ -14,10 +14,11 @@ from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, sta
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
+from pfg_app.azuread.schemas import AzureUser
 import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.auth import AuthHandler
-from pfg_app.azuread.auth import get_admin_user
+from pfg_app.azuread.auth import get_admin_user, get_user_dependency
 from pfg_app.core.utils import get_credential
 from pfg_app.crud import FRCrud as crud
 from pfg_app.FROps.model_validate import model_validate_final
@@ -32,7 +33,8 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/fr",
     tags=["Form Recogniser"],
-    dependencies=[Depends(get_admin_user)],
+    dependencies=[Depends(get_user_dependency(["Admin"]))],
+    # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
 
@@ -444,7 +446,8 @@ async def create_invoice_model(
     userID: int,
     invoiceModel: schema.InvoiceModel,
     db: Session = Depends(get_db),
-    user=Depends(get_admin_user),
+    # user=Depends(get_admin_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
 ):
     """<b> API route to create a new Invoice model with associated tag
     definitions. It contains following parameters.</b>
@@ -487,7 +490,8 @@ async def update_invoicemodel(
     modelID: int,
     invoiceModel: schema.InvoiceModel,
     db: Session = Depends(get_db),
-    user=Depends(get_admin_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    # user=Depends(get_admin_user),
 ):
     """<b> API route to update invoice status. It contains following
     parameters.</b>

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.auth import AuthHandler
-from pfg_app.azuread.auth import get_admin_user
+from pfg_app.azuread.auth import get_admin_user, get_user_dependency
 from pfg_app.core import azure_fr as core_fr
 from pfg_app.core.utils import convert_dates, get_credential  # , get_container_sas
 from pfg_app.crud import ModelOnBoardCrud as crud
@@ -30,7 +30,8 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/ModelOnBoard",
     tags=["Model On-Boarding"],
-    dependencies=[Depends(get_admin_user)],
+    # dependencies=[Depends(get_admin_user)],
+    dependencies=[Depends(get_user_dependency(["Admin"]))],
     responses={404: {"description": "Not found"}},
 )
 

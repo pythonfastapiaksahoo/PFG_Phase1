@@ -7,7 +7,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from pfg_app.auth import AuthHandler
-from pfg_app.azuread.auth import get_admin_user
+from pfg_app.azuread.auth import get_admin_user, get_user_dependency
+from pfg_app.azuread.schemas import AzureUser
 from pfg_app.crud import VendorCrud as crud
 from pfg_app.session.session import get_db
 
@@ -16,7 +17,8 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/Vendor",
     tags=["Vendor"],
-    dependencies=[Depends(get_admin_user)],
+    dependencies=[Depends(get_user_dependency(["Admin"]))],
+    # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
 
@@ -50,6 +52,7 @@ async def read_paginated_vendor_details(
     ven_status: Optional[str] = None,
     vendor_type: Optional[str] = None,
     db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
 ):
     """API route to retrieve a paginated list of vendors based on various
     filters.
@@ -79,6 +82,7 @@ async def read_paginated_vendor_details(
     List of vendor data filtered and paginated according to the input parameters.
     """
     data = await crud.readpaginatedvendorlist(
+        user.idUser,
         vendor_type,
         db,
         (offset, limit),
@@ -96,6 +100,8 @@ async def download_vendor_list(
     ven_status: Optional[str] = None,
     vendor_type: Optional[str] = None,
     db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    
 ):
     """API route to export the list of vendors based on various filters to
     excel.
@@ -124,6 +130,7 @@ async def download_vendor_list(
     # Call the readvendorlist function
     try:
         result = await crud.readvendorlist(
+            user.idUser,
             vendor_type,
             db,
             {"ent_id": ent_id, "ven_code": ven_code, "onb_status": onb_status},

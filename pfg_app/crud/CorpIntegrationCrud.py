@@ -657,6 +657,7 @@ def create_or_update_corp_metadata(u_id, v_id, metadata, db):
 
 
 async def readpaginatedcorpvendorlist(
+    u_id,
     db,
     pagination,
     api_filter,
@@ -780,6 +781,7 @@ async def readpaginatedcorpvendorlist(
         
 
 async def download_corp_vendor_list(
+    u_id,
     db,
     api_filter,
     ven_status
@@ -2494,7 +2496,7 @@ async def read_corp_doc_history(inv_id, download, db):
         db.close()
         
 
-async def uploadMissingFile(inv_id, file, db):
+async def uploadMissingFile(u_id, inv_id, file, db):
     try:
         # Fetch the invoice data from the database
         invdat = (
@@ -2538,7 +2540,7 @@ async def uploadMissingFile(inv_id, file, db):
         logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
         return {"error": "File upload failed"}
 
-async def uploadMissingEmailFile(inv_id, file, db):
+async def uploadMissingEmailFile(u_id, inv_id, file, db):
     try:
         # Fetch the invoice data from the database
         invdat = (
@@ -2588,7 +2590,7 @@ async def uploadMissingEmailFile(inv_id, file, db):
         return {"error": "File upload failed"}
         
         
-def processInvoiceFile(inv_id, blob_path, inv_file, db):
+def processInvoiceFile(u_id, inv_id, blob_path, inv_file, db):
     try:
         try:
             blob_data = inv_file.file.read()

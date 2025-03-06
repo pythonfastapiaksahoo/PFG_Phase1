@@ -39,7 +39,7 @@ async def readvendorname(db):
         db.close()
 
 
-async def readpaginatedvendorlist(vendor_type, db, off_limit, api_filter, ven_status):
+async def readpaginatedvendorlist(u_id, vendor_type, db, off_limit, api_filter, ven_status):
     """Reads a list of Vendors based on the provided user ID and filtering
     criteria.
 
@@ -239,7 +239,7 @@ async def readpaginatedvendorlist(vendor_type, db, off_limit, api_filter, ven_st
         db.close()
 
 
-async def readvendorlist(vendor_type, db, api_filter, ven_status):
+async def readvendorlist(u_id, vendor_type, db, api_filter, ven_status):
     """Reads a list of Vendors based on the provided user ID and filtering
     criteria.
 

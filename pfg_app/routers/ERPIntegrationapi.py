@@ -9,6 +9,7 @@ from pfg_app import settings
 
 # from pfg_app import settings
 from pfg_app.auth import AuthHandler
+from pfg_app.azuread.auth import get_user_dependency
 from pfg_app.crud import ERPIntegrationCrud as crud
 
 from pfg_app.schemas.ERPIntegrationSchema import (
@@ -49,7 +50,8 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/ERPIntegration",
     tags=["ERPIntegration"],
-    dependencies=[Depends(get_admin_user)],
+    dependencies=[Depends(get_user_dependency(["Admin"]))],
+    # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
 
