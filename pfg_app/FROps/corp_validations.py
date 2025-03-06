@@ -85,7 +85,7 @@ def validate_corpdoc(doc_id,userID,db):
         logger.info(f"return corp validations(ln 48): {return_status}")
         return return_status
         
-    if docStatus in (32,4):
+    if docStatus in (32,2,4):
         if vendor_id is None:
             docStatus = 26
             docSubStatus = 107
