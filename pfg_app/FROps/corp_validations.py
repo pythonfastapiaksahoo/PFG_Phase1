@@ -173,19 +173,19 @@ def validate_corpdoc(doc_id,userID,db):
                     logger.info(f"ready for validations-docID: {doc_id}")
                     # Query corp_coding_tab:
 
-                    docStatus = 4
-                    docSubStatus = 11
-                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                        ).update(
-                            {
-                                model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                                model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                                model.corp_document_tab.last_updated_by: userID,
-                                # model.corp_document_tab.vendor_id: vendorID,
+                    # docStatus = 4
+                    # docSubStatus = 11
+                    # db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                    #     ).update(
+                    #         {
+                    #             model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                    #             model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                    #             model.corp_document_tab.last_updated_by: userID,
+                    #             # model.corp_document_tab.vendor_id: vendorID,
 
-                            }
-                        )
-                    db.commit()
+                    #         }
+                    #     )
+                    # db.commit()
                     # return_status["Status overview"] = {"status": 0,
                     #                 "StatusCode":0,
                     #                     "response": [
@@ -435,7 +435,7 @@ def validate_corpdoc(doc_id,userID,db):
                                     
                                         if list(df_corp_coding['approval_status'])[0].lower() == "approved":
                                             docStatus = 2
-                                            substatus = 5
+                                            substatus = 31
                                             documentdesc = "Ready for ERP"
                                             
                                             payload_dbUpdate(doc_id,userID,db)
@@ -446,6 +446,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                                 f"Payload data ready for PeopleSoft"
                                                             ],
                                                         }
+                                            return return_status
                                         else: 
                                             docStatus = 24
                                             substatus = 137
