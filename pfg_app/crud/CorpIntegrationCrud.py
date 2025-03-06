@@ -778,6 +778,119 @@ async def readpaginatedcorpvendorlist(
     finally:
         db.close()
         
+
+async def download_corp_vendor_list(
+    db,
+    api_filter,
+    ven_status
+):
+    """
+    Retrieve a paginated list of vendors with onboarding status based on existence in corp_metadata.
+
+    :param vendor_type: Optional filter for vendor type.
+    :param db: Database session.
+    :param pagination: Tuple containing (offset, limit).
+    :param filters: Dictionary containing optional filters (ven_code, onb_status).
+    :param ven_status: Optional filter for vendor status.
+    :return: List of vendor details with computed onboarding status.
+    """
+
+    try:
+        # Subquery to determine onboarding status correctly
+        subquery = (
+            db.query(
+                model.Vendor.idVendor,
+                case(
+                    (func.count(model.corp_metadata.vendorid) > 0, "Onboarded"),
+                    else_="Not-Onboarded",
+                ).label("OnboardedStatus"),
+            )
+            .outerjoin(
+                model.corp_metadata,
+                (model.Vendor.idVendor == model.corp_metadata.vendorid) &
+                (model.corp_metadata.status == "Onboarded")  # Ensures only valid onboarded vendors
+            )
+            .group_by(model.Vendor.idVendor)
+            .subquery()
+        )
+
+        # Main query to get vendor details along with onboarding status
+        data = (
+            db.query(
+                model.Vendor,
+                subquery.c.OnboardedStatus,
+            )
+            .options(
+                Load(model.Vendor).load_only(
+                    "VendorName", "VendorCode", "vendorType", "Address", "City"
+                ),
+            )
+            .outerjoin(subquery, model.Vendor.idVendor == subquery.c.idVendor)
+        )
+
+        def normalize_string(input_str):
+            return func.lower(func.regexp_replace(input_str, r"[^a-zA-Z0-9]", "", "g"))
+
+        # Apply additional filters
+        for key, val in api_filter.items():
+            if key == "ven_code" and val:
+                normalized_filter = re.sub(r"[^a-zA-Z0-9]", "", val.lower())
+                pattern = f"%{normalized_filter}%"
+                data = data.filter(
+                    or_(
+                        normalize_string(model.Vendor.VendorName).ilike(pattern),
+                        normalize_string(model.Vendor.VendorCode).ilike(pattern),
+                    )
+                )
+            if key == "onb_status" and val:
+                data = data.filter(subquery.c.OnboardedStatus == val)
+
+        # Apply vendor status filter
+        if ven_status:
+            if ven_status in ["A", "I"]:
+                data = data.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    ) == ven_status
+                )
+            else:
+                return {"error": f"Invalid vendor status: {ven_status}"}
+
+        # Total count query (with filters applied)
+        total_count = data.distinct(model.Vendor.idVendor).count()
+        
+        # Execute paginated query
+        vendors = data.distinct().all()
+
+        # Prepare result
+        result = {"data": [], "total_count": total_count}
+        for row in vendors:
+            row_dict = {}
+            for idx, col in enumerate(row):
+                if isinstance(col, model.Vendor):
+                    row_dict["Vendor"] = {
+                        "idVendor": col.idVendor,
+                        "VendorName": col.VendorName,
+                        "VendorCode": col.VendorCode,
+                        "vendorType": col.vendorType,
+                        "Address": col.Address,
+                        "City": col.City,
+                    }
+                elif isinstance(col, str):
+                    row_dict["OnboardedStatus"] = col
+                elif col is None:
+                    row_dict[f"col{idx}"] = None
+            result["data"].append(row_dict)
+
+        return result
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(
+            status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
+        )
+    finally:
+        db.close()
+        
 async def get_metadata_data(u_id, v_id, db):
     """
     Retrieve corp metadata record filtered by vendor ID.
@@ -1127,6 +1240,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "pst",
                     "invoicetotal",
                     "subtotal",
+                    "doc_updates",
                     "document_type",
                 )
             )
@@ -1410,7 +1524,7 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
                     # If the field is one of the specified ones, update corp_document_tab as well
-                    if field in ["invoice_id", "invoicetotal", "invoice_date"]:
+                    if field in ["invoice_id", "invoicetotal", "invoice_date", "document_type"]:
                         setattr(corp_doc_tab, field, new_value)
                         consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
         # Updating the consolidated history log for updated fields
