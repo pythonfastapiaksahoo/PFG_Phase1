@@ -2,6 +2,7 @@ import re
 import traceback
 from datetime import datetime, timezone
 from pfg_app.FROps.corp_validations import validate_corpdoc
+from pfg_app.FROps.customCall import date_cnv
 from pfg_app.logger_module import logger
 import pfg_app.model as model
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
@@ -146,6 +147,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data["invoicetotal"] = invoice_details["invoicetotal"][rw]
                     coding_data[1] = {'store':invoice_details['store'][rw],
                                             'dept':invoice_details['dept'][rw],
+                                            'account':invoice_details['account'][rw],
                                             'SL':invoice_details['SL'][rw],
                                             'project':invoice_details['project'][rw],
                                             'activity':invoice_details['activity'][rw],
@@ -209,6 +211,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                         if (len(invoice_details[keys_to_check[0]]))==1:
                             coding_data[1] = {'store':invoice_details['store'][0],
                                                 'dept':invoice_details['dept'][0],
+                                                'account':invoice_details['account'][0],
                                                 'SL':invoice_details['SL'][0],
                                                 'project':invoice_details['project'][0],
                                                 'activity':invoice_details['activity'][0],
@@ -217,6 +220,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             for rw in range(len(invoice_details[keys_to_check[0]])):
                                 coding_data[rw+1] = {'store':invoice_details['store'][rw],
                                                     'dept':invoice_details['dept'][rw],
+                                                    'account':invoice_details['account'][rw],
                                                     'SL':invoice_details['SL'][rw],
                                                     'project':invoice_details['project'][rw],
                                                     'activity':invoice_details['activity'][rw],
@@ -292,6 +296,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 #     gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
                 gst = cleanAmt_all(credit_invo, gst_amt)
                 att_invoDate = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceDate']
+                
                 if credit_invo==1:
                     document_type = "Credit"
                 else:

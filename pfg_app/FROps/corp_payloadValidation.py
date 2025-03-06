@@ -1,0 +1,76 @@
+from sqlalchemy.orm import aliased
+import pandas as pd
+from pfg_app import model
+# from model import Session as db
+# from model import get_db
+from sqlalchemy import func
+import pandas as pd
+
+def payload_dbUpdate(doc_id,userID,db):
+    # Aliases for tables
+    CorpDocData = aliased(model.corp_docdata)
+    CorpDocumentTab = aliased(model.corp_document_tab)
+    CorpCodingTab = aliased(model.corp_coding_tab)
+
+    # Query all required data in a single call
+    result = (
+        db.query(CorpDocData, CorpDocumentTab, CorpCodingTab)
+        .join(CorpDocumentTab, CorpDocData.corp_doc_id == CorpDocumentTab.corp_doc_id)
+        .join(CorpCodingTab, CorpDocData.corp_doc_id == CorpCodingTab.corp_doc_id)
+        .filter(CorpDocData.corp_doc_id == doc_id)
+        .all()
+    )
+
+    # Convert results to DataFrames
+    df_corp_header_data = pd.DataFrame([{k: v for k, v in vars(row[0]).items() if k != "_sa_instance_state"} for row in result])
+    df_corp_document = pd.DataFrame([{k: v for k, v in vars(row[1]).items() if k != "_sa_instance_state"} for row in result])
+    df_corp_coding_tab = pd.DataFrame([{k: v for k, v in vars(row[2]).items() if k != "_sa_instance_state"} for row in result])
+
+    gst_amt = list(df_corp_header_data['gst'])[0]
+    VAT_APPLICABILITY = 'T' if gst_amt > 0 else 'O'
+
+    data = {
+        "DOCUMENT_ID": doc_id,
+        "BUSINESS_UNIT": "NONPO",
+        "INVOICE_ID": list(df_corp_header_data['invoice_id'])[0],
+        "INVOICE_DT": list(df_corp_header_data['invoice_date'])[0],
+        "VENDOR_SETID": "GLOBL",
+        "VENDOR_ID": list(df_corp_document['vendor_code'])[0],
+        "ORIGIN": "IDP",
+        "GROSS_AMT": list(df_corp_header_data['invoicetotal'])[0],
+        "TXN_CURRENCY_CD": list(df_corp_header_data['currency'])[0],
+        "VAT_ENTRD_AMT": gst_amt,
+        "OPRID": list(df_corp_coding_tab['tmid'])[0],
+        "MERCHANDISE_AMT": list(df_corp_header_data['subtotal'])[0],
+        "SHIPTO_ID": "8000",
+        "VCHR_DIST_STG": list(df_corp_coding_tab['coding_details'])[0],
+        "INVOICE_FILE_PATH": list(df_corp_document['invo_filepath'])[0],
+        "EMAIL_PATH": str(list(df_corp_document['email_filepath'])[0]),
+        "VAT_APPLICABILITY": VAT_APPLICABILITY
+    }
+
+    # Check if a record exists
+    existing_record = db.query(model.CorpVoucherData).filter_by(DOCUMENT_ID=doc_id).first()
+
+    if existing_record:
+        # Update existing record
+        db.query(model.CorpVoucherData).filter_by(DOCUMENT_ID=doc_id).update(data)
+    else:
+        # Insert new record
+        new_record = model.CorpVoucherData(**data)
+        db.add(new_record)
+
+    db.commit()
+    docStatus = 2
+    docSubStatus = 31
+    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+        ).update(
+            {
+                model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                model.corp_document_tab.last_updated_by: userID,
+                # model.corp_document_tab.vendor_id: vendorID,
+
+            }
+        )
+    db.commit()
