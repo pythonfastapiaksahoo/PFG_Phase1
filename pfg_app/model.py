@@ -1582,7 +1582,7 @@ class corp_coding_tab(Base):
     approver_title = Column(String, nullable=True)
     invoicetotal = Column(Float, nullable=True)
     gst = Column(Float, nullable=True)
-    voucher_status = Column(String, nullable=True)
+    voucher_status = Column(JSON, nullable=True)
     sent_erp = Column(DateTime, nullable=True)
     created_on = Column(DateTime, nullable=True)
     updated_on = Column(DateTime, nullable=True)

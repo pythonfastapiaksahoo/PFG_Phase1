@@ -7,9 +7,10 @@ import pandas as pd
 from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
 from pfg_app.logger_module import logger
 import traceback
+import pytz as tz
+tz_region = tz.timezone("US/Pacific")
 # doc_id = 144
 # userID = 1
-
 
 from datetime import datetime
 
@@ -20,6 +21,7 @@ def check_date_format(date_str):
     except ValueError:
         return False
 def validate_corpdoc(doc_id,userID,db):
+    timeStmp = datetime.now(tz_region)
     return_status = {}
     invoTotal_status = 0
     invoTotal_msg = ""
@@ -58,7 +60,7 @@ def validate_corpdoc(doc_id,userID,db):
                         model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
                         model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
                         model.corp_document_tab.last_updated_by: userID,
-                        # model.corp_document_tab.vendor_id: vendorID,
+                        model.corp_document_tab.updated_on: timeStmp,
 
                     }
                 )
@@ -95,7 +97,7 @@ def validate_corpdoc(doc_id,userID,db):
                         model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
                         model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
                         model.corp_document_tab.last_updated_by: userID,
-                        # model.corp_document_tab.vendor_id: vendorID,
+                        model.corp_document_tab.updated_on: timeStmp,
 
                     }
                 )
@@ -160,7 +162,7 @@ def validate_corpdoc(doc_id,userID,db):
                         model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
                         model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
                         model.corp_document_tab.last_updated_by: userID,
-                        # model.corp_document_tab.vendor_id: vendorID,
+                        model.corp_document_tab.updated_on: timeStmp,
 
                     }
                 )
@@ -245,17 +247,18 @@ def validate_corpdoc(doc_id,userID,db):
                                 invDate_msg = "Valid Date Format"
                                 invDate_status = 1
                                 #update date to table:
-                                db.query(model.corp_document_tab, model.corp_docdata).filter(
-                                    model.corp_document_tab.corp_doc_id == doc_id,
-                                    model.corp_docdata.corp_doc_id == doc_id
-                                ).update(
-                                    {
-                                        model.corp_document_tab.invoice_date: req_date,
-                                        model.corp_docdata.invoice_date: req_date
-                                    }
-                                )
-                                db.commit()
+                              # Update corp_document_tab
+                                db.query(model.corp_document_tab).filter(
+                                    model.corp_document_tab.corp_doc_id == doc_id
+                                ).update({model.corp_document_tab.invoice_date: req_date})
 
+                                # Update corp_docdata
+                                db.query(model.corp_docdata).filter(
+                                    model.corp_docdata.corp_doc_id == doc_id
+                                ).update({model.corp_docdata.invoice_date: req_date})
+
+                                db.commit()
+                               
                             else:
                                 invDate_msg = "Invalid Date Format"
                                 invDate_status = 0
@@ -272,13 +275,26 @@ def validate_corpdoc(doc_id,userID,db):
                     # total validation:
                     try:
                         logger.info(f"Validating invoice total- invoicetotal:{mand_invoTotal}, subtotal:{mand_subTotal}, gst:{mand_gst}")
-                        if float(mand_invoTotal) - (float(mand_subTotal)+float(mand_gst))<0.9:
+                        if float(mand_invoTotal) or  float(mand_invoTotal)==0:
+                            subtotal = float(mand_invoTotal)- float(mand_gst)
+                            if (float(mand_invoTotal) - (float(mand_subTotal)+float(mand_gst))) != 0:
+                                db.query(model.corp_docdata).filter(
+                                  
+                                    model.corp_docdata.corp_doc_id == doc_id
+                                ).update(
+                                    {
+                                        
+                                        model.corp_docdata.documentsubstatus: subtotal,
+                                    }
+                                )
+                                db.commit()
+
                             invoTotal_status = 1
                             gst_status = 1
                             subTotal_status = 1
-                            subTotal_msg = "Subtotal match success"
-                            gst_msg = "GST match success"
-                            invoTotal_msg = "Invoice total match success"
+                            subTotal_msg = "Subtotal present"
+                            gst_msg = "GST present"
+                            invoTotal_msg = "Invoice total present"
                         else:
                             invoTotal_status = 0
                             invoTotal_msg = "Invoice total mismatch"
@@ -288,7 +304,6 @@ def validate_corpdoc(doc_id,userID,db):
                         invoTotal_status = 0
                         invoTotal_msg = "Please review Total"
 
-                    
                     # document type validation:
 
                     try:
@@ -438,14 +453,15 @@ def validate_corpdoc(doc_id,userID,db):
                                             substatus = 31
                                             documentdesc = "Ready for ERP"
                                             
-                                            payload_dbUpdate(doc_id,userID,db)
+                                            return_status = payload_dbUpdate(doc_id,userID,db)
+
                                             # return return_status
-                                            return_status["Approval needed"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                f"Payload data ready for PeopleSoft"
-                                                            ],
-                                                        }
+                                            # return_status["Approval needed"] = {"status": 0,
+                                            #     "StatusCode":0,
+                                            #     "response": [
+                                            #                     f"Payload data ready for PeopleSoft"
+                                            #                 ],
+                                            #             }
                                             return return_status
                                         else: 
                                             docStatus = 24
@@ -490,7 +506,7 @@ def validate_corpdoc(doc_id,userID,db):
                     model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
                     model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
                     model.corp_document_tab.last_updated_by: userID,
-                    # model.corp_document_tab.vendor_id: vendorID,
+                    model.corp_document_tab.updated_on: timeStmp,
 
                 }
             )
