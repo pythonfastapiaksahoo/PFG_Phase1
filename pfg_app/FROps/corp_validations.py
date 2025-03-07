@@ -284,7 +284,7 @@ def validate_corpdoc(doc_id,userID,db):
                                 ).update(
                                     {
                                         
-                                        model.corp_docdata.documentsubstatus: subtotal,
+                                        model.corp_docdata.subtotal: subtotal,
                                     }
                                 )
                                 db.commit()
