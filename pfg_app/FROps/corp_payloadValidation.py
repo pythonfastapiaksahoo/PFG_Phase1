@@ -75,11 +75,11 @@ def payload_dbUpdate(doc_id,userID,db):
 
                 difference =  set2 - set1  # or set1.difference(set2)
                 if len(difference)>0:
-                    voucher_status['Coding validation failed'][i] = {'status':0,'StatusCode':0,
+                    voucher_status['Coding validation failed'] = {'status':0,'StatusCode':0,
                                 'status_msg':str(difference)+" missing." }
                     status_ck = status_ck * 0
-                    Failed_Code[i] = {'status':0,'StatusCode':0,
-                                'status_msg':str(i)+" missing." }
+                    Failed_Code['Coding validation failed'] = {'status':0,'StatusCode':0,
+                                'status_msg':str(difference)+" missing." }
                 else:
                     voucher_status[i] = {'status':1,'StatusCode':1,
                                 'status_msg':"success" }
