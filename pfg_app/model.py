@@ -1706,7 +1706,7 @@ class CorpDocumentUpdates(Base):
 
     iddocumentupdates = Column(Integer, primary_key=True, autoincrement=True) 
     doc_id = Column(Integer, nullable=True )
-    updated_field = Column(Integer, nullable=True )
+    updated_field = Column(String, nullable=True )
     is_active = Column(Integer, nullable=True) 
     old_value = Column(String, nullable=True) 
     new_value= Column(String, nullable=True) 
