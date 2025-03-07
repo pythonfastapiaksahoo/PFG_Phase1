@@ -401,9 +401,9 @@ def validate_corpdoc(doc_id,userID,db):
                                     documentdesc = "Zero $ invoice approval required"
                                     # Zero $ invoice - need approval'
                                     return_status["Coding validation"] = {"status": 0,
-                                                "StatusCode":0,
+                                                "StatusCode":1,
                                                 "response": [
-                                                                f"Coding - GST exceeding 15% of invoice total"
+                                                                f"Zero $ invoice approval required"
                                                             ],
                                                         }
                                     # return return_status
@@ -415,7 +415,7 @@ def validate_corpdoc(doc_id,userID,db):
                                     documentdesc =  "Approval needed: Invoice ≥ threshold"
                                     print("need approval")
                                     return_status["Approval needed"] = {"status": 0,
-                                                "StatusCode":0,
+                                                "StatusCode":2,
                                                 "response": [
                                                                 f"User approval required if invoice total meets threshold"
                                                             ],
@@ -440,7 +440,7 @@ def validate_corpdoc(doc_id,userID,db):
                                         substatus = 70
                                         documentdesc = "Invoice - Not Approved"
                                         return_status["Approval needed"] = {"status": 0,
-                                                "StatusCode":0,
+                                                "StatusCode":3,
                                                 "response": [
                                                                 f"Invoice - Not Approved"
                                                             ],
@@ -468,7 +468,7 @@ def validate_corpdoc(doc_id,userID,db):
                                             substatus = 137
                                             documentdesc = "Pending Approval"
                                             return_status["Approval needed"] = {"status": 0,
-                                                "StatusCode":0,
+                                                "StatusCode":3,
                                                 "response": [
                                                                 f"Invoice - Pending Approval"
                                                             ],
