@@ -69,6 +69,7 @@ class AzureADAuthorization(OAuth2AuthorizationCodeBearer):
             email=decoded_token.get("email", ""),
             preferred_username=decoded_token.get("preferred_username", ""),
             roles=decoded_token.get("roles", []),
+            employeeId=decoded_token.get("employeeId", ""),
         )
 
     @staticmethod
