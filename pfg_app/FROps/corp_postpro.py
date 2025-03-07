@@ -9,7 +9,10 @@ from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 from pfg_app.FROps.vendor_map import matchVendorCorp
 from sqlalchemy import func
 import pandas as pd
-utc_timestamp = datetime.now(timezone.utc)
+from urllib.parse import unquote
+# utc_timestamp = datetime.now(timezone.utc)
+import pytz as tz
+tz_region = tz.timezone("US/Pacific")
  
 
 def clean_amount(amount_str):
@@ -52,7 +55,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
   
     corp_doc_id = ""
     db = next(get_db())
-    timestmp = utc_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+    timestmp =datetime.now(tz_region) 
     coding_tab_data = {}
     credit_invo = 0
     coding_data = {}
@@ -310,8 +313,15 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     mail_row_key = ""
                     corp_trg_id = ""
 
+
+                try:
+                    file_path = unquote(file_path)
+                    pdf_blobpath = unquote(pdf_blobpath)
+                except Exception:
+                    logger.info(f"Error in unquote: {traceback.format_exc()}")
+
+
                 # insert to db
-            
 
                 corp_doc_data = {"invoice_id":att_invoID,
                                 "invoice_date":att_invoDate,
@@ -334,7 +344,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 db.commit()
                 logger.info(f"Corp document added: {corp_doc}")
                 corp_doc_id = corp_doc.corp_doc_id
-                print("corp_doc_id: ",corp_doc_id)
+                logger.info(f"Corp document added {timestmp}- postpro: {corp_doc} ,op_1: {op_1}")
                 lt_corp_doc_id.append(corp_doc_id)
                 try:
                     if corp_trg_id !="":
@@ -343,7 +353,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                         if corp_trigger:
                             corp_trigger.status = "Processed"
                             corp_trigger.documentid = corp_doc_id
-                            corp_trigger.updated_at = datetime.utcnow()  # Ensure it's a datetime object
+                            corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
                             db.commit()  # Save changes
 
                 except Exception as e:  
@@ -477,7 +487,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                         corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
                         if corp_trigger:
                             corp_trigger.status = f"Error - {str(er)}"
-                            corp_trigger.updated_at = datetime.utcnow()  # Ensure it's a datetime object
+                            corp_trigger.updated_at = timestmp  # Ensure it's a datetime object
                             db.commit()  # Save changes
                 except Exception as e:  
                     logger.error( f"Error updating corp_trigger_tab: {e}")
