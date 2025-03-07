@@ -247,17 +247,18 @@ def validate_corpdoc(doc_id,userID,db):
                                 invDate_msg = "Valid Date Format"
                                 invDate_status = 1
                                 #update date to table:
-                                db.query(model.corp_document_tab, model.corp_docdata).filter(
-                                    model.corp_document_tab.corp_doc_id == doc_id,
-                                    model.corp_docdata.corp_doc_id == doc_id
-                                ).update(
-                                    {
-                                        model.corp_document_tab.invoice_date: req_date,
-                                        model.corp_docdata.invoice_date: req_date
-                                    }
-                                )
-                                db.commit()
+                              # Update corp_document_tab
+                                db.query(model.corp_document_tab).filter(
+                                    model.corp_document_tab.corp_doc_id == doc_id
+                                ).update({model.corp_document_tab.invoice_date: req_date})
 
+                                # Update corp_docdata
+                                db.query(model.corp_docdata).filter(
+                                    model.corp_docdata.corp_doc_id == doc_id
+                                ).update({model.corp_docdata.invoice_date: req_date})
+
+                                db.commit()
+                               
                             else:
                                 invDate_msg = "Invalid Date Format"
                                 invDate_status = 0
@@ -452,14 +453,15 @@ def validate_corpdoc(doc_id,userID,db):
                                             substatus = 31
                                             documentdesc = "Ready for ERP"
                                             
-                                            payload_dbUpdate(doc_id,userID,db)
+                                            return_status = payload_dbUpdate(doc_id,userID,db)
+
                                             # return return_status
-                                            return_status["Approval needed"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                f"Payload data ready for PeopleSoft"
-                                                            ],
-                                                        }
+                                            # return_status["Approval needed"] = {"status": 0,
+                                            #     "StatusCode":0,
+                                            #     "response": [
+                                            #                     f"Payload data ready for PeopleSoft"
+                                            #                 ],
+                                            #             }
                                             return return_status
                                         else: 
                                             docStatus = 24

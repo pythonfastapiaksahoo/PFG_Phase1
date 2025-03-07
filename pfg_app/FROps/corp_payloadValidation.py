@@ -5,8 +5,16 @@ from pfg_app import model
 # from model import get_db
 from sqlalchemy import func
 import pandas as pd
+import pytz as tz
+from datetime import datetime, timezone
+
+from pfg_app.logger_module import logger
+tz_region = tz.timezone("US/Pacific")
+
 
 def payload_dbUpdate(doc_id,userID,db):
+    timeStmp =datetime.now(tz_region) 
+    return_status = {}
     # Aliases for tables
     CorpDocData = aliased(model.corp_docdata)
     CorpDocumentTab = aliased(model.corp_document_tab)
@@ -48,29 +56,102 @@ def payload_dbUpdate(doc_id,userID,db):
         "EMAIL_PATH": str(list(df_corp_document['email_filepath'])[0]),
         "VAT_APPLICABILITY": VAT_APPLICABILITY
     }
+    voucher_status = {}
+    Failed_Code = {}
+    status_ck = 1
+    for i in data:
+        if data[i] is None:
+            voucher_status[i] = {'status':0,'StatusCode':0,
+                                'status_msg':str(i)+" missing." }
+            status_ck = status_ck * 0
+            Failed_Code[i] = {'status':0,'StatusCode':0,
+                                'status_msg':str(i)+" missing." }
+        else:
+            if i=='VCHR_DIST_STG':
+                set1 = {'SL', 'activity', 'amount', 'dept', 'project', 'store'}
+                # set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store',}
+                set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store','account'}
 
-    # Check if a record exists
-    existing_record = db.query(model.CorpVoucherData).filter_by(DOCUMENT_ID=doc_id).first()
-
-    if existing_record:
-        # Update existing record
-        db.query(model.CorpVoucherData).filter_by(DOCUMENT_ID=doc_id).update(data)
-    else:
-        # Insert new record
-        new_record = model.CorpVoucherData(**data)
-        db.add(new_record)
-
-    db.commit()
-    docStatus = 2
-    docSubStatus = 31
-    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                difference =  set2 - set1  # or set1.difference(set2)
+                if len(difference)>0:
+                    voucher_status['Coding validation failed'][i] = {'status':0,'StatusCode':0,
+                                'status_msg':str(difference)+" missing." }
+                    status_ck = status_ck * 0
+                    Failed_Code[i] = {'status':0,'StatusCode':0,
+                                'status_msg':str(i)+" missing." }
+                else:
+                    voucher_status[i] = {'status':1,'StatusCode':1,
+                                'status_msg':"success" }
+                    
+            else:
+                voucher_status[i] = {'status':1,'StatusCode':1,
+                                'status_msg':"success" }
+    try:
+        db.query(model.corp_coding_tab).filter( model.corp_coding_tab.corp_doc_id == doc_id
         ).update(
             {
-                model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                model.corp_document_tab.last_updated_by: userID,
-                # model.corp_document_tab.vendor_id: vendorID,
+                model.corp_coding_tab.voucher_status: voucher_status,  # noqa: E501
+                
 
             }
+
         )
-    db.commit()
+        db.commit()
+    except Exception as e:
+        logger.info(f"Error in updating coding tab: {e}")
+        
+        db.rollback()
+
+    if status_ck == 1:
+        return_status["success"] = {"status": 1,
+                                                "StatusCode":1,
+                                                "response": [
+                                                                f"Payload data ready for PeopleSoft"
+                                                            ],
+                                                        }
+
+        # Check if a record exists
+        existing_record = db.query(model.CorpVoucherData).filter_by(DOCUMENT_ID=doc_id).first()
+
+        if existing_record:
+            # Update existing record
+            db.query(model.CorpVoucherData).filter_by(DOCUMENT_ID=doc_id).update(data)
+        else:
+            # Insert new record
+            new_record = model.CorpVoucherData(**data)
+            db.add(new_record)
+
+        db.commit()
+        docStatus = 2
+        docSubStatus = 31
+        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+            ).update(
+                {
+                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                    model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                    model.corp_document_tab.last_updated_by: userID,
+                    # model.corp_document_tab.vendor_id: vendorID,
+                    model.corp_document_tab.updated_on: timeStmp,
+
+                }
+            )
+        db.commit()
+        return return_status
+    else:
+       
+        docStatus = 4
+        docSubStatus = 36
+        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+            ).update(
+                {
+                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                    model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                    model.corp_document_tab.last_updated_by: userID,
+                    # model.corp_document_tab.vendor_id: vendorID,
+                    model.corp_document_tab.updated_on: timeStmp,
+
+                }
+            )
+        db.commit()
+    
+        return Failed_Code
