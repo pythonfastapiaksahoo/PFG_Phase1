@@ -497,9 +497,14 @@ def extract_eml_to_html(blob_data):
                     image_type = part.get_content_subtype()  # e.g., "jpeg", "png"
 
                     # Replace cid: references in HTML with Base64 data URL
-                    cid = part.get("Content-ID").strip("<>")
-                    data_url = f"data:image/{image_type};base64,{image_base64}"
-                    html_content = html_content.replace(f"cid:{cid}", data_url)
+                    cid = part.get("Content-ID")
+                    if cid:
+                        cid = cid.strip("<>")
+                        data_url = f"data:image/{image_type};base64,{image_base64}"
+                        html_content = html_content.replace(f"cid:{cid}", data_url)
+                    # cid = part.get("Content-ID").strip("<>")
+                    # data_url = f"data:image/{image_type};base64,{image_base64}"
+                    # html_content = html_content.replace(f"cid:{cid}", data_url)
 
         return html_content
     
