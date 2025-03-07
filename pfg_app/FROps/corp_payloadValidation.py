@@ -8,6 +8,7 @@ import pandas as pd
 import pytz as tz
 from datetime import datetime, timezone
 
+from pfg_app.crud.CorpIntegrationCrud import processCorpInvoiceVoucher
 from pfg_app.logger_module import logger
 tz_region = tz.timezone("US/Pacific")
 
@@ -136,6 +137,10 @@ def payload_dbUpdate(doc_id,userID,db):
                 }
             )
         db.commit()
+        try:
+            processCorpInvoiceVoucher(doc_id, db)
+        except Exception as e:
+            logger.error(f"Error in processing corp invoice voucher: {e}")
         return return_status
     else:
        
