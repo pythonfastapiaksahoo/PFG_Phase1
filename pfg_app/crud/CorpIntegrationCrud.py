@@ -91,7 +91,7 @@ def format_data_for_template1(parsed_data):
             "SL": [],
             "project": [],
             "activity": [],
-            "subtotal": []
+            "amount": []
         }
         approver_details = {}
 
@@ -113,13 +113,13 @@ def format_data_for_template1(parsed_data):
                             break
 
                         # Map each column of data to the correct header
-                        invoice_data["store"].append(data_row[0])
-                        invoice_data["dept"].append(data_row[1])
-                        invoice_data["account"].append(data_row[2])
-                        invoice_data["SL"].append(data_row[3])
-                        invoice_data["project"].append(data_row[4])
-                        invoice_data["activity"].append(data_row[5])
-                        invoice_data["subtotal"].append(data_row[6]) # Ensure subtotal remains null
+                        invoice_data["store"].append(data_row[0] if len(data_row) > 0 else "")
+                        invoice_data["dept"].append(data_row[1] if len(data_row) > 1 else "")
+                        invoice_data["account"].append(data_row[2] if len(data_row) > 2 else "")
+                        invoice_data["SL"].append(data_row[3] if len(data_row) > 3 else "")
+                        invoice_data["project"].append(data_row[4] if len(data_row) > 4 else "")
+                        invoice_data["activity"].append(data_row[5] if len(data_row) > 5 else "")
+                        invoice_data["amount"].append(data_row[6] if len(data_row) > 6 else "")
 
                 # Extract GST and Grand Total
                 elif "GST:" in row[0]:
