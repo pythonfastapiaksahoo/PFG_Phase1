@@ -1596,9 +1596,7 @@ class corp_coding_tab(Base):
     approved_on = Column(String, nullable=True)
     approval_status = Column(String, nullable=True)
     document_type = Column(String, nullable=True)
-
-
-
+    template_type = Column(String, nullable=True)
 
 class corp_docdata(Base):
     __tablename__ = "corp_docdata"

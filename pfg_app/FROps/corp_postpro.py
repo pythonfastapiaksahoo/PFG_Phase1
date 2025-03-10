@@ -63,6 +63,10 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     map_invo_att = {}
     userID = 1
     lt_corp_doc_id = []
+    try:
+        template_type = op_1['template_type']
+    except Exception:
+        template_type = ""
 
     if 'invoice#' in op_1['coding_details']['invoiceDetails']:
         if type(op_1['coding_details']['invoiceDetails']["invoice#"])==list:
