@@ -393,7 +393,7 @@ def validate_corpdoc(doc_id,userID,db):
                                 return_status["Coding validation"] = {"status": 0,
                                                 "StatusCode":0,
                                                 "response": [
-                                                                f"Coding - GST exceeding 15% of invoice total"
+                                                                f"Invoice - Total mismatch with coding total"
                                                             ],
                                                         }
                             else:
