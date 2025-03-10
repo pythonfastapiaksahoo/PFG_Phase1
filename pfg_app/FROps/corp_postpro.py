@@ -63,6 +63,10 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     map_invo_att = {}
     userID = 1
     lt_corp_doc_id = []
+    try:
+        template_type = op_1['template_type']
+    except Exception:
+        template_type = ""
 
     if 'invoice#' in op_1['coding_details']['invoiceDetails']:
         if type(op_1['coding_details']['invoiceDetails']["invoice#"])==list:
@@ -418,7 +422,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             'approver_email':all_invo_coding[att_invoID]['approver_email'],
                             'approved_on':all_invo_coding[att_invoID]['approved_on'],
                             'approval_status':all_invo_coding[att_invoID]['approval_status'],
-                            'document_type':all_invo_coding[att_invoID]['document_type']
+                            'document_type':all_invo_coding[att_invoID]['document_type'],
+                            'template_type':template_type,
                             }
                 corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
                 db.add(corp_coding_insert)
@@ -536,7 +541,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                         'approver_email':all_invo_coding[miss_att]['approver_email'],
                         'approved_on':all_invo_coding[miss_att]['approved_on'],
                         'approval_status':all_invo_coding[miss_att]['approval_status'],
-                        'document_type':all_invo_coding[miss_att]['document_type']
+                        'document_type':all_invo_coding[miss_att]['document_type'],
+                        'template_type':template_type,
                         }
         corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
         db.add(corp_coding_insert)

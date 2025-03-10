@@ -365,7 +365,10 @@ def validate_corpdoc(doc_id,userID,db):
                         amt_threshold = 250000
                         cod_invoTotal =  df_corp_coding['invoicetotal']
                         cod_gst = df_corp_coding['gst']
-                        
+                        template_type = df_corp_coding['template_type']
+                        # if template_type is None or (isinstance(template_type, pd.Series) and template_type.isna().all()):
+                        #     template_type = ""
+
                         invoTotal_15 = (cod_invoTotal * 0.15)
 
                         pdf_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
@@ -373,31 +376,42 @@ def validate_corpdoc(doc_id,userID,db):
                         for ln_amt in (list(df_corp_coding['coding_details'])[0]):
                             lt.append(list(df_corp_coding['coding_details'])[0][ln_amt]['amount'])
                             line_sum = line_sum + list(df_corp_coding['coding_details'])[0][ln_amt]['amount']
-
-                        if abs(float(cod_invoTotal.values[0])- line_sum )> 0.09:
-                            docStatus = 4
-                            substatus = 136
-                            documentdesc = "Coding - Line total mismatch"
-                            return_status["Coding Line validation"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                "Coding - Line total mismatch"
-                                                            ],
-                                                        }
-                            # return return_status
-                        else:
-                            #line total match success
-                            if abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09:
+                        if template_type.str.lower().isin(['template 3', 'template 1']).any():
+                            if abs(float(cod_invoTotal.values[0])- (line_sum + cod_gst) )> 0.09:
                                 docStatus = 4
-                                substatus = 131
-                                documentdesc = "Invoice - Total mismatch with coding total"
-                                return_status["Coding validation"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                f"Invoice - Total mismatch with coding total"
-                                                            ],
-                                                        }
-                            else:
+                                substatus = 136
+                                documentdesc = "Coding - Line total mismatch"
+                                return_status["Coding Line validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Coding - Line total mismatch"
+                                                                ],
+                                                            }
+                        else:
+                            if abs(float(cod_invoTotal.values[0])- line_sum )> 0.09:
+                                    docStatus = 4
+                                    substatus = 136
+                                    documentdesc = "Coding - Line total mismatch"
+                                    return_status["Coding Line validation"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Coding - Line total mismatch"
+                                                                    ],
+                                                            }
+                            # return return_status
+                        # else:
+                        #line total match success
+                        if abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09:
+                            docStatus = 4
+                            substatus = 131
+                            documentdesc = "Invoice - Total mismatch with coding total"
+                            return_status["Coding validation"] = {"status": 0,
+                                            "StatusCode":0,
+                                            "response": [
+                                                            f"Invoice - Total mismatch with coding total"
+                                                        ],
+                                                    }
+                        else:
                                 if (cod_gst > invoTotal_15).any():
                                     docStatus = 4
                                     substatus = 138
