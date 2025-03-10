@@ -308,6 +308,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
                     corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
                     mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                     
                 else:
                     pdf_blobpath = ""
                     mail_row_key = ""
@@ -317,6 +318,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 try:
                     file_path = unquote(file_path)
                     pdf_blobpath = unquote(pdf_blobpath)
+                    email_filepath_pdf = unquote(file_path[:-3]+'pdf')
                 except Exception:
                     logger.info(f"Error in unquote: {traceback.format_exc()}")
 
@@ -335,6 +337,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 "mail_row_key": mail_row_key,
                                 "email_filepath": file_path,
                                 "invo_filepath": pdf_blobpath,
+                                "email_filepath_pdf":email_filepath_pdf,
                                 "sender": sender,
                                 "approved_by":op_1['approval_details']['Approver'],
                                 "approver_title":op_1['approval_details']['Designation'],
