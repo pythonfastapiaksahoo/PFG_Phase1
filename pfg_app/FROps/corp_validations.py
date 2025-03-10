@@ -33,6 +33,7 @@ def validate_corpdoc(doc_id,userID,db):
     subTotal_msg = ""
     document_type_status = 0
     document_type_msg = ""
+    approvrd_ck = 0
 
     corp_document_data = (
         db.query(model.corp_document_tab)
