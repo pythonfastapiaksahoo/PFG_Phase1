@@ -212,7 +212,24 @@ def extract_invoice_details_using_openai(blob_data):
                 for choice in result["choices"]:
                     content = choice["message"]["content"].strip()
                     logger.info(f"Content: {content}")
-                break
+                # Parse response immediately and exit retry loop
+                cl_data = (
+                    content.replace("json", "")
+                    .replace("\n", "")
+                    .replace("'''", "")
+                    .replace("```", "")
+                )
+
+                try:
+                    cleaned_json = json.loads(cl_data)
+                except BaseException:
+                    try:
+                        cleaned_json = json.loads(cl_data.replace("'", '"'))
+                    except BaseException:
+                        cleaned_json = data
+
+                return cleaned_json, total_pages, file_size_mb 
+                # break
             elif response.status_code == 429:  # Handle rate limiting
                 retry_after = int(response.headers.get("Retry-After", 5))
                 logger.info(f"Rate limit hit. Retrying after {retry_after} seconds...")
@@ -224,48 +241,31 @@ def extract_invoice_details_using_openai(blob_data):
                 logger.info(f"Retrying in {wait_time:.2f} seconds...")
                 time.sleep(wait_time)
         
-        if retry_count == max_retries:
-            logger.error("Max retries reached. Exiting.")
-            content = json.dumps(
-                {
-                    "NumberOfPages": "Max retries reached",
-                    "CreditNote": "Max retries reached",
-                    "VendorName": "Max retries reached",
-                    "VendorAddress": "Max retries reached",
-                    "InvoiceID": "Max retries reached",
-                    "InvoiceDate": "Max retries reached",
-                    "SubTotal": "Max retries reached",
-                    "invoicetotal": "Max retries reached",
-                    "GST": "Max retries reached",
-                    "PST": "Max retries reached",
-                    "PST-SK": "Max retries reached",
-                    "PST-BC": "Max retries reached",
-                    "Bottle Deposit": "Max retries reached",
-                    "Shipping Charges": "Max retries reached",
-                    "Ecology Fee": "Max retries reached",
-                    "Fuel Surcharge": "Max retries reached",
-                    "Freight": "Max retries reached",
-                    "Litter Deposit": "Max retries reached",
-                    "Currency": "CAD"
-                }
-            )
+        # If max retries are reached, return failure response
+        logger.error("Max retries reached. Exiting.")
+        cleaned_json = {
+            "NumberOfPages": "Max retries reached",
+            "CreditNote": "Max retries reached",
+            "VendorName": "Max retries reached",
+            "VendorAddress": "Max retries reached",
+            "InvoiceID": "Max retries reached",
+            "InvoiceDate": "Max retries reached",
+            "SubTotal": "Max retries reached",
+            "invoicetotal": "Max retries reached",
+            "GST": "Max retries reached",
+            "PST": "Max retries reached",
+            "PST-SK": "Max retries reached",
+            "PST-BC": "Max retries reached",
+            "Bottle Deposit": "Max retries reached",
+            "Shipping Charges": "Max retries reached",
+            "Ecology Fee": "Max retries reached",
+            "Fuel Surcharge": "Max retries reached",
+            "Freight": "Max retries reached",
+            "Litter Deposit": "Max retries reached",
+            "Currency": "CAD"
+        }
     
-        cl_data = (
-            content.replace("json", "")
-            .replace("\n", "")
-            .replace("'''", "")
-            .replace("```", "")
-        )
-
-        try:
-            # Parse the JSON
-            cleaned_json = json.loads(cl_data)
-        except BaseException:
-            try:
-                cl_data_corrected = cl_data.replace("'", '"')
-                cleaned_json = json.loads(cl_data_corrected)
-            except BaseException:
-                cleaned_json = data
+        return cleaned_json, total_pages, file_size_mb
 
     except Exception:
         logger.info(traceback.format_exc())
