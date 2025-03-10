@@ -102,6 +102,14 @@ def validate_corpdoc(doc_id,userID,db):
                     }
                 )
             db.commit()
+            return_status["Status overview"] = {"status": 0,
+                                        "StatusCode":0,
+                                         "response": [
+                                                        "Vendor Mapping required"
+                                                    ],
+                                                }
+            logger.info(f"return corp validations(ln 70): {return_status}")
+            return return_status
 
         # duplicate check:
         if docSubStatus == 134:
@@ -382,6 +390,12 @@ def validate_corpdoc(doc_id,userID,db):
                                 docStatus = 4
                                 substatus = 131
                                 documentdesc = "Invoice - Total mismatch with coding total"
+                                return_status["Coding validation"] = {"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                f"Coding - GST exceeding 15% of invoice total"
+                                                            ],
+                                                        }
                             else:
                                 if (cod_gst > invoTotal_15).any():
                                     docStatus = 4
@@ -496,7 +510,7 @@ def validate_corpdoc(doc_id,userID,db):
         db.commit()
     except Exception as e:
         db.rollback()   
-        logger.error(f"Error in validate_corpdoc: {e}")
+        logger.info(f"Error in validate_corpdoc: {e}")
         logger.info(traceback.format_exc())
 
     try:
