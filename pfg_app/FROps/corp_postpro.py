@@ -63,6 +63,10 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     map_invo_att = {}
     userID = 1
     lt_corp_doc_id = []
+    try:
+        template_type = op_1['template_type']
+    except Exception:
+        template_type = ""
 
     if 'invoice#' in op_1['coding_details']['invoiceDetails']:
         if type(op_1['coding_details']['invoiceDetails']["invoice#"])==list:
@@ -308,6 +312,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
                     corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
                     mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                     
                 else:
                     pdf_blobpath = ""
                     mail_row_key = ""
@@ -317,6 +322,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 try:
                     file_path = unquote(file_path)
                     pdf_blobpath = unquote(pdf_blobpath)
+                    email_filepath_pdf = unquote(file_path[:-3]+'pdf')
                 except Exception:
                     logger.info(f"Error in unquote: {traceback.format_exc()}")
 
@@ -335,6 +341,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 "mail_row_key": mail_row_key,
                                 "email_filepath": file_path,
                                 "invo_filepath": pdf_blobpath,
+                                "email_filepath_pdf":email_filepath_pdf,
                                 "sender": sender,
                                 "approved_by":op_1['approval_details']['Approver'],
                                 "approver_title":op_1['approval_details']['Designation'],
@@ -415,7 +422,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             'approver_email':all_invo_coding[att_invoID]['approver_email'],
                             'approved_on':all_invo_coding[att_invoID]['approved_on'],
                             'approval_status':all_invo_coding[att_invoID]['approval_status'],
-                            'document_type':all_invo_coding[att_invoID]['document_type']
+                            'document_type':all_invo_coding[att_invoID]['document_type'],
+                            'template_type':template_type,
                             }
                 corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
                 db.add(corp_coding_insert)
@@ -533,7 +541,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                         'approver_email':all_invo_coding[miss_att]['approver_email'],
                         'approved_on':all_invo_coding[miss_att]['approved_on'],
                         'approval_status':all_invo_coding[miss_att]['approval_status'],
-                        'document_type':all_invo_coding[miss_att]['document_type']
+                        'document_type':all_invo_coding[miss_att]['document_type'],
+                        'template_type':template_type,
                         }
         corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
         db.add(corp_coding_insert)
