@@ -662,6 +662,7 @@ def create_or_update_corp_metadata(u_id, v_id, metadata, db):
 
 
 async def readpaginatedcorpvendorlist(
+    u_id,
     db,
     pagination,
     api_filter,
@@ -785,6 +786,7 @@ async def readpaginatedcorpvendorlist(
         
 
 async def download_corp_vendor_list(
+    u_id,
     db,
     api_filter,
     ven_status
@@ -1986,12 +1988,12 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
         # getting invoice data for later operation
         invdat = (
             db.query(model.corp_document_tab)
-            .options(load_only("email_filepath"))
+            .options(load_only("email_filepath_pdf"))
             .filter_by(corp_doc_id=inv_id)
             .one()
         )
         # check if file path is present and give base64 coded image url
-        if invdat.email_filepath:
+        if invdat.email_filepath_pdf:
             try:
                 account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
                 blob_service_client = BlobServiceClient(
@@ -2001,10 +2003,10 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 container = "apinvoice-mail-container"
                 # if invdat.vendor_id is None:
                 blob_client = blob_service_client.get_blob_client(
-                    container=container, blob=invdat.email_filepath
+                    container=container, blob=invdat.email_filepath_pdf
                 )
                 # Get file name
-                file_name = os.path.basename(invdat.invo_filepath)
+                file_name = os.path.basename(invdat.email_filepath_pdf)
 
                 # Get file size in MB
                 properties = blob_client.get_blob_properties()
@@ -2012,7 +2014,7 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 file_size_mb = f"{file_size} MB"
                 # invdat.docPath = str(list(blob_client.download_blob().readall()))
                 try:
-                    filetype = os.path.splitext(invdat.email_filepath)[1].lower()
+                    filetype = os.path.splitext(invdat.email_filepath_pdf)[1].lower()
                     if filetype == ".png":
                         content_type = "image/png"
                     elif filetype == ".jpg" or filetype == ".jpeg":
@@ -2021,14 +2023,14 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                         content_type = "application/pdf"
                 except Exception:
                     logger.info(f"Error in file type : {traceback.format_exc()}")
-                invdat.email_filepath = base64.b64encode(blob_client.download_blob().readall())
+                invdat.email_filepath_pdf = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
                 logger.error(traceback.format_exc())
-                invdat.email_filepath = f"Blob does not exist: {invdat.email_filepath}"
+                invdat.email_filepath_pdf = f"Blob does not exist: {invdat.email_filepath_pdf}"
 
         return {
             "result": {
-                "filepath": invdat.email_filepath,
+                "filepath": invdat.email_filepath_pdf,
                 "content_type": content_type,
                 "file_name": file_name,
                 "file_size_mb": file_size_mb
@@ -2500,7 +2502,7 @@ async def read_corp_doc_history(inv_id, download, db):
         db.close()
         
 
-async def uploadMissingFile(inv_id, file, db):
+async def uploadMissingFile(u_id, inv_id, file, db):
     try:
         # Fetch the invoice data from the database
         invdat = (
@@ -2516,7 +2518,7 @@ async def uploadMissingFile(inv_id, file, db):
             return "Email file path not found. Please upload the email file first and try again."
         
         # Extract directory path
-        dir_path = eml_filepath.split(".pdf")[0]
+        dir_path = eml_filepath.split(".eml")[0]
         
         # Define container and blob names
         container_name = "apinvoice-mail-container"  # Replace with actual container
@@ -2544,24 +2546,24 @@ async def uploadMissingFile(inv_id, file, db):
         logger.error(f"An error occurred while uploading the file: {traceback.format_exc()}")
         return {"error": "File upload failed"}
 
-async def uploadMissingEmailFile(inv_id, file, db):
+async def uploadMissingEmailFile(u_id, inv_id, file, db):
     try:
         # Fetch the invoice data from the database
         invdat = (
             db.query(model.corp_document_tab)
-            .options(load_only("email_filepath","mail_row_key"))
+            .options(load_only("email_filepath_pdf","mail_row_key"))
             .filter_by(corp_doc_id=inv_id)
             .one()
         )
         
-        eml_filepath = invdat.email_filepath
+        email_filepath_pdf = invdat.email_filepath_pdf
         mail_row_key = invdat.mail_row_key
-        if not eml_filepath:
+        if not email_filepath_pdf:
             # raise ValueError("Invalid invoice email pdf file path")
             dir_path = f"ap-portal-invoices/CORPORATE/{mail_row_key}"
         else:
             # Extract directory path
-            dir_path = os.path.dirname(eml_filepath)
+            dir_path = os.path.dirname(email_filepath_pdf)
         
         if not dir_path:
             raise ValueError("Failed to extract directory path from email_filepath")
@@ -2583,7 +2585,7 @@ async def uploadMissingEmailFile(inv_id, file, db):
         pdf_bytes_io.close()  # Free memory
         
         # **Update the email_filepath in the database**
-        invdat.email_filepath = blob_path
+        invdat.email_filepath_pdf = blob_path
         db.commit()  # Commit the transaction to save changes
 
         return {"message": "File uploaded and path updated successfully", "blob_path": blob_path}
@@ -2594,7 +2596,7 @@ async def uploadMissingEmailFile(inv_id, file, db):
         return {"error": "File upload failed"}
         
         
-def processInvoiceFile(inv_id, blob_path, inv_file, db):
+def processInvoiceFile(u_id, inv_id, blob_path, inv_file, db):
     try:
         try:
             blob_data = inv_file.file.read()

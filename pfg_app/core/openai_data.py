@@ -201,7 +201,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "Content-Type": "application/json",
                 }
         retry_count = 0
-        max_retries = 20
+        max_retries = 50
         while retry_count < max_retries:
             response = requests.post(
                 settings.open_ai_endpoint, headers=headers, json=data, timeout=60
@@ -237,9 +237,10 @@ def extract_invoice_details_using_openai(blob_data):
             else:
                 logger.info(f"Error: {response.status_code}, {response.text}")
                 retry_count += 1
-                wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
-                logger.info(f"Retrying in {wait_time:.2f} seconds...")
-                time.sleep(wait_time)
+                # wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
+                # logger.info(f"Retrying in {wait_time:.2f} seconds...")
+                logger.info(f"Retrying in 60 seconds...")
+                time.sleep(60)
         
         # If max retries are reached, return failure response
         logger.error("Max retries reached. Exiting.")
