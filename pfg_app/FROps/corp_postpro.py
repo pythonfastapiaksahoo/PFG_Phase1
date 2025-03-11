@@ -69,6 +69,14 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
         template_type = op_1['template_type']
     except Exception:
         template_type = ""
+    try:
+        file_path = unquote(file_path)
+        
+        email_filepath_pdf = unquote(file_path[:-3]+'pdf')
+    except Exception:
+        file_path = ""
+        logger.info(f"Error in unquote: {traceback.format_exc()}")
+        email_filepath_pdf = ""
 
     
     if 'invoice#' in op_1['coding_details']['invoiceDetails']:
@@ -368,7 +376,17 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     corp_doc_id = corp_doc.corp_doc_id
                     logger.info(f"Corp document added {timestmp}- postpro: {corp_doc} ,op_1: {op_1}")
                     lt_corp_doc_id.append(corp_doc_id)
+
                     try:
+                        if list(doc_dt_rw.keys())[0] in mail_rw_dt:
+                            pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
+                            corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
+                            mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                            
+                        else:
+                            pdf_blobpath = ""
+                            mail_row_key = ""
+                            corp_trg_id = ""
                         if corp_trg_id !="":
 
                             corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
@@ -526,16 +544,42 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 "gst": all_invo_coding[miss_att]["gst"],
                                 "approved_by": all_invo_coding[miss_att]["approverName"],
                                 "uploaded_date":timestmp ,
+                                "email_filepath": file_path,
+                                "mail_row_key": mail_row_key,
+                                "email_filepath_pdf":email_filepath_pdf,
                                 "approver_title":all_invo_coding[miss_att]["approver_title"],
                                 "documentstatus": 4 ,  
                                 "documentsubstatus": 130,
                                 "created_on":timestmp,
                                 "document_type":all_invo_coding[miss_att]["document_type"]}
+    
             corp_doc = model.corp_document_tab(**mssing_att_docData)
             db.add(corp_doc)
             db.commit()
             corp_doc_id = corp_doc.corp_doc_id
             lt_corp_doc_id.append(corp_doc_id)
+            try:
+                if list(doc_dt_rw.keys())[0] in mail_rw_dt:
+                    pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
+                    corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
+                    mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                    
+                else:
+                    pdf_blobpath = ""
+                    mail_row_key = ""
+                    corp_trg_id = ""
+                if corp_trg_id !="":
+
+                    corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+                    if corp_trigger:
+                        corp_trigger.status = "Processed"
+                        corp_trigger.documentid = corp_doc_id
+                        corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
+                        db.commit()  # Save changes
+
+            except Exception as e:  
+                logger.error( f"Error updating corp_trigger_tab: {e}")
+                db.rollback()
             
             # update coding details: 
             # update coding details
@@ -570,6 +614,9 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 missing_code_docTab = {
                     "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
                     "invoicetotal":miss_code[list(miss_code.keys())[0]]["invoicetotal"],
+                    "email_filepath": file_path,
+                    "mail_row_key": mail_row_key,
+                    "email_filepath_pdf":email_filepath_pdf,
                     "gst":miss_code[list(miss_code.keys())[0]]["GST"],
                     "invo_page_count":miss_code[list(miss_code.keys())[0]]["NumberOfPages"],
                     "created_on":timestmp,
