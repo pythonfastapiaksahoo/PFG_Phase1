@@ -409,9 +409,10 @@ def extract_approver_details_using_openai(msg):
             else:
                 logger.info(f"Error: {response.status_code}, {response.text}")
                 retry_count += 1
-                wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
-                logger.info(f"Retrying in {wait_time:.2f} seconds...")
-                time.sleep(wait_time)
+                # wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
+                # logger.info(f"Retrying in {wait_time:.2f} seconds...")
+                logger.info(f"Retrying in 60 seconds...")
+                time.sleep(60)
         
         if retry_count == max_retries:
             logger.error("Max retries reached. Exiting.")
