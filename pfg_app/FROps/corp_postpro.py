@@ -63,15 +63,28 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     map_invo_att = {}
     userID = 1
     lt_corp_doc_id = []
-    
+    temp_found = 0
+
     try:
         template_type = op_1['template_type']
     except Exception:
         template_type = ""
+    try:
+        file_path = unquote(file_path)
+        
+        email_filepath_pdf = unquote(file_path[:-3]+'pdf')
+    except Exception:
+        file_path = ""
+        logger.info(f"Error in unquote: {traceback.format_exc()}")
+        email_filepath_pdf = ""
 
+    
     if 'invoice#' in op_1['coding_details']['invoiceDetails']:
-        if type(op_1['coding_details']['invoiceDetails']["invoice#"])==list:
+        # template 2
+        # if type(op_1['coding_details']['invoiceDetails']["invoice#"])==list:
+        if template_type == 2:
             # multi invoice template:
+            temp_found = 1
             if 'approval_details' in op_1:
                 if 'Approver' in  op_1['approval_details']:
                     approverName = op_1['approval_details']['Approver']
@@ -135,6 +148,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             keys_to_check_invo = ['invoice#','store', 'dept', 'account', 'SL', 'project', 'activity','GST','invoicetotal']
             if all(len(invoice_details[keys_to_check_invo[0]]) == len(invoice_details[key]) for key in keys_to_check_invo[1:]):
                 for rw in range(len(invoice_details[keys_to_check_invo[0]])):
+                    coding_data = {}
+                    coding_tab_data = {}
                     if '-' in invoice_details['invoicetotal'][rw]:
                         credit_invo = 1
                         coding_tab_data['document_type'] = "credit"
@@ -163,9 +178,11 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data['coding_data'] = coding_data
                     print(invoice_details['invoice#'][rw])
                 
-            
+                    
                     all_invo_coding[invoice_details['invoice#'][rw]] = coding_tab_data
-        else:
+        elif template_type == 1 or template_type == 3:
+            # template 1 & 3
+            temp_found = 1
             missing_val = []
             #email_metadata
             if "coding_details" in op_1:
@@ -191,7 +208,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
 
                 if "invoiceDetails" in op_1['coding_details']:
                     if "invoicetotal" in op_1['coding_details']['invoiceDetails']:
-                        if '-' in op_1['coding_details']['invoiceDetails']['invoicetotal']:
+                        if '-' in all_invo_coding:
                             credit_invo = 1
                             coding_tab_data['document_type'] = "credit"
                             
@@ -269,449 +286,397 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             else:
                                 coding_tab_data["approval_status"] = "Not approved"
             all_invo_coding[c_invoID] = coding_tab_data
+        else:
+            temp_found = 0
+            logger.info(f"No template found: data: {op_1}, mail_row_key: {mail_row_key}, file_path: {file_path}, sender: {sender}, mail_rw_dt : {mail_rw_dt} ")
+    
+    
+    if temp_found==1:
+        if "invoice_detail_list" in op_1:
+            for invo_att in op_1['invoice_detail_list']:
+                invo_att.keys()
+                map_invo_att[list(invo_att.keys())[0]] = invo_att[list(invo_att.keys())[0]]['InvoiceID']
 
-    if "invoice_detail_list" in op_1:
-        for invo_att in op_1['invoice_detail_list']:
-            invo_att.keys()
-            map_invo_att[list(invo_att.keys())[0]] = invo_att[list(invo_att.keys())[0]]['InvoiceID']
+        # invo without coding:
+        missing_coding = set(map_invo_att.values()) - set(all_invo_coding.keys())
 
-    # invo without coding:
-    missing_coding = set(map_invo_att.values()) - set(all_invo_coding.keys())
+        # invo without attachment:
+        missing_attachment = set(all_invo_coding.keys()) - set(map_invo_att.values())
 
-    # invo without attachment:
-    missing_attachment = set(all_invo_coding.keys()) - set(map_invo_att.values())
+        # both coding + attachment present
+        good_togo = set(all_invo_coding.keys()) & set(map_invo_att.values())
 
-    # both coding + attachment present
-    good_togo = set(all_invo_coding.keys()) & set(map_invo_att.values())
+        # processing invoice with coding and attachment: 
+        for doc_dt_rw in op_1['invoice_detail_list']:
+            try:
+                if doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID'] in good_togo:
+                    att_invoID = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID']
+                    if 'invoicetotal' in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                        invTotl = doc_dt_rw[list(doc_dt_rw.keys())[0]]['invoicetotal']
+                    else:
+                        invTotl = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceTotal']
+                    if 'NumberOfPages' in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                        att_invoPageCount = doc_dt_rw[list(doc_dt_rw.keys())[0]]['NumberOfPages']
+                    else:
+                        att_invoPageCount = ''
+                    att_invoTotal = cleanAmt_all(credit_invo,invTotl)
+                    if "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                        gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
+                    # elif "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                    #     gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
+                    gst = cleanAmt_all(credit_invo, gst_amt)
+                    att_invoDate = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceDate']
+                    
+                    if credit_invo==1:
+                        document_type = "Credit"
+                    else:
+                        document_type = "Invoice"
+                    if list(doc_dt_rw.keys())[0] in mail_rw_dt:
+                        pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
+                        corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
+                        mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                        
+                    else:
+                        pdf_blobpath = ""
+                        mail_row_key = ""
+                        corp_trg_id = ""
 
-    # processing invoice with coding and attachment: 
-    for doc_dt_rw in op_1['invoice_detail_list']:
-        try:
-            if doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID'] in good_togo:
-                att_invoID = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID']
-                if 'invoicetotal' in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
-                    invTotl = doc_dt_rw[list(doc_dt_rw.keys())[0]]['invoicetotal']
-                else:
-                    invTotl = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceTotal']
-                if 'NumberOfPages' in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
-                    att_invoPageCount = doc_dt_rw[list(doc_dt_rw.keys())[0]]['NumberOfPages']
-                else:
-                    att_invoPageCount = ''
-                att_invoTotal = cleanAmt_all(credit_invo,invTotl)
-                if "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
-                    gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
-                # elif "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
-                #     gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
-                gst = cleanAmt_all(credit_invo, gst_amt)
-                att_invoDate = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceDate']
-                
-                if credit_invo==1:
-                    document_type = "Credit"
-                else:
-                    document_type = "Invoice"
+
+                    try:
+                        file_path = unquote(file_path)
+                        pdf_blobpath = unquote(pdf_blobpath)
+                        email_filepath_pdf = unquote(file_path[:-3]+'pdf')
+                    except Exception:
+                        logger.info(f"Error in unquote: {traceback.format_exc()}")
+
+
+                    # insert to db
+
+                    corp_doc_data = {"invoice_id":att_invoID,
+                                    "invoice_date":att_invoDate,
+                                    "invoicetotal":att_invoTotal,
+                                    "gst":gst,
+                                    "invo_page_count":att_invoPageCount,
+                                    "document_type":document_type,
+                                    "documentstatus":4,
+                                    "documentsubstatus":11,
+                                    "created_on":timestmp,
+                                    "mail_row_key": mail_row_key,
+                                    "email_filepath": file_path,
+                                    "invo_filepath": pdf_blobpath,
+                                    "email_filepath_pdf":email_filepath_pdf,
+                                    "sender": sender,
+                                    "approved_by":op_1['approval_details']['Approver'],
+                                    "approver_title":op_1['approval_details']['Designation'],
+                                }
+                    corp_doc = model.corp_document_tab(**corp_doc_data)
+                    db.add(corp_doc)
+                    db.commit()
+                    logger.info(f"Corp document added: {corp_doc}")
+                    corp_doc_id = corp_doc.corp_doc_id
+                    logger.info(f"Corp document added {timestmp}- postpro: {corp_doc} ,op_1: {op_1}")
+                    lt_corp_doc_id.append(corp_doc_id)
+
+                    try:
+                        if list(doc_dt_rw.keys())[0] in mail_rw_dt:
+                            pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
+                            corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
+                            mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                            
+                        else:
+                            pdf_blobpath = ""
+                            mail_row_key = ""
+                            corp_trg_id = ""
+                        if corp_trg_id !="":
+
+                            corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+                            if corp_trigger:
+                                corp_trigger.status = "Processed"
+                                corp_trigger.documentid = corp_doc_id
+                                corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
+                                db.commit()  # Save changes
+
+                    except Exception as e:  
+                        logger.error( f"Error updating corp_trigger_tab: {e}")
+                        db.rollback()
+                    # vendor mapping:
+                    query = db.query(
+                        model.Vendor.idVendor,
+                        model.Vendor.VendorName,
+                        model.Vendor.Synonyms,
+                        model.Vendor.Address,
+                        model.Vendor.VendorCode,
+                    ).filter(
+                        func.jsonb_extract_path_text(
+                            model.Vendor.miscellaneous, "VENDOR_STATUS"
+                        )
+                        == "A"
+                    )
+                    rows = query.all()
+                    columns = ["idVendor", "VendorName", "Synonyms", "Address", "VendorCode"]
+
+                    vendorName_df = pd.DataFrame(rows, columns=columns)
+
+                    #corp_metadata
+                    corp_metadata_query = db.query(model.corp_metadata)
+                    corp_metadata_rows = corp_metadata_query.all()
+
+                    # Convert list of ORM objects to a list of dictionaries
+                    corp_metadata_data = [row.__dict__ for row in corp_metadata_rows]
+
+
+                    # for row in corp_metadata_data:
+                    #     row.pop('_sa_instance_state', None)
+
+                    # Create DataFrame
+                    corp_metadata_df = pd.DataFrame(corp_metadata_data)
+
+
+
+                    vendorname = doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"]
+                    vendor_address =doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
+                    matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
+                    
+                    # update coding details
+                    coding_data_insert = {'invoice_id':all_invo_coding[att_invoID]['invoice_number'],
+                                'corp_doc_id':corp_doc_id,
+                                'coding_details':all_invo_coding[att_invoID]['coding_data'],
+                                'approver_name':all_invo_coding[att_invoID]['approverName'],
+                                
+                                'tmid':all_invo_coding[att_invoID]['TMID'],
+                                'approver_title':all_invo_coding[att_invoID]['approver_title'],
+                                'invoicetotal':all_invo_coding[att_invoID]['invoicetotal'],
+                                'gst':all_invo_coding[att_invoID]['gst'],
+                                'created_on': timestmp,
+                                'sender_name': all_invo_coding[att_invoID]['sender'],
+                                'sender_email':all_invo_coding[att_invoID]['sender_email'],
+                                'sent_to':all_invo_coding[att_invoID]['sent_to'],
+                                'sent_time':all_invo_coding[att_invoID]['sent_time'],
+                                'approver_email':all_invo_coding[att_invoID]['approver_email'],
+                                'approved_on':all_invo_coding[att_invoID]['approved_on'],
+                                'approval_status':all_invo_coding[att_invoID]['approval_status'],
+                                'document_type':all_invo_coding[att_invoID]['document_type'],
+                                'template_type':template_type,
+                                }
+                    corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
+                    db.add(corp_coding_insert)
+                    db.commit()
+                    corp_code_id = corp_coding_insert.corp_coding_id
+                    print("corp_code_id: ",corp_code_id)
+                    
+                    # insert doc data:
+                    if "invoicetotal" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                        cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["invoicetotal"]
+                    else:
+                        cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceTotal"]
+                    try:
+                        crd_nt = doc_dt_rw[list(doc_dt_rw.keys())[0]]["CreditNote"]
+                    
+                        if crd_nt.lower() == "yes":
+                            document_type = "credit"
+                        else:
+                            document_type = "invoice"
+                    except Exception:
+                        document_type = ""
+
+                    pdf_invoTotal = cleanAmt_all(credit_invo,cln_invoTotal)
+                    pdf_gst = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["GST"])
+                    pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
+                    corp_docdata_insert = {"invoice_id":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceID"],
+                                "invoice_date":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceDate"],
+                                    "vendor_name":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"],
+                                "vendoraddress":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"],
+                                "customername":"",
+                                "customeraddress": "",
+                                "currency":doc_dt_rw[list(doc_dt_rw.keys())[0]]["Currency"],
+                                "document_type" : document_type,
+                                "invoicetotal":pdf_invoTotal,
+                                "subtotal":pdf_subTotal,
+                                "corp_doc_id":corp_doc_id,
+                                "bottledeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]['Bottle Deposit']),
+                                "shippingcharges":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Shipping Charges"]),
+                                "litterdeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Litter Deposit"]),
+                                "gst":pdf_gst,
+                                "pst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST"]),
+                                "created_on":timestmp,
+                                "pst_sk":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-SK"]),
+                                "pst_bc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-BC"]),
+                                "ecology_fee":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Ecology Fee"]),
+                                "misc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["misc"]),
+                                }
+                    
+
+                    corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
+                    db.add(corp_docdata_insert_data)
+                    db.commit()
+                    corp_data_id = corp_docdata_insert_data.docdata_id
+                    print("corp_data_id: ",corp_data_id)
+            except Exception as er:
+                logger.error(f"Error in inserting corp_docdata: {er} =>" + traceback.format_exc())
+                try:
+                    if list(doc_dt_rw.keys())[0] in mail_rw_dt:
+                        pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
+                        corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
+                        mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                    else:
+                        pdf_blobpath = ""
+                        mail_row_key = ""
+                        corp_trg_id = ""
+                    try:
+                        if corp_trg_id !="":
+
+                            corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+                            if corp_trigger:
+                                corp_trigger.status = f"Error - {str(er)}"
+                                corp_trigger.updated_at = timestmp  # Ensure it's a datetime object
+                                db.commit()  # Save changes
+                    except Exception as e:  
+                        logger.error( f"Error updating corp_trigger_tab: {e}")
+                        db.rollback()
+                except Exception as e:
+                    logger.error( f"Error in updating corp_trigger_tab: {e}")
+
+        # processing invoice without attachment:
+        # document status & substatus:  4 , 130
+        for miss_att in missing_attachment:
+            mssing_att_docData = {"invoice_id":all_invo_coding[miss_att]["invoice_number"],
+                                "invoicetotal": all_invo_coding[miss_att]["invoicetotal"],
+                                "gst": all_invo_coding[miss_att]["gst"],
+                                "approved_by": all_invo_coding[miss_att]["approverName"],
+                                "uploaded_date":timestmp ,
+                                "email_filepath": file_path,
+                                "mail_row_key": mail_row_key,
+                                "email_filepath_pdf":email_filepath_pdf,
+                                "approver_title":all_invo_coding[miss_att]["approver_title"],
+                                "documentstatus": 4 ,  
+                                "documentsubstatus": 130,
+                                "created_on":timestmp,
+                                "document_type":all_invo_coding[miss_att]["document_type"]}
+    
+            corp_doc = model.corp_document_tab(**mssing_att_docData)
+            db.add(corp_doc)
+            db.commit()
+            corp_doc_id = corp_doc.corp_doc_id
+            lt_corp_doc_id.append(corp_doc_id)
+            try:
                 if list(doc_dt_rw.keys())[0] in mail_rw_dt:
                     pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
                     corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
                     mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
-                     
+                    
                 else:
                     pdf_blobpath = ""
                     mail_row_key = ""
                     corp_trg_id = ""
+                if corp_trg_id !="":
 
+                    corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+                    if corp_trigger:
+                        corp_trigger.status = "Processed"
+                        corp_trigger.documentid = corp_doc_id
+                        corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
+                        db.commit()  # Save changes
 
-                try:
-                    file_path = unquote(file_path)
-                    pdf_blobpath = unquote(pdf_blobpath)
-                    email_filepath_pdf = unquote(file_path[:-3]+'pdf')
-                except Exception:
-                    logger.info(f"Error in unquote: {traceback.format_exc()}")
-
-
-                # insert to db
-
-                corp_doc_data = {"invoice_id":att_invoID,
-                                "invoice_date":att_invoDate,
-                                "invoicetotal":att_invoTotal,
-                                "gst":gst,
-                                "invo_page_count":att_invoPageCount,
-                                "document_type":document_type,
-                                "documentstatus":4,
-                                "documentsubstatus":11,
-                                "created_on":timestmp,
-                                "mail_row_key": mail_row_key,
-                                "email_filepath": file_path,
-                                "invo_filepath": pdf_blobpath,
-                                "email_filepath_pdf":email_filepath_pdf,
-                                "sender": sender,
-                                "approved_by":op_1['approval_details']['Approver'],
-                                "approver_title":op_1['approval_details']['Designation'],
-                            }
-                corp_doc = model.corp_document_tab(**corp_doc_data)
-                db.add(corp_doc)
-                db.commit()
-                logger.info(f"Corp document added: {corp_doc}")
-                corp_doc_id = corp_doc.corp_doc_id
-                logger.info(f"Corp document added {timestmp}- postpro: {corp_doc} ,op_1: {op_1}")
-                lt_corp_doc_id.append(corp_doc_id)
-                try:
-                    if corp_trg_id !="":
-
-                        corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
-                        if corp_trigger:
-                            corp_trigger.status = "Processed"
-                            corp_trigger.documentid = corp_doc_id
-                            corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
-                            db.commit()  # Save changes
-
-                except Exception as e:  
-                    logger.error( f"Error updating corp_trigger_tab: {e}")
-                    db.rollback()
-                # vendor mapping:
-                query = db.query(
-                    model.Vendor.idVendor,
-                    model.Vendor.VendorName,
-                    model.Vendor.Synonyms,
-                    model.Vendor.Address,
-                    model.Vendor.VendorCode,
-                ).filter(
-                    func.jsonb_extract_path_text(
-                        model.Vendor.miscellaneous, "VENDOR_STATUS"
-                    )
-                    == "A"
-                )
-                rows = query.all()
-                columns = ["idVendor", "VendorName", "Synonyms", "Address", "VendorCode"]
-
-                vendorName_df = pd.DataFrame(rows, columns=columns)
-
-                #corp_metadata
-                corp_metadata_query = db.query(model.corp_metadata)
-                corp_metadata_rows = corp_metadata_query.all()
-
-                # Convert list of ORM objects to a list of dictionaries
-                corp_metadata_data = [row.__dict__ for row in corp_metadata_rows]
-
-
-                # for row in corp_metadata_data:
-                #     row.pop('_sa_instance_state', None)
-
-                # Create DataFrame
-                corp_metadata_df = pd.DataFrame(corp_metadata_data)
-
-
-
-                vendorname = doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"]
-                vendor_address =doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
-                matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
-                
-                # update coding details
-                coding_data_insert = {'invoice_id':all_invo_coding[att_invoID]['invoice_number'],
+            except Exception as e:  
+                logger.error( f"Error updating corp_trigger_tab: {e}")
+                db.rollback()
+            
+            # update coding details: 
+            # update coding details
+            coding_data_insert = {'invoice_id':all_invo_coding[miss_att]['invoice_number'],
                             'corp_doc_id':corp_doc_id,
-                            'coding_details':all_invo_coding[att_invoID]['coding_data'],
-                            'approver_name':all_invo_coding[att_invoID]['approverName'],
+                            'coding_details':all_invo_coding[miss_att]['coding_data'],
+                            'approver_name':all_invo_coding[miss_att]['approverName'],
                             
-                            'tmid':all_invo_coding[att_invoID]['TMID'],
-                            'approver_title':all_invo_coding[att_invoID]['approver_title'],
-                            'invoicetotal':all_invo_coding[att_invoID]['invoicetotal'],
-                            'gst':all_invo_coding[att_invoID]['gst'],
+                            'tmid':all_invo_coding[miss_att]['TMID'],
+                            'approver_title':all_invo_coding[miss_att]['approver_title'],
+                            'invoicetotal':all_invo_coding[miss_att]['invoicetotal'],
+                            'gst':all_invo_coding[miss_att]['gst'],
                             'created_on': timestmp,
-                            'sender_name': all_invo_coding[att_invoID]['sender'],
-                            'sender_email':all_invo_coding[att_invoID]['sender_email'],
-                            'sent_to':all_invo_coding[att_invoID]['sent_to'],
-                            'sent_time':all_invo_coding[att_invoID]['sent_time'],
-                            'approver_email':all_invo_coding[att_invoID]['approver_email'],
-                            'approved_on':all_invo_coding[att_invoID]['approved_on'],
-                            'approval_status':all_invo_coding[att_invoID]['approval_status'],
-                            'document_type':all_invo_coding[att_invoID]['document_type'],
+                            'sender_name': all_invo_coding[miss_att]['sender'],
+                            'sender_email':all_invo_coding[miss_att]['sender_email'],
+                            'sent_to':all_invo_coding[miss_att]['sent_to'],
+                            'sent_time':all_invo_coding[miss_att]['sent_time'],
+                            'approver_email':all_invo_coding[miss_att]['approver_email'],
+                            'approved_on':all_invo_coding[miss_att]['approved_on'],
+                            'approval_status':all_invo_coding[miss_att]['approval_status'],
+                            'document_type':all_invo_coding[miss_att]['document_type'],
                             'template_type':template_type,
                             }
-                corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
-                db.add(corp_coding_insert)
+            corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
+            db.add(corp_coding_insert)
+            db.commit()
+
+        # porcessing without coding details:
+        # document status & substatus: 4 , 134
+        for miss_code in op_1['invoice_detail_list']:
+            if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
+                missing_code_docTab = {
+                    "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
+                    "invoicetotal":miss_code[list(miss_code.keys())[0]]["invoicetotal"],
+                    "email_filepath": file_path,
+                    "mail_row_key": mail_row_key,
+                    "email_filepath_pdf":email_filepath_pdf,
+                    "gst":miss_code[list(miss_code.keys())[0]]["GST"],
+                    "invo_page_count":miss_code[list(miss_code.keys())[0]]["NumberOfPages"],
+                    "created_on":timestmp,
+                    "updated_on":timestmp,
+                    "documentstatus":4,
+                    "documentsubstatus":134,
+                    
+                }  
+                corp_doc = model.corp_document_tab(**missing_code_docTab)
+                db.add(corp_doc)
                 db.commit()
-                corp_code_id = corp_coding_insert.corp_coding_id
-                print("corp_code_id: ",corp_code_id)
-                
-                # insert doc data:
-                if "invoicetotal" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
-                    cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["invoicetotal"]
-                else:
-                    cln_invoTotal = doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceTotal"]
+                corp_doc_id = corp_doc.corp_doc_id
+                lt_corp_doc_id.append(corp_doc_id)
+                print("corp_doc_id: ",corp_doc_id)
+                pdf_invoTotal = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"])
+                pdf_gst = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"])
+                pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
                 try:
-                    crd_nt = doc_dt_rw[list(doc_dt_rw.keys())[0]]["CreditNote"]
-                   
+                    crd_nt = miss_code[list(miss_code.keys())[0]]["CreditNote"]
                     if crd_nt.lower() == "yes":
                         document_type = "credit"
                     else:
                         document_type = "invoice"
                 except Exception:
                     document_type = ""
-
-                pdf_invoTotal = cleanAmt_all(credit_invo,cln_invoTotal)
-                pdf_gst = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["GST"])
-                pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
-                corp_docdata_insert = {"invoice_id":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceID"],
-                            "invoice_date":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceDate"],
-                                "vendor_name":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"],
-                            "vendoraddress":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"],
+                # update document data tab:
+                # insert doc data:
+                corp_docdata_insert = {"invoice_id":miss_code[list(miss_code.keys())[0]]["InvoiceID"],
+                            "invoice_date":miss_code[list(miss_code.keys())[0]]["InvoiceDate"],
+                                "vendor_name":miss_code[list(miss_code.keys())[0]]["VendorName"],
+                            "vendoraddress":miss_code[list(miss_code.keys())[0]]["VendorAddress"],
                             "customername":"",
                             "customeraddress": "",
-                            "currency":doc_dt_rw[list(doc_dt_rw.keys())[0]]["Currency"],
+                            "currency":miss_code[list(miss_code.keys())[0]]["Currency"],
                             "document_type" : document_type,
                             "invoicetotal":pdf_invoTotal,
-                            "subtotal":pdf_subTotal,
+                            "subtotal": pdf_subTotal,
                             "corp_doc_id":corp_doc_id,
-                            "bottledeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]['Bottle Deposit']),
-                            "shippingcharges":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Shipping Charges"]),
-                            "litterdeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Litter Deposit"]),
+                            "bottledeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]['Bottle Deposit']),
+                            "shippingcharges":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Shipping Charges"]),
+                            "litterdeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Litter Deposit"]),
                             "gst":pdf_gst,
-                            "pst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST"]),
+                            "pst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST"]),
                             "created_on":timestmp,
-                            "pst_sk":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-SK"]),
-                            "pst_bc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-BC"]),
-                            "ecology_fee":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Ecology Fee"]),
-                            "misc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["misc"]),
+                            "pst_sk":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-SK"]),
+                            "pst_bc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-BC"]),
+                            "ecology_fee":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Ecology Fee"]),
+                            "misc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["misc"]),
                             }
-                
-
                 corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
                 db.add(corp_docdata_insert_data)
                 db.commit()
+                logger.info(f"Corp document data added: {corp_docdata_insert_data}")
                 corp_data_id = corp_docdata_insert_data.docdata_id
                 print("corp_data_id: ",corp_data_id)
-        except Exception as er:
-            logger.error(f"Error in inserting corp_docdata: {er} =>" + traceback.format_exc())
-            try:
-                if list(doc_dt_rw.keys())[0] in mail_rw_dt:
-                    pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
-                    corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
-                    mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
-                else:
-                    pdf_blobpath = ""
-                    mail_row_key = ""
-                    corp_trg_id = ""
-                try:
-                    if corp_trg_id !="":
-
-                        corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
-                        if corp_trigger:
-                            corp_trigger.status = f"Error - {str(er)}"
-                            corp_trigger.updated_at = timestmp  # Ensure it's a datetime object
-                            db.commit()  # Save changes
-                except Exception as e:  
-                    logger.error( f"Error updating corp_trigger_tab: {e}")
-                    db.rollback()
-            except Exception as e:
-                logger.error( f"Error in updating corp_trigger_tab: {e}")
-
-    # processing invoice without attachment:
-    # document status & substatus:  4 , 130
-    for miss_att in missing_attachment:
-        mssing_att_docData = {"invoice_id":all_invo_coding[miss_att]["invoice_number"],
-                            "invoicetotal": all_invo_coding[miss_att]["invoicetotal"],
-                            "gst": all_invo_coding[miss_att]["gst"],
-                            "approved_by": all_invo_coding[miss_att]["approverName"],
-                            "uploaded_date":timestmp ,
-                            "approver_title":all_invo_coding[miss_att]["approver_title"],
-                            "documentstatus": 4 ,  
-                            "documentsubstatus": 130,
-                            "created_on":timestmp,
-                            "document_type":all_invo_coding[miss_att]["document_type"]}
-        corp_doc = model.corp_document_tab(**mssing_att_docData)
-        db.add(corp_doc)
-        db.commit()
-        corp_doc_id = corp_doc.corp_doc_id
-        lt_corp_doc_id.append(corp_doc_id)
-        
-        # update coding details: 
-        # update coding details
-        coding_data_insert = {'invoice_id':all_invo_coding[miss_att]['invoice_number'],
-                        'corp_doc_id':corp_doc_id,
-                        'coding_details':all_invo_coding[miss_att]['coding_data'],
-                        'approver_name':all_invo_coding[miss_att]['approverName'],
-                        
-                        'tmid':all_invo_coding[miss_att]['TMID'],
-                        'approver_title':all_invo_coding[miss_att]['approver_title'],
-                        'invoicetotal':all_invo_coding[miss_att]['invoicetotal'],
-                        'gst':all_invo_coding[miss_att]['gst'],
-                        'created_on': timestmp,
-                        'sender_name': all_invo_coding[miss_att]['sender'],
-                        'sender_email':all_invo_coding[miss_att]['sender_email'],
-                        'sent_to':all_invo_coding[miss_att]['sent_to'],
-                        'sent_time':all_invo_coding[miss_att]['sent_time'],
-                        'approver_email':all_invo_coding[miss_att]['approver_email'],
-                        'approved_on':all_invo_coding[miss_att]['approved_on'],
-                        'approval_status':all_invo_coding[miss_att]['approval_status'],
-                        'document_type':all_invo_coding[miss_att]['document_type'],
-                        'template_type':template_type,
-                        }
-        corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
-        db.add(corp_coding_insert)
-        db.commit()
-
-    # porcessing without coding details:
-    # document status & substatus: 4 , 134
-    for miss_code in op_1['invoice_detail_list']:
-        if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
-            missing_code_docTab = {
-                "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
-                "invoicetotal":miss_code[list(miss_code.keys())[0]]["invoicetotal"],
-                "gst":miss_code[list(miss_code.keys())[0]]["GST"],
-                "invo_page_count":miss_code[list(miss_code.keys())[0]]["NumberOfPages"],
-                "created_on":timestmp,
-                "updated_on":timestmp,
-                "documentstatus":4,
-                "documentsubstatus":134,
+        try:
+            for doc_id_ in set(lt_corp_doc_id):
+                if doc_id_ != "":
+                    skipConf = 0
+                    validate_corpdoc(doc_id_,userID,skipConf, db)
+        except Exception:
+            logger.error(traceback.format_exc())
                 
-            }  
-            corp_doc = model.corp_document_tab(**missing_code_docTab)
-            db.add(corp_doc)
-            db.commit()
-            corp_doc_id = corp_doc.corp_doc_id
-            lt_corp_doc_id.append(corp_doc_id)
-            print("corp_doc_id: ",corp_doc_id)
-            pdf_invoTotal = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"])
-            pdf_gst = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"])
-            pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
-            try:
-                crd_nt = miss_code[list(miss_code.keys())[0]]["CreditNote"]
-                if crd_nt.lower() == "yes":
-                    document_type = "credit"
-                else:
-                    document_type = "invoice"
-            except Exception:
-                document_type = ""
-            # update document data tab:
-            # insert doc data:
-            corp_docdata_insert = {"invoice_id":miss_code[list(miss_code.keys())[0]]["InvoiceID"],
-                        "invoice_date":miss_code[list(miss_code.keys())[0]]["InvoiceDate"],
-                            "vendor_name":miss_code[list(miss_code.keys())[0]]["VendorName"],
-                        "vendoraddress":miss_code[list(miss_code.keys())[0]]["VendorAddress"],
-                        "customername":"",
-                        "customeraddress": "",
-                        "currency":miss_code[list(miss_code.keys())[0]]["Currency"],
-                        "document_type" : document_type,
-                        "invoicetotal":pdf_invoTotal,
-                        "subtotal": pdf_subTotal,
-                        "corp_doc_id":corp_doc_id,
-                        "bottledeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]['Bottle Deposit']),
-                        "shippingcharges":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Shipping Charges"]),
-                        "litterdeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Litter Deposit"]),
-                        "gst":pdf_gst,
-                        "pst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST"]),
-                        "created_on":timestmp,
-                        "pst_sk":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-SK"]),
-                        "pst_bc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-BC"]),
-                        "ecology_fee":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Ecology Fee"]),
-                        "misc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["misc"]),
-                        }
-            corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
-            db.add(corp_docdata_insert_data)
-            db.commit()
-            logger.info(f"Corp document data added: {corp_docdata_insert_data}")
-            corp_data_id = corp_docdata_insert_data.docdata_id
-            print("corp_data_id: ",corp_data_id)
-    try:
-        for doc_id_ in set(lt_corp_doc_id):
-            if doc_id_ != "":
-                skipConf = 0
-                validate_corpdoc(doc_id_,userID,skipConf, db)
-    except Exception:
-        logger.error(traceback.format_exc())
-            
-
-
-
-# def postProInvoiceData(content, blob_path, corp_doc_id):
-#     try:
-#         db = next(get_db())
-#         timestmp = utc_timestamp.strftime('%Y-%m-%d %H:%M:%S')
-#         # Determine if it's a credit invoice
-#         credit_invoice = 1 if content.get("CreditNote", "No").lower() == "yes" else 0
-#         if credit_invoice==1:
-#             document_type = "Credit"
-#         else:
-#             document_type = "Invoice"
-#         # Clean amounts
-#         cleaned_data = {
-#             "invoicetotal": cleanAmt_all(credit_invoice, content.get("InvoiceTotal", "0.00")),
-#             "subtotal": cleanAmt_all(credit_invoice, content.get("SubTotal", "0.00")),
-#             "gst": cleanAmt_all(credit_invoice, content.get("GST", "0.00")),
-#             "pst": cleanAmt_all(credit_invoice, content.get("PST", "0.00")),
-#             "pst_sk": cleanAmt_all(credit_invoice, content.get("PST-SK", "0.00")),
-#             "pst_bc": cleanAmt_all(credit_invoice, content.get("PST-BC", "0.00")),
-#             "bottledeposit": cleanAmt_all(credit_invoice, content.get("Bottle Deposit", "0.00")),
-#             "shippingcharges": cleanAmt_all(credit_invoice, content.get("Shipping Charges", "0.00")),
-#             "litterdeposit": cleanAmt_all(credit_invoice, content.get("Litter Deposit", "0.00")),
-#             "ecology_fee": cleanAmt_all(credit_invoice, content.get("Ecology Fee", "0.00")),
-#             "misc": cleanAmt_all(credit_invoice, content.get("misc", "0.00")),
-#         }
-#         try:
-            
-#             # Update corp_document_tab
-#             doc_entry = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
-#             if doc_entry:
-#                 doc_entry.invoice_id = content.get("InvoiceID")
-#                 doc_entry.invoice_date = content.get("InvoiceDate")
-#                 doc_entry.invoicetotal = cleaned_data["invoicetotal"]
-#                 doc_entry.gst = cleaned_data["gst"]
-#                 doc_entry.invo_filepath = blob_path
-#                 doc_entry.updated_on = timestmp
-#                 doc_entry.document_type = document_type
-            
-#             # Update corp_docdata
-#             docdata_entry = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
-#             if not docdata_entry:
-#                 docdata_entry = model.corp_docdata(corp_doc_id=corp_doc_id)
-#                 db.add(docdata_entry)
-            
-#             docdata_entry.invoice_id = content.get("InvoiceID")
-#             docdata_entry.invoice_date = content.get("InvoiceDate")
-#             docdata_entry.vendor_name = content.get("VendorName")
-#             docdata_entry.vendoraddress = content.get("VendorAddress")
-#             docdata_entry.currency = content.get("Currency")
-#             docdata_entry.invoicetotal = cleaned_data["invoicetotal"]
-#             docdata_entry.subtotal = cleaned_data["subtotal"]
-#             docdata_entry.gst = cleaned_data["gst"]
-#             docdata_entry.pst = cleaned_data["pst"]
-#             docdata_entry.pst_sk = cleaned_data["pst_sk"]
-#             docdata_entry.pst_bc = cleaned_data["pst_bc"]
-#             docdata_entry.bottledeposit = cleaned_data["bottledeposit"]
-#             docdata_entry.shippingcharges = cleaned_data["shippingcharges"]
-#             docdata_entry.litterdeposit = cleaned_data["litterdeposit"]
-#             docdata_entry.ecology_fee = cleaned_data["ecology_fee"]
-#             docdata_entry.misc = cleaned_data["misc"]
-#             docdata_entry.created_on = timestmp
-
-#             db.commit()
-#         except Exception as er:
-#             db.rollback()
-#             try:
-#                 corp_trg_id = content.get("corp_trg_id", "")
-#                 if corp_trg_id:
-#                     corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
-#                     if corp_trigger:
-#                         corp_trigger.status = f"Error - {str(er)}"
-#                         corp_trigger.updated_at = datetime.utcnow()
-#                         db.commit()
-#             except Exception as e:
-#                 logger.error(f"Error updating corp_trigger_tab: {e}")
-#                 db.rollback()
-#             raise Exception(f"Error in postProInvoiceData: {er}")
-#         # Update corp_trigger_tab
-#         try:
-#             corp_trg_id = content.get("corp_trg_id", "")
-#             if corp_trg_id:
-#                 corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
-#                 if corp_trigger:
-#                     corp_trigger.status = "Processed"
-#                     corp_trigger.documentid = corp_doc_id
-#                     corp_trigger.updated_at = timestmp
-#                     db.commit()
-#         except Exception as e:
-#             logger.error(f"Error updating corp_trigger_tab: {traceback.format_exc()}")
-#             db.rollback()
-    
-#     except Exception as e:
-#         logger.error(f"Error in postProInvoiceData: {traceback.format_exc()}")
-#         db.rollback()

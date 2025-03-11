@@ -59,7 +59,7 @@ def payload_dbUpdate(doc_id,userID,db):
         "SHIPTO_ID": "8000",
         "VCHR_DIST_STG": list(df_corp_coding_tab['coding_details'])[0],
         "INVOICE_FILE_PATH": list(df_corp_document['invo_filepath'])[0],
-        "EMAIL_PATH": str(list(df_corp_document['email_filepath'])[0]),
+        "EMAIL_PATH": str(list(df_corp_document['email_filepath_pdf'])[0]),
         "VAT_APPLICABILITY": VAT_APPLICABILITY,
         "VCHR_SRC":"CRP"
     }
