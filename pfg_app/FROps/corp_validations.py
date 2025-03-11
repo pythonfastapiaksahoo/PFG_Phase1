@@ -256,19 +256,19 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     if "1" in str(skipConf):
                         zero_dlr_ck = 1
                         documentdesc = "Zero $ invoice approved by user"
-                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,substatus)
+                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                     else:    
                         zero_dlr_ck = 0
                     if "2" in str(skipConf):
                         amt_threshold_ck = 1
                         documentdesc = "Amount approved by user"
-                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,substatus)
+                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                     else:
                         amt_threshold_ck = 0
                     if "3" in str(skipConf):    
                         skip_approval_ck = 1
                         documentdesc = "Invoice manually approved by user"
-                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,substatus)
+                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                     else:
                         skip_approval_ck = 0
 
