@@ -25,7 +25,7 @@ def get_open_ai_token():
 
 def extract_invoice_details_using_openai(blob_data):
     try:
-        
+        logger.info(f"OpenAI Extracting invoice details started")
         prompt = """
                 The provided image contains invoice ID, vendor name, vendor address and other details. Extract the relevant information and format it as a list of JSON objects, adhering strictly to the structure provided below:
 
@@ -295,7 +295,7 @@ def extract_invoice_details_using_openai(blob_data):
 
 def extract_approver_details_using_openai(msg):
     try:
-        
+        logger.info(f"OpenAI Extracting approver details started")
         max_length = 80000
         content = msg.get_body(preferencelist=('html', 'plain')).get_content()
         
