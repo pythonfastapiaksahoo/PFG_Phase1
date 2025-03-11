@@ -142,9 +142,22 @@ def payload_dbUpdate(doc_id,userID,db):
             )
         db.commit()
         try:
-            processCorpInvoiceVoucher(doc_id, db)
+            responsedata = processCorpInvoiceVoucher(doc_id, db)
+            return_status["success"] = {"status": 1,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                f" PeopleSoft:{str(responsedata)}"
+                                                            ],
+                                                        }
+            
         except Exception as e:
             logger.error(f"Error in processing corp invoice voucher: {e}")
+            return_status["success"] = {"status": 1,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                f"Error: {e}"
+                                                            ],
+                                                        }
         return return_status
     else:
        
