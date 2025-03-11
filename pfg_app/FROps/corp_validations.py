@@ -135,6 +135,77 @@ def validate_corpdoc(doc_id,userID,db):
         
         
         else:
+            #date validation:
+            try:
+                corp_coding_data = (
+                    db.query(model.corp_coding_tab)
+                    .filter(model.corp_coding_tab.corp_doc_id == doc_id)
+                    .all()
+                )
+
+                # Query corp_docdata
+                corp_docdata = (
+                    db.query(model.corp_docdata)
+                    .filter(model.corp_docdata.corp_doc_id == doc_id)
+                    .all()
+                )
+
+                df_corp_coding = pd.DataFrame([row.__dict__ for row in corp_coding_data])
+
+                df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
+                # if (document_type is not None):
+                #     if document_type !="":
+                #         if str(document_type).lower() in ('invoice','credit'):
+                #             print(document_type)
+
+                # Get metadata for the document:
+                corp_metadata_qry = (
+                    db.query(model.corp_metadata)
+                    .filter(model.corp_metadata.vendorid == vendor_id)
+                    .all()
+                )
+                
+
+                df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                date_format = list(df_corp_metadata['dateformat'])[0]
+                
+                
+                # Check for mandatory fields:
+                mand_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
+                mand_gst = list(df_corp_docdata['gst'])[0]
+                mand_invDate = list(df_corp_docdata['invoice_date'])[0]
+                mand_subTotal = list(df_corp_docdata['subtotal'])[0]
+                mand_document_type = list(df_corp_docdata['document_type'])[0]
+                if check_date_format(mand_invDate) == False:
+                    req_date, date_status = date_cnv(mand_invDate, date_format)
+                    if date_status == 1:
+                        invDate_msg = "Valid Date Format"
+                        invDate_status = 1
+                        #update date to table:
+                        # Update corp_document_tab
+                        db.query(model.corp_document_tab).filter(
+                            model.corp_document_tab.corp_doc_id == doc_id
+                        ).update({model.corp_document_tab.invoice_date: req_date})
+
+                        # Update corp_docdata
+                        db.query(model.corp_docdata).filter(
+                            model.corp_docdata.corp_doc_id == doc_id
+                        ).update({model.corp_docdata.invoice_date: req_date})
+
+                        db.commit()
+                        
+                    else:
+                        invDate_msg = "Invalid Date Format"
+                        invDate_status = 0
+                else:
+                    invDate_msg = "Valid Date Format"
+                    invDate_status = 1
+            except Exception as e:
+                logger.error(f"Error in validate_corpdoc: {e}")
+                logger.info(traceback.format_exc())
+                invDate_msg = "Please review Date format"
+                invDate_status = 0  
+
             dupCk_document_data = (
             db.query(model.corp_document_tab)
             .filter(
@@ -208,77 +279,39 @@ def validate_corpdoc(doc_id,userID,db):
                     
 
 
-                    corp_coding_data = (
-                        db.query(model.corp_coding_tab)
-                        .filter(model.corp_coding_tab.corp_doc_id == doc_id)
-                        .all()
-                    )
-
-                    # Query corp_docdata
-                    corp_docdata = (
-                        db.query(model.corp_docdata)
-                        .filter(model.corp_docdata.corp_doc_id == doc_id)
-                        .all()
-                    )
-
-                    df_corp_coding = pd.DataFrame([row.__dict__ for row in corp_coding_data])
-
-                    df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
-                    # if (document_type is not None):
-                    #     if document_type !="":
-                    #         if str(document_type).lower() in ('invoice','credit'):
-                    #             print(document_type)
-
-                    # Get metadata for the document:
-                    corp_metadata_qry = (
-                        db.query(model.corp_metadata)
-                        .filter(model.corp_metadata.vendorid == vendor_id)
-                        .all()
-                    )
                     
-
-                    df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
-                    date_format = list(df_corp_metadata['dateformat'])[0]
-                    
-                    
-                    # Check for mandatory fields:
-                    mand_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
-                    mand_gst = list(df_corp_docdata['gst'])[0]
-                    mand_invDate = list(df_corp_docdata['invoice_date'])[0]
-                    mand_subTotal = list(df_corp_docdata['subtotal'])[0]
-                    mand_document_type = list(df_corp_docdata['document_type'])[0]
 
                     #date validation:
-                    try:
-                        if check_date_format(mand_invDate) == False:
-                            req_date, date_status = date_cnv(mand_invDate, date_format)
-                            if date_status == 1:
-                                invDate_msg = "Valid Date Format"
-                                invDate_status = 1
-                                #update date to table:
-                              # Update corp_document_tab
-                                db.query(model.corp_document_tab).filter(
-                                    model.corp_document_tab.corp_doc_id == doc_id
-                                ).update({model.corp_document_tab.invoice_date: req_date})
+                    # try:
+                    #     if check_date_format(mand_invDate) == False:
+                    #         req_date, date_status = date_cnv(mand_invDate, date_format)
+                    #         if date_status == 1:
+                    #             invDate_msg = "Valid Date Format"
+                    #             invDate_status = 1
+                    #             #update date to table:
+                    #           # Update corp_document_tab
+                    #             db.query(model.corp_document_tab).filter(
+                    #                 model.corp_document_tab.corp_doc_id == doc_id
+                    #             ).update({model.corp_document_tab.invoice_date: req_date})
 
-                                # Update corp_docdata
-                                db.query(model.corp_docdata).filter(
-                                    model.corp_docdata.corp_doc_id == doc_id
-                                ).update({model.corp_docdata.invoice_date: req_date})
+                    #             # Update corp_docdata
+                    #             db.query(model.corp_docdata).filter(
+                    #                 model.corp_docdata.corp_doc_id == doc_id
+                    #             ).update({model.corp_docdata.invoice_date: req_date})
 
-                                db.commit()
+                    #             db.commit()
                                
-                            else:
-                                invDate_msg = "Invalid Date Format"
-                                invDate_status = 0
-                        else:
-                            invDate_msg = "Valid Date Format"
-                            invDate_status = 1
-                    except Exception as e:
-                        logger.error(f"Error in validate_corpdoc: {e}")
-                        logger.info(traceback.format_exc())
-                        invDate_msg = "Please review Date format"
-                        invDate_status = 0      
+                    #         else:
+                    #             invDate_msg = "Invalid Date Format"
+                    #             invDate_status = 0
+                    #     else:
+                    #         invDate_msg = "Valid Date Format"
+                    #         invDate_status = 1
+                    # except Exception as e:
+                    #     logger.error(f"Error in validate_corpdoc: {e}")
+                    #     logger.info(traceback.format_exc())
+                    #     invDate_msg = "Please review Date format"
+                    #     invDate_status = 0      
 
                     
                     # total validation:

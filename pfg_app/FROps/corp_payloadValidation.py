@@ -70,20 +70,23 @@ def payload_dbUpdate(doc_id,userID,db):
                                 'status_msg':str(i)+" missing." }
         else:
             if i=='VCHR_DIST_STG':
-                set1 = {'SL', 'activity', 'amount', 'dept', 'project', 'store'}
-                # set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store',}
-                set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store','account'}
+                missing_cdFd = []
+                for cd in data['VCHR_DIST_STG']:
+                    set1 = set(data['VCHR_DIST_STG'][cd].keys())
+                    # set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store',}
+                    set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store','account'}
 
-                difference =  set2 - set1  # or set1.difference(set2)
-                if len(difference)>0:
-                    voucher_status['Coding validation failed'] = {'status':0,'StatusCode':0,
-                                'status_msg':str(difference)+" missing." }
-                    status_ck = status_ck * 0
-                    Failed_Code['Coding validation failed'] = {'status':0,'StatusCode':0,
-                                'status_msg':str(difference)+" missing." }
-                else:
-                    voucher_status[i] = {'status':1,'StatusCode':1,
-                                'status_msg':"success" }
+                    difference =  set2 - set1  # or set1.difference(set2)
+                    if len(difference)>0:
+                        missing_cdFd.append(difference)
+                        voucher_status['Coding validation failed'] = {'status':0,'StatusCode':0,
+                                    'status_msg':"Line"+str(cd)+": "+str(difference)+" missing." }
+                        status_ck = status_ck * 0
+                        Failed_Code['Coding validation failed'] = {'status':0,'StatusCode':0,
+                                    'status_msg':"Line"+str(cd)+": "+str(difference)+" missing." }
+                    else:
+                        voucher_status[i] = {'status':1,'StatusCode':1,
+                                    'status_msg':"success" }
                     
             else:
                 voucher_status[i] = {'status':1,'StatusCode':1,
@@ -106,7 +109,7 @@ def payload_dbUpdate(doc_id,userID,db):
 
     if status_ck == 1:
         return_status["success"] = {"status": 1,
-                                                "StatusCode":1,
+                                                "StatusCode":0,
                                                 "response": [
                                                                 f"Payload data ready for PeopleSoft"
                                                             ],
