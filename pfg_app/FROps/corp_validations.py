@@ -377,7 +377,7 @@ def validate_corpdoc(doc_id,userID,db):
                             lt.append(list(df_corp_coding['coding_details'])[0][ln_amt]['amount'])
                             line_sum = line_sum + list(df_corp_coding['coding_details'])[0][ln_amt]['amount']
                         if template_type.str.lower().isin(['template 3', 'template 1']).any():
-                            if abs(float(cod_invoTotal.values[0])- (line_sum + cod_gst) )> 0.09:
+                            if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                 docStatus = 4
                                 substatus = 136
                                 documentdesc = "Coding - Line total mismatch"
