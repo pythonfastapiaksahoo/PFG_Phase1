@@ -15,7 +15,12 @@ tz_region = tz.timezone("US/Pacific")
 
 def payload_dbUpdate(doc_id,userID,db):
     timeStmp =datetime.now(tz_region) 
-    return_status = {}
+    return_status = {"Payload validation"  :{"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                f"Payload data validation failed"
+                                                            ],
+                                                        }}
     # Aliases for tables
     CorpDocData = aliased(model.corp_docdata)
     CorpDocumentTab = aliased(model.corp_document_tab)
@@ -102,18 +107,25 @@ def payload_dbUpdate(doc_id,userID,db):
 
         )
         db.commit()
+        if status_ck == 1:
+            return_status["Payload validation"] = {"status": 1,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    f"Success"
+                                                                ],
+                                                            }
     except Exception as e:
         logger.info(f"Error in updating coding tab: {e}")
+        return_status["Payload validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    f"Error: {e}"
+                                                                ],
+                                                            }
         
         db.rollback()
 
     if status_ck == 1:
-        return_status["success"] = {"status": 1,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                f"Payload data ready for PeopleSoft"
-                                                            ],
-                                                        }
 
         # Check if a record exists
         existing_record = db.query(model.CorpVoucherData).filter_by(DOCUMENT_ID=doc_id).first()
@@ -143,7 +155,7 @@ def payload_dbUpdate(doc_id,userID,db):
         db.commit()
         try:
             responsedata = processCorpInvoiceVoucher(doc_id, db)
-            return_status["success"] = {"status": 1,
+            return_status["PeopleSoft response"] = {"status": 1,
                                                 "StatusCode":0,
                                                 "response": [
                                                                 f" PeopleSoft:{str(responsedata)}"
@@ -152,7 +164,7 @@ def payload_dbUpdate(doc_id,userID,db):
             
         except Exception as e:
             logger.error(f"Error in processing corp invoice voucher: {e}")
-            return_status["success"] = {"status": 1,
+            return_status["PeopleSoft Failure"] = {"status": 0,
                                                 "StatusCode":0,
                                                 "response": [
                                                                 f"Error: {e}"
