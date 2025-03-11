@@ -204,6 +204,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         else:
                             invDate_msg = "Invalid Date Format"
                             invDate_status = 0
+                            return_status["Invoice date validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Invalid Date Format."
+                                                                ],
+                                                            }
                     else:
                         return_status["Invoice date validation"] = {"status": 1,
                                                     "StatusCode":0,
@@ -218,6 +224,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     logger.info(traceback.format_exc())
                     invDate_msg = "Please review Date format"
                     invDate_status = 0  
+                    return_status["Invoice date validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Error:"+str(e)+"."
+                                                                ],
+                                                            }
 
                 dupCk_document_data = (
                 db.query(model.corp_document_tab)
@@ -291,68 +303,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         else:
                             skip_approval_ck = 0
 
-                        # Query corp_coding_tab:
-
-                        # docStatus = 4
-                        # docSubStatus = 11
-                        # db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                        #     ).update(
-                        #         {
-                        #             model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                        #             model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                        #             model.corp_document_tab.last_updated_by: userID,
-                        #             # model.corp_document_tab.vendor_id: vendorID,
-
-                        #         }
-                        #     )
-                        # db.commit()
-                        # return_status["Status overview"] = {"status": 0,
-                        #                 "StatusCode":0,
-                        #                     "response": [
-                        #                                 "Validation pending"
-                        #                             ],
-                        #                         }
                         
-                        # return return_status
-                        
-
-
-                        
-
-                        #date validation:
-                        # try:
-                        #     if check_date_format(mand_invDate) == False:
-                        #         req_date, date_status = date_cnv(mand_invDate, date_format)
-                        #         if date_status == 1:
-                        #             invDate_msg = "Valid Date Format"
-                        #             invDate_status = 1
-                        #             #update date to table:
-                        #           # Update corp_document_tab
-                        #             db.query(model.corp_document_tab).filter(
-                        #                 model.corp_document_tab.corp_doc_id == doc_id
-                        #             ).update({model.corp_document_tab.invoice_date: req_date})
-
-                        #             # Update corp_docdata
-                        #             db.query(model.corp_docdata).filter(
-                        #                 model.corp_docdata.corp_doc_id == doc_id
-                        #             ).update({model.corp_docdata.invoice_date: req_date})
-
-                        #             db.commit()
-                                
-                        #         else:
-                        #             invDate_msg = "Invalid Date Format"
-                        #             invDate_status = 0
-                        #     else:
-                        #         invDate_msg = "Valid Date Format"
-                        #         invDate_status = 1
-                        # except Exception as e:
-                        #     logger.error(f"Error in validate_corpdoc: {e}")
-                        #     logger.info(traceback.format_exc())
-                        #     invDate_msg = "Please review Date format"
-                        #     invDate_status = 0      
-
-                        
-                        # total validation:
                         try:
                             logger.info(f"Validating invoice total- invoicetotal:{mand_invoTotal}, subtotal:{mand_subTotal}, gst:{mand_gst}")
                             if float(mand_invoTotal) or  float(mand_invoTotal)==0:
@@ -384,11 +335,23 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             else:
                                 invoTotal_status = 0
                                 invoTotal_msg = "Invoice total mismatch"
+                                return_status["Invoice mandatory fields validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Invoice total not valid."
+                                                                ],
+                                                            }
                         except Exception as e:
                             logger.error(f"Error in validate_corpdoc: {e}")
                             logger.info(traceback.format_exc())
                             invoTotal_status = 0
                             invoTotal_msg = "Please review Total"
+                            return_status["Invoice mandatory fields validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Please review Total."
+                                                                ],
+                                                            }
 
                         # document type validation:
 
@@ -477,6 +440,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     ],
                                                                 }
                                 else:
+                                    return_status["Coding Line validation"] = {"status": 1,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Success."
+                                                                    ],
+                                                                }
                                     cod_lnMatch = 1
                             else:
                                 if abs(float(cod_invoTotal.values[0])- line_sum )> 0.09:
@@ -491,20 +460,27 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                 else:
                                     cod_lnMatch = 1
+                                    return_status["Coding Line validation"] = {"status": 1,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Success."
+                                                                    ],
+                                                                }
                                 # return return_status
                             # else:
                             #line total match success
-                            if (abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09) and cod_lnMatch==1:
-                                docStatus = 4
-                                substatus = 131
-                                documentdesc = "Invoice - Total mismatch with coding total"
-                                return_status["Coding validation"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                f"Invoice - Total mismatch with coding total"
-                                                            ],
-                                                        }
-                            else:
+                            if cod_lnMatch==1:
+                                if (abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09):
+                                    docStatus = 4
+                                    substatus = 131
+                                    documentdesc = "Invoice - Total mismatch with coding total"
+                                    return_status["Coding validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    f"Invoice - Total mismatch with coding total"
+                                                                ],
+                                                            }
+                                else:
                                     if (cod_gst > invoTotal_15).any():
                                         docStatus = 4
                                         substatus = 138
@@ -608,9 +584,22 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 ],
                                                             }
                                                 return return_status
+                                        else:
+                                            return_status["Approval needed"] = {"status": 0,
+                                                    "StatusCode":3,
+                                                    "response": [
+                                                                    f"Invoice - Not Approved."
+                                                                ],
+                                                            }
                     except Exception as e:
                         logger.error(f"Error in validate_corpdoc: {e}")
                         logger.info(traceback.format_exc())
+                        return_status["Validation failed"] = {"status": 0,
+                                                    "StatusCode":3,
+                                                    "response": [
+                                                                    f"Error: {e}"
+                                                                ],
+                                                            }
         try:
             doc_updates_status = {'invoicetotal':{'status':invoTotal_status,'status_message':invoTotal_msg},
                     'gst':{'status':gst_status,'status_message':gst_msg},
