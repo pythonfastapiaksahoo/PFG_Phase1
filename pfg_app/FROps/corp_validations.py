@@ -20,7 +20,7 @@ def check_date_format(date_str):
         return True
     except ValueError:
         return False
-def validate_corpdoc(doc_id,userID,db):
+def validate_corpdoc(doc_id,userID,skipConf,db):
     timeStmp = datetime.now(tz_region)
     return_status = {}
     invoTotal_status = 0
@@ -253,6 +253,22 @@ def validate_corpdoc(doc_id,userID,db):
                 try:
                 # invoice total validation:
                     logger.info(f"ready for validations-docID: {doc_id}")
+                    if "1" in str(skipConf):
+                        zero_dlr_ck = 1
+                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,substatus)
+                    else:    
+                        zero_dlr_ck = 0
+                    if "2" in str(skipConf):
+                        amt_threshold_ck = 1
+                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,substatus)
+                    else:
+                        amt_threshold_ck = 0
+                    if "3" in str(skipConf):    
+                        skip_approval_ck = 1
+                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,substatus)
+                    else:
+                        skip_approval_ck = 0
+
                     # Query corp_coding_tab:
 
                     # docStatus = 4
@@ -457,7 +473,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                         }
                                     # return return_status
                                 #total match pass:
-                                elif pdf_invoTotal == 0:
+                                elif pdf_invoTotal == 0 and zero_dlr_ck == 0:
                                     docStatus = 4
                                     substatus = 139
                                     documentdesc = "Zero $ invoice approval required"
@@ -470,7 +486,7 @@ def validate_corpdoc(doc_id,userID,db):
                                                         }
                                     # return return_status
                                     # print("Zero $ invoice approved")
-                                elif pdf_invoTotal > amt_threshold:
+                                elif (pdf_invoTotal > amt_threshold) and amt_threshold_ck == 0:
                                     # need approval
                                     docStatus = 4
                                     substatus = 140
@@ -497,6 +513,9 @@ def validate_corpdoc(doc_id,userID,db):
                                     elif pdf_invoTotal<= 1000000:
                                         if ("director" in approver_title.lower()):
                                             approvrd_ck = 1
+                                    elif skip_approval_ck == 1:
+                                        approvrd_ck = 1
+                                        
                                     if approvrd_ck==0:
                                         docStatus = 24
                                         substatus = 70
