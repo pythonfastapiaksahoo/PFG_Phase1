@@ -295,7 +295,7 @@ def extract_invoice_details_using_openai(blob_data):
 
 def extract_approver_details_using_openai(msg):
     try:
-        
+        logger.info(f"OpenAI Extracting approver details started")
         max_length = 80000
         content = msg.get_body(preferencelist=('html', 'plain')).get_content()
         
