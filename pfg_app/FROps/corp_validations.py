@@ -135,6 +135,38 @@ def validate_corpdoc(doc_id,userID,db):
         
         
         else:
+            #date validation:
+            try:
+                if check_date_format(mand_invDate) == False:
+                    req_date, date_status = date_cnv(mand_invDate, date_format)
+                    if date_status == 1:
+                        invDate_msg = "Valid Date Format"
+                        invDate_status = 1
+                        #update date to table:
+                        # Update corp_document_tab
+                        db.query(model.corp_document_tab).filter(
+                            model.corp_document_tab.corp_doc_id == doc_id
+                        ).update({model.corp_document_tab.invoice_date: req_date})
+
+                        # Update corp_docdata
+                        db.query(model.corp_docdata).filter(
+                            model.corp_docdata.corp_doc_id == doc_id
+                        ).update({model.corp_docdata.invoice_date: req_date})
+
+                        db.commit()
+                        
+                    else:
+                        invDate_msg = "Invalid Date Format"
+                        invDate_status = 0
+                else:
+                    invDate_msg = "Valid Date Format"
+                    invDate_status = 1
+            except Exception as e:
+                logger.error(f"Error in validate_corpdoc: {e}")
+                logger.info(traceback.format_exc())
+                invDate_msg = "Please review Date format"
+                invDate_status = 0  
+
             dupCk_document_data = (
             db.query(model.corp_document_tab)
             .filter(
@@ -249,36 +281,36 @@ def validate_corpdoc(doc_id,userID,db):
                     mand_document_type = list(df_corp_docdata['document_type'])[0]
 
                     #date validation:
-                    try:
-                        if check_date_format(mand_invDate) == False:
-                            req_date, date_status = date_cnv(mand_invDate, date_format)
-                            if date_status == 1:
-                                invDate_msg = "Valid Date Format"
-                                invDate_status = 1
-                                #update date to table:
-                              # Update corp_document_tab
-                                db.query(model.corp_document_tab).filter(
-                                    model.corp_document_tab.corp_doc_id == doc_id
-                                ).update({model.corp_document_tab.invoice_date: req_date})
+                    # try:
+                    #     if check_date_format(mand_invDate) == False:
+                    #         req_date, date_status = date_cnv(mand_invDate, date_format)
+                    #         if date_status == 1:
+                    #             invDate_msg = "Valid Date Format"
+                    #             invDate_status = 1
+                    #             #update date to table:
+                    #           # Update corp_document_tab
+                    #             db.query(model.corp_document_tab).filter(
+                    #                 model.corp_document_tab.corp_doc_id == doc_id
+                    #             ).update({model.corp_document_tab.invoice_date: req_date})
 
-                                # Update corp_docdata
-                                db.query(model.corp_docdata).filter(
-                                    model.corp_docdata.corp_doc_id == doc_id
-                                ).update({model.corp_docdata.invoice_date: req_date})
+                    #             # Update corp_docdata
+                    #             db.query(model.corp_docdata).filter(
+                    #                 model.corp_docdata.corp_doc_id == doc_id
+                    #             ).update({model.corp_docdata.invoice_date: req_date})
 
-                                db.commit()
+                    #             db.commit()
                                
-                            else:
-                                invDate_msg = "Invalid Date Format"
-                                invDate_status = 0
-                        else:
-                            invDate_msg = "Valid Date Format"
-                            invDate_status = 1
-                    except Exception as e:
-                        logger.error(f"Error in validate_corpdoc: {e}")
-                        logger.info(traceback.format_exc())
-                        invDate_msg = "Please review Date format"
-                        invDate_status = 0      
+                    #         else:
+                    #             invDate_msg = "Invalid Date Format"
+                    #             invDate_status = 0
+                    #     else:
+                    #         invDate_msg = "Valid Date Format"
+                    #         invDate_status = 1
+                    # except Exception as e:
+                    #     logger.error(f"Error in validate_corpdoc: {e}")
+                    #     logger.info(traceback.format_exc())
+                    #     invDate_msg = "Please review Date format"
+                    #     invDate_status = 0      
 
                     
                     # total validation:
