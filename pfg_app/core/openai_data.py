@@ -297,7 +297,7 @@ def extract_invoice_details_using_openai(blob_data):
 def extract_approver_details_using_openai(msg):
     try:
         logger.info(f"OpenAI Extracting approver details started")
-        max_length = 80000
+        max_length = 30000
         content = msg.get_body(preferencelist=('html', 'plain')).get_content()
         
         # Initialize email_content to an empty string or the full content by default
@@ -306,13 +306,16 @@ def extract_approver_details_using_openai(msg):
         if max_length and len(content) > max_length:
             email_content = content[:max_length]
         prompt = """
-            Email chain:
-            approved
+            From: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com> 
+            Sent: 21 November 2024 23:31
+            To: AP Auto Expense <ap_auto_expense@pattisonfoodgroup.com>
+            Subject: FW: Com Pro AR226369 $668.19
 
+            approved
 
             Kathy March
             Senior Finance Manager
-            E. Kathy_march@pattisonfoodgroup.com
+
 
             From: Ryan Doak (Office Services Representative) <ryan_doak@pattisonfoodgroup.com>
             Sent: Thursday, November 21, 2024 9:44 AM
@@ -342,8 +345,8 @@ def extract_approver_details_using_openai(msg):
 
 
             The provided email chain contains the details of the approver before the 'From' clause:   
-            - Approved or approved keyword  and just below that the Approval Details: Approver name, Designation, email
-
+            - Approved or approved keyword  and just below that the Approval Details: Approver name, Designation, email.
+            - Convert the Sent date to a YYYY-MM-DD format.
             Extract the relevant information from last email sent only and format it as a JSON objects, adhering strictly to the  sample structure provided below:
 
             {
