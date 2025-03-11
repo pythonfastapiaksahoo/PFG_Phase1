@@ -109,7 +109,7 @@ def payload_dbUpdate(doc_id,userID,db):
 
     if status_ck == 1:
         return_status["success"] = {"status": 1,
-                                                "StatusCode":1,
+                                                "StatusCode":0,
                                                 "response": [
                                                                 f"Payload data ready for PeopleSoft"
                                                             ],
