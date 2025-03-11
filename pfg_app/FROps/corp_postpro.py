@@ -63,6 +63,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     map_invo_att = {}
     userID = 1
     lt_corp_doc_id = []
+    
     try:
         template_type = op_1['template_type']
     except Exception:
@@ -613,7 +614,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     try:
         for doc_id_ in set(lt_corp_doc_id):
             if doc_id_ != "":
-                validate_corpdoc(doc_id_,userID,db)
+                skipConf = 0
+                validate_corpdoc(doc_id_,userID,skipConf, db)
     except Exception:
         logger.error(traceback.format_exc())
             
