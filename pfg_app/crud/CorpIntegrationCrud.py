@@ -1609,17 +1609,19 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
             new_value = update.NewValue
             if field == "vendor_name":
                 vendor_code = update.vendorCode
-                vendor_record = db.query(model.Vendor).filter_by(VendorName=new_value, VendorCode=vendor_code).first()
+                vendor_record = db.query(model.Vendor).filter_by(VendorCode=vendor_code).first()
                 # vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
-                if not vendor_record:
+                # vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
+                if vendor_record:
+                    # return {"message": "Vendor not exist in Vendor Master"}
+                    corp_doc_tab.vendor_code = vendor_record.VendorCode
+                    corp_doc_tab.vendor_id = vendor_record.idVendor
+                    any_updates = True
+                    vendor_updated = True
+                    consolidated_updates.append(f"vendor_code: {vendor_record.VendorCode}, vendor_id: {vendor_record.idVendor}")
+                    continue
+                else:
                     return {"message": "Vendor not exist in Vendor Master"}
-                
-                corp_doc_tab.vendor_code = vendor_record.VendorCode
-                corp_doc_tab.vendor_id = vendor_record.idVendor
-                any_updates = True
-                vendor_updated = True
-                consolidated_updates.append(f"vendor_code: {vendor_record.VendorCode}, vendor_id: {vendor_record.idVendor}")
-                continue
             # Ensure the field exists in the model
             if hasattr(corp_doc, field) and field != "vendor_name":
                 field_type = type(getattr(corp_doc, field))  # Get the current field's type
@@ -1906,8 +1908,8 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
-        invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH or ""
-        email_pdf_file_name = corpvoucherdata.EMAIL_PATH or ""
+        invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH.split("/")[-1] or ""
+        email_pdf_file_name = corpvoucherdata.EMAIL_PATH.split("/")[-1] or ""
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
         if not corpvoucherdata.INVOICE_DT or not date_pattern.match(corpvoucherdata.INVOICE_DT):
@@ -3355,3 +3357,67 @@ async def download_corp_paginate_doc_inv_list(
         return Response(status_code=500)
     finally:
         db.close()
+        
+
+async def reject_corp_invoice(userID, invoiceID, reason, db):
+    """Function to reject an invoice by updating its status and logging the change.
+
+    Parameters:
+    ----------
+    userID : int
+        The ID of the user rejecting the invoice.
+    invoiceID : int
+        The ID of the invoice being rejected.
+    reason : str
+        The reason provided for rejecting the invoice.
+    db : Session
+        The database session object used for interacting with the backend.
+
+    Returns:
+    -------
+    str or dict
+        Returns a success message or a dictionary with an error message
+        if the operation fails.
+    """
+    try:
+        # Mapping reasons to substatus IDs
+        reason_to_substatus = {
+            "No Active Models/Templates": 158,
+            "Vendor Not Onboarded": 157,
+            "Duplicate": 156,
+            "Missing Pages": 155,
+            "Invalid Scan": 154,
+            "Invoice Details Missing": 153,
+        }
+
+        # Determine the appropriate substatus ID, default to 159 if not found
+        substatus_id = reason_to_substatus.get(reason, 159)
+
+        # Fetching the first name of the user performing the rejection
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == userID).scalar()
+        )
+
+        # Updating the document's status to rejected
+        db.query(model.corp_document_tab).filter(model.corp_document_tab.corp_doc_id == invoiceID).update(
+            {
+                "documentstatus": 10,
+                "documentsubstatus": substatus_id,
+                "documentdescription": reason + "- rejected" + " by " + first_name,
+                "updated_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
+
+        # Commit the changes to the database
+        db.commit()
+
+        # Update document history with the new status change
+        corp_update_docHistory(invoiceID, userID, 10, reason, db, substatus_id)
+
+        return "success: document status changed to rejected!"
+
+    except Exception:
+        # Logging the error and rolling back any changes in case of failure
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while updating document status"}
