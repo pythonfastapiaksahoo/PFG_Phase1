@@ -1569,6 +1569,7 @@ class corp_document_tab(Base):
     sender = Column((String), nullable=True)
     voucher_id = Column((String), nullable=True)
     email_filepath_pdf = Column(String(1255), nullable=True)
+    documentdescription = Column(TEXT, nullable=True)
 
 class corp_coding_tab(Base):
     __tablename__ = "corp_coding_tab"
@@ -1597,6 +1598,7 @@ class corp_coding_tab(Base):
     approval_status = Column(String, nullable=True)
     document_type = Column(String, nullable=True)
     template_type = Column(String, nullable=True)
+    
 
 class corp_docdata(Base):
     __tablename__ = "corp_docdata"
