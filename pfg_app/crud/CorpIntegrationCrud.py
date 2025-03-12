@@ -1764,6 +1764,8 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
+        invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH or ""
+        email_pdf_file_name = corpvoucherdata.EMAIL_PATH or ""
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
         if not corpvoucherdata.INVOICE_DT or not date_pattern.match(corpvoucherdata.INVOICE_DT):
@@ -1801,8 +1803,6 @@ def processCorpInvoiceVoucher(doc_id, db):
                 "data": {"Http Response": "409", "Status": "Error retrieving file"},
             }
         # logger.info(f"base64eml for doc id: {doc_id}: {base64eml}")
-        corpvoucherdata.INVOICE_FILE_PATH = corpvoucherdata.INVOICE_FILE_PATH.decode("utf-8") if isinstance(corpvoucherdata.INVOICE_FILE_PATH, bytes) else corpvoucherdata.INVOICE_FILE_PATH
-        corpvoucherdata.EMAIL_PATH = corpvoucherdata.EMAIL_PATH.decode("utf-8") if isinstance(corpvoucherdata.EMAIL_PATH, bytes) else corpvoucherdata.EMAIL_PATH
         
         if isinstance(corpvoucherdata.VCHR_DIST_STG, str):
             vchr_dist_stg = json.loads(corpvoucherdata.VCHR_DIST_STG)
@@ -1881,7 +1881,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
-                                    "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH or "",
+                                    "FILE_NAME": invoice_file_name,
                                     "base64file": base64file
                                 },
                                 {
@@ -1891,7 +1891,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
-                                    "FILE_NAME": corpvoucherdata.EMAIL_PATH or "",
+                                    "FILE_NAME": email_pdf_file_name,
                                     "base64file": base64eml
                                 }
                             ],
@@ -1907,7 +1907,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             logger.error(f"JSON serialization error: {e}")
             return {"message": "Serialization Error", "data": str(e)}
         
-        logger.info(f"Final voucher_payload: {json.dumps(voucher_payload, indent=4)}")
+        logger.info(f"Final voucher_payload for doc_id: {doc_id}: {json.dumps(voucher_payload, indent=4)}")
         
         # logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
         # Make a POST request to the external API endpoint
