@@ -14,10 +14,11 @@ from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, sta
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
+from pfg_app.azuread.schemas import AzureUser
 import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.auth import AuthHandler
-from pfg_app.azuread.auth import get_admin_user
+from pfg_app.azuread.auth import get_admin_user, get_user_dependency
 from pfg_app.core.utils import get_credential
 from pfg_app.crud import FRCrud as crud
 from pfg_app.FROps.model_validate import model_validate_final
@@ -32,7 +33,8 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/fr",
     tags=["Form Recogniser"],
-    dependencies=[Depends(get_admin_user)],
+    dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"]))],
+    # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
 
@@ -41,7 +43,12 @@ temp_dir_obj = None
 
 # Checked - used in the frontend
 @router.get("/getfrconfig/{userID}", status_code=status.HTTP_200_OK)
-async def get_fr_config(userID: int, db: Session = Depends(get_db)):
+async def get_fr_config(
+    userID: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    
+    ):
     """<b> API route to get Form Recogniser Configuration. It contains
     following parameters.</b>
 
@@ -50,31 +57,48 @@ async def get_fr_config(userID: int, db: Session = Depends(get_db)):
     that is of Session Object Type.
     - return: It returns the result status.
     """
-    return await crud.getFRConfig(userID, db)
+    return await crud.getFRConfig(user.idUser, userID, db)
 
 
 # Checked - used in the frontend
 @router.get("/getfrmetadata/{documentId}")
-async def get_fr_data(documentId: int, db: Session = Depends(get_db)):
-    return await crud.getMetaData(documentId, db)
+async def get_fr_data(
+    documentId: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    ):
+    return await crud.getMetaData(user.idUser, documentId, db)
 
 
 # Checked - used in the frontend
 @router.get("/getTrainTestResults/{modelId}")
-async def get_test_data(modelId: int, db: Session = Depends(get_db)):
-    return await crud.getTrainTestRes(modelId, db)
+async def get_test_data(
+    modelId: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    ):
+    return await crud.getTrainTestRes(user.idUser, modelId, db)
 
 
 # Checked - used in the frontend
 @router.get("/getActualAccuracy/{type}")
-async def getAccuracy(type: str, name: str, db: Session = Depends(get_db)):
-    return await crud.getActualAccuracy(type, name, db)
+async def getAccuracy(
+    type: str,
+    name: str,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    ):
+    return await crud.getActualAccuracy(user.idUser, type, name, db)
 
 
 @router.get("/getAccuracyByEntity/{type}")
-async def getAccuracyByEntity(type: str, db: Session = Depends(get_db)):
+async def getAccuracyByEntity(
+    type: str,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    ):
     # Fetch the data from the database using the CRUD function
-    data = await crud.getActualAccuracyByEntity(type, db)
+    data = await crud.getActualAccuracyByEntity(user.idUser, type, db)
 
     # Check if the data is a Response object (indicating an error)
     if isinstance(data, Response):
@@ -109,15 +133,17 @@ async def getAccuracyByEntity(type: str, db: Session = Depends(get_db)):
 # Checked - used in the frontend
 @router.get("/entityTaggedInfo")
 async def get_entity_levelTaggedInfo(
-    tagtype: Optional[str] = None, db: Session = Depends(get_db)
+    tagtype: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
 ):
     for f in os.listdir():
         if os.path.isfile(f) and f.endswith(".xlsx"):
             os.unlink(f)
     if tagtype == "vendor":
-        filename = await crud.get_entity_level_taggedInfo(db)
+        filename = await crud.get_entity_level_taggedInfo(user.idUser, db)
     else:
-        filename = await crud.get_entity_level_taggedInfo(db)
+        filename = await crud.get_entity_level_taggedInfo(user.idUser, db)
     return FileResponse(
         path=filename, filename=filename, media_type="application/vnd.ms-excel"
     )
@@ -126,7 +152,10 @@ async def get_entity_levelTaggedInfo(
 # Checked - used in the frontend
 @router.put("/update_metadata/{documentId}")
 async def update_metadata(
-    frmetadata:dict, documentId: int, db: Session = Depends(get_db)
+    frmetadata:dict,
+    documentId: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
 ):
     try:
         blb_fldr = frmetadata["FolderPath"]
@@ -292,7 +321,7 @@ async def update_metadata(
             containername, blob=blb_fldr + "/fields.json"
         )
         blobclient.upload_blob(data=data, overwrite=True)
-        return await crud.updateMetadata(documentId, frmetadata, db)
+        return await crud.updateMetadata(user.idUser, documentId, frmetadata, db)
     except BaseException:
         print(traceback.format_exc())
         return {"result": "Failed", "records": {}}
@@ -349,7 +378,11 @@ def reupload_blob(uploadParams: schema.FrReUpload):
 
 # Checked - used in the frontend
 @router.post("/model_validate")
-def model_validate(validateParas: schema.FrValidate, db: Session = Depends(get_db)):
+def model_validate(
+    validateParas: schema.FrValidate,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    ):
 
     mandatoryheadertags = (
         db.query(model.FRMetaData.mandatoryheadertags)
@@ -368,6 +401,7 @@ def model_validate(validateParas: schema.FrValidate, db: Session = Depends(get_d
     fr_modelid = validateParas.fr_modelid
     model_validate_final_status, model_validate_final_msg, model_id, file_path, data = (
         model_validate_final(
+            user.idUser,
             model_path,
             fr_modelid,
             validateParas.req_fields_accuracy,
@@ -444,7 +478,8 @@ async def create_invoice_model(
     userID: int,
     invoiceModel: schema.InvoiceModel,
     db: Session = Depends(get_db),
-    user=Depends(get_admin_user),
+    # user=Depends(get_admin_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
 ):
     """<b> API route to create a new Invoice model with associated tag
     definitions. It contains following parameters.</b>
@@ -487,7 +522,8 @@ async def update_invoicemodel(
     modelID: int,
     invoiceModel: schema.InvoiceModel,
     db: Session = Depends(get_db),
-    user=Depends(get_admin_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    # user=Depends(get_admin_user),
 ):
     """<b> API route to update invoice status. It contains following
     parameters.</b>
@@ -517,7 +553,11 @@ async def update_invoicemodel(
 
 # Checked - used in the frontend
 @router.get("/getmodellist/{vendorID}")
-async def get_modellist(vendorID: int, db: Session = Depends(get_db)):
+async def get_modellist(
+    vendorID: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    ):
     """<b> API route to get Form Recogniser Configuration. It contains
     following parameters.</b>
 
@@ -526,7 +566,7 @@ async def get_modellist(vendorID: int, db: Session = Depends(get_db)):
     that is of Session Object Type.
     - return: It returns the result status.
     """
-    return crud.getmodellist(vendorID, db)
+    return crud.getmodellist(user.idUser, vendorID, db)
 
 
 # Checked - used in the frontend

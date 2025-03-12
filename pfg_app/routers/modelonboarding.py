@@ -12,10 +12,11 @@ from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, sta
 from pdf2image import convert_from_bytes
 from sqlalchemy.orm import Session
 
+from pfg_app.azuread.schemas import AzureUser
 import pfg_app.model as model
 from pfg_app import settings
 from pfg_app.auth import AuthHandler
-from pfg_app.azuread.auth import get_admin_user
+from pfg_app.azuread.auth import get_admin_user, get_user_dependency
 from pfg_app.core import azure_fr as core_fr
 from pfg_app.core.utils import convert_dates, get_credential  # , get_container_sas
 from pfg_app.crud import ModelOnBoardCrud as crud
@@ -30,7 +31,8 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/ModelOnBoard",
     tags=["Model On-Boarding"],
-    dependencies=[Depends(get_admin_user)],
+    # dependencies=[Depends(get_admin_user)],
+    dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"]))],
     responses={404: {"description": "Not found"}},
 )
 
@@ -42,7 +44,11 @@ router = APIRouter(
     response_model=schema.Response,
 )
 async def onboard_invoice_model(
-    request: Request, userId: int, modelID: int, db: Session = Depends(get_db)
+    request: Request,
+    userId: int,
+    modelID: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
 ):
     """<b>API route to onboard a new invoice template Form Recognizer
     output.</b>
@@ -59,7 +65,7 @@ async def onboard_invoice_model(
     3. Add associated line item fields into line item definition table
     """
     invoiceTemplate = await request.json()
-    return crud.ParseInvoiceData(modelID, userId, invoiceTemplate, db)
+    return crud.ParseInvoiceData(user.idUser, modelID, userId, invoiceTemplate, db)
 
 
 # Checked - used in the frontend

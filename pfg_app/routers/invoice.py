@@ -35,6 +35,7 @@ async def read_paginate_doc_inv_list_with_ln_item(
     sort_order: Optional[str] = None,  # New parameter for sorting order
     db: Session = Depends(get_db),
     user: AzureUser = Depends(get_user),
+    
 ):
     """API route to retrieve a paginated list of invoice documents with line
     item details as optional when filters is applied  .
@@ -114,7 +115,9 @@ async def read_invoice_data_item(
 # Checked - used in the frontend
 @router.get("/readInvoiceFile/idInvoice/{inv_id}")
 async def read_invoice_file_item(
-    inv_id: int, db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
+    inv_id: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user)
 ):
     """API route to retrieve invoice file data based on the invoice ID.
 
@@ -203,7 +206,8 @@ async def update_column_pos_item(
 # Checked - used in the frontend
 @router.get("/readColumnPos")
 async def read_column_pos_item(
-    db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user)
 ):
     """API route to read the column position for a user.
 
@@ -227,7 +231,9 @@ async def read_column_pos_item(
 # Checked - used in the frontend
 @router.get("/get_stamp_data_new/{inv_id}")
 async def new_get_stamp_data_fields(
-    inv_id: int, db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
+    inv_id: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user)
 ):
     """API route to retrieve stamp data fields based on the document ID.
 
@@ -609,7 +615,9 @@ async def update_identifier_to_stamp_data(
 # Checked - used in the frontend
 @router.get("/getVoucherDataByDocumentID/{inv_id}", response_model=List[dict])
 async def get_voucher_data_by_doc_id(
-    inv_id: int, db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
+    inv_id: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user)
 ):
     """API route to retrieve stamp data fields based on the document ID.
 

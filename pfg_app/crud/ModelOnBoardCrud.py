@@ -28,7 +28,7 @@ def getOcrParameters(customerID, db):
         return Response(status_code=500)
 
 
-def ParseInvoiceData(modelID, userId, invoiceData, db):
+def ParseInvoiceData(u_id, modelID, userId, invoiceData, db):
     """This function parse the data from recogniser into db format.
 
     - invoiceData: Form recogniser output JSON data
