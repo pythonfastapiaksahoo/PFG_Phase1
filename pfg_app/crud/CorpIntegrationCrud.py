@@ -1939,10 +1939,10 @@ def processCorpInvoiceVoucher(doc_id, db):
             return {"message": "Success", "data": response_data} if response_data else {"message": "Success, but response JSON is empty.", "data": response_data}
             
         except Exception:
-            logger.info(f"ConnectionError occurred: {traceback.format_exc()}")
+            logger.info(f"ConnectionError occurred for doc_id: {doc_id}: {traceback.format_exc()}")
             responsedata = {
             "message": "ConnectionResetError",
-            "data": {"Http Response": "104", "Status": "Connection reset by peer"},
+            "data": {"Http Response": "104", "Error Message": {traceback.format_exc()}},
             }
 
     except Exception:
