@@ -155,6 +155,7 @@ def payload_dbUpdate(doc_id,userID,db):
         db.commit()
         try:
             responsedata = processCorpInvoiceVoucher(doc_id, db)
+            
             return_status["PeopleSoft response"] = {"status": 1,
                                                 "StatusCode":0,
                                                 "response": [

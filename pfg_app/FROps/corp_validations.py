@@ -52,10 +52,21 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
         invoice_id = list(df_corp_document['invoice_id'])[0]
         vendor_code = list(df_corp_document['vendor_code'])[0]
         logger.info(f"doc_id: {doc_id}, vendor_id: {vendor_id}, document_type: {document_type}, invoice_id: {invoice_id}")
+        
+            
         if docStatus in (26,25):
 
             if vendor_id is not None:
-        
+                if vendor_code is not None:
+                    if vendor_id == 0:
+                        try: 
+                            vendor_id_update = int(list(df_corp_metadata['vendorid'])[0])
+                            if type(vendor_id_update) == int:
+                                vendor_id = vendor_id_update
+                        except Exception as e:
+                            logger.info(f"Error in updating vendorid: {e}")
+
+                        
                 docStatus = 4
                 docSubStatus = 11
                 db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
@@ -65,6 +76,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
                             model.corp_document_tab.last_updated_by: userID,
                             model.corp_document_tab.updated_on: timeStmp,
+                            model.corp_document_tab.vendor_id: vendor_id,
 
                         }
                     )
@@ -92,7 +104,54 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             return return_status
             
         if docStatus in (32,2,4,24):
-            if vendor_id is None:
+            vdr_id_map = 0
+            if vendor_id in [None,0]:
+                
+                # if vendor_id is not None:
+                if vendor_code is not None:
+                    if vendor_id == 0:
+                        try: 
+                            corp_VrdID_qry = (
+                                        db.query(model.corp_metadata)
+                                        .filter(model.corp_metadata.vendorcode == vendor_code)
+                                        .all()
+                                    )
+                            df_corp_VrdID = pd.DataFrame([row.__dict__ for row in corp_VrdID_qry])
+                            vendor_id_update = int(list(df_corp_VrdID['vendorid'])[0])
+                            if type(vendor_id_update) == int:
+                                vendor_id = vendor_id_update
+                                corp_metadata_qry = (
+                                            db.query(model.corp_metadata)
+                                            .filter(model.corp_metadata.vendorid == vendor_id)
+                                            .all()
+                                        )
+                                df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                                    ).update(
+                                        {
+                                            
+                                            model.corp_document_tab.vendor_id: vendor_id,
+
+                                        }
+                                    )
+                                db.commit()
+                                vdr_id_map = 1
+                                docStatus = 4
+                                docSubStatus = 11
+                            else:
+                                return_status["Vendor mapping required"] = {"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                "Vendor mapping required"
+                                                            ],
+                                                    }
+                                logger.info(f"return corp validations(ln 70): {return_status}")
+                                return return_status
+                        except Exception as e:
+                            logger.info(f"Error in updating vendorid: {e}")
+
+                   
+            if vdr_id_map==0:
                 docStatus = 26
                 docSubStatus = 107
                 db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
@@ -162,15 +221,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     #             print(document_type)
 
                     # Get metadata for the document:
-                    corp_metadata_qry = (
-                        db.query(model.corp_metadata)
-                        .filter(model.corp_metadata.vendorid == vendor_id)
-                        .all()
-                    )
                     
 
-                    df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
-                    date_format = list(df_corp_metadata['dateformat'])[0]
+                    
                     
                     
                     # Check for mandatory fields:
@@ -179,48 +232,70 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     mand_invDate = list(df_corp_docdata['invoice_date'])[0]
                     mand_subTotal = list(df_corp_docdata['subtotal'])[0]
                     mand_document_type = list(df_corp_docdata['document_type'])[0]
-                    if check_date_format(mand_invDate) == False:
-                        req_date, date_status = date_cnv(mand_invDate, date_format)
-                        if date_status == 1:
+                    try:
+                        corp_metadata_qry = (
+                                    db.query(model.corp_metadata)
+                                    .filter(model.corp_metadata.vendorid == vendor_id)
+                                    .all()
+                                )
+                        df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                                
+                    except Exception as e:
+                        logger.info(f"Error in getting metadata: {e}")
+                    
+                    if not df_corp_metadata.empty:
+                        date_format = list(df_corp_metadata['dateformat'])[0]
+                        if check_date_format(mand_invDate) == False:
+                            req_date, date_status = date_cnv(mand_invDate, date_format)
+                            if date_status == 1:
+                                invDate_msg = "Valid Date Format"
+                                invDate_status = 1
+                                #update date to table:
+                                # Update corp_document_tab
+                                db.query(model.corp_document_tab).filter(
+                                    model.corp_document_tab.corp_doc_id == doc_id
+                                ).update({model.corp_document_tab.invoice_date: req_date})
+
+                                # Update corp_docdata
+                                db.query(model.corp_docdata).filter(
+                                    model.corp_docdata.corp_doc_id == doc_id
+                                ).update({model.corp_docdata.invoice_date: req_date})
+
+                                db.commit()
+                                return_status["Invoice date validation"] = {"status": 1,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Success."
+                                                                    ],
+                                                                }
+                                
+                            else:
+                                invDate_msg = "Invalid Date Format"
+                                invDate_status = 0
+                                return_status["Invoice date validation"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Invalid Date Format."
+                                                                    ],
+                                                                }
+                        else:
+                            return_status["Invoice date validation"] = {"status": 1,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Success."
+                                                                    ],
+                                                                }
                             invDate_msg = "Valid Date Format"
                             invDate_status = 1
-                            #update date to table:
-                            # Update corp_document_tab
-                            db.query(model.corp_document_tab).filter(
-                                model.corp_document_tab.corp_doc_id == doc_id
-                            ).update({model.corp_document_tab.invoice_date: req_date})
-
-                            # Update corp_docdata
-                            db.query(model.corp_docdata).filter(
-                                model.corp_docdata.corp_doc_id == doc_id
-                            ).update({model.corp_docdata.invoice_date: req_date})
-
-                            db.commit()
-                            return_status["Invoice date validation"] = {"status": 1,
-                                                    "StatusCode":0,
-                                                    "response": [
-                                                                    "Success."
-                                                                ],
-                                                            }
-                            
-                        else:
-                            invDate_msg = "Invalid Date Format"
-                            invDate_status = 0
-                            return_status["Invoice date validation"] = {"status": 0,
-                                                    "StatusCode":0,
-                                                    "response": [
-                                                                    "Invalid Date Format."
-                                                                ],
-                                                            }
                     else:
-                        return_status["Invoice date validation"] = {"status": 1,
-                                                    "StatusCode":0,
-                                                    "response": [
-                                                                    "Success."
-                                                                ],
-                                                            }
+                        return_status["Invoice date validation"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Metadata is not valid."
+                                                                    ],
+                                                                }
                         invDate_msg = "Valid Date Format"
-                        invDate_status = 1
+                        invDate_status = 0
                 except Exception as e:
                     logger.error(f"Error in validate_corpdoc: {e}")
                     logger.info(traceback.format_exc())
