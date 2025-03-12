@@ -3403,7 +3403,7 @@ async def reject_corp_invoice(userID, invoiceID, reason, db):
             {
                 "documentstatus": 10,
                 "documentsubstatus": substatus_id,
-                "documentDescription": reason + " by " + first_name,
+                "documentdescription": reason + "- rejected" + " by " + first_name,
                 "updated_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
             }
         )
