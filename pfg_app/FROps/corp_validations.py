@@ -1,3 +1,4 @@
+import re
 from pfg_app import model
 from pfg_app.FROps.corp_payloadValidation import payload_dbUpdate
 from pfg_app.FROps.customCall import date_cnv
@@ -35,6 +36,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     document_type_msg = ""
     approvrd_ck = 0
     cod_lnMatch = 0
+    currency_ck = 0
+    currency_ck_msg = ""
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -106,7 +109,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
         if docStatus in (32,2,4,24):
             vdr_id_map = 0
             if vendor_id in [None,0]:
-                
+                   
                 # if vendor_id is not None:
                 if vendor_code is not None:
                     if vendor_id == 0:
@@ -151,30 +154,30 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             logger.info(f"Error in updating vendorid: {e}")
 
                    
-            if vdr_id_map==0:
-                docStatus = 26
-                docSubStatus = 107
-                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                    ).update(
-                        {
-                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                            model.corp_document_tab.last_updated_by: userID,
-                            model.corp_document_tab.updated_on: timeStmp,
+                if vdr_id_map==0:
+                    docStatus = 26
+                    docSubStatus = 107
+                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                        ).update(
+                            {
+                                model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                                model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                                model.corp_document_tab.last_updated_by: userID,
+                                model.corp_document_tab.updated_on: timeStmp,
 
-                        }
-                    )
-                db.commit()
-                return_status["Status overview"] = {"status": 0,
-                                            "StatusCode":0,
-                                            "response": [
-                                                            "Vendor Mapping required"
-                                                        ],
-                                                    }
-                logger.info(f"return corp validations(ln 70): {return_status}")
-                return return_status
+                            }
+                        )
+                    db.commit()
+                    return_status["Status overview"] = {"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                "Vendor Mapping required"
+                                                            ],
+                                                        }
+                    logger.info(f"return corp validations(ln 70): {return_status}")
+                    return return_status
 
-            # duplicate check:
+             
             if docSubStatus == 134:
                     print("Coding - No Coding Lines Found")
                     return_status["Status overview"] = {"status": 0,
@@ -232,6 +235,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     mand_invDate = list(df_corp_docdata['invoice_date'])[0]
                     mand_subTotal = list(df_corp_docdata['subtotal'])[0]
                     mand_document_type = list(df_corp_docdata['document_type'])[0]
+                    mand_currency = list(df_corp_docdata['currency'])[0]
                     try:
                         corp_metadata_qry = (
                                     db.query(model.corp_metadata)
@@ -244,6 +248,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         logger.info(f"Error in getting metadata: {e}")
                     
                     if not df_corp_metadata.empty:
+                        metadata_currency = list(df_corp_metadata['currency'])[0]
                         date_format = list(df_corp_metadata['dateformat'])[0]
                         if check_date_format(mand_invDate) == False:
                             req_date, date_status = date_cnv(mand_invDate, date_format)
@@ -307,6 +312,52 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Error:"+str(e)+"."
                                                                 ],
                                                             }
+                    
+                try:
+                    cl_invoID =  re.sub(r'[^a-zA-Z0-9\s]', '', invoice_id)
+                    if len(cl_invoID)==0:
+                        return_status["Invoice mandatory fields validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Invoice ID not valid."
+                                                                ],
+                                                            }
+                        return return_status
+                    else:
+                        #clean invoice ID
+                        try:
+                            if cl_invoID != invoice_id:
+                                db.query(model.corp_document_tab).filter(
+                                    model.corp_document_tab.corp_doc_id == doc_id
+                                ).update(
+                                    {
+                                        model.corp_document_tab.invoice_id: cl_invoID,
+                                        model.corp_document_tab.last_updated_by: userID,
+                                        model.corp_document_tab.updated_on: timeStmp,
+                                    }
+                                )
+
+                                db.query(model.corp_docdata).filter(
+                                    model.corp_docdata.corp_doc_id == doc_id
+                                ).update(
+                                    {model.corp_docdata.invoice_id: cl_invoID}
+                                )
+
+                                db.query(model.corp_coding_tab).filter(
+                                    model.corp_coding_tab.corp_doc_id == doc_id
+                                ).update(
+                                    {model.corp_coding_tab.invoice_id: cl_invoID}
+                                )
+
+                                # Commit once after all updates
+                                db.commit()
+                        except Exception as e:
+                            logger.info(f"Error in cleaning invoice ID: {e}")
+                            logger.info(traceback.format_exc())
+
+                except Exception as e:
+                            logger.info(f"Error in cleaning invoice ID: {e}")
+                            logger.info(traceback.format_exc())
 
                 dupCk_document_data = (
                 db.query(model.corp_document_tab)
@@ -380,8 +431,34 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         else:
                             skip_approval_ck = 0
 
+                        #currency validation: 
+
+                        try:
+                            if mand_currency != metadata_currency:
+                                return_status["Currency validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    f"Currency validation failed: invoice currency {mand_currency} does not match metadata currency {metadata_currency}"
+                                                                ],
+                                                            }
+                                currency_ck_msg = f"Currency validation failed: invoice currency {mand_currency} does not match metadata currency {metadata_currency}"
+                            else:
+                                currency_ck = 1
+                                return_status["Currency validation"] = {"status": 1,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    f"Success."
+                                                                ],
+                                                            }
+                        except Exception as e:
+                            logger.info(f"Error in currency validation: {e}")
+                            logger.info(traceback.format_exc())
+                            currency_ck = 0
+
+                            
                         
                         try:
+
                             logger.info(f"Validating invoice total- invoicetotal:{mand_invoTotal}, subtotal:{mand_subTotal}, gst:{mand_gst}")
                             if float(mand_invoTotal) or  float(mand_invoTotal)==0:
                                 subtotal = float(mand_invoTotal)- float(mand_gst)
@@ -482,6 +559,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Document identifier mismatch, Please review."
                                                                 ],
                                                             }
+                        elif currency_ck==0:
+                            docStatus = 4
+                            substatus = 100
                         
                         else:
                             return_status["Document identifier validation"] = {"status": 1,
@@ -682,7 +762,10 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     'gst':{'status':gst_status,'status_message':gst_msg},
                     'invoice_date':{'status':invDate_status,'status_message':invDate_msg},
                     'subtotal':{'status':subTotal_status,'status_message':subTotal_msg},
-                    'document_type':{'status':document_type_status,'status_message':document_type_msg}}
+                    'document_type':{'status':document_type_status,'status_message':document_type_msg},
+                    'currency':{'status':currency_ck,'status_message':currency_ck_msg}
+                    }
+            
             logger.info(f"doc_id: {doc_id}, doc_updates_status: {doc_updates_status}")
             db.query(model.corp_docdata).filter( model.corp_docdata.corp_doc_id == doc_id
             ).update(
