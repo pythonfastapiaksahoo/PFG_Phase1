@@ -1609,17 +1609,19 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
             new_value = update.NewValue
             if field == "vendor_name":
                 vendor_code = update.vendorCode
-                vendor_record = db.query(model.Vendor).filter_by(VendorName=new_value, VendorCode=vendor_code).first()
+                vendor_record = db.query(model.Vendor).filter_by(VendorCode=vendor_code).first()
                 # vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
-                if not vendor_record:
+                # vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
+                if vendor_record:
+                    # return {"message": "Vendor not exist in Vendor Master"}
+                    corp_doc_tab.vendor_code = vendor_record.VendorCode
+                    corp_doc_tab.vendor_id = vendor_record.idVendor
+                    any_updates = True
+                    vendor_updated = True
+                    consolidated_updates.append(f"vendor_code: {vendor_record.VendorCode}, vendor_id: {vendor_record.idVendor}")
+                    continue
+                else:
                     return {"message": "Vendor not exist in Vendor Master"}
-                
-                corp_doc_tab.vendor_code = vendor_record.VendorCode
-                corp_doc_tab.vendor_id = vendor_record.idVendor
-                any_updates = True
-                vendor_updated = True
-                consolidated_updates.append(f"vendor_code: {vendor_record.VendorCode}, vendor_id: {vendor_record.idVendor}")
-                continue
             # Ensure the field exists in the model
             if hasattr(corp_doc, field) and field != "vendor_name":
                 field_type = type(getattr(corp_doc, field))  # Get the current field's type
@@ -1906,8 +1908,8 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
-        invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH or ""
-        email_pdf_file_name = corpvoucherdata.EMAIL_PATH or ""
+        invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH.split("/")[-1] or ""
+        email_pdf_file_name = corpvoucherdata.EMAIL_PATH.split("/")[-1] or ""
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
         if not corpvoucherdata.INVOICE_DT or not date_pattern.match(corpvoucherdata.INVOICE_DT):
