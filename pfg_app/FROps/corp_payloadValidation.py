@@ -90,11 +90,11 @@ def payload_dbUpdate(doc_id,userID,db):
                         Failed_Code['Coding validation failed'] = {'status':0,'StatusCode':0,
                                     'status_msg':"Line"+str(cd)+": "+str(difference)+" missing." }
                     else:
-                        voucher_status[i] = {'status':1,'StatusCode':1,
+                        voucher_status[i] = {'status':1,'StatusCode':0,
                                     'status_msg':"success" }
                     
             else:
-                voucher_status[i] = {'status':1,'StatusCode':1,
+                voucher_status[i] = {'status':1,'StatusCode':0,
                                 'status_msg':"success" }
     try:
         db.query(model.corp_coding_tab).filter( model.corp_coding_tab.corp_doc_id == doc_id
