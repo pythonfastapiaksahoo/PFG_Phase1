@@ -180,7 +180,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 
                     
                     all_invo_coding[invoice_details['invoice#'][rw]] = coding_tab_data
-        elif template_type == 'Template 1' or template_type == 'Template 1':
+        elif template_type == 'Template 1' or template_type == 'Template 3':
             # template 1 & 3
             temp_found = 1
             missing_val = []
