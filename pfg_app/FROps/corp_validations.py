@@ -162,71 +162,48 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 
                                                 model.corp_document_tab.vendor_id: vendor_id,
 
-                                        }
-                                    )
-                                db.commit()
-                                vdr_id_map = 1
-                                docStatus = 4
-                                docSubStatus = 11
-                            else:
-                                return_status["Vendor mapping required"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                "Vendor mapping required"
-                                                            ],
-                                                    }
-                                logger.info(f"return corp validations(ln 70): {return_status}")
-                                return return_status
-                        except Exception as e:
-                            logger.info(f"Error in updating vendorid: {e}")
-
-                   
-                if vdr_id_map==0:
-                    docStatus = 26
-                    docSubStatus = 107
-                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                        ).update(
-                            {
-                                model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                                model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                                model.corp_document_tab.last_updated_by: userID,
-                                model.corp_document_tab.updated_on: timeStmp,
-
-                            }
-                        )
-                    db.commit()
-                    return_status["Status overview"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                "Vendor Mapping required"
-                                                            ],
+                                            }
+                                        )
+                                    db.commit()
+                                    vdr_id_map = 1
+                                    docStatus = 4
+                                    docSubStatus = 11
+                                else:
+                                    return_status["Vendor mapping required"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Vendor mapping required"
+                                                                ],
                                                         }
-                    logger.info(f"return corp validations(ln 70): {return_status}")
-                    return return_status
+                                    logger.info(f"return corp validations(ln 70): {return_status}")
+                                    return return_status
+                            except Exception as e:
+                                logger.info(f"Error in updating vendorid: {e}")
 
-             
-            if docSubStatus == 134:
-                    print("Coding - No Coding Lines Found")
-                    return_status["Status overview"] = {"status": 0,
-                                            "StatusCode":0,
-                                            "response": [
-                                                            "Coding - No Coding Lines Found"
-                                                        ],
-                                                    }
-                    logger.info(f"return corp validations(ln 61): {return_status}")
-                    return return_status
-            elif docSubStatus == 130:
-                return_status["Status overview"] = {"status": 0,
-                                            "StatusCode":0,
-                                            "response": [
-                                                            "Invoice - Document missing"
-                                                        ],
-                                                    }
-                logger.info(f"return corp validations(ln 70): {return_status}")
-                return return_status
-            
-            
-            else:
+                    
+                    if vdr_id_map==0:
+                        docStatus = 26
+                        docSubStatus = 107
+                        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                            ).update(
+                                {
+                                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                                    model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                                    model.corp_document_tab.last_updated_by: userID,
+                                    model.corp_document_tab.updated_on: timeStmp,
+
+                                }
+                            )
+                        db.commit()
+                        return_status["Status overview"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Vendor Mapping required"
+                                                                ],
+                                                            }
+                        logger.info(f"return corp validations(ln 70): {return_status}")
+                        return return_status
+                #----------------------------
                 #date validation:
                 try:
                     corp_coding_data = (
