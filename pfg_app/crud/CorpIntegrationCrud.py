@@ -1122,13 +1122,13 @@ def read_corp_invoice_file(u_id, inv_id, db):
         file_size_mb = None
         # getting invoice data for later operation
         invdat = (
-            db.query(model.corp_document_tab)
-            .options(load_only("invo_filepath"))
-            .filter_by(corp_doc_id=inv_id)
+            db.query(model.CorpVoucherData)
+            .options(load_only("INVOICE_FILE_PATH"))
+            .filter_by(DOCUMENT_ID=inv_id)
             .one()
         )
         # check if file path is present and give base64 coded image url
-        if invdat.invo_filepath:
+        if invdat.INVOICE_FILE_PATH:
             try:
                 account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
                 blob_service_client = BlobServiceClient(
@@ -1138,11 +1138,11 @@ def read_corp_invoice_file(u_id, inv_id, db):
                 container = "apinvoice-mail-container"
                 # if invdat.vendor_id is None:
                 blob_client = blob_service_client.get_blob_client(
-                    container=container, blob=invdat.invo_filepath
+                    container=container, blob=invdat.INVOICE_FILE_PATH
                 )
                 
                 # Get file name
-                file_name = os.path.basename(invdat.invo_filepath)
+                file_name = os.path.basename(invdat.INVOICE_FILE_PATH)
 
                 # Get file size in MB
                 properties = blob_client.get_blob_properties()
@@ -1150,7 +1150,7 @@ def read_corp_invoice_file(u_id, inv_id, db):
                 file_size_mb = f"{file_size} MB"
                 # invdat.docPath = str(list(blob_client.download_blob().readall()))
                 try:
-                    filetype = os.path.splitext(invdat.invo_filepath)[1].lower()
+                    filetype = os.path.splitext(invdat.INVOICE_FILE_PATH)[1].lower()
                     if filetype == ".png":
                         content_type = "image/png"
                     elif filetype == ".jpg" or filetype == ".jpeg":
@@ -1159,14 +1159,14 @@ def read_corp_invoice_file(u_id, inv_id, db):
                         content_type = "application/pdf"
                 except Exception:
                     print(f"Error in file type : {traceback.format_exc()}")
-                invdat.invo_filepath = base64.b64encode(blob_client.download_blob().readall())
+                invdat.INVOICE_FILE_PATH = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
                 logger.error(traceback.format_exc())
-                invdat.invo_filepath = f"Blob does not exist: {invdat.invo_filepath}"
+                invdat.INVOICE_FILE_PATH = f"Blob does not exist: {invdat.INVOICE_FILE_PATH}"
 
         return {
             "result": {
-                "filepath": invdat.invo_filepath,
+                "filepath": invdat.INVOICE_FILE_PATH,
                 "content_type": content_type,
                 "file_name": file_name,
                 "file_size_mb": file_size_mb
@@ -1764,48 +1764,38 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
+        invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH or ""
+        email_pdf_file_name = corpvoucherdata.EMAIL_PATH or ""
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-        if not date_pattern.match(model.CorpVoucherData.INVOICE_DT):
+        if not corpvoucherdata.INVOICE_DT or not date_pattern.match(corpvoucherdata.INVOICE_DT):
+
             return {
                 "message": "Invalid Date Format",
                 "data": {"Http Response": "408", "Status": "Invalid date format"},
             }
             
-        # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_invoice_file(1, doc_id, db)
-            if file_data and "result" in file_data:
-                base64file = file_data["result"]["filepath"]
-
-                # If filepath is a bytes object, decode it
-                if isinstance(base64file, bytes):
-                    base64file = base64file.decode("utf-8")
-                    
-            else:
+            base64file = file_data["result"]["filepath"] if file_data and "result" in file_data else None
+            if isinstance(base64file, bytes):
+                base64file = base64file.decode("utf-8")
+            if not base64file:
                 raise Exception("Error retrieving file: No result found in file data.")
-            
         except Exception as e:
-            # Catch any error from the read_invoice_file
             logger.error(f"Error in read_invoice_file_voucher: {traceback.format_exc()}")
             return {
                 "message": "Failure: File Attachment could not be loaded",
                 "data": {"Http Response": "409", "Status": "Error retrieving file"},
             }
-        # logger.info(f"base64file for doc id: {doc_id}: {base64file}")
         
-        # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_email_pdf_file(1, doc_id, db)
-            if file_data and "result" in file_data:
-                base64eml = file_data["result"]["filepath"]
-
-                # If filepath is a bytes object, decode it
-                if isinstance(base64eml, bytes):
-                    base64eml = base64eml.decode("utf-8")
-            else:
+            base64eml = file_data["result"]["filepath"] if file_data and "result" in file_data else None
+            if isinstance(base64eml, bytes):
+                base64eml = base64eml.decode("utf-8")
+            if not base64eml:
                 raise Exception("Error retrieving email file: No result found in file data.")
-                
         except Exception as e:
             logger.error(f"Error in read_corp_email_pdf_file: {traceback.format_exc()}")
             return {
@@ -1891,7 +1881,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
-                                    "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH or "",
+                                    "FILE_NAME": invoice_file_name,
                                     "base64file": base64file
                                 },
                                 {
@@ -1901,7 +1891,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
-                                    "FILE_NAME": corpvoucherdata.EMAIL_PATH or "",
+                                    "FILE_NAME": email_pdf_file_name,
                                     "base64file": base64eml
                                 }
                             ],
@@ -1911,8 +1901,16 @@ def processCorpInvoiceVoucher(doc_id, db):
             ]
         }
         
-        # request_payload = json.dumps(voucher_payload, indent=4)
-        logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
+        # try:
+        #     json.dumps(voucher_payload)
+        # except TypeError as e:
+        #     logger.error(f"JSON serialization error: {traceback.format_exc()}")
+        #     return {"message": "Serialization Error",
+        #             "data": {"Http Response": "106", "Error Message": {traceback.format_exc()}}}
+            
+        logger.info(f"Final voucher_payload for doc_id: {doc_id}: {json.dumps(voucher_payload, indent=4)}")
+        
+        # logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -1932,6 +1930,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             # Raises an HTTPError if the response was unsuccessful
             # Log full response details
             logger.info(f"Response Status : {response.status_code}")
+            # logger.info(f"Response Text : {response.text}")
             logger.info(f"Response Headers : {response.headers}")
             # logger.info("Response Content: ", response.content.decode())  # Full content
 
@@ -1941,10 +1940,10 @@ def processCorpInvoiceVoucher(doc_id, db):
             return {"message": "Success", "data": response_data} if response_data else {"message": "Success, but response JSON is empty.", "data": response_data}
             
         except Exception:
-            logger.info(f"ConnectionError occurred: {traceback.format_exc()}")
+            logger.info(f"ConnectionError occurred for doc_id: {doc_id}: {traceback.format_exc()}")
             responsedata = {
-            "message": "ConnectionResetError",
-            "data": {"Http Response": "104", "Status": "Connection reset by peer"},
+            "message": "ConnectionError",
+            "data": {"Http Response": "500", "Error Message": {traceback.format_exc()}},
             }
 
     except Exception:
@@ -1987,13 +1986,13 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
         file_size_mb = None
         # getting invoice data for later operation
         invdat = (
-            db.query(model.corp_document_tab)
-            .options(load_only("email_filepath_pdf"))
-            .filter_by(corp_doc_id=inv_id)
+            db.query(model.CorpVoucherData)
+            .options(load_only("EMAIL_PATH"))
+            .filter_by(DOCUMENT_ID=inv_id)
             .one()
         )
         # check if file path is present and give base64 coded image url
-        if invdat.email_filepath_pdf:
+        if invdat.EMAIL_PATH:
             try:
                 account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
                 blob_service_client = BlobServiceClient(
@@ -2003,10 +2002,10 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 container = "apinvoice-mail-container"
                 # if invdat.vendor_id is None:
                 blob_client = blob_service_client.get_blob_client(
-                    container=container, blob=invdat.email_filepath_pdf
+                    container=container, blob=invdat.EMAIL_PATH
                 )
                 # Get file name
-                file_name = os.path.basename(invdat.email_filepath_pdf)
+                file_name = os.path.basename(invdat.EMAIL_PATH)
 
                 # Get file size in MB
                 properties = blob_client.get_blob_properties()
@@ -2014,7 +2013,7 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 file_size_mb = f"{file_size} MB"
                 # invdat.docPath = str(list(blob_client.download_blob().readall()))
                 try:
-                    filetype = os.path.splitext(invdat.email_filepath_pdf)[1].lower()
+                    filetype = os.path.splitext(invdat.EMAIL_PATH)[1].lower()
                     if filetype == ".png":
                         content_type = "image/png"
                     elif filetype == ".jpg" or filetype == ".jpeg":
@@ -2023,14 +2022,14 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                         content_type = "application/pdf"
                 except Exception:
                     logger.info(f"Error in file type : {traceback.format_exc()}")
-                invdat.email_filepath_pdf = base64.b64encode(blob_client.download_blob().readall())
+                invdat.EMAIL_PATH = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
                 logger.error(traceback.format_exc())
-                invdat.email_filepath_pdf = f"Blob does not exist: {invdat.email_filepath_pdf}"
+                invdat.EMAIL_PATH = f"Blob does not exist: {invdat.EMAIL_PATH}"
 
         return {
             "result": {
-                "filepath": invdat.email_filepath_pdf,
+                "filepath": invdat.EMAIL_PATH,
                 "content_type": content_type,
                 "file_name": file_name,
                 "file_size_mb": file_size_mb
