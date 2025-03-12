@@ -709,8 +709,15 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                                             # return return_status
                                         elif approvrd_ck ==1:
+                                            if skip_approval_ck == 1:
+                                                 return_status["Approval validation"] = {"status": 1,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            f"Invoice manually approved by user"
+                                                                        ],
+                                                            }
                                         
-                                            if list(df_corp_coding['approval_status'])[0].lower() == "approved":
+                                            elif list(df_corp_coding['approval_status'])[0].lower() == "approved":
                                                 docStatus = 2
                                                 substatus = 31
                                                 documentdesc = "Invoice approved"
