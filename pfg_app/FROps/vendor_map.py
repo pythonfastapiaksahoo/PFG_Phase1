@@ -13,12 +13,34 @@ from datetime import datetime, timezone
 from pfg_app.core.stampData import VndMatchFn_corp
 from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
 
+# def compute_cosine_similarity(text1, text2):
+#     if not text1 or not text2:
+#         return 0  # Return 0 if either text is empty or None
+#     vectorizer = TfidfVectorizer().fit_transform([text1, text2])
+#     vectors = vectorizer.toarray()
+#     return cosine_similarity([vectors[0]], [vectors[1]])[0][0] * 100  # Convert to percentage
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 def compute_cosine_similarity(text1, text2):
-    if not text1 or not text2:
+    if not text1 or not text2 or text1.strip() == "" or text2.strip() == "":
         return 0  # Return 0 if either text is empty or None
-    vectorizer = TfidfVectorizer().fit_transform([text1, text2])
-    vectors = vectorizer.toarray()
-    return cosine_similarity([vectors[0]], [vectors[1]])[0][0] * 100  # Convert to percentage
+    
+    try:
+        vectorizer = TfidfVectorizer()
+        vectors = vectorizer.fit_transform([text1, text2])
+        
+        # If there's only one unique word (or no meaningful words), prevent error
+        if vectors.shape[1] == 0:
+            return 0
+
+        vectors = vectors.toarray()
+        return cosine_similarity([vectors[0]], [vectors[1]])[0][0] * 100  # Convert to percentage
+
+    except ValueError as e:
+        print(f"Error in TF-IDF vectorization: {e} | Text1: '{text1}', Text2: '{text2}'")
+        return 0  # Handle exception gracefully
 
 
 # Thresholds

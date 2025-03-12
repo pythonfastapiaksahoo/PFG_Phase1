@@ -174,7 +174,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                             'SL':invoice_details['SL'][rw],
                                             'project':invoice_details['project'][rw],
                                             'activity':invoice_details['activity'][rw],
-                                            'amount':cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw])} 
+                                            'amount':cleanAmt_all(credit_invo,invoice_details['amount'][rw])} 
                     coding_tab_data['coding_data'] = coding_data
                     print(invoice_details['invoice#'][rw])
                 
@@ -240,7 +240,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                                 'SL':invoice_details['SL'][0],
                                                 'project':invoice_details['project'][0],
                                                 'activity':invoice_details['activity'][0],
-                                                'amount':c_invoTotal}
+                                                'amount':invoice_details['amount'][0]}
                         else:
                             for rw in range(len(invoice_details[keys_to_check[0]])):
                                 coding_data[rw+1] = {'store':invoice_details['store'][rw],
