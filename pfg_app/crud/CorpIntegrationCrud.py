@@ -1773,40 +1773,27 @@ def processCorpInvoiceVoucher(doc_id, db):
                 "data": {"Http Response": "408", "Status": "Invalid date format"},
             }
             
-        # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_invoice_file(1, doc_id, db)
-            if file_data and "result" in file_data:
-                base64file = file_data["result"]["filepath"]
-
-                # If filepath is a bytes object, decode it
-                if isinstance(base64file, bytes):
-                    base64file = base64file.decode("utf-8")
-                    
-            else:
+            base64file = file_data["result"]["filepath"] if file_data and "result" in file_data else None
+            if isinstance(base64file, bytes):
+                base64file = base64file.decode("utf-8")
+            if not base64file:
                 raise Exception("Error retrieving file: No result found in file data.")
-            
         except Exception as e:
-            # Catch any error from the read_invoice_file
             logger.error(f"Error in read_invoice_file_voucher: {traceback.format_exc()}")
             return {
                 "message": "Failure: File Attachment could not be loaded",
                 "data": {"Http Response": "409", "Status": "Error retrieving file"},
             }
-        # logger.info(f"base64file for doc id: {doc_id}: {base64file}")
         
-        # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_email_pdf_file(1, doc_id, db)
-            if file_data and "result" in file_data:
-                base64eml = file_data["result"]["filepath"]
-
-                # If filepath is a bytes object, decode it
-                if isinstance(base64eml, bytes):
-                    base64eml = base64eml.decode("utf-8")
-            else:
+            base64eml = file_data["result"]["filepath"] if file_data and "result" in file_data else None
+            if isinstance(base64eml, bytes):
+                base64eml = base64eml.decode("utf-8")
+            if not base64eml:
                 raise Exception("Error retrieving email file: No result found in file data.")
-                
         except Exception as e:
             logger.error(f"Error in read_corp_email_pdf_file: {traceback.format_exc()}")
             return {
@@ -1814,6 +1801,8 @@ def processCorpInvoiceVoucher(doc_id, db):
                 "data": {"Http Response": "409", "Status": "Error retrieving file"},
             }
         # logger.info(f"base64eml for doc id: {doc_id}: {base64eml}")
+        corpvoucherdata.INVOICE_FILE_PATH = corpvoucherdata.INVOICE_FILE_PATH.decode("utf-8") if isinstance(corpvoucherdata.INVOICE_FILE_PATH, bytes) else corpvoucherdata.INVOICE_FILE_PATH
+        corpvoucherdata.EMAIL_PATH = corpvoucherdata.EMAIL_PATH.decode("utf-8") if isinstance(corpvoucherdata.EMAIL_PATH, bytes) else corpvoucherdata.EMAIL_PATH
         
         if isinstance(corpvoucherdata.VCHR_DIST_STG, str):
             vchr_dist_stg = json.loads(corpvoucherdata.VCHR_DIST_STG)
@@ -1912,8 +1901,15 @@ def processCorpInvoiceVoucher(doc_id, db):
             ]
         }
         
-        # request_payload = json.dumps(voucher_payload, indent=4)
-        logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
+        try:
+            json.dumps(voucher_payload)
+        except TypeError as e:
+            logger.error(f"JSON serialization error: {e}")
+            return {"message": "Serialization Error", "data": str(e)}
+        
+        logger.info(f"Final voucher_payload: {json.dumps(voucher_payload, indent=4)}")
+        
+        # logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -1933,6 +1929,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             # Raises an HTTPError if the response was unsuccessful
             # Log full response details
             logger.info(f"Response Status : {response.status_code}")
+            # logger.info(f"Response Text : {response.text}")
             logger.info(f"Response Headers : {response.headers}")
             # logger.info("Response Content: ", response.content.decode())  # Full content
 
