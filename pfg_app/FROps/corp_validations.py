@@ -55,6 +55,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
         if docStatus in (26,25):
 
             if vendor_id is not None:
+        
                 docStatus = 4
                 docSubStatus = 11
                 db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
