@@ -1901,12 +1901,13 @@ def processCorpInvoiceVoucher(doc_id, db):
             ]
         }
         
-        try:
-            json.dumps(voucher_payload)
-        except TypeError as e:
-            logger.error(f"JSON serialization error: {e}")
-            return {"message": "Serialization Error", "data": str(e)}
-        
+        # try:
+        #     json.dumps(voucher_payload)
+        # except TypeError as e:
+        #     logger.error(f"JSON serialization error: {traceback.format_exc()}")
+        #     return {"message": "Serialization Error",
+        #             "data": {"Http Response": "106", "Error Message": {traceback.format_exc()}}}
+            
         logger.info(f"Final voucher_payload for doc_id: {doc_id}: {json.dumps(voucher_payload, indent=4)}")
         
         # logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
@@ -1939,10 +1940,10 @@ def processCorpInvoiceVoucher(doc_id, db):
             return {"message": "Success", "data": response_data} if response_data else {"message": "Success, but response JSON is empty.", "data": response_data}
             
         except Exception:
-            logger.info(f"ConnectionError occurred: {traceback.format_exc()}")
+            logger.info(f"ConnectionError occurred for doc_id: {doc_id}: {traceback.format_exc()}")
             responsedata = {
-            "message": "ConnectionResetError",
-            "data": {"Http Response": "104", "Status": "Connection reset by peer"},
+            "message": "ConnectionError",
+            "data": {"Http Response": "500", "Error Message": {traceback.format_exc()}},
             }
 
     except Exception:
