@@ -174,7 +174,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                             'SL':invoice_details['SL'][rw],
                                             'project':invoice_details['project'][rw],
                                             'activity':invoice_details['activity'][rw],
-                                            'amount':cleanAmt_all(credit_invo,invoice_details['amount'][rw])} 
+                                            'amount':cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw])} 
                     coding_tab_data['coding_data'] = coding_data
                     print(invoice_details['invoice#'][rw])
                 
