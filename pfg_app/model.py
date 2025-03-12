@@ -1570,6 +1570,7 @@ class corp_document_tab(Base):
     voucher_id = Column((String), nullable=True)
     email_filepath_pdf = Column(String(1255), nullable=True)
     documentdescription = Column(TEXT, nullable=True)
+    retry_count = Column(Integer, nullable=True)
 
 class corp_coding_tab(Base):
     __tablename__ = "corp_coding_tab"

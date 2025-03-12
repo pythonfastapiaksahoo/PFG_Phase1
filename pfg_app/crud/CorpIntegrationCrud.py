@@ -3421,3 +3421,230 @@ async def reject_corp_invoice(userID, invoiceID, reason, db):
         logger.error(traceback.format_exc())
         db.rollback()
         return {"DB error": "Error while updating document status"}
+
+
+def bulkProcessCorpVoucherData():
+    try:
+        db = next(get_db())
+
+        # Create an operation ID for the background job
+        operation_id = uuid4().hex
+        set_operation_id(operation_id)
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+        container_client = blob_service_client.get_container_client("locks")
+
+        # Update the blob with the latest operation ID and timestamp
+        # after acquiring the lease
+        blob_client = container_client.get_blob_client("creation-job-lock")
+        lease = blob_client.acquire_lease()
+
+        logger.info(f"[{datetime.datetime.now()}] Background job `Creation` Started!")
+
+        userID = 1
+        # Get the retry frequency from the SetRetryCount table
+        frequency = db.query(model.SetRetryCount.frequency).filter(
+            model.SetRetryCount.is_active==1,
+            model.SetRetryCount.task_name=='retry_invoice_creation').first() 
+        if frequency:
+            frequency = frequency[0]  # Extract the integer value
+            
+        # Batch size for processing
+        batch_size = 50  # Define a reasonable batch size
+        # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
+        doc_query = db.query(model.Document.idDocument).filter(
+            model.Document.documentStatusID == 21,
+            model.Document.documentsubstatusID.in_([152,112,143]),
+            or_(model.Document.retry_count < frequency, model.Document.retry_count == None)  # Handle NULL values
+        )
+
+        total_docs = doc_query.count()  # Total number of documents to process
+        logger.info(f"Total documents to process: {total_docs}")
+
+        # If no documents to process, log and return
+        if total_docs == 0:
+            logger.info("No documents to send to Peoplesoft.")
+            return {"message": "No documents to send to Peoplesoft."}
+
+        # Success counter
+        success_count = 0
+
+        # Process in batches
+        for start in range(0, total_docs, batch_size):
+            doc_ids = doc_query.offset(start).limit(batch_size).all()
+        for (docID,) in doc_ids:
+            try:
+                resp = processCorpInvoiceVoucher(docID, db)
+                try:
+                    if "data" in resp:
+                        if "Http Response" in resp["data"]:
+                            RespCode = resp["data"]["Http Response"]
+                            if resp["data"]["Http Response"].isdigit():
+                                RespCodeInt = int(RespCode)
+                                if RespCodeInt == 201:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.SUCCESS_STAGED  # noqa: E501
+                                    )
+                                    docStatus = 7
+                                    docSubStatus = 43
+                                    success_count += (
+                                        1  # Increment on successful status change
+                                    )
+                                elif RespCodeInt == 400:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 149
+
+                                elif RespCodeInt == 406:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_INVOICE  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 148
+
+                                elif RespCodeInt == 408:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 4
+                                    docSubStatus = 146
+                                    
+                                elif RespCodeInt == 409:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.BLOB_STORAGE_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 4
+                                    docSubStatus = 147
+                                    
+                                elif RespCodeInt == 422:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 150
+
+                                elif RespCodeInt == 424:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_FILE_ATTACHMENT  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 151
+
+                                elif RespCodeInt == 500:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.INTERNAL_SERVER_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 152
+                                    
+                                elif RespCodeInt == 104:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_CONNECTION_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 143
+
+                                else:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 112
+                            else:
+                                dmsg = (
+                                    InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                )
+                                docStatus = 21
+                                docSubStatus = 112
+                        else:
+                            dmsg = (
+                                InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                            )
+                            docStatus = 21
+                            docSubStatus = 112
+                    else:
+                        dmsg = (
+                            InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                        )
+                        docStatus = 21
+                        docSubStatus = 112
+                except Exception as err:
+                    logger.info(f"PopleSoftResponseError: {err}")
+                    dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
+                        err
+                    )
+                    docStatus = 21
+                    docSubStatus = 112
+
+                try:
+                    logger.info(f"Updating the document status for doc_id:{docID}")
+                    db.query(model.corp_document_tab).filter(
+                    model.corp_document_tab.corp_doc_id == docID
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,
+                            model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.retry_count: case(
+                                (model.corp_document_tab.retry_count.is_(None), 1),  # If NULL, set to 1
+                                else_=model.corp_document_tab.retry_count + 1        # Otherwise, increment
+                            ) if docStatus == 21 and docSubStatus in [152, 143] else model.corp_document_tab.retry_count
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.info(f"ErrorUpdatingPostingData: {err}")
+                try:
+                    # userID = 1
+                    corp_update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
+                except Exception as e:
+                    logger.error(f"pfg_sync 501: {str(e)}")
+            except Exception as e:
+                print(
+                    "Error in ProcessInvoiceVoucher fun(): ",
+                    traceback.format_exc(),
+                )
+                logger.info(f"PopleSoftResponseError: {e}")
+                dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(e)
+                docStatus = 21
+                docSubStatus = 112
+
+                try:
+                    db.query(model.corp_document_tab).filter(
+                    model.corp_document_tab.corp_doc_id == docID
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,
+                            model.corp_document_tab.documentsubstatus: docSubStatus,
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.info(f"ErrorUpdatingPostingData 156: {err}")
+                try:
+                    documentstatus = 21
+                    corp_update_docHistory(docID, userID, documentstatus, dmsg, db, docSubStatus)
+                except Exception as e:
+                    logger.error(f"ErrorUpdatingDocHistory 163: {str(e)}")
+        data = {
+            "message": "Voucher processing completed.",
+            "Total docs processed": total_docs,
+            "success_count": success_count,
+        }
+        logger.info(
+            f"[{datetime.datetime.now()}] Background job `Creation` "
+            + f"Completed! with data: {data}"
+        )
+    except Exception:
+        logger.error(f"Error in schedule IDP to Peoplesoft : {traceback.format_exc()}")
+        return False
+    finally:
+        db.close()
+        if "lease" in locals():
+            lease.break_lease()
