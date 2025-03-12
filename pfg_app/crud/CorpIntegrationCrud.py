@@ -155,10 +155,30 @@ def format_data_for_template1(parsed_data):
         logger.info(f"Error while extracting coding details for template 1:{traceback.format_exc()}")
         # Combine into final structured JSON
         structured_output = {
-            "email_metadata": {"Error"},
-            "invoiceDetails": {"Error"},
-            "approverDetails": {"Error"}
-        }
+                        "email_metadata": { 
+                            "from": '', 
+                            "sent": '', 
+                            "to": ''
+                        }, 
+
+                        "invoiceDetails": { 
+                            "store": [''], 
+                            "dept": [''], 
+                            "account": [''], 
+                            "SL": [''],
+                            "project": [''],
+                            "activity": [''], 
+                            "amount": [''], 
+                            "invoice#": '', 
+                            "GST": '', 
+                            "invoicetotal": '', 
+                        }, 
+                        "approverDetails": { 
+                            "approverName": '', 
+                            "TMID": '', 
+                            "title": '',
+                        } 
+                    }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
         return final_json
@@ -228,10 +248,30 @@ def format_data_for_template2(parsed_data):
         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
         # Combine into final structured JSON
         structured_output = {
-            "email_metadata": {"Error"},
-            "invoiceDetails": {"Error"},
-            "approverDetails": {"Error"}
-        }
+                        "email_metadata": { 
+                            "from": '', 
+                            "sent": '', 
+                            "to": ''
+                        }, 
+
+                        "invoiceDetails": { 
+                            "store": [''], 
+                            "dept": [''], 
+                            "account": [''], 
+                            "SL": [''],
+                            "project": [''],
+                            "activity": [''], 
+                            "amount": [''], 
+                            "invoice#": '', 
+                            "GST": '', 
+                            "invoicetotal": '', 
+                        }, 
+                        "approverDetails": { 
+                            "approverName": '', 
+                            "TMID": '', 
+                            "title": '',
+                        } 
+                    }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
         return final_json
@@ -316,10 +356,30 @@ def format_data_for_template3(parsed_data):
 
         # Combine into final structured JSON
         structured_output = {
-            "email_metadata": email_metadata,
-            "invoiceDetails": invoice_data,
-            "approverDetails": approver_details
-        }
+                        "email_metadata": { 
+                            "from": '', 
+                            "sent": '', 
+                            "to": ''
+                        }, 
+
+                        "invoiceDetails": { 
+                            "store": [''], 
+                            "dept": [''], 
+                            "account": [''], 
+                            "SL": [''],
+                            "project": [''],
+                            "activity": [''], 
+                            "amount": [''], 
+                            "invoice#": '', 
+                            "GST": '', 
+                            "invoicetotal": '', 
+                        }, 
+                        "approverDetails": { 
+                            "approverName": '', 
+                            "TMID": '', 
+                            "title": '',
+                        } 
+                    }
 
         # Convert to JSON and return
         final_json = json.dumps(structured_output, indent=4)
@@ -1098,6 +1158,88 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
         return {"error": str(e), "total_items": 0}
     
     
+def read_corp_doc_invoice_file(u_id, inv_id, db):
+    """Function to read the invoice file and return its base64 encoded content
+    along with the content type.
+
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    inv_id : int
+        Invoice ID for which the file is to be retrieved.
+    db : Session
+        Database session object used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the file path in base64 format and its content type.
+    """
+    try:
+        content_type = "application/pdf"
+        file_name = None
+        file_size_mb = None
+        # getting invoice data for later operation
+        invdat = (
+            db.query(model.corp_document_tab)
+            .options(load_only("invo_filepath"))
+            .filter_by(corp_doc_id=inv_id)
+            .one()
+        )
+        # check if file path is present and give base64 coded image url
+        if invdat.invo_filepath:
+            try:
+                account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=get_credential()
+                )
+                # container = settings.container_name
+                container = "apinvoice-mail-container"
+                # if invdat.vendor_id is None:
+                blob_client = blob_service_client.get_blob_client(
+                    container=container, blob=invdat.invo_filepath
+                )
+                
+                # Get file name
+                file_name = os.path.basename(invdat.invo_filepath)
+
+                # Get file size in MB
+                properties = blob_client.get_blob_properties()
+                file_size = round(properties.size / (1024 * 1024), 2)  # Convert bytes to MB
+                file_size_mb = f"{file_size} MB"
+                # invdat.docPath = str(list(blob_client.download_blob().readall()))
+                try:
+                    filetype = os.path.splitext(invdat.invo_filepath)[1].lower()
+                    if filetype == ".png":
+                        content_type = "image/png"
+                    elif filetype == ".jpg" or filetype == ".jpeg":
+                        content_type = "image/jpg"
+                    else:
+                        content_type = "application/pdf"
+                except Exception:
+                    print(f"Error in file type : {traceback.format_exc()}")
+                invdat.invo_filepath = base64.b64encode(blob_client.download_blob().readall())
+            except Exception:
+                logger.error(traceback.format_exc())
+                invdat.invo_filepath = f"Blob does not exist: {invdat.invo_filepath}"
+
+        return {
+            "result": {
+                "filepath": invdat.invo_filepath,
+                "content_type": content_type,
+                "file_name": file_name,
+                "file_size_mb": file_size_mb
+            }
+        }
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500, headers={"codeError": "Server Error"})
+    finally:
+        db.close()
+        
+    
+    
 def read_corp_invoice_file(u_id, inv_id, db):
     """Function to read the invoice file and return its base64 encoded content
     along with the content type.
@@ -1177,7 +1319,7 @@ def read_corp_invoice_file(u_id, inv_id, db):
         return Response(status_code=500, headers={"codeError": "Server Error"})
     finally:
         db.close()
-        
+
 async def read_corp_invoice_data(u_id, inv_id, db):
     """
     This function reads the invoice list and contains the following parameters:
@@ -1960,7 +2102,84 @@ def processCorpInvoiceVoucher(doc_id, db):
 
     return responsedata
 
+def read_corp_doc_email_pdf_file(u_id, inv_id, db):
+    """Function to read the invoice file and return its base64 encoded content
+    along with the content type.
 
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    inv_id : int
+        Invoice ID for which the file is to be retrieved.
+    db : Session
+        Database session object used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the file path in base64 format and its content type.
+    """
+    try:
+        content_type = "application/pdf"
+        file_name = None
+        file_size_mb = None
+        # getting invoice data for later operation
+        invdat = (
+            db.query(model.corp_document_tab)
+            .options(load_only("email_filepath_pdf"))
+            .filter_by(corp_doc_id=inv_id)
+            .one()
+        )
+        # check if file path is present and give base64 coded image url
+        if invdat.email_filepath_pdf:
+            try:
+                account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=get_credential()
+                )
+                # container = settings.container_name
+                container = "apinvoice-mail-container"
+                # if invdat.vendor_id is None:
+                blob_client = blob_service_client.get_blob_client(
+                    container=container, blob=invdat.email_filepath_pdf
+                )
+                # Get file name
+                file_name = os.path.basename(invdat.email_filepath_pdf)
+
+                # Get file size in MB
+                properties = blob_client.get_blob_properties()
+                file_size = round(properties.size / (1024 * 1024), 2)  # Convert bytes to MB
+                file_size_mb = f"{file_size} MB"
+                # invdat.docPath = str(list(blob_client.download_blob().readall()))
+                try:
+                    filetype = os.path.splitext(invdat.email_filepath_pdf)[1].lower()
+                    if filetype == ".png":
+                        content_type = "image/png"
+                    elif filetype == ".jpg" or filetype == ".jpeg":
+                        content_type = "image/jpg"
+                    else:
+                        content_type = "application/pdf"
+                except Exception:
+                    logger.info(f"Error in file type : {traceback.format_exc()}")
+                invdat.email_filepath_pdf = base64.b64encode(blob_client.download_blob().readall())
+            except Exception:
+                logger.error(traceback.format_exc())
+                invdat.email_filepath_pdf = f"Blob does not exist: {invdat.email_filepath_pdf}"
+
+        return {
+            "result": {
+                "filepath": invdat.email_filepath_pdf,
+                "content_type": content_type,
+                "file_name": file_name,
+                "file_size_mb": file_size_mb
+            }
+        }
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500, headers={"codeError": "Server Error"})
+    finally:
+        db.close()
 
 def read_corp_email_pdf_file(u_id, inv_id, db):
     """Function to read the invoice file and return its base64 encoded content
