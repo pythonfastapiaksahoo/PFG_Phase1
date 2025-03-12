@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from pfg_app.FROps.customCall import customModelCall
 from pfg_app.auth import AuthHandler
-from pfg_app.azuread.auth import get_user
+from pfg_app.azuread.auth import get_user, get_user_dependency
 from pfg_app.azuread.schemas import AzureUser
 from pfg_app.crud import BatchexceptionCrud as crud
 from pfg_app.FROps.pfg_trigger import pfg_sync
@@ -20,7 +20,9 @@ router = APIRouter(
 
 @router.get("/batchprocesssummary")
 async def read_batchprocesssummary(
-    db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User"])),
+    # user: AzureUser = Depends(get_user)
 ):
     read_batchprocesssummary = await crud.readbatchprocessdetails(user.idUser, db)
     return read_batchprocesssummary
@@ -29,7 +31,10 @@ async def read_batchprocesssummary(
 # main api to read line data
 @router.get("/testlinedata/invoiceid/{inv_id}")
 async def testlinedata(
-    inv_id: int, db: Session = Depends(get_db), user: AzureUser = Depends(get_user)
+    inv_id: int,
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User"])),
+    # user: AzureUser = Depends(get_user)
 ):
     lineData = await crud.readlinedatatest(int(user.idUser), inv_id, db)
     return lineData
@@ -39,7 +44,8 @@ async def testlinedata(
 async def pfgsyncflw(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User", "Admin"])),
+    # user: AzureUser = Depends(get_user),
     customCall: int = 0,
     skipConf: int = 0,
 ):
@@ -52,7 +58,8 @@ async def pfgsyncflw(
 async def customCall(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User", "Admin"])),
+    # user: AzureUser = Depends(get_user),
 
 ):
     status = customModelCall(inv_id,user.idUser,db)

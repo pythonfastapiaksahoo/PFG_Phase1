@@ -10,7 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from starlette.status import HTTP_201_CREATED
 
 from pfg_app import model, scheduler, scheduler_container_client, settings
-from pfg_app.azuread.auth import get_admin_user
+from pfg_app.azuread.auth import get_admin_user, get_user_dependency
 
 # from pfg_app.core import azure_fr as core_fr
 from pfg_app.azuread.schemas import AzureUser
@@ -31,7 +31,8 @@ from pfg_app.session.session import get_db
 router = APIRouter(
     prefix="/apiv1.1/Common",
     tags=["Common"],
-    dependencies=[Depends(get_admin_user)],
+    dependencies=[Depends(get_user_dependency(["Admin"]))],
+    # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
 
@@ -213,7 +214,8 @@ async def run_job(background_tasks: BackgroundTasks, job_name: str):
 async def update_schedule(
     minutes: int,
     job_name: str,
-    user: AzureUser = Depends(get_admin_user)
+    user: AzureUser = Depends(get_user_dependency(["Admin"])),
+    # user: AzureUser = Depends(get_admin_user)
     ):
     """Endpoint to update the recurring job interval dynamically."""
     db = next(get_db())
@@ -347,7 +349,12 @@ async def get_current_schedule(job_name: str):
 
 
 @router.post("/update-retry-count")
-async def update_retry_count(count: int, job_name: str, user: AzureUser = Depends(get_admin_user)):
+async def update_retry_count(
+    count: int,
+    job_name: str,
+    user: AzureUser = Depends(get_user_dependency(["Admin"]))
+    # user: AzureUser = Depends(get_admin_user)
+    ):
     """Endpoint to update the retry count for a given invoice."""
     db = next(get_db())
     if job_name == "retry_invoice_creation":
