@@ -107,33 +107,60 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             return return_status
             
         if docStatus in (32,2,4,24):
-            vdr_id_map = 0
-            if vendor_id in [None,0]:
-                   
-                # if vendor_id is not None:
-                if vendor_code is not None:
-                    if vendor_id == 0:
-                        try: 
-                            corp_VrdID_qry = (
-                                        db.query(model.corp_metadata)
-                                        .filter(model.corp_metadata.vendorcode == vendor_code)
-                                        .all()
-                                    )
-                            df_corp_VrdID = pd.DataFrame([row.__dict__ for row in corp_VrdID_qry])
-                            vendor_id_update = int(list(df_corp_VrdID['vendorid'])[0])
-                            if type(vendor_id_update) == int:
-                                vendor_id = vendor_id_update
-                                corp_metadata_qry = (
+            
+
+             
+            if docSubStatus == 134:
+                    print("Coding - No Coding Lines Found")
+                    return_status["Status overview"] = {"status": 0,
+                                            "StatusCode":0,
+                                            "response": [
+                                                            "Coding - No Coding Lines Found"
+                                                        ],
+                                                    }
+                    logger.info(f"return corp validations(ln 61): {return_status}")
+                    return return_status
+            elif docSubStatus == 130:
+                return_status["Status overview"] = {"status": 0,
+                                            "StatusCode":0,
+                                            "response": [
+                                                            "Invoice - Document missing"
+                                                        ],
+                                                    }
+                logger.info(f"return corp validations(ln 70): {return_status}")
+                return return_status
+            
+            
+            else:
+
+                #----------------------------
+                vdr_id_map = 0
+                if vendor_id in [None,0]:
+                    
+                    # if vendor_id is not None:
+                    if vendor_code is not None:
+                        if vendor_id == 0:
+                            try: 
+                                corp_VrdID_qry = (
                                             db.query(model.corp_metadata)
-                                            .filter(model.corp_metadata.vendorid == vendor_id)
+                                            .filter(model.corp_metadata.vendorcode == vendor_code)
                                             .all()
                                         )
-                                df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
-                                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                                    ).update(
-                                        {
-                                            
-                                            model.corp_document_tab.vendor_id: vendor_id,
+                                df_corp_VrdID = pd.DataFrame([row.__dict__ for row in corp_VrdID_qry])
+                                vendor_id_update = int(list(df_corp_VrdID['vendorid'])[0])
+                                if type(vendor_id_update) == int:
+                                    vendor_id = vendor_id_update
+                                    corp_metadata_qry = (
+                                                db.query(model.corp_metadata)
+                                                .filter(model.corp_metadata.vendorid == vendor_id)
+                                                .all()
+                                            )
+                                    df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                                        ).update(
+                                            {
+                                                
+                                                model.corp_document_tab.vendor_id: vendor_id,
 
                                         }
                                     )
