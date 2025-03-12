@@ -159,7 +159,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data['sender_email'] = sender_email
                     coding_tab_data['sent_to'] = sent_to
                     coding_tab_data['sent_time'] = sent_time
-                    coding_tab_data["gst"] = invoice_details['GST'][rw]
+                    coding_tab_data["gst"] = cleanAmt_all(credit_invo, invoice_details['GST'][rw])
                     coding_tab_data["invoice_number"]  = invoice_details['invoice#'][rw]
                     coding_tab_data['approverName'] = approverName
                     coding_tab_data["approver_email"] = approver_email
@@ -167,7 +167,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data["approver_title"] = approver_title
                     coding_tab_data["approval_status"] = approval_status
                     coding_tab_data["TMID"] = TMID
-                    coding_tab_data["invoicetotal"] = invoice_details["invoicetotal"][rw]
+                    coding_tab_data["invoicetotal"] =cleanAmt_all(credit_invo, invoice_details["invoicetotal"][rw])
                     coding_data[1] = {'store':invoice_details['store'][rw],
                                             'dept':invoice_details['dept'][rw],
                                             'account':invoice_details['account'][rw],
@@ -240,7 +240,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                                 'SL':invoice_details['SL'][0],
                                                 'project':invoice_details['project'][0],
                                                 'activity':invoice_details['activity'][0],
-                                                'amount':c_invoTotal}
+                                                'amount':invoice_details['amount'][0]}
                         else:
                             for rw in range(len(invoice_details[keys_to_check[0]])):
                                 coding_data[rw+1] = {'store':invoice_details['store'][rw],
@@ -445,8 +445,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 
                                 'tmid':all_invo_coding[att_invoID]['TMID'],
                                 'approver_title':all_invo_coding[att_invoID]['approver_title'],
-                                'invoicetotal':all_invo_coding[att_invoID]['invoicetotal'],
-                                'gst':all_invo_coding[att_invoID]['gst'],
+                                'invoicetotal':cleanAmt_all(credit_invo,all_invo_coding[att_invoID]['invoicetotal']),
+                                'gst':cleanAmt_all(credit_invo,all_invo_coding[att_invoID]['gst']),
                                 'created_on': timestmp,
                                 'sender_name': all_invo_coding[att_invoID]['sender'],
                                 'sender_email':all_invo_coding[att_invoID]['sender_email'],
@@ -540,8 +540,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
         # document status & substatus:  4 , 130
         for miss_att in missing_attachment:
             mssing_att_docData = {"invoice_id":all_invo_coding[miss_att]["invoice_number"],
-                                "invoicetotal": all_invo_coding[miss_att]["invoicetotal"],
-                                "gst": all_invo_coding[miss_att]["gst"],
+                                "invoicetotal":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["invoicetotal"]),
+                                "gst":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["gst"]),
                                 "approved_by": all_invo_coding[miss_att]["approverName"],
                                 "uploaded_date":timestmp ,
                                 "email_filepath": file_path,
@@ -590,8 +590,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             
                             'tmid':all_invo_coding[miss_att]['TMID'],
                             'approver_title':all_invo_coding[miss_att]['approver_title'],
-                            'invoicetotal':all_invo_coding[miss_att]['invoicetotal'],
-                            'gst':all_invo_coding[miss_att]['gst'],
+                            'invoicetotal':cleanAmt_all(credit_invo,all_invo_coding[miss_att]['invoicetotal']),
+                            'gst':cleanAmt_all(credit_invo,all_invo_coding[miss_att]['gst']),
                             'created_on': timestmp,
                             'sender_name': all_invo_coding[miss_att]['sender'],
                             'sender_email':all_invo_coding[miss_att]['sender_email'],
@@ -613,11 +613,11 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
                 missing_code_docTab = {
                     "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
-                    "invoicetotal":miss_code[list(miss_code.keys())[0]]["invoicetotal"],
+                    "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
                     "email_filepath": file_path,
                     "mail_row_key": mail_row_key,
                     "email_filepath_pdf":email_filepath_pdf,
-                    "gst":miss_code[list(miss_code.keys())[0]]["GST"],
+                    "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"]),
                     "invo_page_count":miss_code[list(miss_code.keys())[0]]["NumberOfPages"],
                     "created_on":timestmp,
                     "updated_on":timestmp,
