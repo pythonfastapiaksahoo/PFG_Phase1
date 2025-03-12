@@ -44,7 +44,7 @@ async def testlinedata(
 async def pfgsyncflw(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User"])),
     # user: AzureUser = Depends(get_user),
     customCall: int = 0,
     skipConf: int = 0,
@@ -58,7 +58,7 @@ async def pfgsyncflw(
 async def customCall(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User",])),
     # user: AzureUser = Depends(get_user),
 
 ):

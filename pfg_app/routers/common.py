@@ -31,7 +31,7 @@ from pfg_app.session.session import get_db
 router = APIRouter(
     prefix="/apiv1.1/Common",
     tags=["Common"],
-    dependencies=[Depends(get_user_dependency(["Admin"]))],
+    # dependencies=[Depends(get_user_dependency(["Admin"]))],
     # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
@@ -214,7 +214,7 @@ async def run_job(background_tasks: BackgroundTasks, job_name: str):
 async def update_schedule(
     minutes: int,
     job_name: str,
-    user: AzureUser = Depends(get_user_dependency(["Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["CORP_ConfigPortal_User","DSD_ConfigPortal_User"])),
     # user: AzureUser = Depends(get_admin_user)
     ):
     """Endpoint to update the recurring job interval dynamically."""
@@ -352,7 +352,7 @@ async def get_current_schedule(job_name: str):
 async def update_retry_count(
     count: int,
     job_name: str,
-    user: AzureUser = Depends(get_user_dependency(["Admin"]))
+    user: AzureUser = Depends(get_user_dependency(["CORP_ConfigPortal_User","DSD_ConfigPortal_User"]))
     # user: AzureUser = Depends(get_admin_user)
     ):
     """Endpoint to update the retry count for a given invoice."""
