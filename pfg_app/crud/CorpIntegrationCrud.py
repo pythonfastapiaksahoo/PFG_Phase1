@@ -3355,3 +3355,67 @@ async def download_corp_paginate_doc_inv_list(
         return Response(status_code=500)
     finally:
         db.close()
+        
+
+async def reject_corp_invoice(userID, invoiceID, reason, db):
+    """Function to reject an invoice by updating its status and logging the change.
+
+    Parameters:
+    ----------
+    userID : int
+        The ID of the user rejecting the invoice.
+    invoiceID : int
+        The ID of the invoice being rejected.
+    reason : str
+        The reason provided for rejecting the invoice.
+    db : Session
+        The database session object used for interacting with the backend.
+
+    Returns:
+    -------
+    str or dict
+        Returns a success message or a dictionary with an error message
+        if the operation fails.
+    """
+    try:
+        # Mapping reasons to substatus IDs
+        reason_to_substatus = {
+            "No Active Models/Templates": 158,
+            "Vendor Not Onboarded": 157,
+            "Duplicate": 156,
+            "Missing Pages": 155,
+            "Invalid Scan": 154,
+            "Invoice Details Missing": 153,
+        }
+
+        # Determine the appropriate substatus ID, default to 159 if not found
+        substatus_id = reason_to_substatus.get(reason, 159)
+
+        # Fetching the first name of the user performing the rejection
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == userID).scalar()
+        )
+
+        # Updating the document's status to rejected
+        db.query(model.corp_document_tab).filter(model.corp_document_tab.corp_doc_id == invoiceID).update(
+            {
+                "documentstatus": 10,
+                "documentsubstatus": substatus_id,
+                "documentDescription": reason + " by " + first_name,
+                "updated_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
+
+        # Commit the changes to the database
+        db.commit()
+
+        # Update document history with the new status change
+        corp_update_docHistory(invoiceID, userID, 10, reason, db, substatus_id)
+
+        return "success: document status changed to rejected!"
+
+    except Exception:
+        # Logging the error and rolling back any changes in case of failure
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while updating document status"}
