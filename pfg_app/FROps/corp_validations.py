@@ -57,9 +57,33 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
         invoice_id = list(df_corp_document['invoice_id'])[0]
         vendor_code = list(df_corp_document['vendor_code'])[0]
         logger.info(f"doc_id: {doc_id}, vendor_id: {vendor_id}, document_type: {document_type}, invoice_id: {invoice_id}")
-        
+        sentToPPlSft = {
+            7: "Sent to PeopleSoft",
+            29: "Voucher Created",
+            30: "Voucher Not Found",
+            27: "Quick Invoice",
+            14: "Posted In PeopleSoft",
+            28: "Recycled Invoice",
+        }
+
+        if docStatus in sentToPPlSft.keys():
+            if isinstance(docStatus, int):
+                return_status[sentToPPlSft[docStatus]] = {
+                    "status": 1,
+                    "StatusCode":0,
+                    "response": ["Invoice sent to peopleSoft"],
+                }
+                return return_status
+        elif docStatus == 10 and docSubStatus in [153,154,155,156,157,158,159]:
+            # if invoSubStatus == 13:
+            return_status["Rejected"] = {
+                "status": 1,
+                "StatusCode":0,
+                "response": ["Invoice rejected by user"],
+            }
+            return return_status
             
-        if docStatus in (26,25):
+        elif docStatus in (26,25):
 
             if vendor_id is not None:
                 if vendor_code is not None:
@@ -600,6 +624,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                                 # line_sum = line_sum + list(df_corp_coding['coding_details'])[0][ln_amt]['amount']
                             if template_type.iloc[0].lower() in ['template 3', 'template 1']:
+                                # consider GST
                                 if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                     docStatus = 4
                                     substatus = 136
@@ -748,13 +773,13 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                                     f"Error: {e}"
                                                                                 ],
                                                                     }
-                                                        else:
-                                                            return_status["Overview"] = {"status": 0,
-                                                                "StatusCode":0,
-                                                                "response": [
-                                                                                f"Validation failed"
-                                                                            ],
-                                                                }
+                                                    else:
+                                                        return_status["Overview"] = {"status": 0,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            f"Validation failed"
+                                                                        ],
+                                                            }
                                                     # return return_status
                                                     # return_status["Approval needed"] = {"status": 0,
                                                     #     "StatusCode":0,
