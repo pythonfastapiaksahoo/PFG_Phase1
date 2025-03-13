@@ -38,6 +38,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     cod_lnMatch = 0
     currency_ck = 0
     currency_ck_msg = ""
+    approval_check_req = 1
+    validation_status_ck = 1
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -588,6 +590,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             lt = []
                             for ln_amt in (list(df_corp_coding['coding_details'])[0]):
                                 lt.append(list(df_corp_coding['coding_details'])[0][ln_amt]['amount'])
+                                amount_value = list(df_corp_coding['coding_details'])[0][ln_amt].get('amount', 0)  # Get value or default to 0
+
+                                try:
+                                    line_sum += float(amount_value) if amount_value not in (None, "", " ") else 0
+                                except ValueError:
+                                    print(f"Invalid amount value: {amount_value}, skipping...")
+                                    line_sum = 0
+
                                 line_sum = line_sum + list(df_corp_coding['coding_details'])[0][ln_amt]['amount']
                             if template_type.str.lower().isin(['template 3', 'template 1']).any():
                                 if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
@@ -654,112 +664,123 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                                         # return return_status
                                     #total match pass:
-                                    elif pdf_invoTotal == 0 and zero_dlr_ck == 0:
-                                        docStatus = 4
-                                        substatus = 139
-                                        documentdesc = "Zero $ invoice approval required"
-                                        # Zero $ invoice - need approval'
-                                        return_status["Coding validation"] = {"status": 0,
-                                                    "StatusCode":1,
-                                                    "response": [
-                                                                    f"Zero $ invoice approval required"
-                                                                ],
-                                                            }
-                                        # return return_status
-                                        # print("Zero $ invoice approved")
-                                    elif (pdf_invoTotal > amt_threshold) and amt_threshold_ck == 0:
-                                        # need approval
-                                        docStatus = 4
-                                        substatus = 140
-                                        documentdesc =  "Approval needed: Invoice ≥ threshold"
-                                        print("need approval")
-                                        return_status["Approval needed"] = {"status": 0,
-                                                    "StatusCode":2,
-                                                    "response": [
-                                                                    f"User approval required if invoice total meets threshold"
-                                                                ],
-                                                            }
-                                        # return return_status
-                                
                                     else:
-                                        
-                                        approver_title =list(df_corp_document['approver_title'])[0] 
-                                        if (('sr' in approver_title.lower()) or ('senior' in approver_title.lower())) or ('vp' in approver_title.lower()) or (('vice' in approver_title.lower()) and ('president' in approver_title.lower())):
-                                            approvrd_ck = 1
-                                        elif pdf_invoTotal <= 25000:
-                                            if "assistant" in approver_title.lower():
-                                                approvrd_ck = 0
-                                            elif ("manager" in approver_title.lower()) or ("director" in approver_title.lower()) or ("Sr. Vice President" in approver_title):
-                                                approvrd_ck = 1
-                                        elif pdf_invoTotal<= 1000000:
-                                            if ("director" in approver_title.lower()):
-                                                approvrd_ck = 1
-                                        if skip_approval_ck == 1:
-                                            approvrd_ck = 1
-                                            return_status["Approval validation"] = {"status": 1,
-                                                            "StatusCode":0,
-                                                            "response": [
-                                                                            f"Invoice manually approved by user"
-                                                                        ],
-                                                            }
-                                        
-                                            
-                                        if approvrd_ck==0:
-                                            docStatus = 24
-                                            substatus = 70
-                                            documentdesc = "Invoice - Not Approved"
-                                            return_status["Approval needed"] = {"status": 0,
-                                                    "StatusCode":3,
-                                                    "response": [
-                                                                    f"Invoice - Not Approved"
-                                                                ],
-                                                            }
+                                        if pdf_invoTotal == 0 and zero_dlr_ck == 0:
+                                            validation_status_ck = validation_status_ck * 0
+                                            docStatus = 4
+                                            substatus = 139
+                                            documentdesc = "Zero $ invoice approval required"
+                                            # Zero $ invoice - need approval'
+                                            return_status["Coding validation"] = {"status": 0,
+                                                        "StatusCode":1,
+                                                        "response": [
+                                                                        f"Zero $ invoice approval required"
+                                                                    ],
+                                                                }
                                             # return return_status
-                                        elif approvrd_ck ==1:
-                                            
-                                                 
-                                            if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
-                                                docStatus = 2
-                                                substatus = 31
-                                                documentdesc = "Invoice approved"
-                                                
-                                                payload_status = payload_dbUpdate(doc_id,userID,db)
-                                                try:
-                                                    return_status.update(payload_status)
-                                                except Exception as e:
-                                                    logger.error(f"Error in updating return_status: {e}")
-                                                    return_status["Payload validation"] = {"status": 0,
-                                                            "StatusCode":0,
-                                                            "response": [
-                                                                            f"Error: {e}"
-                                                                        ],
-                                                            }
-                                                # return return_status
-                                                # return_status["Approval needed"] = {"status": 0,
-                                                #     "StatusCode":0,
-                                                #     "response": [
-                                                #                     f"Payload data ready for PeopleSoft"
-                                                #                 ],
-                                                #             }
-                                                return return_status
-                                            else: 
-                                                docStatus = 24
-                                                substatus = 137
-                                                documentdesc = "Pending Approval"
-                                                return_status["Approval needed"] = {"status": 0,
-                                                    "StatusCode":3,
-                                                    "response": [
-                                                                    f"Invoice - Pending Approval"
-                                                                ],
-                                                            }
-                                                return return_status
-                                        else:
+                                            # print("Zero $ invoice approved")
+                                        if (pdf_invoTotal > amt_threshold) and amt_threshold_ck == 0:
+                                            # need approval
+                                            validation_status_ck = validation_status_ck * 0
+                                            docStatus = 4
+                                            substatus = 140
+                                            documentdesc =  "Approval needed: Invoice ≥ threshold"
+                                            print("need approval")
                                             return_status["Approval needed"] = {"status": 0,
-                                                    "StatusCode":3,
-                                                    "response": [
-                                                                    f"Invoice - Not Approved."
-                                                                ],
-                                                            }
+                                                        "StatusCode":2,
+                                                        "response": [
+                                                                        f"User approval required for amount"
+                                                                    ],
+                                                                }
+                                            # return return_status
+                                    
+                                        if approval_check_req == 1:
+                                            
+                                            approver_title =list(df_corp_document['approver_title'])[0] 
+                                            if (('sr' in approver_title.lower()) or ('senior' in approver_title.lower())) or ('vp' in approver_title.lower()) or (('vice' in approver_title.lower()) and ('president' in approver_title.lower())):
+                                                approvrd_ck = 1
+                                            elif pdf_invoTotal <= 25000:
+                                                if "assistant" in approver_title.lower():
+                                                    approvrd_ck = 0
+                                                elif ("manager" in approver_title.lower()) or ("director" in approver_title.lower()) or ("Sr. Vice President" in approver_title):
+                                                    approvrd_ck = 1
+                                            elif pdf_invoTotal<= 1000000:
+                                                if ("director" in approver_title.lower()):
+                                                    approvrd_ck = 1
+                                            if skip_approval_ck == 1:
+                                                approvrd_ck = 1
+                                                return_status["Approval validation"] = {"status": 1,
+                                                                "StatusCode":0,
+                                                                "response": [
+                                                                                f"Invoice manually approved by user"
+                                                                            ],
+                                                                }
+                                            
+                                                
+                                            if approvrd_ck==0:
+                                                validation_status_ck = validation_status_ck * 0
+                                                docStatus = 24
+                                                substatus = 70
+                                                documentdesc = "Invoice - Not Approved"
+                                                return_status["Approval needed"] = {"status": 0,
+                                                        "StatusCode":3,
+                                                        "response": [
+                                                                        f"Invoice - Not Approved"
+                                                                    ],
+                                                                }
+                                                # return return_status
+                                            elif approvrd_ck ==1:
+                                                
+                                                    
+                                                if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
+                                                    docStatus = 2
+                                                    substatus = 31
+                                                    documentdesc = "Invoice approved"
+                                                    if validation_status_ck ==1:
+                                                        payload_status = payload_dbUpdate(doc_id,userID,db)
+                                                        try:
+                                                            return_status.update(payload_status)
+                                                        except Exception as e:
+                                                            logger.error(f"Error in updating return_status: {e}")
+                                                            return_status["Payload validation"] = {"status": 0,
+                                                                    "StatusCode":0,
+                                                                    "response": [
+                                                                                    f"Error: {e}"
+                                                                                ],
+                                                                    }
+                                                        else:
+                                                            return_status["Overview"] = {"status": 0,
+                                                                "StatusCode":0,
+                                                                "response": [
+                                                                                f"Validation failed"
+                                                                            ],
+                                                                }
+                                                    # return return_status
+                                                    # return_status["Approval needed"] = {"status": 0,
+                                                    #     "StatusCode":0,
+                                                    #     "response": [
+                                                    #                     f"Payload data ready for PeopleSoft"
+                                                    #                 ],
+                                                    #             }
+                                                    return return_status
+                                                else: 
+                                                    docStatus = 24
+                                                    substatus = 137
+                                                    documentdesc = "Pending Approval"
+                                                    return_status["Approval needed"] = {"status": 0,
+                                                        "StatusCode":3,
+                                                        "response": [
+                                                                        f"Invoice - Pending Approval"
+                                                                    ],
+                                                                }
+                                                    return return_status
+                                            else:
+                                                return_status["Approval needed"] = {"status": 0,
+                                                        "StatusCode":3,
+                                                        "response": [
+                                                                        f"Invoice - Not Approved."
+                                                                    ],
+                                                                }
                     except Exception as e:
                         logger.error(f"Error in validate_corpdoc: {e}")
                         logger.info(traceback.format_exc())
