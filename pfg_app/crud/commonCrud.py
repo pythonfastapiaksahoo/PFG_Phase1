@@ -8,6 +8,7 @@ from azure.ai.formrecognizer import DocumentModelAdministrationClient
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
 from pfg_app import model, scheduler, settings
+from pfg_app.crud.CorpIntegrationCrud import bulkProcessCorpVoucherData, bulkupdateCorpInvoiceStatus
 from pfg_app.crud.ERPIntegrationCrud import (
     bulkProcessVoucherData,
     newbulkupdateInvoiceStatus,
@@ -338,6 +339,40 @@ def schedule_bulk_update_invoice_creation_job():
             bulkProcessVoucherData,
             trigger=IntervalTrigger(minutes=active_task.time_interval),
             id="bulk_update_invoice_creation",
+            replace_existing=True,
+        )
+        logger.info(
+            f"[{datetime.now()}] Scheduled background job`Creation` with locking"
+        )
+        
+
+def schedule_bulk_update_corp_invoice_status_job():
+    """Schedule a recurring job with a locking mechanism."""
+    db = next(get_db())
+    if not scheduler.get_job("bulk_update_corp_invoice_status"):
+        active_task = db.query(model.TaskSchedular).filter_by(
+        task_name="bulk_update_corp_invoice_status", is_active=1
+        ).scalar()
+        scheduler.add_job(
+            bulkupdateCorpInvoiceStatus,
+            trigger=IntervalTrigger(minutes=active_task.time_interval),
+            id="bulk_update_corp_invoice_status",
+            replace_existing=True,
+        )
+        logger.info(f"[{datetime.now()}] Scheduled background job`Status` with locking")
+
+
+def schedule_bulk_update_corp_invoice_creation_job():
+    """Schedule a recurring job with a locking mechanism."""
+    db = next(get_db())
+    if not scheduler.get_job("bulk_update_corp_invoice_creation"):
+        active_task = db.query(model.TaskSchedular).filter_by(
+        task_name="bulk_update_corp_invoice_creation", is_active=1
+        ).scalar()
+        scheduler.add_job(
+            bulkProcessCorpVoucherData,
+            trigger=IntervalTrigger(minutes=active_task.time_interval),
+            id="bulk_update_corp_invoice_creation",
             replace_existing=True,
         )
         logger.info(

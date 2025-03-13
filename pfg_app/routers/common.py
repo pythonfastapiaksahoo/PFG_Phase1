@@ -15,6 +15,7 @@ from pfg_app.azuread.auth import get_admin_user, get_user_dependency
 # from pfg_app.core import azure_fr as core_fr
 from pfg_app.azuread.schemas import AzureUser
 from pfg_app.core.utils import get_blob_securely, get_credential
+from pfg_app.crud.CorpIntegrationCrud import bulkProcessCorpVoucherData, bulkupdateCorpInvoiceStatus
 from pfg_app.crud.commonCrud import (
     acquire_lock,
     copy_models_in_background,
@@ -206,6 +207,34 @@ async def run_job(background_tasks: BackgroundTasks, job_name: str):
             "message": "Job triggered manually | use Job ID to track the job",
             "job_id": job_id,
         }
+    elif job_name == "bulk_update_corp_invoice_creation":
+        # check if the job is already scheduled by looking at the Blob Lease
+        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
+        try:
+            lease = blob_client.acquire_lease()
+        except Exception as e:
+            logger.error(f"Error acquiring lease: {e}")
+            return {"error": "Error acquiring lease | Possible job already running"}
+        lease.break_lease()
+        job_id = background_tasks.add_task(bulkProcessCorpVoucherData)
+        return {
+            "message": "Job triggered manually | use Job ID to track the job",
+            "job_id": job_id,
+        }
+    elif job_name == "bulk_update_corp_invoice_status":
+        # check if the job is already scheduled by looking at the Blob Lease
+        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
+        try:
+            lease = blob_client.acquire_lease()
+        except Exception as e:
+            logger.error(f"Error acquiring lease: {e}")
+            return {"error": "Error acquiring lease | Possible job already running"}
+        lease.break_lease()
+        job_id = background_tasks.add_task(bulkupdateCorpInvoiceStatus)
+        return {
+            "message": "Job triggered manually | use Job ID to track the job",
+            "job_id": job_id,
+        }
     else:
         return {"error": "Invalid job name"}
 
@@ -276,6 +305,7 @@ async def update_schedule(
             "bulk_update_invoice_status", trigger=IntervalTrigger(minutes=minutes)
         )
         return {"message": f"Job schedule updated to every {minutes} minutes"}
+    
     elif job_name == "bulk_update_invoice_creation":
         # check if the job is already scheduled by looking at the Blob Lease
         blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
@@ -328,6 +358,113 @@ async def update_schedule(
             "bulk_update_invoice_creation", trigger=IntervalTrigger(minutes=minutes)
         )
         return {"message": f"Job schedule updated to every {minutes} minutes by {first_name}"}
+    
+    elif job_name == "bulk_update_corp_invoice_creation":
+        # check if the job is already scheduled by looking at the Blob Lease
+        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
+        try:
+            lease = blob_client.acquire_lease()
+        except ResourceExistsError as e:
+            logger.error(f"Error acquiring lease: {e.error_code} - {e.reason}")
+            return {"error": "Error acquiring lease | Possible job already running"}
+        except Exception as e:
+            logger.error(f"Error acquiring lease: {e}")
+            return {"error": "Error acquiring lease | Possible job already running"}
+        finally:
+            if "lease" in locals():
+                lease.break_lease()
+        # Fetching the first name of the user performing the rejection
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == user.idUser).scalar()
+        )
+        # Fetch the currently active job
+        active_task = (
+            db.query(model.TaskSchedular)
+            .filter(
+                model.TaskSchedular.task_name == "bulk_update_corp_invoice_creation",
+                model.TaskSchedular.is_active == 1
+            )
+            .first()
+        )
+
+        # If an active task exists with the same interval, return early
+        if active_task and active_task.time_interval == minutes:
+            return {"message": f"Job schedule already set to every {minutes} minutes by {first_name}"}
+
+        # Deactivate all previous entries for this job
+        db.query(model.TaskSchedular).filter_by(
+            task_name="bulk_update_corp_invoice_creation", is_active=1
+        ).update({"is_active": 0})
+
+        # Create a new active tas
+        new_task = model.TaskSchedular(
+            task_name="bulk_update_corp_invoice_creation",
+            time_interval=minutes,
+            is_active=1,
+            user_id=user.idUser,
+            updated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            updated_by=first_name,
+        )
+        db.add(new_task)
+        db.commit()  # Commit all changes
+        scheduler.reschedule_job(
+            "bulk_update_corp_invoice_creation", trigger=IntervalTrigger(minutes=minutes)
+        )
+        return {"message": f"Job schedule updated to every {minutes} minutes by {first_name}"}
+    
+    elif job_name == "bulk_update_corp_invoice_status":
+        # check if the job is already scheduled by looking at the Blob Lease
+        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
+        try:
+            lease = blob_client.acquire_lease()
+        except ResourceExistsError as e:
+            logger.error(f"Error acquiring lease: {e.error_code} - {e.reason}")
+            return {"error": "Error acquiring lease | Possible job already running"}
+        except Exception as e:
+            logger.error(f"Error acquiring lease: {e}")
+            return {"error": "Error acquiring lease | Possible job already running"}
+        finally:
+            if "lease" in locals():
+                lease.break_lease()
+        # Fetching the first name of the user performing the rejection
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == user.idUser).scalar()
+        )
+        # Fetch the currently active job
+        active_task = (
+            db.query(model.TaskSchedular)
+            .filter(
+                model.TaskSchedular.task_name == "bulk_update_corp_invoice_status",
+                model.TaskSchedular.is_active == 1
+            )
+            .first()
+        )
+
+        # If an active task exists with the same interval, return early
+        if active_task and active_task.time_interval == minutes:
+            return {"message": f"Job schedule already set to every {minutes} minutes by {first_name}"}
+
+        # Deactivate all previous entries for this job
+        db.query(model.TaskSchedular).filter_by(
+            task_name="bulk_update_corp_invoice_status", is_active=1
+        ).update({"is_active": 0})
+
+        # Create a new active tas
+        new_task = model.TaskSchedular(
+            task_name="bulk_update_corp_invoice_status",
+            time_interval=minutes,
+            is_active=1,
+            user_id=user.idUser,
+            updated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            updated_by=first_name,
+        )
+        db.add(new_task)
+        db.commit()  # Commit all changes
+        scheduler.reschedule_job(
+            "bulk_update_corp_invoice_status", trigger=IntervalTrigger(minutes=minutes)
+        )
+        return {"message": f"Job schedule updated to every {minutes} minutes by {first_name}"}
+    
     else:
         logger.error(f"Recurring job [{job_name}] not found")
         return {"error": f"Recurring job [{job_name}] not found"}
