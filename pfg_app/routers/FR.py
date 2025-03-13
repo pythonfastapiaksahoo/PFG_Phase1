@@ -33,7 +33,7 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/fr",
     tags=["Form Recogniser"],
-    dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"]))],
+    dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User"]))],
     # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
@@ -46,7 +46,7 @@ temp_dir_obj = None
 async def get_fr_config(
     userID: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
     
     ):
     """<b> API route to get Form Recogniser Configuration. It contains
@@ -65,7 +65,7 @@ async def get_fr_config(
 async def get_fr_data(
     documentId: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
     ):
     return await crud.getMetaData(user.idUser, documentId, db)
 
@@ -75,7 +75,7 @@ async def get_fr_data(
 async def get_test_data(
     modelId: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
     ):
     return await crud.getTrainTestRes(user.idUser, modelId, db)
 
@@ -86,7 +86,7 @@ async def getAccuracy(
     type: str,
     name: str,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
     ):
     return await crud.getActualAccuracy(user.idUser, type, name, db)
 
@@ -95,7 +95,7 @@ async def getAccuracy(
 async def getAccuracyByEntity(
     type: str,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
     ):
     # Fetch the data from the database using the CRUD function
     data = await crud.getActualAccuracyByEntity(user.idUser, type, db)
@@ -135,7 +135,7 @@ async def getAccuracyByEntity(
 async def get_entity_levelTaggedInfo(
     tagtype: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
 ):
     for f in os.listdir():
         if os.path.isfile(f) and f.endswith(".xlsx"):
@@ -155,7 +155,7 @@ async def update_metadata(
     frmetadata:dict,
     documentId: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
 ):
     try:
         blb_fldr = frmetadata["FolderPath"]
@@ -381,7 +381,7 @@ def reupload_blob(uploadParams: schema.FrReUpload):
 def model_validate(
     validateParas: schema.FrValidate,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
     ):
 
     mandatoryheadertags = (
@@ -479,7 +479,7 @@ async def create_invoice_model(
     invoiceModel: schema.InvoiceModel,
     db: Session = Depends(get_db),
     # user=Depends(get_admin_user),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
 ):
     """<b> API route to create a new Invoice model with associated tag
     definitions. It contains following parameters.</b>
@@ -522,7 +522,7 @@ async def update_invoicemodel(
     modelID: int,
     invoiceModel: schema.InvoiceModel,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
     # user=Depends(get_admin_user),
 ):
     """<b> API route to update invoice status. It contains following
@@ -556,7 +556,7 @@ async def update_invoicemodel(
 async def get_modellist(
     vendorID: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User"])),
     ):
     """<b> API route to get Form Recogniser Configuration. It contains
     following parameters.</b>

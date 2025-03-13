@@ -21,7 +21,7 @@ router = APIRouter(
 @router.get("/batchprocesssummary")
 async def read_batchprocesssummary(
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User"])),
     # user: AzureUser = Depends(get_user)
 ):
     read_batchprocesssummary = await crud.readbatchprocessdetails(user.idUser, db)
@@ -33,7 +33,7 @@ async def read_batchprocesssummary(
 async def testlinedata(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User"])),
     # user: AzureUser = Depends(get_user)
 ):
     lineData = await crud.readlinedatatest(int(user.idUser), inv_id, db)
@@ -44,7 +44,7 @@ async def testlinedata(
 async def pfgsyncflw(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User"])),
     # user: AzureUser = Depends(get_user),
     customCall: int = 0,
     skipConf: int = 0,
@@ -58,7 +58,7 @@ async def pfgsyncflw(
 async def customCall(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User", "User",])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User"])),
     # user: AzureUser = Depends(get_user),
 
 ):
