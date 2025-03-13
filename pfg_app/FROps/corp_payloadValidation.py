@@ -1,3 +1,4 @@
+import traceback
 from sqlalchemy.orm import aliased
 import pandas as pd
 from pfg_app import model
@@ -7,9 +8,10 @@ from sqlalchemy import func
 import pandas as pd
 import pytz as tz
 from datetime import datetime, timezone
-
-from pfg_app.crud.CorpIntegrationCrud import processCorpInvoiceVoucher
+from sqlalchemy.sql import case
+from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory, processCorpInvoiceVoucher
 from pfg_app.logger_module import logger
+from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 tz_region = tz.timezone("US/Pacific")
 
 
@@ -154,12 +156,193 @@ def payload_dbUpdate(doc_id,userID,db):
             )
         db.commit()
         try:
-            responsedata = processCorpInvoiceVoucher(doc_id, db)
-            
+            # responsedata = processCorpInvoiceVoucher(doc_id, db)
+            # send to ppl soft:
+            SentToPeopleSoft = 0
+            dmsg = ""
+            try:
+                resp = processCorpInvoiceVoucher(doc_id, db)
+                try:
+                    if "data" in resp:
+                        if "Http Response" in resp["data"]:
+                            RespCode = resp["data"][
+                                "Http Response"
+                            ]
+                            if resp["data"][
+                                "Http Response"
+                            ].isdigit():
+                                RespCodeInt = int(RespCode)
+                                logger.info(f"RespCodeInt {doc_id}: {RespCodeInt}")
+                                if RespCodeInt == 201:
+                                    SentToPeopleSoft = 1
+                                    dmsg = (
+                                        InvoiceVoucherSchema.SUCCESS_STAGED  # noqa: E501
+                                    )
+                                    docStatus = 7
+                                    docSubStatus = 43
+
+                                elif RespCodeInt == 400:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 149
+
+                                elif RespCodeInt == 406:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_INVOICE  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 148
+
+                                elif RespCodeInt == 408:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 4
+                                    docSubStatus = 146
+                                    
+                                elif RespCodeInt == 409:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.BLOB_STORAGE_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 4
+                                    docSubStatus = 147
+                                    
+                                elif RespCodeInt == 422:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 150
+
+                                elif RespCodeInt == 424:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_FILE_ATTACHMENT  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 151
+
+                                elif RespCodeInt == 500:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.INTERNAL_SERVER_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 152
+                                
+                                elif RespCodeInt == 104:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_CONNECTION_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 143
+                                else:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 112
+                            else:
+                                dmsg = (
+                                    InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                )
+                                docStatus = 21
+                                docSubStatus = 112
+                        else:
+                            logger.info(f"error docID: {doc_id} - No Http Response found")
+                            dmsg = (
+                                InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                            )
+                            docStatus = 21
+                            docSubStatus = 112
+                            
+                    else:
+                        logger.info(f"error docID: {doc_id} - No data found ppl dft response")
+                        dmsg = (
+                            InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                        )
+                        docStatus = 21
+                        docSubStatus = 112
+                except Exception as err:
+                    logger.info(f"error docID: {doc_id} - No response")
+                    logger.debug(
+                        f"PopleSoftResponseError: {traceback.format_exc()}"  # noqa: E501
+                    )
+                    dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
+                        err
+                    )
+                    docStatus = 21
+                    docSubStatus = 112
+
+                try:
+                    logger.info(f"Updating the document status for doc_id:{doc_id}")
+                    db.query(model.corp_document_tab).filter(
+                        model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,
+                            model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.retry_count: case(
+                                (model.corp_document_tab.retry_count.is_(None), 1),  # If NULL, set to 1
+                                else_=model.corp_document_tab.retry_count + 1        # Otherwise, increment
+                            ) if docStatus == 21 and docSubStatus in [152, 143] else model.corp_document_tab.retry_count
+                        }
+                    )
+                    db.commit()
+                    logger.info(f"Updated docStatus {doc_id}: {docStatus}")
+                except Exception:
+                    logger.error(traceback.format_exc())
+                try:
+
+                    corp_update_docHistory(
+                        doc_id, userID, docStatus, dmsg, db, docSubStatus
+                    )
+
+                except Exception:
+                    logger.error(traceback.format_exc())
+            except Exception as e:
+                logger.info(f"error docID: {doc_id} - No response - failed")
+                logger.debug(traceback.format_exc())
+                dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
+                    e
+                )
+                docStatus = 21
+                docSubStatus = 112
+
+                # docStatusSync["Sent to PeopleSoft"] = {
+                #     "status": SentToPeopleSoft,
+                #     "StatusCode":0,
+                #     "response": [dmsg],
+                # }
+
+                try:
+                    db.query(model.corp_document_tab).filter(
+                        model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,
+                            model.corp_document_tab.documentsubstatus: docSubStatus,
+                        }
+                    )
+                    db.commit()
+                except Exception:
+                    logger.debug(traceback.format_exc())
+
+                try:
+                    documentstatus = 21
+                    corp_update_docHistory(
+                        doc_id,
+                        userID,
+                        documentstatus,
+                        dmsg,
+                        db,docSubStatus,  # noqa: E501
+                    )
+                except Exception:
+                    logger.debug(f"{traceback.format_exc()}")
             return_status["PeopleSoft response"] = {"status": 1,
                                                 "StatusCode":0,
                                                 "response": [
-                                                                f" PeopleSoft:{str(responsedata)}"
+                                                                f" PeopleSoft:{str(resp)}"
                                                             ],
                                                         }
             
@@ -173,7 +356,7 @@ def payload_dbUpdate(doc_id,userID,db):
                                                         }
         return return_status
     else:
-       
+
         docStatus = 4
         docSubStatus = 36
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
