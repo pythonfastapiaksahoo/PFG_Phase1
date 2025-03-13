@@ -1537,7 +1537,7 @@ class CorpQueueTask(Base):
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
     mail_row_key = Column(String(50), nullable=False)
-
+    locked_at = Column(DateTime, nullable=True)
     # Define a GIN index on the request_data column
     __table_args__ = (
         Index("idx_queue_tasks_request_data", "request_data", postgresql_using="gin"),
@@ -1568,6 +1568,9 @@ class corp_document_tab(Base):
     document_type = Column((String), nullable=True)
     sender = Column((String), nullable=True)
     voucher_id = Column((String), nullable=True)
+    email_filepath_pdf = Column(String(1255), nullable=True)
+    documentdescription = Column(TEXT, nullable=True)
+    retry_count = Column(Integer, nullable=True)
 
 class corp_coding_tab(Base):
     __tablename__ = "corp_coding_tab"
@@ -1582,7 +1585,7 @@ class corp_coding_tab(Base):
     approver_title = Column(String, nullable=True)
     invoicetotal = Column(Float, nullable=True)
     gst = Column(Float, nullable=True)
-    voucher_status = Column(String, nullable=True)
+    voucher_status = Column(JSON, nullable=True)
     sent_erp = Column(DateTime, nullable=True)
     created_on = Column(DateTime, nullable=True)
     updated_on = Column(DateTime, nullable=True)
@@ -1595,9 +1598,8 @@ class corp_coding_tab(Base):
     approved_on = Column(String, nullable=True)
     approval_status = Column(String, nullable=True)
     document_type = Column(String, nullable=True)
-
-
-
+    template_type = Column(String, nullable=True)
+    
 
 class corp_docdata(Base):
     __tablename__ = "corp_docdata"
@@ -1706,7 +1708,7 @@ class CorpDocumentUpdates(Base):
 
     iddocumentupdates = Column(Integer, primary_key=True, autoincrement=True) 
     doc_id = Column(Integer, nullable=True )
-    updated_field = Column(Integer, nullable=True )
+    updated_field = Column(String, nullable=True )
     is_active = Column(Integer, nullable=True) 
     old_value = Column(String, nullable=True) 
     new_value= Column(String, nullable=True) 

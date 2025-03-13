@@ -156,7 +156,8 @@ async def app_startup():
         )
         db.commit()
         logger.info("All Corp queues reset to queued state")
-        corp_worker_thread = threading.Thread(target=CorpIntegrationapi.queue_worker, daemon=True)
+        corp_worker_thread = threading.Thread(target=CorpIntegrationapi.corp_queue_worker, daemon=True,
+                    kwargs={"operation_id": operation_id})
         corp_worker_thread.start()
         logger.info("CorpIntegration Worker thread started")
     else:
@@ -181,7 +182,8 @@ async def app_startup():
         ).update({"status": f"{settings.local_user_name}-queued"})
         db.commit()
         logger.info("All Corp queues reset to queued state")
-        corp_worker_thread = threading.Thread(target=CorpIntegrationapi.queue_worker, daemon=True)
+        corp_worker_thread = threading.Thread(target=CorpIntegrationapi.corp_queue_worker,
+                    daemon=True,kwargs={"operation_id": operation_id})
         corp_worker_thread.start()
         logger.info("CorpIntegration Worker thread started")
     logger.info("Application is ready to process requests")
@@ -227,7 +229,9 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.99.32"
+
+            response.headers["api-version"] = "0.100.61"
+
 
             logger.info(
                 "Sending response from FastAPI"

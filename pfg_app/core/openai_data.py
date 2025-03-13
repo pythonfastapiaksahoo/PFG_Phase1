@@ -25,7 +25,7 @@ def get_open_ai_token():
 
 def extract_invoice_details_using_openai(blob_data):
     try:
-        
+        logger.info(f"OpenAI Extracting invoice details started")
         prompt = """
                 The provided image contains invoice ID, vendor name, vendor address and other details. Extract the relevant information and format it as a list of JSON objects, adhering strictly to the structure provided below:
 
@@ -201,7 +201,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "Content-Type": "application/json",
                 }
         retry_count = 0
-        max_retries = 20
+        max_retries = 50
         while retry_count < max_retries:
             response = requests.post(
                 settings.open_ai_endpoint, headers=headers, json=data, timeout=60
@@ -212,60 +212,62 @@ def extract_invoice_details_using_openai(blob_data):
                 for choice in result["choices"]:
                     content = choice["message"]["content"].strip()
                     logger.info(f"Content: {content}")
-                break
+                # Parse response immediately and exit retry loop
+                cl_data = (
+                    content.replace("json", "")
+                    .replace("\n", "")
+                    .replace("'''", "")
+                    .replace("```", "")
+                )
+
+                try:
+                    cleaned_json = json.loads(cl_data)
+                except BaseException:
+                    try:
+                        cleaned_json = json.loads(cl_data.replace("'", '"'))
+                    except BaseException:
+                        cleaned_json = data
+
+                return cleaned_json, total_pages, file_size_mb 
+                # break
             elif response.status_code == 429:  # Handle rate limiting
-                retry_after = int(response.headers.get("Retry-After", 5))
-                logger.info(f"Rate limit hit. Retrying after {retry_after} seconds...")
-                time.sleep(retry_after)
+                logger.info(f"Error: {response.status_code}, {response.text}")
+                # retry_after = int(response.headers.get("Retry-After", 5))
+                logger.info(f"Rate limit hit. Retrying after {10} seconds...")
+                time.sleep(10)
             else:
                 logger.info(f"Error: {response.status_code}, {response.text}")
                 retry_count += 1
-                wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
-                logger.info(f"Retrying in {wait_time:.2f} seconds...")
-                time.sleep(wait_time)
+                # wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
+                # logger.info(f"Retrying in {wait_time:.2f} seconds...")
+                logger.info(f"Retrying in 10 seconds...")
+                time.sleep(10)
         
-        if retry_count == max_retries:
-            logger.error("Max retries reached. Exiting.")
-            content = json.dumps(
-                {
-                    "NumberOfPages": "Max retries reached",
-                    "CreditNote": "Max retries reached",
-                    "VendorName": "Max retries reached",
-                    "VendorAddress": "Max retries reached",
-                    "InvoiceID": "Max retries reached",
-                    "InvoiceDate": "Max retries reached",
-                    "SubTotal": "Max retries reached",
-                    "invoicetotal": "Max retries reached",
-                    "GST": "Max retries reached",
-                    "PST": "Max retries reached",
-                    "PST-SK": "Max retries reached",
-                    "PST-BC": "Max retries reached",
-                    "Bottle Deposit": "Max retries reached",
-                    "Shipping Charges": "Max retries reached",
-                    "Ecology Fee": "Max retries reached",
-                    "Fuel Surcharge": "Max retries reached",
-                    "Freight": "Max retries reached",
-                    "Litter Deposit": "Max retries reached",
-                    "Currency": "CAD"
-                }
-            )
+        # If max retries are reached, return failure response
+        logger.error("Max retries reached. Exiting.")
+        cleaned_json = {
+            "NumberOfPages": "Max retries reached",
+            "CreditNote": "Max retries reached",
+            "VendorName": "Max retries reached",
+            "VendorAddress": "Max retries reached",
+            "InvoiceID": "Max retries reached",
+            "InvoiceDate": "Max retries reached",
+            "SubTotal": "Max retries reached",
+            "invoicetotal": "Max retries reached",
+            "GST": "Max retries reached",
+            "PST": "Max retries reached",
+            "PST-SK": "Max retries reached",
+            "PST-BC": "Max retries reached",
+            "Bottle Deposit": "Max retries reached",
+            "Shipping Charges": "Max retries reached",
+            "Ecology Fee": "Max retries reached",
+            "Fuel Surcharge": "Max retries reached",
+            "Freight": "Max retries reached",
+            "Litter Deposit": "Max retries reached",
+            "Currency": "CAD"
+        }
     
-        cl_data = (
-            content.replace("json", "")
-            .replace("\n", "")
-            .replace("'''", "")
-            .replace("```", "")
-        )
-
-        try:
-            # Parse the JSON
-            cleaned_json = json.loads(cl_data)
-        except BaseException:
-            try:
-                cl_data_corrected = cl_data.replace("'", '"')
-                cleaned_json = json.loads(cl_data_corrected)
-            except BaseException:
-                cleaned_json = data
+        return cleaned_json, total_pages, file_size_mb
 
     except Exception:
         logger.info(traceback.format_exc())
@@ -294,8 +296,8 @@ def extract_invoice_details_using_openai(blob_data):
 
 def extract_approver_details_using_openai(msg):
     try:
-        
-        max_length = 80000
+        logger.info(f"OpenAI Extracting approver details started")
+        max_length = 30000
         content = msg.get_body(preferencelist=('html', 'plain')).get_content()
         
         # Initialize email_content to an empty string or the full content by default
@@ -304,13 +306,16 @@ def extract_approver_details_using_openai(msg):
         if max_length and len(content) > max_length:
             email_content = content[:max_length]
         prompt = """
-            Email chain:
-            approved
+            From: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com> 
+            Sent: 21 November 2024 23:31
+            To: AP Auto Expense <ap_auto_expense@pattisonfoodgroup.com>
+            Subject: FW: Com Pro AR226369 $668.19
 
+            approved
 
             Kathy March
             Senior Finance Manager
-            E. Kathy_march@pattisonfoodgroup.com
+
 
             From: Ryan Doak (Office Services Representative) <ryan_doak@pattisonfoodgroup.com>
             Sent: Thursday, November 21, 2024 9:44 AM
@@ -340,8 +345,8 @@ def extract_approver_details_using_openai(msg):
 
 
             The provided email chain contains the details of the approver before the 'From' clause:   
-            - Approved or approved keyword  and just below that the Approval Details: Approver name, Designation, email
-
+            - Approved or approved keyword  and just below that the Approval Details: Approver name, Designation, email.
+            - Convert the Sent date to a YYYY-MM-DD format.
             Extract the relevant information from last email sent only and format it as a JSON objects, adhering strictly to the  sample structure provided below:
 
             {
@@ -402,15 +407,17 @@ def extract_approver_details_using_openai(msg):
                     logger.info(f"Content: {content}")
                 break
             elif response.status_code == 429:  # Handle rate limiting
-                retry_after = int(response.headers.get("Retry-After", 5))
-                logger.info(f"Rate limit hit. Retrying after {retry_after} seconds...")
-                time.sleep(retry_after)
+                logger.info(f"Error in Corp OpenAI: {response.status_code}, {response.text}")
+                # retry_after = int(response.headers.get("Retry-After", 5))
+                logger.info(f"Rate limit hit. Retrying after {10} seconds...")
+                time.sleep(10)
             else:
-                logger.info(f"Error: {response.status_code}, {response.text}")
+                logger.info(f"Error in Corp OpenAI:: {response.status_code}, {response.text}")
                 retry_count += 1
-                wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
-                logger.info(f"Retrying in {wait_time:.2f} seconds...")
-                time.sleep(wait_time)
+                # wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
+                # logger.info(f"Retrying in {wait_time:.2f} seconds...")
+                logger.info(f"Retrying in 10 seconds...")
+                time.sleep(10)
         
         if retry_count == max_retries:
             logger.error("Max retries reached. Exiting.")

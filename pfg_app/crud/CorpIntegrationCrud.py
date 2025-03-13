@@ -91,7 +91,7 @@ def format_data_for_template1(parsed_data):
             "SL": [],
             "project": [],
             "activity": [],
-            "subtotal": []
+            "amount": []
         }
         approver_details = {}
 
@@ -113,13 +113,13 @@ def format_data_for_template1(parsed_data):
                             break
 
                         # Map each column of data to the correct header
-                        invoice_data["store"].append(data_row[0])
-                        invoice_data["dept"].append(data_row[1])
-                        invoice_data["account"].append(data_row[2])
-                        invoice_data["SL"].append(data_row[3])
-                        invoice_data["project"].append(data_row[4])
-                        invoice_data["activity"].append(data_row[5])
-                        invoice_data["subtotal"].append(data_row[6]) # Ensure subtotal remains null
+                        invoice_data["store"].append(data_row[0] if len(data_row) > 0 else "")
+                        invoice_data["dept"].append(data_row[1] if len(data_row) > 1 else "")
+                        invoice_data["account"].append(data_row[2] if len(data_row) > 2 else "")
+                        invoice_data["SL"].append(data_row[3] if len(data_row) > 3 else "")
+                        invoice_data["project"].append(data_row[4] if len(data_row) > 4 else "")
+                        invoice_data["activity"].append(data_row[5] if len(data_row) > 5 else "")
+                        invoice_data["amount"].append(data_row[6] if len(data_row) > 6 else "")
 
                 # Extract GST and Grand Total
                 elif "GST:" in row[0]:
@@ -155,10 +155,25 @@ def format_data_for_template1(parsed_data):
         logger.info(f"Error while extracting coding details for template 1:{traceback.format_exc()}")
         # Combine into final structured JSON
         structured_output = {
-            "email_metadata": {"Error"},
-            "invoiceDetails": {"Error"},
-            "approverDetails": {"Error"}
-        }
+                        "email_metadata": email_metadata,
+                        "invoiceDetails": { 
+                            "store": [''], 
+                            "dept": [''], 
+                            "account": [''], 
+                            "SL": [''],
+                            "project": [''],
+                            "activity": [''], 
+                            "amount": [''], 
+                            "invoice#": '', 
+                            "GST": '', 
+                            "invoicetotal": '', 
+                        }, 
+                        "approverDetails": { 
+                            "approverName": '', 
+                            "TMID": '', 
+                            "title": '',
+                        } 
+                    }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
         return final_json
@@ -228,10 +243,26 @@ def format_data_for_template2(parsed_data):
         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
         # Combine into final structured JSON
         structured_output = {
-            "email_metadata": {"Error"},
-            "invoiceDetails": {"Error"},
-            "approverDetails": {"Error"}
-        }
+                        "email_metadata": email_metadata, 
+
+                        "invoiceDetails": { 
+                            "store": [''], 
+                            "dept": [''], 
+                            "account": [''], 
+                            "SL": [''],
+                            "project": [''],
+                            "activity": [''], 
+                            "amount": [''], 
+                            "invoice#": '', 
+                            "GST": '', 
+                            "invoicetotal": '', 
+                        }, 
+                        "approverDetails": { 
+                            "approverName": '', 
+                            "TMID": '', 
+                            "title": '',
+                        } 
+                    }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
         return final_json
@@ -316,10 +347,26 @@ def format_data_for_template3(parsed_data):
 
         # Combine into final structured JSON
         structured_output = {
-            "email_metadata": email_metadata,
-            "invoiceDetails": invoice_data,
-            "approverDetails": approver_details
-        }
+                        "email_metadata": email_metadata, 
+
+                        "invoiceDetails": { 
+                            "store": [''], 
+                            "dept": [''], 
+                            "account": [''], 
+                            "SL": [''],
+                            "project": [''],
+                            "activity": [''], 
+                            "amount": [''], 
+                            "invoice#": '', 
+                            "GST": '', 
+                            "invoicetotal": '', 
+                        }, 
+                        "approverDetails": { 
+                            "approverName": '', 
+                            "TMID": '', 
+                            "title": '',
+                        } 
+                    }
 
         # Convert to JSON and return
         final_json = json.dumps(structured_output, indent=4)
@@ -497,9 +544,14 @@ def extract_eml_to_html(blob_data):
                     image_type = part.get_content_subtype()  # e.g., "jpeg", "png"
 
                     # Replace cid: references in HTML with Base64 data URL
-                    cid = part.get("Content-ID").strip("<>")
-                    data_url = f"data:image/{image_type};base64,{image_base64}"
-                    html_content = html_content.replace(f"cid:{cid}", data_url)
+                    cid = part.get("Content-ID")
+                    if cid:
+                        cid = cid.strip("<>")
+                        data_url = f"data:image/{image_type};base64,{image_base64}"
+                        html_content = html_content.replace(f"cid:{cid}", data_url)
+                    # cid = part.get("Content-ID").strip("<>")
+                    # data_url = f"data:image/{image_type};base64,{image_base64}"
+                    # html_content = html_content.replace(f"cid:{cid}", data_url)
 
         return html_content
     
@@ -1093,7 +1145,7 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
         return {"error": str(e), "total_items": 0}
     
     
-def read_corp_invoice_file(u_id, inv_id, db):
+def read_corp_doc_invoice_file(u_id, inv_id, db):
     """Function to read the invoice file and return its base64 encoded content
     along with the content type.
 
@@ -1173,6 +1225,88 @@ def read_corp_invoice_file(u_id, inv_id, db):
     finally:
         db.close()
         
+    
+    
+def read_corp_invoice_file(u_id, inv_id, db):
+    """Function to read the invoice file and return its base64 encoded content
+    along with the content type.
+
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    inv_id : int
+        Invoice ID for which the file is to be retrieved.
+    db : Session
+        Database session object used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the file path in base64 format and its content type.
+    """
+    try:
+        content_type = "application/pdf"
+        file_name = None
+        file_size_mb = None
+        # getting invoice data for later operation
+        invdat = (
+            db.query(model.CorpVoucherData)
+            .options(load_only("INVOICE_FILE_PATH"))
+            .filter_by(DOCUMENT_ID=inv_id)
+            .one()
+        )
+        # check if file path is present and give base64 coded image url
+        if invdat.INVOICE_FILE_PATH:
+            try:
+                account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=get_credential()
+                )
+                # container = settings.container_name
+                container = "apinvoice-mail-container"
+                # if invdat.vendor_id is None:
+                blob_client = blob_service_client.get_blob_client(
+                    container=container, blob=invdat.INVOICE_FILE_PATH
+                )
+                
+                # Get file name
+                file_name = os.path.basename(invdat.INVOICE_FILE_PATH)
+
+                # Get file size in MB
+                properties = blob_client.get_blob_properties()
+                file_size = round(properties.size / (1024 * 1024), 2)  # Convert bytes to MB
+                file_size_mb = f"{file_size} MB"
+                # invdat.docPath = str(list(blob_client.download_blob().readall()))
+                try:
+                    filetype = os.path.splitext(invdat.INVOICE_FILE_PATH)[1].lower()
+                    if filetype == ".png":
+                        content_type = "image/png"
+                    elif filetype == ".jpg" or filetype == ".jpeg":
+                        content_type = "image/jpg"
+                    else:
+                        content_type = "application/pdf"
+                except Exception:
+                    print(f"Error in file type : {traceback.format_exc()}")
+                invdat.INVOICE_FILE_PATH = base64.b64encode(blob_client.download_blob().readall())
+            except Exception:
+                logger.error(traceback.format_exc())
+                invdat.INVOICE_FILE_PATH = f"Blob does not exist: {invdat.INVOICE_FILE_PATH}"
+
+        return {
+            "result": {
+                "filepath": invdat.INVOICE_FILE_PATH,
+                "content_type": content_type,
+                "file_name": file_name,
+                "file_size_mb": file_size_mb
+            }
+        }
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500, headers={"codeError": "Server Error"})
+    finally:
+        db.close()
+
 async def read_corp_invoice_data(u_id, inv_id, db):
     """
     This function reads the invoice list and contains the following parameters:
@@ -1462,17 +1596,19 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
             new_value = update.NewValue
             if field == "vendor_name":
                 vendor_code = update.vendorCode
-                vendor_record = db.query(model.Vendor).filter_by(VendorName=new_value, VendorCode=vendor_code).first()
+                vendor_record = db.query(model.Vendor).filter_by(VendorCode=vendor_code).first()
                 # vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
-                if not vendor_record:
+                # vendor_record = db.query(model.corp_metadata).filter_by(vendorname=new_value, vendorcode=vendor_code).first()
+                if vendor_record:
+                    # return {"message": "Vendor not exist in Vendor Master"}
+                    corp_doc_tab.vendor_code = vendor_record.VendorCode
+                    corp_doc_tab.vendor_id = vendor_record.idVendor
+                    any_updates = True
+                    vendor_updated = True
+                    consolidated_updates.append(f"vendor_code: {vendor_record.VendorCode}, vendor_id: {vendor_record.idVendor}")
+                    continue
+                else:
                     return {"message": "Vendor not exist in Vendor Master"}
-                
-                corp_doc_tab.vendor_code = vendor_record.VendorCode
-                corp_doc_tab.vendor_id = vendor_record.idVendor
-                any_updates = True
-                vendor_updated = True
-                consolidated_updates.append(f"vendor_code: {vendor_record.VendorCode}, vendor_id: {vendor_record.idVendor}")
-                continue
             # Ensure the field exists in the model
             if hasattr(corp_doc, field) and field != "vendor_name":
                 field_type = type(getattr(corp_doc, field))  # Get the current field's type
@@ -1759,48 +1895,38 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
+        invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH.split("/")[-1] or ""
+        email_pdf_file_name = corpvoucherdata.EMAIL_PATH.split("/")[-1] or ""
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-        if not date_pattern.match(model.CorpVoucherData.INVOICE_DT):
+        if not corpvoucherdata.INVOICE_DT or not date_pattern.match(corpvoucherdata.INVOICE_DT):
+
             return {
                 "message": "Invalid Date Format",
                 "data": {"Http Response": "408", "Status": "Invalid date format"},
             }
             
-        # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_invoice_file(1, doc_id, db)
-            if file_data and "result" in file_data:
-                base64file = file_data["result"]["filepath"]
-
-                # If filepath is a bytes object, decode it
-                if isinstance(base64file, bytes):
-                    base64file = base64file.decode("utf-8")
-                    
-            else:
+            base64file = file_data["result"]["filepath"] if file_data and "result" in file_data else None
+            if isinstance(base64file, bytes):
+                base64file = base64file.decode("utf-8")
+            if not base64file:
                 raise Exception("Error retrieving file: No result found in file data.")
-            
         except Exception as e:
-            # Catch any error from the read_invoice_file
             logger.error(f"Error in read_invoice_file_voucher: {traceback.format_exc()}")
             return {
                 "message": "Failure: File Attachment could not be loaded",
                 "data": {"Http Response": "409", "Status": "Error retrieving file"},
             }
-        # logger.info(f"base64file for doc id: {doc_id}: {base64file}")
         
-        # Call the function to get the base64 file and content type
         try:
             file_data = read_corp_email_pdf_file(1, doc_id, db)
-            if file_data and "result" in file_data:
-                base64eml = file_data["result"]["filepath"]
-
-                # If filepath is a bytes object, decode it
-                if isinstance(base64eml, bytes):
-                    base64eml = base64eml.decode("utf-8")
-            else:
+            base64eml = file_data["result"]["filepath"] if file_data and "result" in file_data else None
+            if isinstance(base64eml, bytes):
+                base64eml = base64eml.decode("utf-8")
+            if not base64eml:
                 raise Exception("Error retrieving email file: No result found in file data.")
-                
         except Exception as e:
             logger.error(f"Error in read_corp_email_pdf_file: {traceback.format_exc()}")
             return {
@@ -1886,7 +2012,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
-                                    "FILE_NAME": corpvoucherdata.INVOICE_FILE_PATH or "",
+                                    "FILE_NAME": invoice_file_name,
                                     "base64file": base64file
                                 },
                                 {
@@ -1896,7 +2022,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
-                                    "FILE_NAME": corpvoucherdata.EMAIL_PATH or "",
+                                    "FILE_NAME": email_pdf_file_name,
                                     "base64file": base64eml
                                 }
                             ],
@@ -1906,8 +2032,16 @@ def processCorpInvoiceVoucher(doc_id, db):
             ]
         }
         
-        # request_payload = json.dumps(voucher_payload, indent=4)
-        logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
+        # try:
+        #     json.dumps(voucher_payload)
+        # except TypeError as e:
+        #     logger.error(f"JSON serialization error: {traceback.format_exc()}")
+        #     return {"message": "Serialization Error",
+        #             "data": {"Http Response": "106", "Error Message": {traceback.format_exc()}}}
+            
+        logger.info(f"Final voucher_payload for doc_id: {doc_id}: {json.dumps(voucher_payload, indent=4)}")
+        
+        # logger.info(f"request_payload for doc_id: {doc_id}: {voucher_payload}")
         # Make a POST request to the external API endpoint
         api_url = settings.erp_invoice_import_endpoint
         headers = {"Content-Type": "application/json"}
@@ -1927,6 +2061,7 @@ def processCorpInvoiceVoucher(doc_id, db):
             # Raises an HTTPError if the response was unsuccessful
             # Log full response details
             logger.info(f"Response Status : {response.status_code}")
+            # logger.info(f"Response Text : {response.text}")
             logger.info(f"Response Headers : {response.headers}")
             # logger.info("Response Content: ", response.content.decode())  # Full content
 
@@ -1936,10 +2071,10 @@ def processCorpInvoiceVoucher(doc_id, db):
             return {"message": "Success", "data": response_data} if response_data else {"message": "Success, but response JSON is empty.", "data": response_data}
             
         except Exception:
-            logger.info(f"ConnectionError occurred: {traceback.format_exc()}")
+            logger.info(f"ConnectionError occurred for doc_id: {doc_id}: {traceback.format_exc()}")
             responsedata = {
-            "message": "ConnectionResetError",
-            "data": {"Http Response": "104", "Status": "Connection reset by peer"},
+            "message": "ConnectionError",
+            "data": {"Http Response": "500", "Error Message": {traceback.format_exc()}},
             }
 
     except Exception:
@@ -1956,7 +2091,84 @@ def processCorpInvoiceVoucher(doc_id, db):
 
     return responsedata
 
+def read_corp_doc_email_pdf_file(u_id, inv_id, db):
+    """Function to read the invoice file and return its base64 encoded content
+    along with the content type.
 
+    Parameters:
+    ----------
+    u_id : int
+        User ID of the requester.
+    inv_id : int
+        Invoice ID for which the file is to be retrieved.
+    db : Session
+        Database session object used to interact with the backend database.
+
+    Returns:
+    -------
+    dict
+        A dictionary containing the file path in base64 format and its content type.
+    """
+    try:
+        content_type = "application/pdf"
+        file_name = None
+        file_size_mb = None
+        # getting invoice data for later operation
+        invdat = (
+            db.query(model.corp_document_tab)
+            .options(load_only("email_filepath_pdf"))
+            .filter_by(corp_doc_id=inv_id)
+            .one()
+        )
+        # check if file path is present and give base64 coded image url
+        if invdat.email_filepath_pdf:
+            try:
+                account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=get_credential()
+                )
+                # container = settings.container_name
+                container = "apinvoice-mail-container"
+                # if invdat.vendor_id is None:
+                blob_client = blob_service_client.get_blob_client(
+                    container=container, blob=invdat.email_filepath_pdf
+                )
+                # Get file name
+                file_name = os.path.basename(invdat.email_filepath_pdf)
+
+                # Get file size in MB
+                properties = blob_client.get_blob_properties()
+                file_size = round(properties.size / (1024 * 1024), 2)  # Convert bytes to MB
+                file_size_mb = f"{file_size} MB"
+                # invdat.docPath = str(list(blob_client.download_blob().readall()))
+                try:
+                    filetype = os.path.splitext(invdat.email_filepath_pdf)[1].lower()
+                    if filetype == ".png":
+                        content_type = "image/png"
+                    elif filetype == ".jpg" or filetype == ".jpeg":
+                        content_type = "image/jpg"
+                    else:
+                        content_type = "application/pdf"
+                except Exception:
+                    logger.info(f"Error in file type : {traceback.format_exc()}")
+                invdat.email_filepath_pdf = base64.b64encode(blob_client.download_blob().readall())
+            except Exception:
+                logger.error(traceback.format_exc())
+                invdat.email_filepath_pdf = f"Blob does not exist: {invdat.email_filepath_pdf}"
+
+        return {
+            "result": {
+                "filepath": invdat.email_filepath_pdf,
+                "content_type": content_type,
+                "file_name": file_name,
+                "file_size_mb": file_size_mb
+            }
+        }
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(status_code=500, headers={"codeError": "Server Error"})
+    finally:
+        db.close()
 
 def read_corp_email_pdf_file(u_id, inv_id, db):
     """Function to read the invoice file and return its base64 encoded content
@@ -1982,13 +2194,13 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
         file_size_mb = None
         # getting invoice data for later operation
         invdat = (
-            db.query(model.corp_document_tab)
-            .options(load_only("email_filepath"))
-            .filter_by(corp_doc_id=inv_id)
+            db.query(model.CorpVoucherData)
+            .options(load_only("EMAIL_PATH"))
+            .filter_by(DOCUMENT_ID=inv_id)
             .one()
         )
         # check if file path is present and give base64 coded image url
-        if invdat.email_filepath:
+        if invdat.EMAIL_PATH:
             try:
                 account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
                 blob_service_client = BlobServiceClient(
@@ -1998,10 +2210,10 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 container = "apinvoice-mail-container"
                 # if invdat.vendor_id is None:
                 blob_client = blob_service_client.get_blob_client(
-                    container=container, blob=invdat.email_filepath
+                    container=container, blob=invdat.EMAIL_PATH
                 )
                 # Get file name
-                file_name = os.path.basename(invdat.invo_filepath)
+                file_name = os.path.basename(invdat.EMAIL_PATH)
 
                 # Get file size in MB
                 properties = blob_client.get_blob_properties()
@@ -2009,7 +2221,7 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                 file_size_mb = f"{file_size} MB"
                 # invdat.docPath = str(list(blob_client.download_blob().readall()))
                 try:
-                    filetype = os.path.splitext(invdat.email_filepath)[1].lower()
+                    filetype = os.path.splitext(invdat.EMAIL_PATH)[1].lower()
                     if filetype == ".png":
                         content_type = "image/png"
                     elif filetype == ".jpg" or filetype == ".jpeg":
@@ -2018,14 +2230,14 @@ def read_corp_email_pdf_file(u_id, inv_id, db):
                         content_type = "application/pdf"
                 except Exception:
                     logger.info(f"Error in file type : {traceback.format_exc()}")
-                invdat.email_filepath = base64.b64encode(blob_client.download_blob().readall())
+                invdat.EMAIL_PATH = base64.b64encode(blob_client.download_blob().readall())
             except Exception:
                 logger.error(traceback.format_exc())
-                invdat.email_filepath = f"Blob does not exist: {invdat.email_filepath}"
+                invdat.EMAIL_PATH = f"Blob does not exist: {invdat.EMAIL_PATH}"
 
         return {
             "result": {
-                "filepath": invdat.email_filepath,
+                "filepath": invdat.EMAIL_PATH,
                 "content_type": content_type,
                 "file_name": file_name,
                 "file_size_mb": file_size_mb
@@ -2513,7 +2725,7 @@ async def uploadMissingFile(u_id, inv_id, file, db):
             return "Email file path not found. Please upload the email file first and try again."
         
         # Extract directory path
-        dir_path = eml_filepath.split(".pdf")[0]
+        dir_path = eml_filepath.split(".eml")[0]
         
         # Define container and blob names
         container_name = "apinvoice-mail-container"  # Replace with actual container
@@ -2546,19 +2758,19 @@ async def uploadMissingEmailFile(u_id, inv_id, file, db):
         # Fetch the invoice data from the database
         invdat = (
             db.query(model.corp_document_tab)
-            .options(load_only("email_filepath","mail_row_key"))
+            .options(load_only("email_filepath_pdf","mail_row_key"))
             .filter_by(corp_doc_id=inv_id)
             .one()
         )
         
-        eml_filepath = invdat.email_filepath
+        email_filepath_pdf = invdat.email_filepath_pdf
         mail_row_key = invdat.mail_row_key
-        if not eml_filepath:
+        if not email_filepath_pdf:
             # raise ValueError("Invalid invoice email pdf file path")
             dir_path = f"ap-portal-invoices/CORPORATE/{mail_row_key}"
         else:
             # Extract directory path
-            dir_path = os.path.dirname(eml_filepath)
+            dir_path = os.path.dirname(email_filepath_pdf)
         
         if not dir_path:
             raise ValueError("Failed to extract directory path from email_filepath")
@@ -2580,7 +2792,7 @@ async def uploadMissingEmailFile(u_id, inv_id, file, db):
         pdf_bytes_io.close()  # Free memory
         
         # **Update the email_filepath in the database**
-        invdat.email_filepath = blob_path
+        invdat.email_filepath_pdf = blob_path
         db.commit()  # Commit the transaction to save changes
 
         return {"message": "File uploaded and path updated successfully", "blob_path": blob_path}
@@ -3132,3 +3344,294 @@ async def download_corp_paginate_doc_inv_list(
         return Response(status_code=500)
     finally:
         db.close()
+        
+
+async def reject_corp_invoice(userID, invoiceID, reason, db):
+    """Function to reject an invoice by updating its status and logging the change.
+
+    Parameters:
+    ----------
+    userID : int
+        The ID of the user rejecting the invoice.
+    invoiceID : int
+        The ID of the invoice being rejected.
+    reason : str
+        The reason provided for rejecting the invoice.
+    db : Session
+        The database session object used for interacting with the backend.
+
+    Returns:
+    -------
+    str or dict
+        Returns a success message or a dictionary with an error message
+        if the operation fails.
+    """
+    try:
+        # Mapping reasons to substatus IDs
+        reason_to_substatus = {
+            "No Active Models/Templates": 158,
+            "Vendor Not Onboarded": 157,
+            "Duplicate": 156,
+            "Missing Pages": 155,
+            "Invalid Scan": 154,
+            "Invoice Details Missing": 153,
+        }
+
+        # Determine the appropriate substatus ID, default to 159 if not found
+        substatus_id = reason_to_substatus.get(reason, 159)
+
+        # Fetching the first name of the user performing the rejection
+        first_name = (
+            db.query(model.User.firstName).filter(model.User.idUser == userID).scalar()
+        )
+
+        # Updating the document's status to rejected
+        db.query(model.corp_document_tab).filter(model.corp_document_tab.corp_doc_id == invoiceID).update(
+            {
+                "documentstatus": 10,
+                "documentsubstatus": substatus_id,
+                "documentdescription": reason + "- rejected" + " by " + first_name,
+                "updated_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
+
+        # Commit the changes to the database
+        db.commit()
+
+        # Update document history with the new status change
+        corp_update_docHistory(invoiceID, userID, 10, reason, db, substatus_id)
+
+        return "success: document status changed to rejected!"
+
+    except Exception:
+        # Logging the error and rolling back any changes in case of failure
+        logger.error(traceback.format_exc())
+        db.rollback()
+        return {"DB error": "Error while updating document status"}
+
+
+def bulkProcessCorpVoucherData():
+    try:
+        db = next(get_db())
+
+        # Create an operation ID for the background job
+        operation_id = uuid4().hex
+        set_operation_id(operation_id)
+        credential = get_credential()
+
+        account_url = f"https://{settings.storage_account_name}.blob.core.windows.net"
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=credential
+        )
+        container_client = blob_service_client.get_container_client("locks")
+
+        # Update the blob with the latest operation ID and timestamp
+        # after acquiring the lease
+        blob_client = container_client.get_blob_client("creation-job-lock")
+        lease = blob_client.acquire_lease()
+
+        logger.info(f"[{datetime.datetime.now()}] Background job `Creation` Started!")
+
+        userID = 1
+        # Get the retry frequency from the SetRetryCount table
+        frequency = db.query(model.SetRetryCount.frequency).filter(
+            model.SetRetryCount.is_active==1,
+            model.SetRetryCount.task_name=='retry_invoice_creation').first() 
+        if frequency:
+            frequency = frequency[0]  # Extract the integer value
+            
+        # Batch size for processing
+        batch_size = 50  # Define a reasonable batch size
+        # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
+        doc_query = db.query(model.Document.idDocument).filter(
+            model.Document.documentStatusID == 21,
+            model.Document.documentsubstatusID.in_([152,112,143]),
+            or_(model.Document.retry_count < frequency, model.Document.retry_count == None)  # Handle NULL values
+        )
+
+        total_docs = doc_query.count()  # Total number of documents to process
+        logger.info(f"Total documents to process: {total_docs}")
+
+        # If no documents to process, log and return
+        if total_docs == 0:
+            logger.info("No documents to send to Peoplesoft.")
+            return {"message": "No documents to send to Peoplesoft."}
+
+        # Success counter
+        success_count = 0
+
+        # Process in batches
+        for start in range(0, total_docs, batch_size):
+            doc_ids = doc_query.offset(start).limit(batch_size).all()
+        for (docID,) in doc_ids:
+            try:
+                resp = processCorpInvoiceVoucher(docID, db)
+                try:
+                    if "data" in resp:
+                        if "Http Response" in resp["data"]:
+                            RespCode = resp["data"]["Http Response"]
+                            if resp["data"]["Http Response"].isdigit():
+                                RespCodeInt = int(RespCode)
+                                if RespCodeInt == 201:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.SUCCESS_STAGED  # noqa: E501
+                                    )
+                                    docStatus = 7
+                                    docSubStatus = 43
+                                    success_count += (
+                                        1  # Increment on successful status change
+                                    )
+                                elif RespCodeInt == 400:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_IICS  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 149
+
+                                elif RespCodeInt == 406:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_INVOICE  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 148
+
+                                elif RespCodeInt == 408:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.PAYLOAD_DATA_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 4
+                                    docSubStatus = 146
+                                    
+                                elif RespCodeInt == 409:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.BLOB_STORAGE_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 4
+                                    docSubStatus = 147
+                                    
+                                elif RespCodeInt == 422:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 150
+
+                                elif RespCodeInt == 424:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_FILE_ATTACHMENT  # noqa: E501
+                                    )
+                                    docStatus = 35
+                                    docSubStatus = 151
+
+                                elif RespCodeInt == 500:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.INTERNAL_SERVER_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 152
+                                    
+                                elif RespCodeInt == 104:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_CONNECTION_ERROR  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 143
+
+                                else:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                    )
+                                    docStatus = 21
+                                    docSubStatus = 112
+                            else:
+                                dmsg = (
+                                    InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                                )
+                                docStatus = 21
+                                docSubStatus = 112
+                        else:
+                            dmsg = (
+                                InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                            )
+                            docStatus = 21
+                            docSubStatus = 112
+                    else:
+                        dmsg = (
+                            InvoiceVoucherSchema.FAILURE_RESPONSE_UNDEFINED  # noqa: E501
+                        )
+                        docStatus = 21
+                        docSubStatus = 112
+                except Exception as err:
+                    logger.info(f"PopleSoftResponseError: {err}")
+                    dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(  # noqa: E501
+                        err
+                    )
+                    docStatus = 21
+                    docSubStatus = 112
+
+                try:
+                    logger.info(f"Updating the document status for doc_id:{docID}")
+                    db.query(model.corp_document_tab).filter(
+                    model.corp_document_tab.corp_doc_id == docID
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,
+                            model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.retry_count: case(
+                                (model.corp_document_tab.retry_count.is_(None), 1),  # If NULL, set to 1
+                                else_=model.corp_document_tab.retry_count + 1        # Otherwise, increment
+                            ) if docStatus == 21 and docSubStatus in [152, 143] else model.corp_document_tab.retry_count
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.info(f"ErrorUpdatingPostingData: {err}")
+                try:
+                    # userID = 1
+                    corp_update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
+                except Exception as e:
+                    logger.error(f"pfg_sync 501: {str(e)}")
+            except Exception as e:
+                print(
+                    "Error in ProcessInvoiceVoucher fun(): ",
+                    traceback.format_exc(),
+                )
+                logger.info(f"PopleSoftResponseError: {e}")
+                dmsg = InvoiceVoucherSchema.FAILURE_COMMON.format_message(e)
+                docStatus = 21
+                docSubStatus = 112
+
+                try:
+                    db.query(model.corp_document_tab).filter(
+                    model.corp_document_tab.corp_doc_id == docID
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,
+                            model.corp_document_tab.documentsubstatus: docSubStatus,
+                        }
+                    )
+                    db.commit()
+                except Exception as err:
+                    logger.info(f"ErrorUpdatingPostingData 156: {err}")
+                try:
+                    documentstatus = 21
+                    corp_update_docHistory(docID, userID, documentstatus, dmsg, db, docSubStatus)
+                except Exception as e:
+                    logger.error(f"ErrorUpdatingDocHistory 163: {str(e)}")
+        data = {
+            "message": "Voucher processing completed.",
+            "Total docs processed": total_docs,
+            "success_count": success_count,
+        }
+        logger.info(
+            f"[{datetime.datetime.now()}] Background job `Creation` "
+            + f"Completed! with data: {data}"
+        )
+    except Exception:
+        logger.error(f"Error in schedule IDP to Peoplesoft : {traceback.format_exc()}")
+        return False
+    finally:
+        db.close()
+        if "lease" in locals():
+            lease.break_lease()
