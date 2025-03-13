@@ -124,11 +124,13 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                         else:
                             sender = ""
                             sender_email = ""
-                            missing_val.append('sender','sender_email')
+                            missing_val.append('sender_email')
+                            missing_val.append('sender')
                     else:
                         sender = ""
                         sender_email = ""
-                        missing_val.append('sender','sender_email')
+                        missing_val.append('sender_email')
+                        missing_val.append('sender')
                     if 'sent' in op_1['coding_details']['email_metadata']:
                         sent_time = op_1['coding_details']['email_metadata']['sent']
                     else:
@@ -140,7 +142,11 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                         sent_to = ""
                         missing_val.append("sent_to")
                 else:
-                    missing_val.appematchVendorCorpnd("email_metadata","sender","sender_email","sent_time","sent_to")
+                    missing_val.append("email_metadata")
+                    missing_val.append("sender")
+                    missing_val.append("sender_email")
+                    missing_val.append("sent_time")
+                    missing_val.append("sent_to")
                 if "TMID" in  op_1['coding_details']['approverDetails']:
                         TMID =  op_1['coding_details']['approverDetails']['TMID']
             #- process multi invoice: 
@@ -192,9 +198,11 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             coding_tab_data['sender'] = op_1['coding_details']['email_metadata']['from'].split("<")[0]
                             coding_tab_data['sender_email'] = op_1['coding_details']['email_metadata']['from'].split("<")[1][:-1]
                         else:
-                            missing_val.append('sender','sender_email')
+                            missing_val.append('sender')
+                            missing_val.append('sender_email')
                     else:
-                        missing_val.append('sender','sender_email')
+                        missing_val.append('sender')
+                        missing_val.append('sender_email')
                     if 'sent' in op_1['coding_details']['email_metadata']:
                         coding_tab_data['sent_time'] = op_1['coding_details']['email_metadata']['sent']
                     else:
@@ -204,7 +212,12 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     else:
                         missing_val.append("sent_to")
                 else:
-                    missing_val.append("email_metadata","sender","sender_email","sent_time","sent_to")
+                    missing_val.append("email_metadata")
+                    missing_val.append("sender")
+                    missing_val.append("sender_email")
+                    missing_val.append("sent_time")
+                    missing_val.append("sent_to")
+
 
                 if "invoiceDetails" in op_1['coding_details']:
                     if "invoicetotal" in op_1['coding_details']['invoiceDetails']:
@@ -558,6 +571,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             db.commit()
             corp_doc_id = corp_doc.corp_doc_id
             lt_corp_doc_id.append(corp_doc_id)
+         
+
             try:
                 if list(doc_dt_rw.keys())[0] in mail_rw_dt:
                     pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
@@ -581,8 +596,18 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 logger.error( f"Error updating corp_trigger_tab: {e}")
                 db.rollback()
             
-            # update coding details: 
+           #insert record in docdata:
+            corp_docdata_insert = { 
+               "corp_doc_id":corp_doc_id,
+                                }
+                    
+            corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
+            db.add(corp_docdata_insert_data)
+            db.commit()
+            corp_data_id = corp_docdata_insert_data.docdata_id
+            print("corp_data_id: ",corp_data_id)
             # update coding details
+
             coding_data_insert = {'invoice_id':all_invo_coding[miss_att]['invoice_number'],
                             'corp_doc_id':corp_doc_id,
                             'coding_details':all_invo_coding[miss_att]['coding_data'],
@@ -606,7 +631,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
             db.add(corp_coding_insert)
             db.commit()
-
+            
         # porcessing without coding details:
         # document status & substatus: 4 , 134
         for miss_code in op_1['invoice_detail_list']:
@@ -679,4 +704,46 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     validate_corpdoc(doc_id_,userID,skipConf, db)
         except Exception:
             logger.error(traceback.format_exc())
-                
+    try:
+        
+        try:
+            # Check if the record exists in corp_coding_tab
+            existing_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+
+            if not existing_coding:
+                # Insert new record if it doesn't exist
+                coding_data_insert = {
+                    "corp_doc_id": corp_doc_id,
+                    "created_on": timestmp,
+                    "template_type": template_type,
+                }
+                corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
+                db.add(corp_coding_insert)
+                db.flush()  # Flush to get ID without committing
+                corp_code_id = corp_coding_insert.corp_coding_id
+                print("corp_code_id: ", corp_code_id)
+
+            # Check if the record exists in corp_docdata
+            existing_docdata = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
+
+            if not existing_docdata:
+                # Insert new record if it doesn't exist
+                corp_docdata_insert = {"corp_doc_id": corp_doc_id}
+                corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
+                db.add(corp_docdata_insert_data)
+                db.flush()  # Flush to get ID without committing
+                corp_data_id = corp_docdata_insert_data.docdata_id
+                print("corp_data_id: ", corp_data_id)
+
+            # Commit only if any new records were inserted
+            db.commit()
+
+        except Exception as e:
+            db.rollback()  # Rollback transaction in case of error
+            logger.info(f"Error: {str(e)}")
+            logger.error(traceback.format_exc())
+    except Exception as e:
+            db.rollback()  # Rollback transaction in case of error
+            logger.info(f"Error: {str(e)}")
+            logger.error(traceback.format_exc())
+      

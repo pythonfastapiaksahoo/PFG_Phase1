@@ -107,75 +107,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             return return_status
             
         if docStatus in (32,2,4,24):
-            vdr_id_map = 0
-            if vendor_id in [None,0]:
-                   
-                # if vendor_id is not None:
-                if vendor_code is not None:
-                    if vendor_id == 0:
-                        try: 
-                            corp_VrdID_qry = (
-                                        db.query(model.corp_metadata)
-                                        .filter(model.corp_metadata.vendorcode == vendor_code)
-                                        .all()
-                                    )
-                            df_corp_VrdID = pd.DataFrame([row.__dict__ for row in corp_VrdID_qry])
-                            vendor_id_update = int(list(df_corp_VrdID['vendorid'])[0])
-                            if type(vendor_id_update) == int:
-                                vendor_id = vendor_id_update
-                                corp_metadata_qry = (
-                                            db.query(model.corp_metadata)
-                                            .filter(model.corp_metadata.vendorid == vendor_id)
-                                            .all()
-                                        )
-                                df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
-                                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                                    ).update(
-                                        {
-                                            
-                                            model.corp_document_tab.vendor_id: vendor_id,
-
-                                        }
-                                    )
-                                db.commit()
-                                vdr_id_map = 1
-                                docStatus = 4
-                                docSubStatus = 11
-                            else:
-                                return_status["Vendor mapping required"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                "Vendor mapping required"
-                                                            ],
-                                                    }
-                                logger.info(f"return corp validations(ln 70): {return_status}")
-                                return return_status
-                        except Exception as e:
-                            logger.info(f"Error in updating vendorid: {e}")
-
-                   
-                if vdr_id_map==0:
-                    docStatus = 26
-                    docSubStatus = 107
-                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                        ).update(
-                            {
-                                model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                                model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                                model.corp_document_tab.last_updated_by: userID,
-                                model.corp_document_tab.updated_on: timeStmp,
-
-                            }
-                        )
-                    db.commit()
-                    return_status["Status overview"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                "Vendor Mapping required"
-                                                            ],
-                                                        }
-                    logger.info(f"return corp validations(ln 70): {return_status}")
-                    return return_status
+            
 
              
             if docSubStatus == 134:
@@ -200,6 +132,78 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             
             
             else:
+
+                #----------------------------
+                vdr_id_map = 0
+                if vendor_id in [None,0]:
+                    
+                    # if vendor_id is not None:
+                    if vendor_code is not None:
+                        if vendor_id == 0:
+                            try: 
+                                corp_VrdID_qry = (
+                                            db.query(model.corp_metadata)
+                                            .filter(model.corp_metadata.vendorcode == vendor_code)
+                                            .all()
+                                        )
+                                df_corp_VrdID = pd.DataFrame([row.__dict__ for row in corp_VrdID_qry])
+                                vendor_id_update = int(list(df_corp_VrdID['vendorid'])[0])
+                                if type(vendor_id_update) == int:
+                                    vendor_id = vendor_id_update
+                                    corp_metadata_qry = (
+                                                db.query(model.corp_metadata)
+                                                .filter(model.corp_metadata.vendorid == vendor_id)
+                                                .all()
+                                            )
+                                    df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                                        ).update(
+                                            {
+                                                
+                                                model.corp_document_tab.vendor_id: vendor_id,
+
+                                            }
+                                        )
+                                    db.commit()
+                                    vdr_id_map = 1
+                                    docStatus = 4
+                                    docSubStatus = 11
+                                else:
+                                    return_status["Vendor mapping required"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Vendor mapping required"
+                                                                ],
+                                                        }
+                                    logger.info(f"return corp validations(ln 70): {return_status}")
+                                    return return_status
+                            except Exception as e:
+                                logger.info(f"Error in updating vendorid: {e}")
+
+                    
+                    if vdr_id_map==0:
+                        docStatus = 26
+                        docSubStatus = 107
+                        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                            ).update(
+                                {
+                                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                                    model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                                    model.corp_document_tab.last_updated_by: userID,
+                                    model.corp_document_tab.updated_on: timeStmp,
+
+                                }
+                            )
+                        db.commit()
+                        return_status["Status overview"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Vendor Mapping required"
+                                                                ],
+                                                            }
+                        logger.info(f"return corp validations(ln 70): {return_status}")
+                        return return_status
+                #----------------------------
                 #date validation:
                 try:
                     corp_coding_data = (
@@ -692,6 +696,13 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 approvrd_ck = 1
                                         if skip_approval_ck == 1:
                                             approvrd_ck = 1
+                                            return_status["Approval validation"] = {"status": 1,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            f"Invoice manually approved by user"
+                                                                        ],
+                                                            }
+                                        
                                             
                                         if approvrd_ck==0:
                                             docStatus = 24
@@ -705,8 +716,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                                             # return return_status
                                         elif approvrd_ck ==1:
-                                        
-                                            if list(df_corp_coding['approval_status'])[0].lower() == "approved":
+                                            
+                                                 
+                                            if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
                                                 docStatus = 2
                                                 substatus = 31
                                                 documentdesc = "Invoice approved"
