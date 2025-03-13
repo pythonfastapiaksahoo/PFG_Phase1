@@ -155,12 +155,7 @@ def format_data_for_template1(parsed_data):
         logger.info(f"Error while extracting coding details for template 1:{traceback.format_exc()}")
         # Combine into final structured JSON
         structured_output = {
-                        "email_metadata": { 
-                            "from": '', 
-                            "sent": '', 
-                            "to": ''
-                        }, 
-
+                        "email_metadata": email_metadata,
                         "invoiceDetails": { 
                             "store": [''], 
                             "dept": [''], 
@@ -248,11 +243,7 @@ def format_data_for_template2(parsed_data):
         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
         # Combine into final structured JSON
         structured_output = {
-                        "email_metadata": { 
-                            "from": '', 
-                            "sent": '', 
-                            "to": ''
-                        }, 
+                        "email_metadata": email_metadata, 
 
                         "invoiceDetails": { 
                             "store": [''], 
@@ -356,11 +347,7 @@ def format_data_for_template3(parsed_data):
 
         # Combine into final structured JSON
         structured_output = {
-                        "email_metadata": { 
-                            "from": '', 
-                            "sent": '', 
-                            "to": ''
-                        }, 
+                        "email_metadata": email_metadata, 
 
                         "invoiceDetails": { 
                             "store": [''], 
