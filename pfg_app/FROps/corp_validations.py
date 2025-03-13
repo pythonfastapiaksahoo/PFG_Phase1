@@ -596,10 +596,10 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     line_sum += float(amount_value) if amount_value not in (None, "", " ") else 0
                                 except ValueError:
                                     print(f"Invalid amount value: {amount_value}, skipping...")
-                                    line_sum = 0
+                                    # line_sum = 0
 
-                                line_sum = line_sum + list(df_corp_coding['coding_details'])[0][ln_amt]['amount']
-                            if template_type.str.lower().isin(['template 3', 'template 1']).any():
+                                # line_sum = line_sum + list(df_corp_coding['coding_details'])[0][ln_amt]['amount']
+                            if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                     docStatus = 4
                                     substatus = 136
