@@ -372,7 +372,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                     "invo_page_count":att_invoPageCount,
                                     "document_type":document_type,
                                     "documentstatus":4,
-                                    "documentsubstatus":11,
+                                    "documentsubstatus":7,
                                     "created_on":timestmp,
                                     "mail_row_key": mail_row_key,
                                     "email_filepath": file_path,
@@ -563,6 +563,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 "approver_title":all_invo_coding[miss_att]["approver_title"],
                                 "documentstatus": 4 ,  
                                 "documentsubstatus": 130,
+                                "vendor_id":0,
                                 "created_on":timestmp,
                                 "document_type":all_invo_coding[miss_att]["document_type"]}
     
@@ -648,6 +649,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     "updated_on":timestmp,
                     "documentstatus":4,
                     "documentsubstatus":134,
+                    "vendor_id":0,
                     
                 }  
                 corp_doc = model.corp_document_tab(**missing_code_docTab)
