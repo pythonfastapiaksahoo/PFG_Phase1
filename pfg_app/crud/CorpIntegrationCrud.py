@@ -1952,7 +1952,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                 "OPERATING_UNIT": dist.get("store", ""),
                 "CHARTFIELD1": dist.get("SL", ""),
                 "MERCHANDISE_AMT": dist.get("amount", 0),
-                "BUSINESS_UNIT_PC": "",
+                "BUSINESS_UNIT_PC": "OFG01" if dist.get("project") and dist.get("activity") else "",
                 "PROJECT_ID": dist.get("project", ""),
                 "ACTIVITY_ID": dist.get("activity", "")
             }
