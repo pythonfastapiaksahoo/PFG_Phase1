@@ -111,6 +111,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     )
                 db.commit()
             else:
+                
                 print("Vendor mapping required")
                 return_status["Status overview"] = {"status": 0,
                                                 "StatusCode":0,

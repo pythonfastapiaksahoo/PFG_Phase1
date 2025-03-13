@@ -56,25 +56,25 @@ def remove_special_chars(s):
 
 def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     # Template 2
-    try:
-        old_invList = op_1["coding_details"]["invoiceDetails"]["invoice#"]
-        cln_cod_invo_list = []
-        for old_inv in old_invList:
-            cln_cod_invo_list.append(remove_special_chars(old_inv))
-        op_1["coding_details"]["invoiceDetails"]["invoice#"] = cln_cod_invo_list
+    # try:
+    #     old_invList = op_1["coding_details"]["invoiceDetails"]["invoice#"]
+    #     cln_cod_invo_list = []
+    #     for old_inv in old_invList:
+    #         cln_cod_invo_list.append(remove_special_chars(old_inv))
+    #     op_1["coding_details"]["invoiceDetails"]["invoice#"] = cln_cod_invo_list
 
-        if type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == str:
-            op_1["coding_details"]["invoiceDetails"]["invoice#"] = remove_special_chars(op_1["coding_details"]["invoiceDetails"]["invoice#"])
+    #     if type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == str:
+    #         op_1["coding_details"]["invoiceDetails"]["invoice#"] = remove_special_chars(op_1["coding_details"]["invoiceDetails"]["invoice#"])
             
-        elif type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == list:
-            for pdf_inv in range(len(op_1.get("invoice_detail_list", []))):
-                invoice_data = op_1["invoice_detail_list"][pdf_inv]
-                if isinstance(invoice_data, dict) and invoice_data:  # Ensure it's a non-empty dictionary
-                    first_key = next(iter(invoice_data))  # Get the first key
-                    if isinstance(invoice_data[first_key], dict) and "InvoiceID" in invoice_data[first_key]:
-                        op_1["invoice_detail_list"][pdf_inv][list(op_1["invoice_detail_list"][pdf_inv].keys())[0]]["InvoiceID"] = remove_special_chars(invoice_data[first_key]["InvoiceID"])
-    except Exception:
-        logger.info(f"Error in cleaning invoice ID: {traceback.format_exc()}")
+    #     elif type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == list:
+    #         for pdf_inv in range(len(op_1.get("invoice_detail_list", []))):
+    #             invoice_data = op_1["invoice_detail_list"][pdf_inv]
+    #             if isinstance(invoice_data, dict) and invoice_data:  # Ensure it's a non-empty dictionary
+    #                 first_key = next(iter(invoice_data))  # Get the first key
+    #                 if isinstance(invoice_data[first_key], dict) and "InvoiceID" in invoice_data[first_key]:
+    #                     op_1["invoice_detail_list"][pdf_inv][list(op_1["invoice_detail_list"][pdf_inv].keys())[0]]["InvoiceID"] = remove_special_chars(invoice_data[first_key]["InvoiceID"])
+    # except Exception:
+    #     logger.info(f"Error in cleaning invoice ID: {traceback.format_exc()}")
   
     corp_doc_id = ""
     db = next(get_db())
