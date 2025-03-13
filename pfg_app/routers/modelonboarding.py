@@ -32,7 +32,7 @@ router = APIRouter(
     prefix="/apiv1.1/ModelOnBoard",
     tags=["Model On-Boarding"],
     # dependencies=[Depends(get_admin_user)],
-    dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"]))],
+    # dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User"]))],
     responses={404: {"description": "Not found"}},
 )
 
@@ -48,7 +48,7 @@ async def onboard_invoice_model(
     userId: int,
     modelID: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User","Admin"])),
 ):
     """<b>API route to onboard a new invoice template Form Recognizer
     output.</b>
