@@ -51,7 +51,30 @@ def cleanAmt_all(credit_invo, amount_str):
         rtn_amt = clean_amount(amount_str)
     return rtn_amt
 
+def remove_special_chars(s):
+    return re.sub(r'[^a-zA-Z0-9]', '', s)
+
 def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
+    # Template 2
+    try:
+        old_invList = op_1["coding_details"]["invoiceDetails"]["invoice#"]
+        cln_cod_invo_list = []
+        for old_inv in old_invList:
+            cln_cod_invo_list.append(remove_special_chars(old_inv))
+        op_1["coding_details"]["invoiceDetails"]["invoice#"] = cln_cod_invo_list
+
+        if type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == str:
+            op_1["coding_details"]["invoiceDetails"]["invoice#"] = remove_special_chars(op_1["coding_details"]["invoiceDetails"]["invoice#"])
+            
+        elif type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == list:
+            for pdf_inv in range(len(op_1.get("invoice_detail_list", []))):
+                invoice_data = op_1["invoice_detail_list"][pdf_inv]
+                if isinstance(invoice_data, dict) and invoice_data:  # Ensure it's a non-empty dictionary
+                    first_key = next(iter(invoice_data))  # Get the first key
+                    if isinstance(invoice_data[first_key], dict) and "InvoiceID" in invoice_data[first_key]:
+                        op_1["invoice_detail_list"][pdf_inv][list(op_1["invoice_detail_list"][pdf_inv].keys())[0]]["InvoiceID"] = remove_special_chars(invoice_data[first_key]["InvoiceID"])
+    except Exception:
+        logger.info(f"Error in cleaning invoice ID: {traceback.format_exc()}")
   
     corp_doc_id = ""
     db = next(get_db())
@@ -64,6 +87,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     userID = 1
     lt_corp_doc_id = []
     temp_found = 0
+    
 
     try:
         template_type = op_1['template_type']
@@ -551,6 +575,21 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
 
         # processing invoice without attachment:
         # document status & substatus:  4 , 130
+        try:
+            if list(doc_dt_rw.keys())[0] in mail_rw_dt:
+                    pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
+                    corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
+                    mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                    
+            else:
+                pdf_blobpath = ""
+                mail_row_key = ""
+                corp_trg_id = ""
+        except Exception:
+            logger.info(f"Error in mail_rw_dt: {traceback.format_exc()}")
+            pdf_blobpath = ""
+            mail_row_key = ""
+            corp_trg_id = ""
         for miss_att in missing_attachment:
             mssing_att_docData = {"invoice_id":all_invo_coding[miss_att]["invoice_number"],
                                 "invoicetotal":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["invoicetotal"]),
@@ -575,15 +614,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
          
 
             try:
-                if list(doc_dt_rw.keys())[0] in mail_rw_dt:
-                    pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
-                    corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
-                    mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
-                    
-                else:
-                    pdf_blobpath = ""
-                    mail_row_key = ""
-                    corp_trg_id = ""
+               
                 if corp_trg_id !="":
 
                     corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
@@ -632,15 +663,21 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
             db.add(corp_coding_insert)
             db.commit()
+        
             
         # porcessing without coding details:
         # document status & substatus: 4 , 134
         for miss_code in op_1['invoice_detail_list']:
+            pdf_blobpath = mail_rw_dt[list(miss_code.keys())[0]]["pdf_blob_path"]
+            corp_trg_id = mail_rw_dt[list(miss_code.keys())[0]]["corp_trigger_id"]
+            mail_row_key = mail_rw_dt[list(miss_code.keys())[0]]["mail_row_key"]
+
             if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
                 missing_code_docTab = {
                     "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
                     "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
                     "email_filepath": file_path,
+                    "invo_filepath": pdf_blobpath,
                     "mail_row_key": mail_row_key,
                     "email_filepath_pdf":email_filepath_pdf,
                     "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"]),
