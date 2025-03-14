@@ -1808,9 +1808,10 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
                 # If the field is one of the specified ones, update corp_document_tab as well
-                if field in ["invoice_id", "invoicetotal", "invoice_date"]:
-                    setattr(corp_doc_tab, field, new_value)
-                    consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
+                if field in ["invoice_id", "invoicetotal", "invoice_date","approver_title"]:
+                    corp_doc_field = "approved_by" if field == "approver_name" else field
+                    setattr(corp_doc_tab, corp_doc_field, new_value)
+                    consolidated_updates.append(f"{corp_doc_field} (corp_document_tab): {old_value} -> {new_value}")
         # If it's a new record, insert it
         if is_new_record:
             db.add(corp_coding)
