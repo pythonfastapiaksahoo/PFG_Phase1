@@ -317,12 +317,15 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data["approver_title"] = ""
 
                 if "Approved keyword exists" in op_1['approval_details']:
-                    if op_1['approval_details']["Approved keyword exists"] == "yes":
+                    if str(op_1['approval_details']["Approved keyword exists"]).lower() == "yes":
                         if 'Approved keyword' in op_1['approval_details']:
-                            if str(op_1['approval_details']['Approved keyword']).lower() =='approved' :
-                                coding_tab_data["approval_status"] = "Approved"
+                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+                            if cln_approval_status =='approved' :
+                                approval_status = "Approved"
                             else:
-                                coding_tab_data["approval_status"] = "Not approved"
+                                approval_status = "Not approved"
+
+                            
             all_invo_coding[c_invoID] = coding_tab_data
         else:
             temp_found = 0
