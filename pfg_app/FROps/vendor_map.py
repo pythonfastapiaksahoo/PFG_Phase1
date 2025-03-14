@@ -287,7 +287,8 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
                 {
                     model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
                     model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
-                    model.corp_document_tab.last_updated_by: userID
+                    model.corp_document_tab.last_updated_by: userID,
+                    model.corp_document_tab.vendor_id:0,
                 }
             )
         db.commit()

@@ -51,7 +51,30 @@ def cleanAmt_all(credit_invo, amount_str):
         rtn_amt = clean_amount(amount_str)
     return rtn_amt
 
+def remove_special_chars(s):
+    return re.sub(r'[^a-zA-Z0-9]', '', s)
+
 def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
+    # Template 2
+    # try:
+    #     old_invList = op_1["coding_details"]["invoiceDetails"]["invoice#"]
+    #     cln_cod_invo_list = []
+    #     for old_inv in old_invList:
+    #         cln_cod_invo_list.append(remove_special_chars(old_inv))
+    #     op_1["coding_details"]["invoiceDetails"]["invoice#"] = cln_cod_invo_list
+
+    #     if type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == str:
+    #         op_1["coding_details"]["invoiceDetails"]["invoice#"] = remove_special_chars(op_1["coding_details"]["invoiceDetails"]["invoice#"])
+            
+    #     elif type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == list:
+    #         for pdf_inv in range(len(op_1.get("invoice_detail_list", []))):
+    #             invoice_data = op_1["invoice_detail_list"][pdf_inv]
+    #             if isinstance(invoice_data, dict) and invoice_data:  # Ensure it's a non-empty dictionary
+    #                 first_key = next(iter(invoice_data))  # Get the first key
+    #                 if isinstance(invoice_data[first_key], dict) and "InvoiceID" in invoice_data[first_key]:
+    #                     op_1["invoice_detail_list"][pdf_inv][list(op_1["invoice_detail_list"][pdf_inv].keys())[0]]["InvoiceID"] = remove_special_chars(invoice_data[first_key]["InvoiceID"])
+    # except Exception:
+    #     logger.info(f"Error in cleaning invoice ID: {traceback.format_exc()}")
   
     corp_doc_id = ""
     db = next(get_db())
@@ -64,6 +87,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     userID = 1
     lt_corp_doc_id = []
     temp_found = 0
+    approval_status = ""
+    
 
     try:
         template_type = op_1['template_type']
@@ -109,7 +134,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 if "Approved keyword exists" in op_1['approval_details']:
                     if op_1['approval_details']["Approved keyword exists"] == "yes":
                         if 'Approved keyword' in op_1['approval_details']:
-                            if str(op_1['approval_details']['Approved keyword']).lower() =='approved' :
+                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+                            if cln_approval_status =='approved' :
                                 approval_status = "Approved"
                             else:
                                 approval_status = "Not approved"
@@ -152,10 +178,24 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             #- process multi invoice: 
             invoice_details = op_1['coding_details']['invoiceDetails']
             keys_to_check_invo = ['invoice#','store', 'dept', 'account', 'SL', 'project', 'activity','GST','invoicetotal']
+            try:
+                if "Approved keyword exists" in op_1['approval_details']:
+                    if op_1['approval_details']["Approved keyword exists"] == "yes":
+                        if 'Approved keyword' in op_1['approval_details']:
+                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+                            if cln_approval_status =='approved' :
+                                approval_status = "Approved"
+                            else:
+                                approval_status = "Not approved"
+            except Exception:
+                logger.info(f"Error in getting approval status: {traceback.format_exc()}")
+                approval_status = "Not approved"
             if all(len(invoice_details[keys_to_check_invo[0]]) == len(invoice_details[key]) for key in keys_to_check_invo[1:]):
                 for rw in range(len(invoice_details[keys_to_check_invo[0]])):
                     coding_data = {}
                     coding_tab_data = {}
+                    
+                    
                     if '-' in invoice_details['invoicetotal'][rw]:
                         credit_invo = 1
                         coding_tab_data['document_type'] = "credit"
@@ -180,7 +220,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                             'SL':invoice_details['SL'][rw],
                                             'project':invoice_details['project'][rw],
                                             'activity':invoice_details['activity'][rw],
-                                            'amount':cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw])} 
+                                            'amount':cleanAmt_all(credit_invo,float(cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw]))  - float(cleanAmt_all(credit_invo,invoice_details['GST'][rw])))
+                    }
                     coding_tab_data['coding_data'] = coding_data
                     print(invoice_details['invoice#'][rw])
                 
@@ -292,12 +333,15 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data["approver_title"] = ""
 
                 if "Approved keyword exists" in op_1['approval_details']:
-                    if op_1['approval_details']["Approved keyword exists"] == "yes":
+                    if str(op_1['approval_details']["Approved keyword exists"]).lower() == "yes":
                         if 'Approved keyword' in op_1['approval_details']:
-                            if str(op_1['approval_details']['Approved keyword']).lower() =='approved' :
-                                coding_tab_data["approval_status"] = "Approved"
+                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+                            if cln_approval_status =='approved' :
+                                approval_status = "Approved"
                             else:
-                                coding_tab_data["approval_status"] = "Not approved"
+                                approval_status = "Not approved"
+
+                            
             all_invo_coding[c_invoID] = coding_tab_data
         else:
             temp_found = 0
@@ -372,7 +416,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                     "invo_page_count":att_invoPageCount,
                                     "document_type":document_type,
                                     "documentstatus":4,
-                                    "documentsubstatus":11,
+                                    "documentsubstatus":7,
                                     "created_on":timestmp,
                                     "mail_row_key": mail_row_key,
                                     "email_filepath": file_path,
@@ -449,8 +493,12 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     vendorname = doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"]
                     vendor_address =doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
                     matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
-                    
-                    # update coding details
+                    try:
+                        logger.info(f"all_invo_coding[att_invoID]: {all_invo_coding}")
+                        app_status =  all_invo_coding[att_invoID]['approval_status']
+                    except Exception:
+                        app_status = "Not approved"
+                    # update coding details 
                     coding_data_insert = {'invoice_id':all_invo_coding[att_invoID]['invoice_number'],
                                 'corp_doc_id':corp_doc_id,
                                 'coding_details':all_invo_coding[att_invoID]['coding_data'],
@@ -467,7 +515,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 'sent_time':all_invo_coding[att_invoID]['sent_time'],
                                 'approver_email':all_invo_coding[att_invoID]['approver_email'],
                                 'approved_on':all_invo_coding[att_invoID]['approved_on'],
-                                'approval_status':all_invo_coding[att_invoID]['approval_status'],
+                                'approval_status':app_status,
                                 'document_type':all_invo_coding[att_invoID]['document_type'],
                                 'template_type':template_type,
                                 }
@@ -551,6 +599,21 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
 
         # processing invoice without attachment:
         # document status & substatus:  4 , 130
+        try:
+            if list(doc_dt_rw.keys())[0] in mail_rw_dt:
+                    pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
+                    corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
+                    mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                    
+            else:
+                pdf_blobpath = ""
+                mail_row_key = ""
+                corp_trg_id = ""
+        except Exception:
+            logger.info(f"Error in mail_rw_dt: {traceback.format_exc()}")
+            pdf_blobpath = ""
+            mail_row_key = ""
+            corp_trg_id = ""
         for miss_att in missing_attachment:
             mssing_att_docData = {"invoice_id":all_invo_coding[miss_att]["invoice_number"],
                                 "invoicetotal":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["invoicetotal"]),
@@ -563,6 +626,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 "approver_title":all_invo_coding[miss_att]["approver_title"],
                                 "documentstatus": 4 ,  
                                 "documentsubstatus": 130,
+                                "vendor_id":0,
                                 "created_on":timestmp,
                                 "document_type":all_invo_coding[miss_att]["document_type"]}
     
@@ -574,15 +638,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
          
 
             try:
-                if list(doc_dt_rw.keys())[0] in mail_rw_dt:
-                    pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
-                    corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
-                    mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
-                    
-                else:
-                    pdf_blobpath = ""
-                    mail_row_key = ""
-                    corp_trg_id = ""
+               
                 if corp_trg_id !="":
 
                     corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
@@ -607,6 +663,10 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             corp_data_id = corp_docdata_insert_data.docdata_id
             print("corp_data_id: ",corp_data_id)
             # update coding details
+            try:
+                app_status = all_invo_coding[miss_att]['approval_status']
+            except Exception:   
+                app_status = "Not approved"
 
             coding_data_insert = {'invoice_id':all_invo_coding[miss_att]['invoice_number'],
                             'corp_doc_id':corp_doc_id,
@@ -624,22 +684,28 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             'sent_time':all_invo_coding[miss_att]['sent_time'],
                             'approver_email':all_invo_coding[miss_att]['approver_email'],
                             'approved_on':all_invo_coding[miss_att]['approved_on'],
-                            'approval_status':all_invo_coding[miss_att]['approval_status'],
+                            'approval_status':app_status,
                             'document_type':all_invo_coding[miss_att]['document_type'],
                             'template_type':template_type,
                             }
             corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
             db.add(corp_coding_insert)
             db.commit()
+        
             
         # porcessing without coding details:
         # document status & substatus: 4 , 134
         for miss_code in op_1['invoice_detail_list']:
+            pdf_blobpath = mail_rw_dt[list(miss_code.keys())[0]]["pdf_blob_path"]
+            corp_trg_id = mail_rw_dt[list(miss_code.keys())[0]]["corp_trigger_id"]
+            mail_row_key = mail_rw_dt[list(miss_code.keys())[0]]["mail_row_key"]
+
             if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
                 missing_code_docTab = {
                     "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
                     "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
                     "email_filepath": file_path,
+                    "invo_filepath": pdf_blobpath,
                     "mail_row_key": mail_row_key,
                     "email_filepath_pdf":email_filepath_pdf,
                     "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"]),
@@ -648,6 +714,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     "updated_on":timestmp,
                     "documentstatus":4,
                     "documentsubstatus":134,
+                    "vendor_id":0,
                     
                 }  
                 corp_doc = model.corp_document_tab(**missing_code_docTab)

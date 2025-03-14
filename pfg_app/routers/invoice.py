@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
-from pfg_app.azuread.auth import get_user
+from pfg_app.azuread.auth import get_user, get_user_dependency
 from pfg_app.azuread.schemas import AzureUser
 from pfg_app.crud import InvoiceCrud as crud
 from pfg_app.FROps import pdfcreator
@@ -34,8 +34,8 @@ async def read_paginate_doc_inv_list_with_ln_item(
     sort_column: Optional[str] = None,  # New parameter for sorting column
     sort_order: Optional[str] = None,  # New parameter for sorting order
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
-    
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to retrieve a paginated list of invoice documents with line
     item details as optional when filters is applied  .
@@ -90,7 +90,8 @@ async def read_paginate_doc_inv_list_with_ln_item(
 async def read_invoice_data_item(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to retrieve invoice document data based on the invoice ID.
 
@@ -117,7 +118,8 @@ async def read_invoice_data_item(
 async def read_invoice_file_item(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user)
+    # user: AzureUser = Depends(get_user)
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to retrieve invoice file data based on the invoice ID.
 
@@ -143,7 +145,8 @@ async def update_invoice_data_item(
     inv_id: int,
     inv_data: List[schema.UpdateServiceAccountInvoiceData],
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to update invoice document data.
 
@@ -177,7 +180,8 @@ async def update_column_pos_item(
     bg_task: BackgroundTasks,
     col_data: List[schema.columnpos],
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to update the column position for a user.
 
@@ -207,7 +211,8 @@ async def update_column_pos_item(
 @router.get("/readColumnPos")
 async def read_column_pos_item(
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user)
+    # user: AzureUser = Depends(get_user)
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to read the column position for a user.
 
@@ -233,7 +238,8 @@ async def read_column_pos_item(
 async def new_get_stamp_data_fields(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user)
+    # user: AzureUser = Depends(get_user)
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to retrieve stamp data fields based on the document ID.
 
@@ -261,7 +267,8 @@ async def new_update_stamp_data(
     inv_id: int,
     update_data: List[schema.UpdateStampData],
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to update stamp data fields for a given document.
 
@@ -329,7 +336,8 @@ async def download_documents(
     uni_search: Optional[str] = None,
     ven_status: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """Endpoint to fetch document invoice data, convert it to Excel, and allow
     download.
@@ -424,7 +432,8 @@ async def update_rejected_invoice_status(
     inv_id: int,
     reason: str,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to update the status of a rejected invoice.
 
@@ -457,7 +466,8 @@ async def get_email_row_associated_files(
     sort_column: Optional[str] = None,  # New parameter for sorting column
     sort_order: Optional[str] = None,  # New parameter for sorting order
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to retrieve a paginated list of invoice documents with line
     item details as optional when filters is applied  .
@@ -510,7 +520,8 @@ async def upsert_line_item_data(
     inv_id: int,
     inv_data: List[schema.UpsertLineItemData],
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to update invoice line item data.
 
@@ -544,7 +555,8 @@ async def delete_line_items(
     inv_id: int,
     inv_data: List[schema.DeleteLineItemData],
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to update invoice line item data.
 
@@ -578,7 +590,8 @@ async def update_identifier_to_stamp_data(
     inv_id: int,
     update_data: schema.UpdateStampData,  # Use the schema directly to parse JSON input
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user),
+    # user: AzureUser = Depends(get_user),
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User"])),
 ):
     """
     API route to update or insert a single stamp data record for a given document.
@@ -617,7 +630,8 @@ async def update_identifier_to_stamp_data(
 async def get_voucher_data_by_doc_id(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user)
+    # user: AzureUser = Depends(get_user)
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
 ):
     """API route to retrieve stamp data fields based on the document ID.
 
@@ -648,7 +662,8 @@ async def get_voucher_data_by_doc_id(
 async def update_invoice_status(
     inv_id: int,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user)
+    # user: AzureUser = Depends(get_user)
+    user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","User"])),
     ):
     try:
         # Process the request using the mock CRUD function

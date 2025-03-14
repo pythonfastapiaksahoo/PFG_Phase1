@@ -52,7 +52,7 @@ async def read_paginated_vendor_details(
     ven_status: Optional[str] = None,
     vendor_type: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User","Admin"])),
 ):
     """API route to retrieve a paginated list of vendors based on various
     filters.
@@ -100,7 +100,7 @@ async def download_vendor_list(
     ven_status: Optional[str] = None,
     vendor_type: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User", "Admin"])),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User","Admin"])),
     
 ):
     """API route to export the list of vendors based on various filters to

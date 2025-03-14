@@ -131,7 +131,7 @@ def get_user_dependency(allowed_roles: list[str]):
 
             return user_in_db
         
-        raise HTTPException(status_code=403, detail="User privileges required")
+        raise HTTPException(status_code=403, detail= f"{allowed_roles} is required to access this resource.")
 
     return dependency
 

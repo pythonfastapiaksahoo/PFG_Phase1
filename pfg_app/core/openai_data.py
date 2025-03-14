@@ -345,9 +345,10 @@ def extract_approver_details_using_openai(msg):
 
 
             The provided email chain contains the details of the approver before the 'From' clause:   
-            - Approved or approved keyword  and just below that the Approval Details: Approver name, Designation, email.
+            - Extract the keyword "approved" if found. If a negative phrase like "not approved," "cannot be approved," or similar is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
+            - Also if the keyword "approved" is found annd the phrase like ""please approve" or "please approve the invoice" is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
             - Convert the Sent date to a YYYY-MM-DD format.
-            Extract the relevant information from last email sent only and format it as a JSON objects, adhering strictly to the  sample structure provided below:
+            - Extract the relevant information from the last email sent only and format it as a JSON object, adhering strictly to the sample structure provided below:
 
             {
                 "from": "from email address",
@@ -355,11 +356,9 @@ def extract_approver_details_using_openai(msg):
                 "to": "to email address",
                 "Approver": "Approver name",
                 "Designation": "approver designation",
-                "Approved keyword": "approved",
-                "Approved keyword exists": "yes"
+                "Approved keyword": "Approved" or "Not Approved",
+                "Approved keyword exists": "Yes" or "No"
             }
-                
-            
             """
         # Construct messages with both the text prompt and the email content
         data = {

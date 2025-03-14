@@ -17,6 +17,8 @@ tz_region = tz.timezone("US/Pacific")
 
 def payload_dbUpdate(doc_id,userID,db):
     timeStmp =datetime.now(tz_region) 
+    SentToPeopleSoft = 0
+    dmsg = ""
     return_status = {"Payload validation"  :{"status": 0,
                                                 "StatusCode":0,
                                                 "response": [
@@ -44,6 +46,30 @@ def payload_dbUpdate(doc_id,userID,db):
 
     gst_amt = list(df_corp_header_data['gst'])[0]
     VAT_APPLICABILITY = 'T' if gst_amt > 0 else 'O'
+    try:
+        get_tmid_qry = (
+            db.query(model.User)
+            .filter(model.User.idUser == userID, model.User.employee_id.isnot(None))
+            .first()
+        )
+
+        if get_tmid_qry:
+            employee_id = get_tmid_qry.employee_id
+        else:
+            employee_id = None  # Explicitly set to None when no matching record
+
+    except Exception as e:
+        logger.error(f"Error in getting employee_id: {e}")  # Use error level for logging
+        employee_id = None
+
+    if employee_id==None:
+        return_status["Payload validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    f"TM ID missing."
+                                                                ],
+                                                            }
+        return return_status
 
     data = {
         "DOCUMENT_ID": doc_id,
@@ -56,7 +82,7 @@ def payload_dbUpdate(doc_id,userID,db):
         "GROSS_AMT": list(df_corp_header_data['invoicetotal'])[0],
         "TXN_CURRENCY_CD": list(df_corp_header_data['currency'])[0],
         "VAT_ENTRD_AMT": gst_amt,
-        "OPRID": list(df_corp_coding_tab['tmid'])[0],
+        "OPRID": employee_id,
         "MERCHANDISE_AMT": list(df_corp_header_data['subtotal'])[0],
         "SHIPTO_ID": "8000",
         "VCHR_DIST_STG": list(df_corp_coding_tab['coding_details'])[0],
@@ -158,8 +184,7 @@ def payload_dbUpdate(doc_id,userID,db):
         try:
             # responsedata = processCorpInvoiceVoucher(doc_id, db)
             # send to ppl soft:
-            SentToPeopleSoft = 0
-            dmsg = ""
+            
             try:
                 resp = processCorpInvoiceVoucher(doc_id, db)
                 try:
@@ -339,12 +364,18 @@ def payload_dbUpdate(doc_id,userID,db):
                     )
                 except Exception:
                     logger.debug(f"{traceback.format_exc()}")
-            return_status["PeopleSoft response"] = {"status": 1,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                f" PeopleSoft:{str(resp)}"
-                                                            ],
-                                                        }
+            return_status["Sent to PeopleSoft"] = {
+                                            "status": SentToPeopleSoft,
+                                            "StatusCode":0,
+                                            "response": [dmsg],
+                                        }
+
+            # return_status["PeopleSoft response"] = {"status": 1,
+            #                                     "StatusCode":0,
+            #                                     "response": [
+            #                                                     f" PeopleSoft:{str(resp)}"
+            #                                                 ],
+            #                                             }
             
         except Exception as e:
             logger.error(f"Error in processing corp invoice voucher: {e}")
