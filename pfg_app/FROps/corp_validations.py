@@ -624,45 +624,45 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     # line_sum = 0
 
                                 # line_sum = line_sum + list(df_corp_coding['coding_details'])[0][ln_amt]['amount']
-                            if template_type.iloc[0].lower() in ['template 3', 'template 1']:
+                            # if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 # consider GST
-                                if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
-                                    docStatus = 4
-                                    substatus = 136
-                                    documentdesc = "Coding - Line total mismatch"
-                                    return_status["Coding Line validation"] = {"status": 0,
-                                                        "StatusCode":0,
-                                                        "response": [
-                                                                        "Coding - Line total mismatch"
-                                                                    ],
-                                                                }
-                                else:
-                                    return_status["Coding Line validation"] = {"status": 1,
-                                                        "StatusCode":0,
-                                                        "response": [
-                                                                        "Success."
-                                                                    ],
-                                                                }
-                                    cod_lnMatch = 1
+                            if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
+                                docStatus = 4
+                                substatus = 136
+                                documentdesc = "Coding - Line total mismatch"
+                                return_status["Coding Line validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Coding - Line total mismatch"
+                                                                ],
+                                                            }
                             else:
-                                if abs(float(cod_invoTotal.values[0])- line_sum )> 0.09:
-                                        docStatus = 4
-                                        substatus = 136
-                                        documentdesc = "Coding - Line total mismatch"
-                                        return_status["Coding Line validation"] = {"status": 0,
-                                                            "StatusCode":0,
-                                                            "response": [
-                                                                            "Coding - Line total mismatch"
-                                                                        ],
-                                                                }
-                                else:
-                                    cod_lnMatch = 1
-                                    return_status["Coding Line validation"] = {"status": 1,
-                                                        "StatusCode":0,
-                                                        "response": [
-                                                                        "Success."
-                                                                    ],
-                                                                }
+                                return_status["Coding Line validation"] = {"status": 1,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Success."
+                                                                ],
+                                                            }
+                                cod_lnMatch = 1
+                            # else:
+                            #     if abs(float(cod_invoTotal.values[0])- line_sum )> 0.09:
+                            #             docStatus = 4
+                            #             substatus = 136
+                            #             documentdesc = "Coding - Line total mismatch"
+                            #             return_status["Coding Line validation"] = {"status": 0,
+                            #                                 "StatusCode":0,
+                            #                                 "response": [
+                            #                                                 "Coding - Line total mismatch"
+                            #                                             ],
+                            #                                     }
+                            #     else:
+                            #         cod_lnMatch = 1
+                            #         return_status["Coding Line validation"] = {"status": 1,
+                            #                             "StatusCode":0,
+                            #                             "response": [
+                            #                                             "Success."
+                            #                                         ],
+                            #                                     }
                                 # return return_status
                             # else:
                             #line total match success
