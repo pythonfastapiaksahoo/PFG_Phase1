@@ -305,61 +305,61 @@ def extract_approver_details_using_openai(msg):
         
         if max_length and len(content) > max_length:
             email_content = content[:max_length]
-            prompt = """
-                        From: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com> 
-                        Sent: 21 November 2024 23:31
-                        To: AP Auto Expense <ap_auto_expense@pattisonfoodgroup.com>
-                        Subject: FW: Com Pro AR226369 $668.19
+        prompt = """
+            From: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com> 
+            Sent: 21 November 2024 23:31
+            To: AP Auto Expense <ap_auto_expense@pattisonfoodgroup.com>
+            Subject: FW: Com Pro AR226369 $668.19
 
-                        approved
+            approved
 
-                        Kathy March
-                        Senior Finance Manager
-
-
-                        From: Ryan Doak (Office Services Representative) <ryan_doak@pattisonfoodgroup.com>
-                        Sent: Thursday, November 21, 2024 9:44 AM
-                        To: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com>
-                        Subject: Com Pro AR226369 $668.19
-
-                        Hi Kathy,
-
-                        Please review, add approval and forward to ap_auto_expense.
-
-                        Invoice#        AR226369        *must be same as attachment
-                                GST:    29.83
-                        Grand Total:    668.19
-                        Approver Name:    Kathy March
-                        Approver TM ID:   350161
-                        Approval Title:   Senior Manager
-
-                        Store Dept  Account  SL  Project Activity Amount
-
-                        8000  0003  71999                         638.36
-
-                        Thanks,
-
-                        Ryan Doak
-                        Office Services Representative | Mailroom
-                        Phone: 604-882-7830
+            Kathy March
+            Senior Finance Manager
 
 
-                        The provided email chain contains the details of the approver before the 'From' clause:   
-                        - Extract the keyword "approved" if found. If a negative phrase like "not approved," "cannot be approved," or similar is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
-                        - Also if the keyword "approved" is found annd the phrase like ""please approve" or "please approve the invoice" is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
-                        - Convert the Sent date to a YYYY-MM-DD format.
-                        - Extract the relevant information from the last email sent only and format it as a JSON object, adhering strictly to the sample structure provided below:
+            From: Ryan Doak (Office Services Representative) <ryan_doak@pattisonfoodgroup.com>
+            Sent: Thursday, November 21, 2024 9:44 AM
+            To: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com>
+            Subject: Com Pro AR226369 $668.19
 
-                        {
-                            "from": "from email address",
-                            "sent": "sent date",
-                            "to": "to email address",
-                            "Approver": "Approver name",
-                            "Designation": "approver designation",
-                            "Approved keyword": "Approved" or "Not Approved",
-                            "Approved keyword exists": "Yes" or "No"
-                        }
-                    """
+            Hi Kathy,
+
+            Please review, add approval and forward to ap_auto_expense.
+
+            Invoice#        AR226369        *must be same as attachment
+                    GST:    29.83
+            Grand Total:    668.19
+            Approver Name:    Kathy March
+            Approver TM ID:   350161
+            Approval Title:   Senior Manager
+
+            Store Dept  Account  SL  Project Activity Amount
+
+            8000  0003  71999                         638.36
+
+            Thanks,
+
+            Ryan Doak
+            Office Services Representative | Mailroom
+            Phone: 604-882-7830
+
+
+            The provided email chain contains the details of the approver before the 'From' clause:   
+            - Extract the keyword "approved" if found. If a negative phrase like "not approved," "cannot be approved," or similar is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
+            - Also if the keyword "approved" is found annd the phrase like ""please approve" or "please approve the invoice" is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
+            - Convert the Sent date to a YYYY-MM-DD format.
+            - Extract the relevant information from the last email sent only and format it as a JSON object, adhering strictly to the sample structure provided below:
+
+            {
+                "from": "from email address",
+                "sent": "sent date",
+                "to": "to email address",
+                "Approver": "Approver name",
+                "Designation": "approver designation",
+                "Approved keyword": "Approved" or "Not Approved",
+                "Approved keyword exists": "Yes" or "No"
+            }
+            """
         # Construct messages with both the text prompt and the email content
         data = {
             "messages": [
