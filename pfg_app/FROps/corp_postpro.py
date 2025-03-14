@@ -663,6 +663,10 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             corp_data_id = corp_docdata_insert_data.docdata_id
             print("corp_data_id: ",corp_data_id)
             # update coding details
+            try:
+                app_status = all_invo_coding[miss_att]['approval_status']
+            except Exception:   
+                app_status = "Not approved"
 
             coding_data_insert = {'invoice_id':all_invo_coding[miss_att]['invoice_number'],
                             'corp_doc_id':corp_doc_id,
@@ -680,7 +684,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                             'sent_time':all_invo_coding[miss_att]['sent_time'],
                             'approver_email':all_invo_coding[miss_att]['approver_email'],
                             'approved_on':all_invo_coding[miss_att]['approved_on'],
-                            'approval_status':all_invo_coding[miss_att]['approval_status'],
+                            'approval_status':app_status,
                             'document_type':all_invo_coding[miss_att]['document_type'],
                             'template_type':template_type,
                             }
