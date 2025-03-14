@@ -87,6 +87,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
     userID = 1
     lt_corp_doc_id = []
     temp_found = 0
+    approval_status = ""
     
 
     try:
