@@ -380,8 +380,7 @@ def format_data_for_template3(parsed_data):
                             "approverName": '', 
                             "TMID": '', 
                             "title": '',
-                        },
-                        "status": 0,
+                        }
                     }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
