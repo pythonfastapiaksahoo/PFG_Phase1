@@ -602,7 +602,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 ],
                                                             }
                             line_sum = 0
-                            amt_threshold = 250000
+                            amt_threshold = 25000
                             cod_invoTotal =  df_corp_coding['invoicetotal']
                             cod_gst = df_corp_coding['gst']
                             template_type = df_corp_coding['template_type']
