@@ -178,10 +178,24 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
             #- process multi invoice: 
             invoice_details = op_1['coding_details']['invoiceDetails']
             keys_to_check_invo = ['invoice#','store', 'dept', 'account', 'SL', 'project', 'activity','GST','invoicetotal']
+            try:
+                if "Approved keyword exists" in op_1['approval_details']:
+                    if op_1['approval_details']["Approved keyword exists"] == "yes":
+                        if 'Approved keyword' in op_1['approval_details']:
+                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+                            if cln_approval_status =='approved' :
+                                approval_status = "Approved"
+                            else:
+                                approval_status = "Not approved"
+            except Exception:
+                logger.info(f"Error in getting approval status: {traceback.format_exc()}")
+                approval_status = "Not approved"
             if all(len(invoice_details[keys_to_check_invo[0]]) == len(invoice_details[key]) for key in keys_to_check_invo[1:]):
                 for rw in range(len(invoice_details[keys_to_check_invo[0]])):
                     coding_data = {}
                     coding_tab_data = {}
+                    
+                    
                     if '-' in invoice_details['invoicetotal'][rw]:
                         credit_invo = 1
                         coding_tab_data['document_type'] = "credit"
