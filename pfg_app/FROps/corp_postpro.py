@@ -493,8 +493,12 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                     vendorname = doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"]
                     vendor_address =doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
                     matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
-                    
-                    # update coding details
+                    try:
+                        logger.info(f"all_invo_coding[att_invoID]: {all_invo_coding}")
+                        app_status =  all_invo_coding[att_invoID]['approval_status']
+                    except Exception:
+                        app_status = "Not approved"
+                    # update coding details 
                     coding_data_insert = {'invoice_id':all_invo_coding[att_invoID]['invoice_number'],
                                 'corp_doc_id':corp_doc_id,
                                 'coding_details':all_invo_coding[att_invoID]['coding_data'],
@@ -511,7 +515,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 'sent_time':all_invo_coding[att_invoID]['sent_time'],
                                 'approver_email':all_invo_coding[att_invoID]['approver_email'],
                                 'approved_on':all_invo_coding[att_invoID]['approved_on'],
-                                'approval_status':all_invo_coding[att_invoID]['approval_status'],
+                                'approval_status':app_status,
                                 'document_type':all_invo_coding[att_invoID]['document_type'],
                                 'template_type':template_type,
                                 }
