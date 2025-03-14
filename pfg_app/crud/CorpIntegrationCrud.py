@@ -144,8 +144,7 @@ def format_data_for_template1(parsed_data):
         structured_output = {
             "email_metadata": email_metadata,
             "invoiceDetails": invoice_data,
-            "approverDetails": approver_details,
-            "status": 1
+            "approverDetails": approver_details
         }
 
         # Convert to JSON and print
@@ -173,8 +172,7 @@ def format_data_for_template1(parsed_data):
                             "approverName": '', 
                             "TMID": '', 
                             "title": '',
-                        },
-                        "status": 0,
+                        }
                     }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
@@ -233,8 +231,7 @@ def format_data_for_template2(parsed_data):
         structured_output = {
             "email_metadata": email_metadata,
             "invoiceDetails": invoice_data,
-            "approverDetails": approver_details,
-            "status": 1
+            "approverDetails": approver_details
         }
 
         # Convert to JSON and print
@@ -264,8 +261,7 @@ def format_data_for_template2(parsed_data):
                             "approverName": '', 
                             "TMID": '', 
                             "title": '',
-                        },
-                        "status": 0,
+                        }
                     }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
@@ -353,8 +349,7 @@ def format_data_for_template3(parsed_data):
         structured_output = {
             "email_metadata": email_metadata,
             "invoiceDetails": invoice_data,
-            "approverDetails": approver_details,
-            "status": 1
+            "approverDetails": approver_details
         }
         
 
