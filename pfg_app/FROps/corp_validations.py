@@ -712,7 +712,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             substatus = 140
                                             documentdesc =  "Approval needed: Invoice ≥ threshold"
                                             print("need approval")
-                                            return_status["Approval needed"] = {"status": 0,
+                                            return_status["Amount approval needed"] = {"status": 0,
                                                         "StatusCode":2,
                                                         "response": [
                                                                         f"User approval required for amount"

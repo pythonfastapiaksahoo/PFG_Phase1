@@ -17,6 +17,8 @@ tz_region = tz.timezone("US/Pacific")
 
 def payload_dbUpdate(doc_id,userID,db):
     timeStmp =datetime.now(tz_region) 
+    SentToPeopleSoft = 0
+    dmsg = ""
     return_status = {"Payload validation"  :{"status": 0,
                                                 "StatusCode":0,
                                                 "response": [
@@ -182,8 +184,7 @@ def payload_dbUpdate(doc_id,userID,db):
         try:
             # responsedata = processCorpInvoiceVoucher(doc_id, db)
             # send to ppl soft:
-            SentToPeopleSoft = 0
-            dmsg = ""
+            
             try:
                 resp = processCorpInvoiceVoucher(doc_id, db)
                 try:
@@ -363,12 +364,18 @@ def payload_dbUpdate(doc_id,userID,db):
                     )
                 except Exception:
                     logger.debug(f"{traceback.format_exc()}")
-            return_status["PeopleSoft response"] = {"status": 1,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                f" PeopleSoft:{str(resp)}"
-                                                            ],
-                                                        }
+            return_status["Sent to PeopleSoft"] = {
+                                            "status": SentToPeopleSoft,
+                                            "StatusCode":0,
+                                            "response": [dmsg],
+                                        }
+
+            # return_status["PeopleSoft response"] = {"status": 1,
+            #                                     "StatusCode":0,
+            #                                     "response": [
+            #                                                     f" PeopleSoft:{str(resp)}"
+            #                                                 ],
+            #                                             }
             
         except Exception as e:
             logger.error(f"Error in processing corp invoice voucher: {e}")
