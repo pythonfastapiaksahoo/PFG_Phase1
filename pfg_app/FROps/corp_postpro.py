@@ -133,7 +133,8 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                 if "Approved keyword exists" in op_1['approval_details']:
                     if op_1['approval_details']["Approved keyword exists"] == "yes":
                         if 'Approved keyword' in op_1['approval_details']:
-                            if str(op_1['approval_details']['Approved keyword']).lower() =='approved' :
+                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+                            if cln_approval_status =='approved' :
                                 approval_status = "Approved"
                             else:
                                 approval_status = "Not approved"
@@ -204,7 +205,7 @@ def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
                                             'SL':invoice_details['SL'][rw],
                                             'project':invoice_details['project'][rw],
                                             'activity':invoice_details['activity'][rw],
-                                            'amount':cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw])} 
+                                            'amount':cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw])}  - cleanAmt_all(credit_invo,invoice_details['GST'][rw])
                     coding_tab_data['coding_data'] = coding_data
                     print(invoice_details['invoice#'][rw])
                 
