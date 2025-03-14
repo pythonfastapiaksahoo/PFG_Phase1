@@ -144,7 +144,8 @@ def format_data_for_template1(parsed_data):
         structured_output = {
             "email_metadata": email_metadata,
             "invoiceDetails": invoice_data,
-            "approverDetails": approver_details
+            "approverDetails": approver_details,
+            "status": 1
         }
 
         # Convert to JSON and print
@@ -172,7 +173,8 @@ def format_data_for_template1(parsed_data):
                             "approverName": '', 
                             "TMID": '', 
                             "title": '',
-                        } 
+                        },
+                        "status": 0,
                     }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
@@ -231,7 +233,8 @@ def format_data_for_template2(parsed_data):
         structured_output = {
             "email_metadata": email_metadata,
             "invoiceDetails": invoice_data,
-            "approverDetails": approver_details
+            "approverDetails": approver_details,
+            "status": 1
         }
 
         # Convert to JSON and print
@@ -261,7 +264,8 @@ def format_data_for_template2(parsed_data):
                             "approverName": '', 
                             "TMID": '', 
                             "title": '',
-                        } 
+                        },
+                        "status": 0,
                     }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
@@ -347,6 +351,22 @@ def format_data_for_template3(parsed_data):
 
         # Combine into final structured JSON
         structured_output = {
+            "email_metadata": email_metadata,
+            "invoiceDetails": invoice_data,
+            "approverDetails": approver_details,
+            "status": 1
+        }
+        
+
+        # Convert to JSON and return
+        final_json = json.dumps(structured_output, indent=4)
+        return final_json
+    
+    except Exception:
+        logger.info(f"Error while extracting coding details for template 3: {traceback.format_exc()}")
+        # Combine into final structured JSON
+        # Combine into final structured JSON
+        structured_output = {
                         "email_metadata": email_metadata, 
 
                         "invoiceDetails": { 
@@ -365,21 +385,9 @@ def format_data_for_template3(parsed_data):
                             "approverName": '', 
                             "TMID": '', 
                             "title": '',
-                        } 
+                        },
+                        "status": 0,
                     }
-
-        # Convert to JSON and return
-        final_json = json.dumps(structured_output, indent=4)
-        return final_json
-    
-    except Exception:
-        logger.info(f"Error while extracting coding details for template 3: {traceback.format_exc()}")
-        # Combine into final structured JSON
-        structured_output = {
-            "email_metadata": {"Error"},
-            "invoiceDetails": {"Error"},
-            "approverDetails": {"Error"}
-        }
         # Convert to JSON and print
         final_json = json.dumps(structured_output, indent=4)
         return final_json
