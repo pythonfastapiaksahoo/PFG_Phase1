@@ -51,31 +51,45 @@ def cleanAmt_all(credit_invo, amount_str):
         rtn_amt = clean_amount(amount_str)
     return rtn_amt
 
-def remove_special_chars(s):
-    return re.sub(r'[^a-zA-Z0-9]', '', s)
+# def remove_special_chars(s):
+#     return re.sub(r'[^a-zA-Z0-9]', '', s)
 
-def corp_postPro(op_1,mail_row_key,file_path,sender,mail_rw_dt):
-    # Template 2
-    # try:
-    #     old_invList = op_1["coding_details"]["invoiceDetails"]["invoice#"]
-    #     cln_cod_invo_list = []
-    #     for old_inv in old_invList:
-    #         cln_cod_invo_list.append(remove_special_chars(old_inv))
-    #     op_1["coding_details"]["invoiceDetails"]["invoice#"] = cln_cod_invo_list
+def clean_invoice_ids(data):
+    # Function to clean invoice IDs
+    def clean_value(value):
+        if isinstance(value, str):
+            return re.sub(r'[^a-zA-Z0-9]', '', value)  # Remove special characters
+        return value
+    
+    # Cleaning in invoiceDetails section
+    if 'coding_details' in data and 'invoiceDetails' in data['coding_details']:
+        if 'invoice#' in data['coding_details']['invoiceDetails']:
+            invoice_value = data['coding_details']['invoiceDetails']['invoice#']
+            if isinstance(invoice_value, list):
+                data['coding_details']['invoiceDetails']['invoice#'] = [clean_value(v) for v in invoice_value]
+            else:
+                data['coding_details']['invoiceDetails']['invoice#'] = clean_value(invoice_value)
+    
+    # Cleaning in invoice_detail_list section
+    if 'invoice_detail_list' in data:
+        for invoice in data['invoice_detail_list']:
+            for key, value in invoice.items():
+                if 'InvoiceID' in value:
+                    value['InvoiceID'] = clean_value(value['InvoiceID'])
+    
+    return data
 
-    #     if type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == str:
-    #         op_1["coding_details"]["invoiceDetails"]["invoice#"] = remove_special_chars(op_1["coding_details"]["invoiceDetails"]["invoice#"])
-            
-    #     elif type(op_1["coding_details"]["invoiceDetails"]["invoice#"]) == list:
-    #         for pdf_inv in range(len(op_1.get("invoice_detail_list", []))):
-    #             invoice_data = op_1["invoice_detail_list"][pdf_inv]
-    #             if isinstance(invoice_data, dict) and invoice_data:  # Ensure it's a non-empty dictionary
-    #                 first_key = next(iter(invoice_data))  # Get the first key
-    #                 if isinstance(invoice_data[first_key], dict) and "InvoiceID" in invoice_data[first_key]:
-    #                     op_1["invoice_detail_list"][pdf_inv][list(op_1["invoice_detail_list"][pdf_inv].keys())[0]]["InvoiceID"] = remove_special_chars(invoice_data[first_key]["InvoiceID"])
-    # except Exception:
-    #     logger.info(f"Error in cleaning invoice ID: {traceback.format_exc()}")
-  
+def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
+    
+    try:
+        # Cleaning invoice IDs
+        op_1 = clean_invoice_ids(op_unCl_1)
+        
+    except Exception as e:
+        op_1 = op_unCl_1
+        logger.error(f"Error cleaning invoice IDs:input:{op_unCl_1} --error: {e},")
+        logger.info(f"Error in unquote: {traceback.format_exc()}")
+    
     corp_doc_id = ""
     db = next(get_db())
     timestmp =datetime.now(tz_region) 
