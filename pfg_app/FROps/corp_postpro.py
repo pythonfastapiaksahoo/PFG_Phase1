@@ -549,8 +549,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     vendor_address =doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
                     matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
                     try:
-                        logger.info(f"all_invo_coding[att_invoID]: {all_invo_coding}")
-                        app_status =  all_invo_coding[att_invoID]['approval_status']
+                        
+                        app_status =  approval_status
                     except Exception:
                         app_status = "Not approved"
                     # update coding details 
