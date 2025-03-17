@@ -733,7 +733,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
             print("corp_data_id: ",corp_data_id)
             # update coding details
             try:
-                app_status = all_invo_coding[miss_att]['approval_status']
+                app_status = approval_status
             except Exception:   
                 app_status = "Not approved"
 
