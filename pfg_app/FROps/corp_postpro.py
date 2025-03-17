@@ -54,36 +54,67 @@ def cleanAmt_all(credit_invo, amount_str):
 # def remove_special_chars(s):
 #     return re.sub(r'[^a-zA-Z0-9]', '', s)
 
+# def clean_invoice_ids(data):
+#     # Function to clean invoice IDs
+#     def clean_value(value):
+#         if isinstance(value, str):
+#             return re.sub(r'[^a-zA-Z0-9]', '', value)  # Remove special characters
+#         return value
+#     invoID_lw = {}
+#     # Cleaning in invoiceDetails section
+#     if 'coding_details' in data and 'invoiceDetails' in data['coding_details']:
+#         if 'invoice#' in data['coding_details']['invoiceDetails']:
+#             invoice_value = data['coding_details']['invoiceDetails']['invoice#']
+#             if isinstance(invoice_value, list):
+#                 data['coding_details']['invoiceDetails']['invoice#'] = [clean_value(v) for v in invoice_value]
+#             else:
+#                 data['coding_details']['invoiceDetails']['invoice#'] = clean_value(invoice_value)
+    
+#     # Cleaning in invoice_detail_list section
+#     if 'invoice_detail_list' in data:
+#         for invoice in data['invoice_detail_list']:
+#             for key, value in invoice.items():
+#                 if 'InvoiceID' in value:
+#                     value['InvoiceID'] = clean_value(value['InvoiceID'])
+    
+#     return data
 def clean_invoice_ids(data):
-    # Function to clean invoice IDs
     def clean_value(value):
         if isinstance(value, str):
-            return re.sub(r'[^a-zA-Z0-9]', '', value)  # Remove special characters
+            cleaned = re.sub(r'[^a-zA-Z0-9]', '', value)  # Remove special characters
+            lower_cleaned = cleaned.lower()
+            invoID_lw[lower_cleaned] = cleaned  # Store lowercase key → original cleaned value
+            return lower_cleaned  # Store lowercase version in cleaned_data
         return value
-    
+
+    invoID_lw = {}  # Dictionary to store mappings (lowercase → original cleaned value)
+
     # Cleaning in invoiceDetails section
     if 'coding_details' in data and 'invoiceDetails' in data['coding_details']:
         if 'invoice#' in data['coding_details']['invoiceDetails']:
             invoice_value = data['coding_details']['invoiceDetails']['invoice#']
             if isinstance(invoice_value, list):
-                data['coding_details']['invoiceDetails']['invoice#'] = [clean_value(v) for v in invoice_value]
+                cleaned_values = [clean_value(v) for v in invoice_value]
+                data['coding_details']['invoiceDetails']['invoice#'] = cleaned_values
             else:
                 data['coding_details']['invoiceDetails']['invoice#'] = clean_value(invoice_value)
-    
+
     # Cleaning in invoice_detail_list section
     if 'invoice_detail_list' in data:
         for invoice in data['invoice_detail_list']:
             for key, value in invoice.items():
-                if 'InvoiceID' in value:
-                    value['InvoiceID'] = clean_value(value['InvoiceID'])
-    
-    return data
+                if isinstance(value, dict) and 'InvoiceID' in value:
+                    cleaned_value = clean_value(value['InvoiceID'])
+                    value['InvoiceID'] = cleaned_value  # Store lowercase in cleaned data
+
+    return data, invoID_lw  # Return cleaned data and mappings
+
 
 def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
     
     try:
         # Cleaning invoice IDs
-        op_1 = clean_invoice_ids(op_unCl_1)
+        op_1,invoID_lw = clean_invoice_ids(op_unCl_1)
         
     except Exception as e:
         op_1 = op_unCl_1
@@ -376,12 +407,17 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
 
         # both coding + attachment present
         good_togo = set(all_invo_coding.keys()) & set(map_invo_att.values())
-
+    
+        #lower case all invoice IDs
+        good_togo_lc = {}
+        for inv_id in  good_togo:
+            good_togo_lc[str(inv_id).lower()]= inv_id
         # processing invoice with coding and attachment: 
         for doc_dt_rw in op_1['invoice_detail_list']:
             try:
-                if doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID'] in good_togo:
-                    att_invoID = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID']
+                if str(doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID']).lower() in good_togo_lc.keys():
+                    att_invoID_lw = str(doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceID']).lower()
+                    att_invoID = good_togo_lc[att_invoID_lw]
                     if 'invoicetotal' in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
                         invTotl = doc_dt_rw[list(doc_dt_rw.keys())[0]]['invoicetotal']
                     else:
@@ -422,8 +458,12 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
 
 
                     # insert to db
-
-                    corp_doc_data = {"invoice_id":att_invoID,
+                    try:
+                        doc_data_invoID_ck = invoID_lw[att_invoID]
+                        logger.info(f"invoID_lw: {invoID_lw}")
+                    except Exception:
+                        doc_data_invoID_ck = att_invoID
+                    corp_doc_data = {"invoice_id":doc_data_invoID_ck,
                                     "invoice_date":att_invoDate,
                                     "invoicetotal":att_invoTotal,
                                     "gst":gst,
@@ -440,6 +480,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                                     "approved_by":op_1['approval_details']['Approver'],
                                     "approver_title":op_1['approval_details']['Designation'],
                                 }
+                    
                     corp_doc = model.corp_document_tab(**corp_doc_data)
                     db.add(corp_doc)
                     db.commit()
@@ -508,8 +549,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     vendor_address =doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
                     matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
                     try:
-                        logger.info(f"all_invo_coding[att_invoID]: {all_invo_coding}")
-                        app_status =  all_invo_coding[att_invoID]['approval_status']
+                        
+                        app_status =  approval_status
                     except Exception:
                         app_status = "Not approved"
                     # update coding details 
@@ -533,6 +574,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 'document_type':all_invo_coding[att_invoID]['document_type'],
                                 'template_type':template_type,
                                 }
+                    
+
                     corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
                     db.add(corp_coding_insert)
                     db.commit()
@@ -557,7 +600,13 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     pdf_invoTotal = cleanAmt_all(credit_invo,cln_invoTotal)
                     pdf_gst = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["GST"])
                     pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
-                    corp_docdata_insert = {"invoice_id":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceID"],
+
+                    try:
+                        docData_invoID_ck = invoID_lw[doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceID"]]
+                        logger.info(f"invoID_lw: {invoID_lw}")
+                    except Exception:
+                        docData_invoID_ck = doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceID"]
+                    corp_docdata_insert = {"invoice_id":docData_invoID_ck,
                                 "invoice_date":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceDate"],
                                     "vendor_name":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"],
                                 "vendoraddress":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"],
@@ -628,8 +677,14 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
             pdf_blobpath = ""
             mail_row_key = ""
             corp_trg_id = ""
+       
         for miss_att in missing_attachment:
-            mssing_att_docData = {"invoice_id":all_invo_coding[miss_att]["invoice_number"],
+            try:
+                docData_invoID_ck2 = invoID_lw[all_invo_coding[miss_att]["invoice_number"]]
+                logger.info(f"invoID_lw: {invoID_lw}")
+            except Exception:
+                docData_invoID_ck2 = all_invo_coding[miss_att]["invoice_number"]
+            mssing_att_docData = {"invoice_id":docData_invoID_ck2,
                                 "invoicetotal":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["invoicetotal"]),
                                 "gst":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["gst"]),
                                 "approved_by": all_invo_coding[miss_att]["approverName"],
@@ -715,8 +770,14 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
             mail_row_key = mail_rw_dt[list(miss_code.keys())[0]]["mail_row_key"]
 
             if miss_code[list(miss_code.keys())[0]]["InvoiceID"] in missing_coding:
+                try:
+                    docData_invoID_ck3 = invoID_lw[miss_code[list(miss_code.keys())[0]]['InvoiceID']]
+                    logger.info(f"invoID_lw: {invoID_lw}")
+                except Exception:
+                    docData_invoID_ck3 = miss_code[list(miss_code.keys())[0]]['InvoiceID']
+
                 missing_code_docTab = {
-                    "invoice_id":miss_code[list(miss_code.keys())[0]]['InvoiceID'],
+                    "invoice_id":docData_invoID_ck3,
                     "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
                     "email_filepath": file_path,
                     "invo_filepath": pdf_blobpath,
@@ -750,7 +811,12 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     document_type = ""
                 # update document data tab:
                 # insert doc data:
-                corp_docdata_insert = {"invoice_id":miss_code[list(miss_code.keys())[0]]["InvoiceID"],
+                try:
+                    docData_invoID_ck5 = invoID_lw[miss_code[list(miss_code.keys())[0]]["InvoiceID"]]
+                    logger.info(f"invoID_lw: {invoID_lw}")
+                except Exception:
+                    docData_invoID_ck5 = miss_code[list(miss_code.keys())[0]]["InvoiceID"]
+                corp_docdata_insert = {"invoice_id":docData_invoID_ck5,
                             "invoice_date":miss_code[list(miss_code.keys())[0]]["InvoiceDate"],
                                 "vendor_name":miss_code[list(miss_code.keys())[0]]["VendorName"],
                             "vendoraddress":miss_code[list(miss_code.keys())[0]]["VendorAddress"],
