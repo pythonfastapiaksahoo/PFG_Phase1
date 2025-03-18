@@ -12,6 +12,8 @@ from opentelemetry.trace import SpanKind
 
 from pfg_app import scheduler, scheduler_container_client, settings
 from pfg_app.crud.commonCrud import (
+    schedule_bulk_update_corp_invoice_creation_job,
+    schedule_bulk_update_corp_invoice_status_job,
     schedule_bulk_update_invoice_creation_job,
     schedule_bulk_update_invoice_status_job,
 )
@@ -138,6 +140,88 @@ async def app_startup():
         except Exception as e:
             logger.info(f"Exception: {e}" + traceback.format_exc())
 
+        try:
+            # Create the CORP_STATUS_BLOB_NAME blob
+            blob_client = scheduler_container_client.get_blob_client("corp-status-job-lock")
+            # Check if the blob exists
+            if not blob_client.exists():
+                blob_client.create_append_blob()
+                logger.info("Blob `corp-status-job-lock` created successfully")
+
+            # Check if the blob has an active lease
+            properties = blob_client.get_blob_properties()
+            lease_state = properties.lease.state
+
+            # If a lease exists, break it
+            if lease_state == "leased":
+                lease_client = BlobLeaseClient(blob_client)
+                logger.info("Breaking existing lease...")
+                lease_client.break_lease()
+
+            # Acquire a lease on the blob to act as a distributed lock.
+            lease = blob_client.acquire_lease()
+
+            # check if the blob meta dat ato see if any job is running from the metadata
+            blob_metadata = blob_client.get_blob_properties().metadata
+
+            blob_metadata.update({"last_run_time": str(datetime.now())})
+            blob_client.append_block(operation_id + "\n")
+            blob_client.set_blob_metadata(metadata=blob_metadata, lease=lease)
+
+            logger.info(
+                f"Metadata updated with last run time: {blob_metadata['last_run_time']}"
+            )
+            # release the lock
+            lease.break_lease()
+            # Set up a Timer triggered Background Job with ap-scheduler
+            schedule_bulk_update_corp_invoice_status_job()
+        except ResourceExistsError as e:
+            logger.warning(f"Error: {e.error_code} - {e.reason}")
+        except Exception as e:
+            logger.info(f"Exception: {e}" + traceback.format_exc())
+        
+        try:
+            # Create the CORP_CREATION_BLOB_NAME blob `creation-job-lock`
+            blob_client = scheduler_container_client.get_blob_client(
+                "corp-creation-job-lock"
+            )
+            # Check if the blob exists
+            if not blob_client.exists():
+                blob_client.create_append_blob()
+                logger.info("Blob `corp-creation-job-lock` created successfully")
+
+            # Check if the blob has an active lease
+            properties = blob_client.get_blob_properties()
+            lease_state = properties.lease.state
+
+            # If a lease exists, break it
+            if lease_state == "leased":
+                lease_client = BlobLeaseClient(blob_client)
+                logger.info("Breaking existing lease...")
+                lease_client.break_lease()
+
+            # Acquire a lease on the blob to act as a distributed lock.
+            lease = blob_client.acquire_lease()
+
+            # check if the blob meta dat ato see if any job is running from the metadata
+            blob_metadata = blob_client.get_blob_properties().metadata
+
+            blob_metadata.update({"last_run_time": str(datetime.now())})
+            blob_client.append_block(operation_id + "\n")
+            blob_client.set_blob_metadata(metadata=blob_metadata, lease=lease)
+
+            logger.info(
+                f"Metadata updated with last run time: {blob_metadata['last_run_time']}"
+            )
+            # release the lock
+            lease.break_lease()
+            # Set up a Timer triggered Background Job with ap-scheduler
+            schedule_bulk_update_corp_invoice_creation_job()
+        except ResourceExistsError as e:
+            logger.warning(f"Error: {e.error_code} - {e.reason}")
+        except Exception as e:
+            logger.info(f"Exception: {e}" + traceback.format_exc())
+            
         logger.info("Resetting all queues before starting the application")
         db = next(get_db())
         db.query(QueueTask).filter(QueueTask.status == "processing").update(

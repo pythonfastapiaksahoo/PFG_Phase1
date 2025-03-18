@@ -209,7 +209,7 @@ async def run_job(background_tasks: BackgroundTasks, job_name: str):
         }
     elif job_name == "bulk_update_corp_invoice_creation":
         # check if the job is already scheduled by looking at the Blob Lease
-        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
+        blob_client = scheduler_container_client.get_blob_client("corp-creation-job-lock")
         try:
             lease = blob_client.acquire_lease()
         except Exception as e:
@@ -223,7 +223,7 @@ async def run_job(background_tasks: BackgroundTasks, job_name: str):
         }
     elif job_name == "bulk_update_corp_invoice_status":
         # check if the job is already scheduled by looking at the Blob Lease
-        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
+        blob_client = scheduler_container_client.get_blob_client("corp-status-job-lock")
         try:
             lease = blob_client.acquire_lease()
         except Exception as e:
@@ -361,7 +361,7 @@ async def update_schedule(
     
     elif job_name == "bulk_update_corp_invoice_creation":
         # check if the job is already scheduled by looking at the Blob Lease
-        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
+        blob_client = scheduler_container_client.get_blob_client("corp-creation-job-lock")
         try:
             lease = blob_client.acquire_lease()
         except ResourceExistsError as e:
@@ -414,7 +414,7 @@ async def update_schedule(
     
     elif job_name == "bulk_update_corp_invoice_status":
         # check if the job is already scheduled by looking at the Blob Lease
-        blob_client = scheduler_container_client.get_blob_client("creation-job-lock")
+        blob_client = scheduler_container_client.get_blob_client("corp-status-job-lock")
         try:
             lease = blob_client.acquire_lease()
         except ResourceExistsError as e:

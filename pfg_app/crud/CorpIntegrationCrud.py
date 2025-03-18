@@ -2419,7 +2419,7 @@ def bulkupdateCorpInvoiceStatus():
 
         # Update the blob with the latest operation ID and
         # timestamp after acquiring the lease
-        blob_client = container_client.get_blob_client("status-job-lock")
+        blob_client = container_client.get_blob_client("corp-status-job-lock")
         lease = blob_client.acquire_lease()
 
         logger.info(f"[{datetime.datetime.now()}] Background job `Status` Started!")
@@ -3432,7 +3432,7 @@ def bulkProcessCorpVoucherData():
 
         # Update the blob with the latest operation ID and timestamp
         # after acquiring the lease
-        blob_client = container_client.get_blob_client("creation-job-lock")
+        blob_client = container_client.get_blob_client("corp-creation-job-lock")
         lease = blob_client.acquire_lease()
 
         logger.info(f"[{datetime.datetime.now()}] Background job `Creation` Started!")
