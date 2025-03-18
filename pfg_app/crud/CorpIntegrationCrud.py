@@ -1185,7 +1185,7 @@ def read_corp_doc_invoice_file(u_id, inv_id, db):
                     account_url=account_url, credential=get_credential()
                 )
                 # container = settings.container_name
-                container = "apinvoice-mail-container"
+                container = "email-pdf-container"
                 # if invdat.vendor_id is None:
                 blob_client = blob_service_client.get_blob_client(
                     container=container, blob=invdat.invo_filepath
@@ -1267,7 +1267,7 @@ def read_corp_invoice_file(u_id, inv_id, db):
                     account_url=account_url, credential=get_credential()
                 )
                 # container = settings.container_name
-                container = "apinvoice-mail-container"
+                container = "email-pdf-container"
                 # if invdat.vendor_id is None:
                 blob_client = blob_service_client.get_blob_client(
                     container=container, blob=invdat.INVOICE_FILE_PATH
@@ -2732,7 +2732,7 @@ async def uploadMissingFile(u_id, inv_id, file, db):
         dir_path = eml_filepath.split(".eml")[0]
         
         # Define container and blob names
-        container_name = "apinvoice-mail-container"  # Replace with actual container
+        container_name = "email-pdf-containerr"  # Replace with actual container
         blob_path = f"{dir_path}/{file.filename}"
         
         # Read file bytes
@@ -2779,7 +2779,7 @@ async def uploadMissingEmailFile(u_id, inv_id, file, db):
         if not dir_path:
             raise ValueError("Failed to extract directory path from email_filepath")
         # Define container and blob names
-        container_name = "apinvoice-mail-container"  # Replace with actual container
+        container_name = "email-pdf-containerr"  # Replace with actual container
         blob_path = f"{dir_path}/{file.filename}"
         
         # Read file bytes
