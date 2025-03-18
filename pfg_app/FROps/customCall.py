@@ -248,7 +248,7 @@ def date_cnv(doc_date, date_format):
                 date_status = 1
 
         # YYYY-MM-DD, YYYY/MM/DD
-        elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd"]:
+        elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd","yyyy-mm-dd"]:
             doc_dt_slt = re.findall(r"\d+", doc_date)
             
             if len(doc_dt_slt) == 3:
