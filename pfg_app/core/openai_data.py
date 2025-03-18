@@ -306,6 +306,8 @@ def extract_approver_details_using_openai(msg):
         if max_length and len(content) > max_length:
             email_content = content[:max_length]
         prompt = """
+            Below is the example of an email chain having the following structure just for reference:
+            
             From: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com> 
             Sent: 21 November 2024 23:31
             To: AP Auto Expense <ap_auto_expense@pattisonfoodgroup.com>
@@ -344,10 +346,14 @@ def extract_approver_details_using_openai(msg):
             Phone: 604-882-7830
 
 
-            The provided email chain contains the details of the approver before the 'From' clause:   
+            Using the above example email chain, Extract the details from attached email content:
+            - Extract the email address of the last email sent only.
+            - Extract the sent date of the approver's email and Convert the Sent date to a YYYY-MM-DD format.
+            - Extract the email address of the recipient from the "To" field of last email sent.
+            - Extract the approver name just below the "approved" phrase.
+            - Extract the approver's designation from the "Approver" field.
             - Extract the keyword "approved" if found. If a negative phrase like "not approved," "cannot be approved," or similar is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
-            - Also if the keyword "approved" is found annd the phrase like ""please approve" or "please approve the invoice" is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
-            - Convert the Sent date to a YYYY-MM-DD format.
+            - Also if the keyword "approved" is found and the phrase like ""please approve" or "please approve the invoice" is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
             - Extract the relevant information from the last email sent only and format it as a JSON object, adhering strictly to the sample structure provided below:
 
             {
