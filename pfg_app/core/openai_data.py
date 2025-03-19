@@ -91,6 +91,7 @@ def extract_invoice_details_using_openai(blob_data):
                 - **Vendor Address**: Extracted vendor address from invoice document.
                                     Ensure to capture the primary vendor address typically found in the invoice document (including 'remit payment to' if present).
                                     Return "N/A" if the vendor address is not present in the invoice document.
+                - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present. for example, '01/27/2025 15:53:19' then extract '01/27/2025'.
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
                 - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' from invoice document if present else return "N/A", For example- 'Tax $2.23' or 'GST 2.23' or 'Goods and Services Tax' 2.23 then extract 2.23.
                 - **PST**: Extracted PST from invoice document if present else return "N/A".
