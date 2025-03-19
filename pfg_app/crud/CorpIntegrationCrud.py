@@ -1381,6 +1381,8 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "subtotal",
                     "doc_updates",
                     "document_type",
+                    "approver",
+                    "approver_title"
                 )
             )
         )
