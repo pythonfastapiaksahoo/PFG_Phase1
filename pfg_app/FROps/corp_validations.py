@@ -915,7 +915,6 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                                 # return return_status
                                             elif approvrd_ck ==1:
-                                                
                                                     
                                                 if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
                                                     docStatus = 2
