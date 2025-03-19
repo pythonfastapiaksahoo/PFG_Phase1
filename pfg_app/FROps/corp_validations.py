@@ -24,7 +24,9 @@ def check_date_format(date_str):
     
 
 def names_match(name1, name2):
-    return sorted(name1.lower().split()) == sorted(name2.lower().split())
+    name1 = (name1 or "").strip().lower()  # Convert None to empty string
+    name2 = (name2 or "").strip().lower()
+    return sorted(name1.split()) == sorted(name2.split())
 
 def email_belongs_to_name(name, email):
     email_prefix = email.split("@")[0].lower()  # Extract email username
