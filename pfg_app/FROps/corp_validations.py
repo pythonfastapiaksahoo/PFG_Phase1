@@ -5,6 +5,7 @@ from pfg_app.FROps.customCall import date_cnv
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 from sqlalchemy import func
 from sqlalchemy.orm.attributes import flag_modified
+
 import pandas as pd
 from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
 from pfg_app.logger_module import logger
@@ -59,6 +60,62 @@ def is_amount_approved(amount: float, title: str) -> bool:
     
     return False
 
+
+
+def update_Credit_data(doc_id, db):
+    try:
+        # Fetch the records from all tables using joins
+        record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
+                .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+                .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+                .filter(model.corp_document_tab.corp_doc_id == doc_id) \
+                .first()
+
+        if record:
+            # Update the values for corp_document_tab
+            if record[0]:  # Checking if the corp_document_tab record exists
+                record[0].invoicetotal = round(-abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
+                record[0].gst = round(-abs(record[0].gst), 2) if record[0].gst else None
+
+            # Update the values for corp_coding_tab
+            if record[1]:  # Checking if the corp_coding_tab record exists
+                record[1].invoicetotal = round(-abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
+                record[1].gst = round(-abs(record[1].gst), 2) if record[1].gst else None
+
+                # Update amount values inside coding_details
+                if record[1].coding_details:
+                    for key, value in record[1].coding_details.items():
+                        if 'amount' in value and value['amount']:
+                            value['amount'] = round(-abs(value['amount']), 2)
+
+                    # Mark JSON column as modified
+                    flag_modified(record[1], "coding_details")
+
+            # Update the values for corp_docdata
+            if record[2]:  # Checking if the corp_docdata record exists
+                fields = [
+                    "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
+                    "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
+                    "ecology_fee", "misc"
+                ]
+                
+                for field in fields:
+                    value = getattr(record[2], field)  # Get current value
+                    if value:  # Check if value is not None
+                        setattr(record[2], field, round(-abs(value), 2))  # Convert to negative and round
+
+            # Commit changes for all records in a single call
+            db.commit()
+            print(f"Updated invoicetotal, gst, and other fields for docID {doc_id} successfully.")
+        else:
+            logger.info(f"No record found for docID {doc_id}")
+
+    except Exception as e:
+        logger.error(f"Error in validate_corpdoc: {e}")
+        logger.info(traceback.format_exc())
+
+
+
 def validate_corpdoc(doc_id,userID,skipConf,db):
     timeStmp = datetime.now(tz_region)
     return_status = {}
@@ -78,6 +135,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     currency_ck_msg = ""
     approval_check_req = 1
     validation_status_ck = 1
+    credit_ck = 0
+    gst_15_ck =0
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -87,7 +146,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
         # Convert ORM objects to dictionaries
         df_corp_document = pd.DataFrame([{k: v for k, v in vars(row).items() if k != "_sa_instance_state"} for row in corp_document_data])
-
+    
         docStatus = list(df_corp_document['documentstatus'])[0]
         docSubStatus = list(df_corp_document['documentsubstatus'])[0]
         vendor_id = list(df_corp_document['vendor_id'])[0]
@@ -174,15 +233,38 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
         if docStatus in (32,2,4,24):
             
             if docSubStatus == 134:
-                    print("Coding - No Coding Lines Found")
-                    return_status["Status overview"] = {"status": 0,
-                                            "StatusCode":0,
-                                            "response": [
-                                                            "Coding - No Coding Lines Found"
-                                                        ],
-                                                    }
-                    logger.info(f"return corp validations(ln 61): {return_status}")
-                    return return_status
+                nocoding_ck = 0
+                corp_coding_data = (
+                    db.query(model.corp_coding_tab)
+                    .filter(model.corp_coding_tab.corp_doc_id == doc_id)
+                    .all()
+                )
+
+                # Check if any records exist
+                if not corp_coding_data:
+                    logger.info(f"docID: {doc_id} - No records found for the given doc_id.")
+                else:
+                    for row in corp_coding_data:
+                        coding_details = row.coding_details  # Assuming this is a dictionary
+
+                        if coding_details and isinstance(coding_details, dict) and len(coding_details) > 0:
+                            logger.info(f"Records found in coding_details- docID: {doc_id} - : {coding_details}")
+                            nocoding_ck = 1
+                        else:
+                            logger.info(f"docID: {doc_id} - coding_details is empty or not a dictionary.")
+                    #--
+                    if nocoding_ck == 1:
+                        docSubStatus = 7
+                    else:
+                        logger.info(f"docID: {doc_id} - Coding - No Coding Lines Found")
+                        return_status["Status overview"] = {"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                "Coding - No Coding Lines Found"
+                                                            ],
+                                                        }
+                        logger.info(f"return corp validations(ln 61): {return_status}")
+                        return return_status
             elif docSubStatus == 130:
                 return_status["Status overview"] = {"status": 0,
                                             "StatusCode":0,
@@ -190,7 +272,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             "Invoice - Document missing"
                                                         ],
                                                     }
-                logger.info(f"return corp validations(ln 70): {return_status}")
+                logger.info(f"docID: {doc_id} - return corp validations(ln 70): {return_status}")
                 return return_status
             
             
@@ -609,6 +691,15 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             logger.info(f"Validating document type- document_type:{mand_document_type}")
                             if mand_document_type.lower() in ['invoice','credit']:
                                 document_type_status = 1
+                                try:
+                                    if mand_document_type.lower() == 'credit':
+                                        credit_ck = 1
+                                        update_Credit_data(doc_id, db)
+                                    else:
+                                        credit_ck = 0
+                                except Exception:
+                                    logger.error(f"Error in update_Credit_data:")
+                                    logger.info(traceback.format_exc())
                                 document_type_msg = "Document type validation success"
                                 return_status["Document identifier validation"] = {"status": 1,
                                                     "StatusCode":0,
@@ -616,9 +707,20 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Success."
                                                                 ],
                                                             }
+                                # -ve amt check: 
+                                #check corp_documentTab,corp_coding_tab,corp_docdata 
+                                
+
                             else:
                                 document_type_status = 0
                                 document_type_msg = "Document type mismatch"
+                                return_status["Document identifier validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Please review Document Type."
+                                                                ],
+                                                            }
+                                return return_status
                         except Exception as e:
                             logger.error(f"Error in validate_corpdoc: {e}")
                             logger.info(traceback.format_exc())
@@ -743,19 +845,40 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 ],
                                                             }
                                 else:
-                                    if (cod_gst > invoTotal_15).any():
-                                        docStatus = 4
-                                        substatus = 138
-                                        documentdesc = "Coding -GST exceeding 15%"
-                                        return_status["Coding validation"] = {"status": 0,
-                                                    "StatusCode":0,
-                                                    "response": [
-                                                                    f"Coding - GST exceeding 15% of invoice total"
-                                                                ],
-                                                            }
+                                    if credit_ck == 1:
+                                        try: 
+                                            if (cod_gst.abs() > invoTotal_15.abs()).any():
+                                                docStatus = 4
+                                                substatus = 138
+                                                documentdesc = "Coding -GST exceeding 15%"
+                                                return_status["Coding validation"] = {"status": 0,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            f"Coding - GST exceeding 15% of invoice total"
+                                                                        ],
+                                                                    }
+                                            else:
+                                                gst_15_ck = 1
+                                        except Exception as e:
+                                            logger.info(traceback.format_exc())    
+
+
+                                    elif credit_ck==0:
+                                        if (cod_gst > invoTotal_15).any():
+                                            docStatus = 4
+                                            substatus = 138
+                                            documentdesc = "Coding -GST exceeding 15%"
+                                            return_status["Coding validation"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        f"Coding - GST exceeding 15% of invoice total"
+                                                                    ],
+                                                                }
+                                        else:
+                                            gst_15_ck = 1
                                         # return return_status
                                     #total match pass:
-                                    else:
+                                    if gst_15_ck==1:
                                         if pdf_invoTotal == 0 and zero_dlr_ck == 0:
                                             validation_status_ck = validation_status_ck * 0
                                             docStatus = 4
