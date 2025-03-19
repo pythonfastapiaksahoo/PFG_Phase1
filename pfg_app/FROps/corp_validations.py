@@ -522,7 +522,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                         if "7" in str(skipConf):
                             amount_approval_check = 1
-                            documentdesc = "Invoice manually approved by user"
+                            documentdesc = "Invoice amount approved by user"
                             corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                         else:
                             skip_address_check = 0
@@ -847,7 +847,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 approval_Amt_val_status = 0
                                                 approval_Amt_val_msg = ""
                                                 #amount_approval_check = 7
-                                                if (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 0)):
+                                                if (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
                                                     logger.info("Amount approved")
                                                     approval_Amt_val_status = 1
                                                     approval_Amt_val_msg = "Amount approved"
@@ -891,14 +891,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             # elif pdf_invoTotal<= 1000000:
                                             #     if ("director" in approver_title.lower()):
                                             #         approvrd_ck = 1
-                                            if skip_approval_ck == 1:
-                                                approvrd_ck = 1
-                                                return_status["Approval validation"] = {"status": 1,
-                                                                "StatusCode":0,
-                                                                "response": [
-                                                                                f"Invoice manually approved by user"
-                                                                            ],
-                                                                }
+                                            # if skip_approval_ck == 1:
+                                            #     approvrd_ck = 1
+                                            #     return_status["Approval validation"] = {"status": 1,
+                                            #                     "StatusCode":0,
+                                            #                     "response": [
+                                            #                                     f"Invoice manually approved by user"
+                                            #                                 ],
+                                            #                     }
                                             
                                                 
                                             if approvrd_ck==0:
