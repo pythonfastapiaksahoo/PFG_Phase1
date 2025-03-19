@@ -804,7 +804,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             coding_approver_title = str(list(df_corp_coding['approver_title'])[0]).lower()
                                             if invo_approver_title == coding_approver_title:
                                                 logger.info("Approver title match")
-                                                approval_title_val_status = 0
+                                                approval_title_val_status = 1
                                                 approval_title_val_msg = "Success"
                                             else:
                                                 approvrd_ck =0
