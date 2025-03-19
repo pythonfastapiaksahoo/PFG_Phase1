@@ -135,7 +135,13 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
         invo_approver_email = ""
         invo_approver_Designation = ""
         coding_approver_Designation = ""
-    
+    try:
+        if op_1['approval_details'].get("Approved keyword exists", "").lower() == "yes":
+            approval_status = "Approved" if re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details'].get('Approved keyword', '')).lower()) == 'approved' else "Not approved"
+    except Exception:
+            approval_status = "Not approved"
+
+
     corp_doc_id = ""
     db = next(get_db())
     timestmp =datetime.now(tz_region) 
@@ -147,7 +153,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
     userID = 1
     lt_corp_doc_id = []
     temp_found = 0
-    approval_status = ""
+    # approval_status = ""
     
 
     try:
@@ -191,14 +197,14 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                 else:
                     approver_title = ""
 
-                if "Approved keyword exists" in op_1['approval_details']:
-                    if op_1['approval_details']["Approved keyword exists"] == "yes":
-                        if 'Approved keyword' in op_1['approval_details']:
-                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
-                            if cln_approval_status =='approved' :
-                                approval_status = "Approved"
-                            else:
-                                approval_status = "Not approved"
+                # if "Approved keyword exists" in op_1['approval_details']:
+                #     if op_1['approval_details']["Approved keyword exists"] == "yes":
+                #         if 'Approved keyword' in op_1['approval_details']:
+                #             cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+                #             if cln_approval_status =='approved' :
+                #                 approval_status = "Approved"
+                #             else:
+                #                 approval_status = "Not approved"
             
             missing_val = []
             if "coding_details" in op_1:
@@ -240,18 +246,18 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
             #- process multi invoice: 
             invoice_details = op_1['coding_details']['invoiceDetails']
             keys_to_check_invo = ['invoice#','store', 'dept', 'account', 'SL', 'project', 'activity','GST','invoicetotal']
-            try:
-                if "Approved keyword exists" in op_1['approval_details']:
-                    if op_1['approval_details']["Approved keyword exists"] == "yes":
-                        if 'Approved keyword' in op_1['approval_details']:
-                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
-                            if cln_approval_status =='approved' :
-                                approval_status = "Approved"
-                            else:
-                                approval_status = "Not approved"
-            except Exception:
-                logger.info(f"Error in getting approval status: {traceback.format_exc()}")
-                approval_status = "Not approved"
+            # try:
+            #     if "Approved keyword exists" in op_1['approval_details']:
+            #         if op_1['approval_details']["Approved keyword exists"] == "yes":
+            #             if 'Approved keyword' in op_1['approval_details']:
+            #                 cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+            #                 if cln_approval_status =='approved' :
+            #                     approval_status = "Approved"
+            #                 else:
+            #                     approval_status = "Not approved"
+            # except Exception:
+            #     logger.info(f"Error in getting approval status: {traceback.format_exc()}")
+            #     approval_status = "Not approved"
             if all(len(invoice_details[keys_to_check_invo[0]]) == len(invoice_details[key]) for key in keys_to_check_invo[1:]):
                 for rw in range(len(invoice_details[keys_to_check_invo[0]])):
                     coding_data = {}
@@ -394,14 +400,14 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                 else:
                     coding_tab_data["approver_title"] = ""
 
-                if "Approved keyword exists" in op_1['approval_details']:
-                    if str(op_1['approval_details']["Approved keyword exists"]).lower() == "yes":
-                        if 'Approved keyword' in op_1['approval_details']:
-                            cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
-                            if cln_approval_status =='approved' :
-                                approval_status = "Approved"
-                            else:
-                                approval_status = "Not approved"
+                # if "Approved keyword exists" in op_1['approval_details']:
+                #     if str(op_1['approval_details']["Approved keyword exists"]).lower() == "yes":
+                #         if 'Approved keyword' in op_1['approval_details']:
+                #             cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
+                #             if cln_approval_status =='approved' :
+                #                 approval_status = "Approved"
+                #             else:
+                #                 approval_status = "Not approved"
 
                             
             all_invo_coding[c_invoID] = coding_tab_data
