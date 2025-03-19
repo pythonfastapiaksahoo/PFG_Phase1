@@ -2474,11 +2474,11 @@ def bulkupdateCorpInvoiceStatus():
                 invoice_status_payload = {
                     "RequestBody": {
                         "INV_STAT_RQST": {
-                            "BUSINESS_UNIT": "MERCH",
-                            "INVOICE_ID": voucherdata.Invoice_Id,
-                            "INVOICE_DT": voucherdata.Invoice_Dt,
-                            "VENDOR_SETID": voucherdata.Vendor_Setid,
-                            "VENDOR_ID": voucherdata.Vendor_ID,
+                            "BUSINESS_UNIT": "NONPO",
+                            "INVOICE_ID": voucherdata.INVOICE_ID,
+                            "INVOICE_DT": voucherdata.INVOICE_DT,
+                            "VENDOR_SETID": voucherdata.VENDOR_SETID,
+                            "VENDOR_ID": voucherdata.VENDOR_ID,
                         }
                     }
                 }
@@ -3450,10 +3450,10 @@ def bulkProcessCorpVoucherData():
         # Batch size for processing
         batch_size = 50  # Define a reasonable batch size
         # Fetch all document IDs with status id 7 (Sent to Peoplesoft) in batches
-        doc_query = db.query(model.Document.idDocument).filter(
-            model.Document.documentStatusID == 21,
-            model.Document.documentsubstatusID.in_([152,112,143]),
-            or_(model.Document.retry_count < frequency, model.Document.retry_count == None)  # Handle NULL values
+        doc_query = db.query(model.corp_document_tab.corp_doc_id).filter(
+            model.corp_document_tab.documentstatus == 21,
+            model.corp_document_tab.documentsubstatus.in_([152,112,143]),
+            or_(model.corp_document_tab.retry_count < frequency, model.corp_document_tab.retry_count == None)  # Handle NULL values
         )
 
         total_docs = doc_query.count()  # Total number of documents to process
