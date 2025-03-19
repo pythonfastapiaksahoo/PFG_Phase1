@@ -102,8 +102,8 @@ def format_data_for_template1(parsed_data):
                 if "Invoice#" in row[0]:
                     # invoice_number = row[1]  # Extract invoice number
                     # invoice_data["invoice#"] = invoice_number
-                    invoice_data["invoice#"] = row[1] if len(row) > 1 else ""
-
+                    # invoice_data["invoice#"] = row[1] if len(row) > 1 else ""
+                    invoice_data["invoice#"] = next((value for value in row[1:] if value.strip()), "")
                 # Check if header matches expected columns without "Invoice" keyword
                 elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Subtotal"]:
                     headers = row
@@ -123,22 +123,21 @@ def format_data_for_template1(parsed_data):
 
                 # Extract GST and Grand Total
                 elif "GST:" in row[0]:
-                    # invoice_data["GST"] = row[1]
-                    invoice_data["GST"] = row[1] if len(row) > 1 else ""
+                    # invoice_data["GST"] = row[1] if len(row) > 1 else ""
+                    invoice_data["GST"] = next((value for value in row[1:] if value.strip()), "")
                 elif "Grand Total:" in row[0]:
-                    # invoice_data["grandTotal"] = row[1]
-                    invoice_data["invoicetotal"] = row[1] if len(row) > 1 else "" 
-
+                    # invoice_data["invoicetotal"] = row[1] if len(row) > 1 else "" 
+                    invoice_data["invoicetotal"] = next((value for value in row[1:] if value.strip()), "")
                 # Extract approver details
                 elif "Approver Name:" in row[0]:
-                    # approver_details["approverName"] = row[1]
-                    approver_details["approverName"] = row[1] if len(row) > 1 else ""
+                    # approver_details["approverName"] = row[1] if len(row) > 1 else ""
+                    approver_details["approverName"] = next((value for value in row[1:] if value.strip()), "")
                 elif "Approver TM ID:" in row[0]:
-                    # approver_details["TMID"] = row[1]
-                    approver_details["TMID"] = row[1] if len(row) > 1 else ""
+                    # approver_details["TMID"] = row[1] if len(row) > 1 else ""
+                    approver_details["TMID"] = next((value for value in row[1:] if value.strip()), "")
                 elif "Approval Title:" in row[0]:
-                    # approver_details["title"] = row[1]
-                    approver_details["title"] = row[1] if len(row) > 1 else ""
+                    # approver_details["title"] = row[1] if len(row) > 1 else ""
+                    approver_details["title"] = next((value for value in row[1:] if value.strip()), "")
 
         # Combine into final structured JSON
         structured_output = {
@@ -292,32 +291,27 @@ def format_data_for_template3(parsed_data):
             for i, row in enumerate(table):
                 # Extract invoice number (from first row in new format)
                 if "Invoice #" in row[0]:
-                    # invoice_number = row[1]  # Extract invoice number
-                    # invoice_data["invoice#"] = invoice_number
-                    invoice_data["invoice#"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
-
+                    # invoice_data["invoice#"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+                    invoice_data["invoice#"] = next((value for value in row[1:] if value.strip()), "")
                 # Extract GST and Grand Total
                 elif "GST:" in row[0]:
-                    # invoice_data["GST"] = row[1]
-                    invoice_data["GST"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
-
+                    # invoice_data["GST"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+                    invoice_data["GST"] = next((value for value in row[1:] if value.strip()), "")
                 elif "Grand Total:" in row[0]:
-                    # invoice_data["grandTotal"] = row[1]
-                    invoice_data["invoicetotal"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
+                    invoice_data["invoicetotal"] =  next((value for value in row[1:] if value.strip()), "")
+                    # invoice_data["invoicetotal"] = row[1] if len(row) > 1 else ""  # Default to empty if index doesn't exist
 
 
                 # Extract approver details
                 elif "Approver Name:" in row[0]:
-                    # approver_details["approverName"] = row[1]
-                    approver_details["approverName"] = row[1] if len(row) > 1 else ""
-
+                    # approver_details["approverName"] = row[1] if len(row) > 1 else ""
+                    approver_details["approverName"] = next((value for value in row[1:] if value.strip()), "")
                 elif "Approver TM ID:" in row[0]:
-                    # approver_details["TMID"] = row[1]
-                    approver_details["TMID"] = row[1] if len(row) > 1 else ""
-
+                    # approver_details["TMID"] = row[1] if len(row) > 1 else ""
+                    approver_details["TMID"] = next((value for value in row[1:] if value.strip()), "")
                 elif "Approval Title:" in row[0]:
-                    # approver_details["title"] = row[1]
-                    approver_details["title"] = row[1] if len(row) > 1 else ""
+                    # approver_details["title"] = row[1] if len(row) > 1 else ""
+                    approver_details["title"] = next((value for value in row[1:] if value.strip()), "")
 
                 # Check if header matches expected columns
                 elif row == ["Store", "Dept", "Account", "SL", "Project", "Activity", "Amount"]:
