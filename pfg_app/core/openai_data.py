@@ -164,10 +164,10 @@ def extract_invoice_details_using_openai(blob_data):
 
                 """
         # Set Tesseract OCR path (Windows users only, update path accordingly)
-        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        # pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
         
         # # Set Tesseract OCR path (Linux users only, update path accordingly)
-        # pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+        pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
         image_content = []
         # Convert PDF to image
         pdf_img = convert_from_bytes(blob_data)
