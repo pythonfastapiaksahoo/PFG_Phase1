@@ -800,12 +800,30 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             # title check:
                                             approval_title_val_msg = ""
                                             approval_title_val_status = 0
-                                            invo_approver_title =str(list(df_corp_document['approver_title'])[0]).lower()
+                                            invo_approver_title =str(list(df_corp_docdata['approver_title'])[0]).lower()
                                             coding_approver_title = str(list(df_corp_coding['approver_title'])[0]).lower()
                                             if invo_approver_title == coding_approver_title:
                                                 logger.info("Approver title match")
                                                 approval_title_val_status = 1
                                                 approval_title_val_msg = "Success"
+                                                approval_Amt_val_status = 0
+                                                approval_Amt_val_msg = ""
+                                                if is_amount_approved(float(pdf_invoTotal), invo_approver_title):
+                                                    logger.info("Amount approved")
+                                                    approval_Amt_val_status = 1
+                                                    approval_Amt_val_msg = "Amount approved"
+                                                else:
+                                                    approvrd_ck= 0
+                                                    logger.info("Approval limits conformance mismatch")
+                                                    approval_Amt_val_msg = "Approval limits conformance mismatch"
+                                                return_status["Approval amount validation"] = {"status": approval_Amt_val_status,
+                                                                    "StatusCode":0,
+                                                                    "response": [
+                                                                                    approval_Amt_val_msg
+                                                                                ],
+                                                                    }
+
+                                                #--
                                             else:
                                                 approvrd_ck =0
                                                 logger.info("Approver title mismatch")
@@ -818,22 +836,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
 
                                              
-                                            approval_Amt_val_status = 0
-                                            approval_Amt_val_msg = ""
-                                            if is_amount_approved:
-                                                logger.info("Amount approved")
-                                                approval_Amt_val_status = 1
-                                                approval_Amt_val_msg = "Amount approved"
-                                            else:
-                                                approvrd_ck= 0
-                                                logger.info("Approval limits conformance mismatch")
-                                                approval_Amt_val_msg = "Approval limits conformance mismatch"
-                                            return_status["Approval amount validation"] = {"status": approval_Amt_val_status,
-                                                                "StatusCode":0,
-                                                                "response": [
-                                                                                approval_Amt_val_msg
-                                                                            ],
-                                                                }
+                                            
 
                                             
 
