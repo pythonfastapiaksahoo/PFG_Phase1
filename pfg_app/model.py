@@ -1632,6 +1632,8 @@ class corp_docdata(Base):
     misc = Column(Float,nullable=True)
     doc_updates = Column(JSON, nullable=True)
     document_type = Column(String, nullable=True)
+    approver = Column(String, nullable=True)
+    approver_title = Column(String, nullable=True)
 
 class corp_metadata(Base):
     __tablename__ = "corp_metadata"

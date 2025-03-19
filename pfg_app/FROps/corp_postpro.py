@@ -111,6 +111,8 @@ def clean_invoice_ids(data):
 
 
 def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
+
+    
     
     try:
         # Cleaning invoice IDs
@@ -120,6 +122,19 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
         op_1 = op_unCl_1
         logger.error(f"Error cleaning invoice IDs:input:{op_unCl_1} --error: {e},")
         logger.info(f"Error in unquote: {traceback.format_exc()}")
+    try: 
+        coding_approverName = op_1.get("coding_details", {}).get("approverDetails", {}).get("approverName", "")
+        coding_approver_Designation = op_1.get("coding_details", {}).get("approverDetails", {}).get("title", "")
+        invoice_ApproverName = op_1.get("approval_details", {}).get("Approver", "")
+        invo_approver_email = op_1.get("approval_details", {}).get("from", "")
+        invo_approver_Designation = op_1.get("approval_details", {}).get("Designation", "")
+    except Exception:
+        logger.info(f"Error in getting approver details: {traceback.format_exc()}")
+        coding_approverName = ""
+        invoice_ApproverName = ""
+        invo_approver_email = ""
+        invo_approver_Designation = ""
+        coding_approver_Designation = ""
     
     corp_doc_id = ""
     db = next(get_db())
@@ -220,6 +235,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     missing_val.append("sent_to")
                 if "TMID" in  op_1['coding_details']['approverDetails']:
                         TMID =  op_1['coding_details']['approverDetails']['TMID']
+                else:
+                    TMID = ""
             #- process multi invoice: 
             invoice_details = op_1['coding_details']['invoiceDetails']
             keys_to_check_invo = ['invoice#','store', 'dept', 'account', 'SL', 'project', 'activity','GST','invoicetotal']
@@ -252,10 +269,10 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data['sent_time'] = sent_time
                     coding_tab_data["gst"] = cleanAmt_all(credit_invo, invoice_details['GST'][rw])
                     coding_tab_data["invoice_number"]  = invoice_details['invoice#'][rw]
-                    coding_tab_data['approverName'] = approverName
-                    coding_tab_data["approver_email"] = approver_email
+                    coding_tab_data['approverName'] = coding_approverName
+                    coding_tab_data["approver_email"] = invo_approver_email 
                     coding_tab_data["approved_on"] = approved_on
-                    coding_tab_data["approver_title"] = approver_title
+                    coding_tab_data["approver_title"] = coding_approver_Designation
                     coding_tab_data["approval_status"] = approval_status
                     coding_tab_data["TMID"] = TMID
                     coding_tab_data["invoicetotal"] =cleanAmt_all(credit_invo, invoice_details["invoicetotal"][rw])
@@ -358,12 +375,12 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                         coding_tab_data["TMID"] =  op_1['coding_details']['approverDetails']['TMID']
             if 'approval_details' in op_1:
                 if 'Approver' in  op_1['approval_details']:
-                    coding_tab_data['approverName'] = op_1['approval_details']['Approver']
+                    coding_tab_data['approverName'] = coding_approverName 
                 else:
                     coding_tab_data['approverName'] = "" 
 
                 if "from" in  op_1['approval_details']:
-                    coding_tab_data["approver_email"] =  op_1['approval_details']['from']
+                    coding_tab_data["approver_email"] =  invo_approver_email 
                 else:
                     coding_tab_data["approver_email"] = ""
 
@@ -373,7 +390,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data["approved_on"] = ""
 
                 if "Designation" in op_1['approval_details']:
-                    coding_tab_data["approver_title"] = op_1['approval_details']['Designation']
+                    coding_tab_data["approver_title"] = coding_approver_Designation
                 else:
                     coding_tab_data["approver_title"] = ""
 
@@ -627,6 +644,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 "pst_bc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-BC"]),
                                 "ecology_fee":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Ecology Fee"]),
                                 "misc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["misc"]),
+                                "approver": invoice_ApproverName ,
+                                "approver_title": invo_approver_Designation
                                 }
                     
 
@@ -724,6 +743,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
            #insert record in docdata:
             corp_docdata_insert = { 
                "corp_doc_id":corp_doc_id,
+               "approver": invoice_ApproverName ,
+               "approver_title":invo_approver_Designation
                                 }
                     
             corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
@@ -837,6 +858,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                             "pst_bc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-BC"]),
                             "ecology_fee":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Ecology Fee"]),
                             "misc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["misc"]),
+                            "approver": invoice_ApproverName ,
+                            "approver_title":invo_approver_Designation
                             }
                 corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
                 db.add(corp_docdata_insert_data)
