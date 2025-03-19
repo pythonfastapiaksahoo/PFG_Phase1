@@ -484,12 +484,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                         else:    
                             zero_dlr_ck = 0
+
                         if "2" in str(skipConf):
                             amt_threshold_ck = 1
-                            documentdesc = "Amount approved by user"
+                            documentdesc = "Amount limit approved by user"
                             corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                         else:
                             amt_threshold_ck = 0
+
                         if "3" in str(skipConf):    
                             skip_approval_ck = 1
                             documentdesc = "Invoice manually approved by user"
@@ -497,8 +499,35 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         else:
                             skip_approval_ck = 0
 
-                        #currency validation: 
+                        if "4" in str(skipConf):
+                            skip_name_check = 1
+                            documentdesc = "User skipped name check"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                        else:
+                            skip_name_check = 0 
 
+                        if "5" in str(skipConf):
+                            skip_email_check = 1
+                            documentdesc = "User skipped email check"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                        else:
+                            skip_email_check = 0
+                        
+                        if "6" in str(skipConf):
+                            skip_title_check = 1
+                            documentdesc = "User skipped title check"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                        else:
+                            skip_title_check = 0
+
+                        if "7" in str(skipConf):
+                            amount_approval_check = 1
+                            documentdesc = "Invoice amount approved by user"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                        else:
+                            skip_address_check = 0
+
+                        #currency validation: 
                         try:
                             if mand_currency != metadata_currency:
                                 return_status["Currency validation"] = {"status": 0,
@@ -757,40 +786,47 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     
                                         if approval_check_req == 1:
                                             # name match check: 
+                                            #skip_name_check ==4
+                                            
                                             approval_nm_val_status = 0
                                             approval_nm_val_msg = ""
                                             coding_approver_name = list(df_corp_coding['approver_name'])[0]
                                             invo_approver_name =  list(df_corp_docdata['approver'])[0]
                                             
-                                            if names_match(coding_approver_name, invo_approver_name):
+                                            if (names_match(coding_approver_name, invo_approver_name) or (skip_name_check==1)):
                                                 logger.info("Names match (ignoring case & order)")
                                                 approval_nm_val_status = 1
                                                 approval_nm_val_msg = "Success"
+                                                name_ck_status = 0
                                             else:
+                                                name_ck_status = 4
                                                 approvrd_ck = 0
                                                 logger.info("Approver and Sender Mismatch")
                                                 approval_nm_val_msg = "Approver and Sender Mismatch"
                                             return_status["Approval name validation"] = {"status": approval_nm_val_status,
-                                                                "StatusCode":0,
+                                                                "StatusCode":name_ck_status,
                                                                 "response": [
                                                                                 approval_nm_val_msg
                                                                             ],
                                                                 }
                                             
                                             #email check:
+                                            # skip_email_check = 5
                                             approval_email_val_status = 0
                                             approval_email_val_msg = ""
                                             coding_approver_email = list(df_corp_coding['sender_email'])[0]
-                                            if email_belongs_to_name(coding_approver_name, coding_approver_email):
+                                            if( email_belongs_to_name(coding_approver_name, coding_approver_email) or (skip_email_check==1)):
                                                 logger.info(f"Email '{coding_approver_email}' belongs to '{coding_approver_name}'")
                                                 approval_email_val_status = 1
                                                 approval_email_val_msg = "Success"
+                                                emal_status_code = 0
                                             else:
+                                                emal_status_code = 5
                                                 approvrd_ck=0
                                                 logger.info(f"Email '{coding_approver_email}' does NOT belong to '{coding_approver_name}'")
                                                 approval_email_val_msg = f"Email '{coding_approver_email}' does NOT belong to '{coding_approver_name}'"
                                             return_status["Approval email validation"] = {"status": approval_email_val_status,
-                                                                "StatusCode":0,
+                                                                "StatusCode":emal_status_code,
                                                                 "response": [
                                                                                 approval_email_val_msg
                                                                             ],
@@ -798,26 +834,31 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
 
                                             # title check:
+                                            # skip_title_check = 6
                                             approval_title_val_msg = ""
                                             approval_title_val_status = 0
                                             invo_approver_title =str(list(df_corp_docdata['approver_title'])[0]).lower()
                                             coding_approver_title = str(list(df_corp_coding['approver_title'])[0]).lower()
-                                            if invo_approver_title == coding_approver_title:
+                                            if (invo_approver_title == coding_approver_title) or (skip_title_check==1):
+                                                title_status_code = 0
                                                 logger.info("Approver title match")
                                                 approval_title_val_status = 1
                                                 approval_title_val_msg = "Success"
                                                 approval_Amt_val_status = 0
                                                 approval_Amt_val_msg = ""
-                                                if is_amount_approved(float(pdf_invoTotal), invo_approver_title):
+                                                #amount_approval_check = 7
+                                                if (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
                                                     logger.info("Amount approved")
                                                     approval_Amt_val_status = 1
                                                     approval_Amt_val_msg = "Amount approved"
+                                                    eml_status_code = 0
                                                 else:
                                                     approvrd_ck= 0
+                                                    eml_status_code = 7
                                                     logger.info("Approval limits conformance mismatch")
                                                     approval_Amt_val_msg = "Approval limits conformance mismatch"
                                                 return_status["Approval amount validation"] = {"status": approval_Amt_val_status,
-                                                                    "StatusCode":0,
+                                                                    "StatusCode":eml_status_code,
                                                                     "response": [
                                                                                     approval_Amt_val_msg
                                                                                 ],
@@ -826,23 +867,17 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 #--
                                             else:
                                                 approvrd_ck =0
+                                                title_status_code = 6
                                                 logger.info("Approver title mismatch")
                                                 approval_title_val_msg = "Approver title mismatch"
                                             return_status["Approval title validation"] = {"status": approval_title_val_status,
-                                                                "StatusCode":0,
+                                                                "StatusCode":title_status_code,
                                                                 "response": [
                                                                                 approval_title_val_msg
                                                                             ],
                                                                 }
 
                                              
-                                            
-
-                                            
-
-
-                                            
-
 
 
                                             # approver_title =list(df_corp_document['approver_title'])[0] 
@@ -856,14 +891,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             # elif pdf_invoTotal<= 1000000:
                                             #     if ("director" in approver_title.lower()):
                                             #         approvrd_ck = 1
-                                            if skip_approval_ck == 1:
-                                                approvrd_ck = 1
-                                                return_status["Approval validation"] = {"status": 1,
-                                                                "StatusCode":0,
-                                                                "response": [
-                                                                                f"Invoice manually approved by user"
-                                                                            ],
-                                                                }
+                                            # if skip_approval_ck == 1:
+                                            #     approvrd_ck = 1
+                                            #     return_status["Approval validation"] = {"status": 1,
+                                            #                     "StatusCode":0,
+                                            #                     "response": [
+                                            #                                     f"Invoice manually approved by user"
+                                            #                                 ],
+                                            #                     }
                                             
                                                 
                                             if approvrd_ck==0:
@@ -871,10 +906,10 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 docStatus = 24
                                                 substatus = 70
                                                 documentdesc = "Invoice - Not Approved"
-                                                return_status["Approval needed"] = {"status": 0,
-                                                        "StatusCode":3,
+                                                return_status["Approval Validation"] = {"status": 0,
+                                                        "StatusCode":0,
                                                         "response": [
-                                                                        f"Invoice - Not Approved"
+                                                                        f"Failed Approval Validation"
                                                                     ],
                                                                 }
                                                 # return return_status
