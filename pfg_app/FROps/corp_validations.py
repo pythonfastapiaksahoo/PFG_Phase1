@@ -71,7 +71,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     subTotal_msg = ""
     document_type_status = 0
     document_type_msg = ""
-    approvrd_ck = 0
+    approvrd_ck = 1
     cod_lnMatch = 0
     currency_ck = 0
     currency_ck_msg = ""
@@ -800,7 +800,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 name_ck_status = 0
                                             else:
                                                 name_ck_status = 4
-                                                approvrd_ck = 0
+                                                approvrd_ck =approvrd_ck * 0
                                                 logger.info("Approver and Sender Mismatch")
                                                 approval_nm_val_msg = "Approver and Sender Mismatch"
                                             return_status["Approval name validation"] = {"status": approval_nm_val_status,
@@ -822,7 +822,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 emal_status_code = 0
                                             else:
                                                 emal_status_code = 5
-                                                approvrd_ck=0
+                                                approvrd_ck=approvrd_ck * 0
                                                 logger.info(f"Email '{coding_approver_email}' does NOT belong to '{coding_approver_name}'")
                                                 approval_email_val_msg = f"Email '{coding_approver_email}' does NOT belong to '{coding_approver_name}'"
                                             return_status["Approval email validation"] = {"status": approval_email_val_status,
@@ -853,7 +853,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     approval_Amt_val_msg = "Amount approved"
                                                     eml_status_code = 0
                                                 else:
-                                                    approvrd_ck= 0
+                                                    approvrd_ck= approvrd_ck * 0
                                                     eml_status_code = 7
                                                     logger.info("Approval limits conformance mismatch")
                                                     approval_Amt_val_msg = "Approval limits conformance mismatch"
@@ -866,7 +866,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                                                 #--
                                             else:
-                                                approvrd_ck =0
+                                                approvrd_ck = approvrd_ck * 0
                                                 title_status_code = 6
                                                 logger.info("Approver title mismatch")
                                                 approval_title_val_msg = "Approver title mismatch"
