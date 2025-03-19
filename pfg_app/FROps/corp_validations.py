@@ -4,6 +4,7 @@ from pfg_app.FROps.corp_payloadValidation import payload_dbUpdate
 from pfg_app.FROps.customCall import date_cnv
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 from sqlalchemy import func
+from sqlalchemy.orm.attributes import flag_modified
 import pandas as pd
 from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
 from pfg_app.logger_module import logger
@@ -914,14 +915,27 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                                 # return return_status
                                             elif approvrd_ck ==1:
-                                                
                                                     
                                                 if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
                                                     docStatus = 2
                                                     substatus = 31
                                                     documentdesc = "Invoice approved"
                                                     if validation_status_ck ==1:
-                                                        
+                                                        try:
+                                                            for row in corp_coding_data:
+                                                                coding_details = row.coding_details  # Assuming this is a dictionary
+
+                                                                for st in coding_details:
+                                                                    store_value = coding_details[st]["store"]
+                                                                    coding_details[st]["store"] = store_value.zfill(4)  # Pad with leading zeros
+
+                                                                # Explicitly mark field as modified
+                                                                flag_modified(row, "coding_details")
+
+                                                            # Commit changes to DB
+                                                            db.commit()
+                                                        except Exception as e:
+                                                            logger.error(f"Error in updating coding_details: {e}")
                                                         payload_status = payload_dbUpdate(doc_id,userID,db)
                                                         try:
                                                             return_status.update(payload_status)
