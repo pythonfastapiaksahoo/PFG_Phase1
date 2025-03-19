@@ -362,7 +362,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                                                 'SL':invoice_details['SL'][0],
                                                 'project':invoice_details['project'][0],
                                                 'activity':invoice_details['activity'][0],
-                                                'amount':invoice_details['amount'][0]}
+                                                'amount':cleanAmt_all(credit_invo,invoice_details['amount'][0])
+                                                }
                         else:
                             for rw in range(len(invoice_details[keys_to_check[0]])):
                                 coding_data[rw+1] = {'store':invoice_details['store'][rw],
@@ -452,6 +453,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     att_invoTotal = cleanAmt_all(credit_invo,invTotl)
                     if "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
                         gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
+                    else:
+                        gst_amt = 0
                     # elif "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
                     #     gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
                     gst = cleanAmt_all(credit_invo, gst_amt)
