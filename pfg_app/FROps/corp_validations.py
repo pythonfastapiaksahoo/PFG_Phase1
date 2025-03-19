@@ -525,7 +525,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             documentdesc = "Invoice amount approved by user"
                             corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                         else:
-                            skip_address_check = 0
+                            amount_approval_check = 0
 
                         #currency validation: 
                         try:
@@ -921,6 +921,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     substatus = 31
                                                     documentdesc = "Invoice approved"
                                                     if validation_status_ck ==1:
+                                                        
                                                         payload_status = payload_dbUpdate(doc_id,userID,db)
                                                         try:
                                                             return_status.update(payload_status)
