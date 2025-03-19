@@ -839,7 +839,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             approval_title_val_status = 0
                                             invo_approver_title =str(list(df_corp_docdata['approver_title'])[0]).lower()
                                             coding_approver_title = str(list(df_corp_coding['approver_title'])[0]).lower()
-                                            if (invo_approver_title == coding_approver_title) or (skip_title_check==6):
+                                            if (invo_approver_title == coding_approver_title) or (skip_title_check==1):
                                                 title_status_code = 0
                                                 logger.info("Approver title match")
                                                 approval_title_val_status = 1
@@ -906,10 +906,10 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 docStatus = 24
                                                 substatus = 70
                                                 documentdesc = "Invoice - Not Approved"
-                                                return_status["Approval needed"] = {"status": 0,
-                                                        "StatusCode":3,
+                                                return_status["Approval Validation"] = {"status": 0,
+                                                        "StatusCode":0,
                                                         "response": [
-                                                                        f"Invoice - Not Approved"
+                                                                        f"Failed Approval Validation"
                                                                     ],
                                                                 }
                                                 # return return_status
