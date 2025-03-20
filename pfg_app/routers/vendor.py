@@ -17,7 +17,7 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/Vendor",
     tags=["Vendor"],
-    # dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User","Admin"]))],
+    # dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User","DSD_APPortal_User","Admin"]))],
     # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
@@ -25,7 +25,10 @@ router = APIRouter(
 
 # API to read all vendor names
 @router.get("/vendornamelist")
-async def get_vendor_names_list(db: Session = Depends(get_db)):
+async def get_vendor_names_list(
+    db: Session = Depends(get_db),
+    user: AzureUser = Depends(get_user_dependency(["DSD_ConfigPortal_User","DSD_APPortal_User","CORP_APPortal_User"])),
+    ):
     """API route to retrieve a list of all active vendor names.
 
     Parameters:
@@ -38,7 +41,7 @@ async def get_vendor_names_list(db: Session = Depends(get_db)):
     -------
     List of active vendor names.
     """
-    return await crud.readvendorname(db)
+    return await crud.readvendorname(user.idUser, db)
 
 
 # API to read paginated vendor list

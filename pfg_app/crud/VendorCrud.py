@@ -12,7 +12,7 @@ from pfg_app.logger_module import logger
 tz_region = tz.timezone("US/Pacific")
 
 
-async def readvendorname(db):
+async def readvendorname(u_id, db):
     """This function read list of VendorNames.
 
     It contains 2 parameter.

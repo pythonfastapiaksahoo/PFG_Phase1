@@ -17,6 +17,7 @@ from pfg_app.session.session import get_db
 router = APIRouter(
     prefix="/apiv1.1/Invoice",
     tags=["invoice"],
+    dependencies=[Depends(get_user_dependency(["DSD_APPortal_User","User"]))],
     responses={404: {"description": "Not found"}},
 )
 
