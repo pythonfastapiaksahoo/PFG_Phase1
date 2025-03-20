@@ -254,7 +254,7 @@ def upload_blob_securely(container_name, blob_path, data, content_type):
             overwrite=True,
             content_settings=ContentSettings(content_type=content_type)
         )
-        print(f"Blob successfully uploaded to: {container_name}/{blob_path}")
+        logger.info(f"Blob successfully uploaded to: {container_name}/{blob_path}")
 
     except AzureError as e:
         logger.error(f"Error uploading to Azure Blob Storage: {str(e)}")
