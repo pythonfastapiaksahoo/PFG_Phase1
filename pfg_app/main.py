@@ -316,7 +316,6 @@ async def add_operation_id(request: Request, call_next):
 
             response.headers["api-version"] = "0.101.03"
 
-
             logger.info(
                 "Sending response from FastAPI"
             )  # Automatically includes Operation ID
