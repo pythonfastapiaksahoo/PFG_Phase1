@@ -36,12 +36,36 @@ def email_belongs_to_name(name, email):
     name_parts = set(name.lower().split())  # Convert name into a set of lowercase words
     return any(part in email_prefix for part in name_parts)  # Check if any name part is in the email
 
+# def is_amount_approved(amount: float, title: str) -> bool:
+#     approval_limits = {
+#         (0, 24999): {"Supervisor", "Manager"},
+#         (25000, 74999): {"Senior Manager", "Sr. Manager"},
+#         (75000, 499999): {"Director", "Regional Manager", "General Manager"},
+#         (500000, float("inf")): {"Managing Director", "VP", "Vice President"},
+#     }
+    
+#     title = title.strip().lower()
+#     title_variants = {
+#         "senior manager": "Senior Manager",
+#         "sr. manager": "Senior Manager",
+#         "sr manager": "Senior Manager",
+#         "vice president": "VP"
+#     }
+    
+#     normalized_title = title_variants.get(title, title.title())
+    
+#     for (lower, upper), allowed_titles in approval_limits.items():
+#         if lower <= amount <= upper:
+#             return normalized_title in allowed_titles
+    
+#     return False
+
 def is_amount_approved(amount: float, title: str) -> bool:
     approval_limits = {
         (0, 24999): {"Supervisor", "Manager"},
-        (25000, 74999): {"Senior Manager", "Sr. Manager"},
-        (75000, 499999): {"Director", "Regional Manager", "General Manager"},
-        (500000, float("inf")): {"Managing Director", "VP", "Vice President"},
+        (0, 74999): {"Senior Manager", "Sr. Manager"},
+        (0, 499999): {"Director", "Regional Manager", "General Manager"},
+        (0, float("inf")): {"Managing Director", "VP", "Vice President"},
     }
     
     title = title.strip().lower()
@@ -51,14 +75,21 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "sr manager": "Senior Manager",
         "vice president": "VP"
     }
-    
-    normalized_title = title_variants.get(title, title.title())
+
+    # Check if any key in title_variants is a substring of the title
+    for key, normalized in title_variants.items():
+        if key in title:
+            normalized_title = normalized
+            break
+    else:
+        normalized_title = title.title()
     
     for (lower, upper), allowed_titles in approval_limits.items():
         if lower <= amount <= upper:
             return normalized_title in allowed_titles
     
     return False
+
 
 
 
