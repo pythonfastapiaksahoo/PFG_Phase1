@@ -37,7 +37,7 @@ def correct_orientation(image):
     rotation_angle = int(osd.split("\n")[2].split(":")[-1].strip())
 
     if rotation_angle == 0:
-        print("Image is already at 0 degrees. No rotation needed.")
+        logger.info(f"Image is already at 0 degrees. No rotation needed.")
         return image, rotation_angle  # No rotation needed
 
     # Rotate image to 0 degrees based on detected angle
@@ -201,7 +201,7 @@ def extract_invoice_details_using_openai(blob_data):
             # Encode image to base64
             encoded_image = base64.b64encode(buffered.getvalue()).decode("ascii")
             
-            print(f"Page {i}: Rotated {angle}° -> Corrected to 0°" if angle != 0 else f"Page {i}: Already 0°")
+            logger.info(f"Page {i}: Rotated {angle}° -> Corrected to 0°" if angle != 0 else f"Page {i}: Already 0°")
             # Append image to image_content
             image_content.append(
                 {
