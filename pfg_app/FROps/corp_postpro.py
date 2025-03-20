@@ -138,8 +138,11 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
     try:
         if op_1['approval_details'].get("Approved keyword exists", "").lower() == "yes":
             approval_status = "Approved" if re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details'].get('Approved keyword', '')).lower()) == 'approved' else "Not approved"
+        else:
+            approval_status = "Not approved"
     except Exception:
             approval_status = "Not approved"
+    
 
     try:
         creditLt = []
