@@ -876,7 +876,27 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 # line_sum = line_sum + list(df_corp_coding['coding_details'])[0][ln_amt]['amount']
                             # if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 # consider GST
-                            if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
+                            if credit_ck==1:
+                                if abs(float(cod_invoTotal.values[0])- (line_sum - float(cod_gst.values[0])) )> 0.09:
+                                    docStatus = 4
+                                    substatus = 136
+                                    documentdesc = "Coding - Line total mismatch"
+                                    return_status["Coding Line validation"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Coding - Line total mismatch"
+                                                                    ],
+                                                                }
+                                else:
+                                    return_status["Coding Line validation"] = {"status": 1,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Success."
+                                                                    ],
+                                                                }
+                                    cod_lnMatch = 1
+                            # else:
+                            elif abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                 docStatus = 4
                                 substatus = 136
                                 documentdesc = "Coding - Line total mismatch"
@@ -1003,7 +1023,10 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             if (names_match(coding_approver_name, invo_approver_name) or (skip_name_check==1)):
                                                 logger.info("Names match (ignoring case & order)")
                                                 approval_nm_val_status = 1
-                                                approval_nm_val_msg = "Success"
+                                                if skip_name_check==1:
+                                                    approval_nm_val_msg = "Name check skipped by user"
+                                                else:
+                                                    approval_nm_val_msg = "Success"
                                                 name_ck_status = 0
                                             else:
                                                 name_ck_status = 4
@@ -1025,7 +1048,10 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             if( email_belongs_to_name(coding_approver_name, coding_approver_email) or (skip_email_check==1)):
                                                 logger.info(f"Email '{coding_approver_email}' belongs to '{coding_approver_name}'")
                                                 approval_email_val_status = 1
-                                                approval_email_val_msg = "Success"
+                                                if skip_email_check==1:
+                                                    approval_email_val_msg = "Email check skipped by user"
+                                                else:
+                                                    approval_email_val_msg = "Success"
                                                 emal_status_code = 0
                                             else:
                                                 emal_status_code = 5
@@ -1050,14 +1076,25 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 title_status_code = 0
                                                 logger.info("Approver title match")
                                                 approval_title_val_status = 1
-                                                approval_title_val_msg = "Success"
+                                                if skip_title_check==1:
+                                                    approval_title_val_msg = "Approver title match skipped by user"
+                                                else:
+                                                    approval_title_val_msg = "Success"
                                                 approval_Amt_val_status = 0
                                                 approval_Amt_val_msg = ""
                                                 #amount_approval_check = 7
-                                                if (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
+                                                if credit_ck==1:
+                                                    logger.info("Amount limit approval skipped for credit")
+                                                    approval_Amt_val_status = 1
+                                                    approval_Amt_val_msg = "Amount limit approval skipped for credit"
+                                                    eml_status_code = 0
+                                                elif (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
                                                     logger.info("Amount approved")
                                                     approval_Amt_val_status = 1
-                                                    approval_Amt_val_msg = "Amount approved"
+                                                    if amount_approval_check==1:
+                                                        approval_Amt_val_msg = "Amount limit approval skipped by user"
+                                                    else:
+                                                        approval_Amt_val_msg = "Amount approved"
                                                     eml_status_code = 0
                                                 else:
                                                     approvrd_ck= approvrd_ck * 0
