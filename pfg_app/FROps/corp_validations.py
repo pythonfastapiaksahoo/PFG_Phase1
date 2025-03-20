@@ -877,7 +877,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 # consider GST
                             if credit_ck==1:
-                                if abs(float(cod_invoTotal.values[0])- (line_sum - float(cod_gst.values[0])) )> 0.09:
+                                if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                     docStatus = 4
                                     substatus = 136
                                     documentdesc = "Coding - Line total mismatch"
