@@ -1908,6 +1908,18 @@ def processCorpInvoiceVoucher(doc_id, db):
             
         try:
             file_data = read_corp_invoice_file(1, doc_id, db)
+            if not file_data or "result" not in file_data:
+                raise Exception("Error retrieving file: No result found in file data.")
+            
+            file_size_mb_1 = file_data["result"].get("file_size_mb", "0 MB").split(" ")[0]  # Extract numeric part
+            file_size_mb_1 = float(file_size_mb_1)  # Convert to float
+            
+            # # Check if file size exceeds 5 MB
+            # if file_size_mb_1 > 5:
+            #     return {
+            #         "message": "Failure: Invoice File Size more than 5 mb",
+            #         "data": {"Http Response": "410", "Status": "Invoice File Size Exceeds 5 mb"},
+            #     }
             base64file = file_data["result"]["filepath"] if file_data and "result" in file_data else None
             if isinstance(base64file, bytes):
                 base64file = base64file.decode("utf-8")
@@ -1921,8 +1933,22 @@ def processCorpInvoiceVoucher(doc_id, db):
             }
         
         try:
-            file_data = read_corp_email_pdf_file(1, doc_id, db)
-            base64eml = file_data["result"]["filepath"] if file_data and "result" in file_data else None
+            eml_file_data = read_corp_email_pdf_file(1, doc_id, db)
+            
+            if not eml_file_data or "result" not in eml_file_data:
+                raise Exception("Error retrieving file: No result found in file data.")
+            
+            file_size_mb_2  = eml_file_data["result"].get("file_size_mb", "0 MB").split(" ")[0]  # Extract numeric part
+            file_size_mb_2  = float(file_size_mb_2 )  # Convert to float
+            
+            # # Check if file size exceeds 5 MB
+            # if file_size_mb_2  > 5:
+            #     return {
+            #         "message": "Failure: Email pdf File Size more than 5 mb",
+            #         "data": {"Http Response": "410", "Status": "Email pdf File Size Exceeds 5 mb"},
+            #     }
+                
+            base64eml = eml_file_data["result"]["filepath"] if eml_file_data and "result" in eml_file_data else None
             if isinstance(base64eml, bytes):
                 base64eml = base64eml.decode("utf-8")
             if not base64eml:
@@ -1933,6 +1959,15 @@ def processCorpInvoiceVoucher(doc_id, db):
                 "message": "Failure: File Attachment could not be loaded",
                 "data": {"Http Response": "409", "Status": "Error retrieving file"},
             }
+        
+        # Check if the combined file size exceeds 5 MB
+        total_file_size_mb = file_size_mb_1 + file_size_mb_2
+        if total_file_size_mb > 5:
+            return {
+                "message": "Combined file size exceeding 5mb",
+                "data": {"Http Response": "410", "Status": "Combined file size exceeding 5mb"},
+            }
+    
         # logger.info(f"base64eml for doc id: {doc_id}: {base64eml}")
         
         if isinstance(corpvoucherdata.VCHR_DIST_STG, str):
@@ -3511,6 +3546,13 @@ def bulkProcessCorpVoucherData():
                                     )
                                     docStatus = 4
                                     docSubStatus = 147
+                                
+                                elif RespCodeInt == 410:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FILE_SIZE_EXCEEDED  # noqa: E501
+                                    )
+                                    docStatus = 4
+                                    docSubStatus = 160
                                     
                                 elif RespCodeInt == 422:
                                     dmsg = (
