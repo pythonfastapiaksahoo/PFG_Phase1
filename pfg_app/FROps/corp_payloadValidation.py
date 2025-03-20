@@ -233,7 +233,14 @@ def payload_dbUpdate(doc_id,userID,db):
                                     )
                                     docStatus = 4
                                     docSubStatus = 147
-                                    
+                                
+                                elif RespCodeInt == 410:
+                                    dmsg = (
+                                        InvoiceVoucherSchema.FILE_SIZE_EXCEEDED  # noqa: E501
+                                    )
+                                    docStatus = 4
+                                    docSubStatus = 160
+                                
                                 elif RespCodeInt == 422:
                                     dmsg = (
                                         InvoiceVoucherSchema.FAILURE_PEOPLESOFT  # noqa: E501

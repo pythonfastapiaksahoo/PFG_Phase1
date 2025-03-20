@@ -43,6 +43,7 @@ class InvoiceVoucherSchema(str, Enum):
     FAILURE_POST_IN_RESPONSE_UNDEFINED = "Failure: Error - Response Undefined"
 
     FAILURE_COMMON = "Failure: PopleSoftResponseError "
+    FILE_SIZE_EXCEEDED = "Failure: File Size exceeds 5 mb"
 
     def format_message(self, message):
         return self.value.format(message)
