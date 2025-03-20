@@ -33,7 +33,7 @@ auth_handler = AuthHandler()
 router = APIRouter(
     prefix="/apiv1.1/fr",
     tags=["Form Recogniser"],
-    # dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User"]))],
+    dependencies=[Depends(get_user_dependency(["DSD_ConfigPortal_User","Admin"]))],
     # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )

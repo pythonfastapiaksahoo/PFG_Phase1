@@ -141,12 +141,36 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
     except Exception:
             approval_status = "Not approved"
 
+    try:
+        creditLt = []
+        credit_notes = {}
+        for invoice in op_1["invoice_detail_list"]:
+            for file_name, details in invoice.items():
+                credit_notes[file_name] = details.get("CreditNote", "N/A")
+                creditLt.append(details.get("CreditNote", "N/A"))
+        # Print the extracted CreditNote values
+        for file_name, credit_note in credit_notes.items():
+            logger.info(f"File: {file_name}, CreditNote: {credit_note}")
+        if len(creditLt) > 0:
+            if str(creditLt[0]).lower() == "yes":
+                credit_invo = 1
+            elif str(creditLt[0]).lower() == "no":
+                credit_invo = 0
+            else:
+                credit_invo = 2
+        else:
+            credit_invo = 2
+
+    except Exception:
+        credit_invo = 2
+        
+
 
     corp_doc_id = ""
     db = next(get_db())
     timestmp =datetime.now(tz_region) 
     coding_tab_data = {}
-    credit_invo = 0
+    # credit_invo = 0
     coding_data = {}
     all_invo_coding = {}
     map_invo_att = {}
@@ -264,11 +288,12 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     coding_tab_data = {}
                     
                     
-                    if '-' in invoice_details['invoicetotal'][rw]:
-                        credit_invo = 1
+                    if credit_invo == 1:   
                         coding_tab_data['document_type'] = "credit"
-                    else:
+                    elif credit_invo == 0:
                         coding_tab_data['document_type'] = "invoice"
+                    else:
+                        coding_tab_data['document_type'] = "Unknown"
                     coding_tab_data['sender'] = sender
                     coding_tab_data['sender_email'] = sender_email
                     coding_tab_data['sent_to'] = sent_to
@@ -330,12 +355,12 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
 
                 if "invoiceDetails" in op_1['coding_details']:
                     if "invoicetotal" in op_1['coding_details']['invoiceDetails']:
-                        if '-' in all_invo_coding:
-                            credit_invo = 1
+                        if credit_invo ==1:
                             coding_tab_data['document_type'] = "credit"
-                            
-                        else:
+                        elif credit_invo == 0:
                             coding_tab_data['document_type'] = "invoice"
+                        else:
+                            coding_tab_data['document_type'] = "Unknown"
                         c_invoTotal = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['invoicetotal'])
                     if c_invoTotal:
                         coding_tab_data['invoicetotal'] = c_invoTotal
@@ -362,7 +387,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                                                 'SL':invoice_details['SL'][0],
                                                 'project':invoice_details['project'][0],
                                                 'activity':invoice_details['activity'][0],
-                                                'amount':invoice_details['amount'][0]}
+                                                'amount':cleanAmt_all(credit_invo,invoice_details['amount'][0])
+                                                }
                         else:
                             for rw in range(len(invoice_details[keys_to_check[0]])):
                                 coding_data[rw+1] = {'store':invoice_details['store'][rw],
@@ -452,6 +478,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     att_invoTotal = cleanAmt_all(credit_invo,invTotl)
                     if "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
                         gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
+                    else:
+                        gst_amt = 0
                     # elif "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
                     #     gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
                     gst = cleanAmt_all(credit_invo, gst_amt)
@@ -459,8 +487,10 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     
                     if credit_invo==1:
                         document_type = "Credit"
+                    elif credit_invo == 0:
+                        document_type = "Invoice"   
                     else:
-                        document_type = "Invoice"
+                        document_type = "Unknown"
                     if list(doc_dt_rw.keys())[0] in mail_rw_dt:
                         pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
                         corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
