@@ -2424,7 +2424,7 @@ def bulkupdateCorpInvoiceStatus():
         blob_client = container_client.get_blob_client("corp-status-job-lock")
         lease = blob_client.acquire_lease()
 
-        logger.info(f"[{datetime.datetime.now()}] Background job `Status` Started!")
+        logger.info(f"[{datetime.now()}] Background job `Status` Started!")
 
         userID = 1
         # db = next(get_db())
@@ -2580,7 +2580,7 @@ def bulkupdateCorpInvoiceStatus():
                                     "user_id": userID,
                                     "document_status": documentstatusid,
                                     "document_desc": dmsg,
-                                    "created_on": datetime.datetime.utcnow().strftime(
+                                    "created_on": datetime.utcnow().strftime(
                                         "%Y-%m-%d %H:%M:%S"
                                     ),  # noqa: E501
                                 }
@@ -2615,7 +2615,7 @@ def bulkupdateCorpInvoiceStatus():
 
         blob_client.append_block(operation_id + "\n", lease=lease)
         blob_metadata = blob_client.get_blob_properties().metadata
-        blob_metadata["last_run_time"] = str(datetime.datetime.now())
+        blob_metadata["last_run_time"] = str(datetime.now())
         blob_client.set_blob_metadata(blob_metadata, lease=lease)
         data = {
             "message": "Bulk update run successfully",
@@ -2623,7 +2623,7 @@ def bulkupdateCorpInvoiceStatus():
             "success_count": success_count,
         }
         logger.info(
-            f"[{datetime.datetime.now()}] Background job `Status` "
+            f"[{datetime.now()}] Background job `Status` "
             + f"Completed! with data: {data}"
         )
 
@@ -3438,7 +3438,7 @@ def bulkProcessCorpVoucherData():
         blob_client = container_client.get_blob_client("corp-creation-job-lock")
         lease = blob_client.acquire_lease()
 
-        logger.info(f"[{datetime.datetime.now()}] Background job `Creation` Started!")
+        logger.info(f"[{datetime.now()}] Background job `Creation` Started!")
 
         userID = 1
         # Get the retry frequency from the SetRetryCount table
@@ -3632,7 +3632,7 @@ def bulkProcessCorpVoucherData():
             "success_count": success_count,
         }
         logger.info(
-            f"[{datetime.datetime.now()}] Background job `Creation` "
+            f"[{datetime.now()}] Background job `Creation` "
             + f"Completed! with data: {data}"
         )
     except Exception:
