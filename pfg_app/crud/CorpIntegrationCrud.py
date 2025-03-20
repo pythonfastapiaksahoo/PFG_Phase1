@@ -3418,6 +3418,7 @@ async def reject_corp_invoice(userID, invoiceID, reason, db):
 
 def bulkProcessCorpVoucherData():
     try:
+        logger.info(f"Starting bulkProcessCorpVoucherData function")
         db = next(get_db())
 
         # Create an operation ID for the background job
