@@ -1571,6 +1571,8 @@ class corp_document_tab(Base):
     email_filepath_pdf = Column(String(1255), nullable=True)
     documentdescription = Column(TEXT, nullable=True)
     retry_count = Column(Integer, nullable=True)
+    # invoice_type = Column(String(30), nullable=True)
+    invoice_type = Column(String(30), nullable=True, default='Corp')
 
 class corp_coding_tab(Base):
     __tablename__ = "corp_coding_tab"
@@ -1626,10 +1628,6 @@ class corp_docdata(Base):
     ecology_fee = Column(Float,nullable=True)
     misc = Column(Float,nullable=True)
     created_on = Column(DateTime, nullable=True)
-    pst_sk = Column(Float,nullable=True)
-    pst_bc = Column(Float,nullable=True)
-    ecology_fee = Column(Float,nullable=True)
-    misc = Column(Float,nullable=True)
     doc_updates = Column(JSON, nullable=True)
     document_type = Column(String, nullable=True)
     approver = Column(String, nullable=True)
