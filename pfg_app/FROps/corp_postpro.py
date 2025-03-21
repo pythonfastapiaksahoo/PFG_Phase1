@@ -16,6 +16,8 @@ tz_region = tz.timezone("US/Pacific")
  
 
 def clean_amount(amount_str):
+    if amount_str in [None,""]:
+        return  0.0
     if isinstance(amount_str, float):
         amount_str = str(amount_str)
     try:
@@ -23,7 +25,7 @@ def clean_amount(amount_str):
         if cleaned_amount:
             return round(float("".join(cleaned_amount)), 2)
     except Exception:
-        return None
+        return 0.0
     return 0.0
 
 def crd_clean_amount(amount_str):
@@ -41,7 +43,7 @@ def crd_clean_amount(amount_str):
             return cleaned_value
     except Exception:
         logger.info(traceback.format_exc())
-        return None
+        return 0.0
     return 0.0
 
 def cleanAmt_all(credit_invo, amount_str):
@@ -110,9 +112,7 @@ def clean_invoice_ids(data):
     return data, invoID_lw  # Return cleaned data and mappings
 
 
-def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
-
-    
+def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_id):
     
     try:
         # Cleaning invoice IDs
@@ -167,8 +167,6 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
     except Exception:
         credit_invo = 2
         
-
-
     corp_doc_id = ""
     db = next(get_db())
     timestmp =datetime.now(tz_region) 
@@ -181,7 +179,6 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
     lt_corp_doc_id = []
     temp_found = 0
     # approval_status = ""
-    
 
     try:
         template_type = op_1['template_type']
@@ -519,11 +516,15 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                         logger.info(f"invoID_lw: {invoID_lw}")
                     except Exception:
                         doc_data_invoID_ck = att_invoID
+                    try:
+                        pg_cnt = int(att_invoPageCount)
+                    except Exception:
+                        pg_cnt = 0
                     corp_doc_data = {"invoice_id":doc_data_invoID_ck,
                                     "invoice_date":att_invoDate,
                                     "invoicetotal":att_invoTotal,
                                     "gst":gst,
-                                    "invo_page_count":att_invoPageCount,
+                                    "invo_page_count":pg_cnt,
                                     "document_type":document_type,
                                     "documentstatus":4,
                                     "documentsubstatus":7,
@@ -629,6 +630,9 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 'approval_status':app_status,
                                 'document_type':all_invo_coding[att_invoID]['document_type'],
                                 'template_type':template_type,
+                                'mail_rw_key': mail_row_key,
+                                'queue_task_id': queue_task_id,
+                                'map_type':"System map",
                                 }
                     
 
@@ -662,6 +666,10 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                         logger.info(f"invoID_lw: {invoID_lw}")
                     except Exception:
                         docData_invoID_ck = doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceID"]
+                    try:
+                        misc_amt = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["misc"])
+                    except Exception:
+                        misc_amt = 0    
                     corp_docdata_insert = {"invoice_id":docData_invoID_ck,
                                 "invoice_date":doc_dt_rw[list(doc_dt_rw.keys())[0]]["InvoiceDate"],
                                     "vendor_name":doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"],
@@ -682,7 +690,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                                 "pst_sk":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-SK"]),
                                 "pst_bc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-BC"]),
                                 "ecology_fee":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Ecology Fee"]),
-                                "misc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["misc"]),
+                                "misc":misc_amt,
                                 "approver": invoice_ApproverName ,
                                 "approver_title": invo_approver_Designation
                                 }
@@ -742,26 +750,26 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                 logger.info(f"invoID_lw: {invoID_lw}")
             except Exception:
                 docData_invoID_ck2 = all_invo_coding[miss_att]["invoice_number"]
-            mssing_att_docData = {"invoice_id":docData_invoID_ck2,
-                                "invoicetotal":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["invoicetotal"]),
-                                "gst":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["gst"]),
-                                "approved_by": all_invo_coding[miss_att]["approverName"],
-                                "uploaded_date":timestmp ,
-                                "email_filepath": file_path,
-                                "mail_row_key": mail_row_key,
-                                "email_filepath_pdf":email_filepath_pdf,
-                                "approver_title":all_invo_coding[miss_att]["approver_title"],
-                                "documentstatus": 4 ,  
-                                "documentsubstatus": 130,
-                                "vendor_id":0,
-                                "created_on":timestmp,
-                                "document_type":all_invo_coding[miss_att]["document_type"]}
+            # mssing_att_docData = {"invoice_id":docData_invoID_ck2,
+            #                     "invoicetotal":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["invoicetotal"]),
+            #                     "gst":cleanAmt_all(credit_invo,all_invo_coding[miss_att]["gst"]),
+            #                     "approved_by": all_invo_coding[miss_att]["approverName"],
+            #                     "uploaded_date":timestmp ,
+            #                     "email_filepath": file_path,
+            #                     "mail_row_key": mail_row_key,
+            #                     "email_filepath_pdf":email_filepath_pdf,
+            #                     "approver_title":all_invo_coding[miss_att]["approver_title"],
+            #                     "documentstatus": 4 ,  
+            #                     "documentsubstatus": 130,
+            #                     "vendor_id":0,
+            #                     "created_on":timestmp,
+            #                     "document_type":all_invo_coding[miss_att]["document_type"]}
     
-            corp_doc = model.corp_document_tab(**mssing_att_docData)
-            db.add(corp_doc)
-            db.commit()
-            corp_doc_id = corp_doc.corp_doc_id
-            lt_corp_doc_id.append(corp_doc_id)
+            # corp_doc = model.corp_document_tab(**mssing_att_docData)
+            # db.add(corp_doc)
+            # db.commit()
+            # corp_doc_id = corp_doc.corp_doc_id
+            # lt_corp_doc_id.append(corp_doc_id)
          
 
             try:
@@ -780,28 +788,28 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                 db.rollback()
             
            #insert record in docdata:
-            corp_docdata_insert = { 
-               "corp_doc_id":corp_doc_id,
-               "approver": invoice_ApproverName ,
-               "approver_title":invo_approver_Designation
-                                }
+            # corp_docdata_insert = { 
+            #    "corp_doc_id":corp_doc_id,
+            #    "approver": invoice_ApproverName ,
+            #    "approver_title":invo_approver_Designation
+            #                     }
                     
-            corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
-            db.add(corp_docdata_insert_data)
-            db.commit()
-            corp_data_id = corp_docdata_insert_data.docdata_id
-            print("corp_data_id: ",corp_data_id)
+            # corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
+            # db.add(corp_docdata_insert_data)
+            # db.commit()
+            # corp_data_id = corp_docdata_insert_data.docdata_id
+            # print("corp_data_id: ",corp_data_id)
             # update coding details
             try:
                 app_status = approval_status
             except Exception:   
                 app_status = "Not approved"
 
-            coding_data_insert = {'invoice_id':all_invo_coding[miss_att]['invoice_number'],
-                            'corp_doc_id':corp_doc_id,
+            coding_data_insert = {
+                            'invoice_id':all_invo_coding[miss_att]['invoice_number'],
+                            # 'corp_doc_id':corp_doc_id,
                             'coding_details':all_invo_coding[miss_att]['coding_data'],
                             'approver_name':all_invo_coding[miss_att]['approverName'],
-                            
                             'tmid':all_invo_coding[miss_att]['TMID'],
                             'approver_title':all_invo_coding[miss_att]['approver_title'],
                             'invoicetotal':cleanAmt_all(credit_invo,all_invo_coding[miss_att]['invoicetotal']),
@@ -816,6 +824,9 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                             'approval_status':app_status,
                             'document_type':all_invo_coding[miss_att]['document_type'],
                             'template_type':template_type,
+                            'mail_rw_key': mail_row_key,
+                            'queue_task_id': queue_task_id,
+                            'map_type':"Unmapped",
                             }
             corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
             db.add(corp_coding_insert)
@@ -835,6 +846,10 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     logger.info(f"invoID_lw: {invoID_lw}")
                 except Exception:
                     docData_invoID_ck3 = miss_code[list(miss_code.keys())[0]]['InvoiceID']
+                try: 
+                    pg_cnt = int(miss_code[list(miss_code.keys())[0]]["NumberOfPages"])
+                except Exception:
+                    pg_cnt = 0
 
                 missing_code_docTab = {
                     "invoice_id":docData_invoID_ck3,
@@ -844,7 +859,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     "mail_row_key": mail_row_key,
                     "email_filepath_pdf":email_filepath_pdf,
                     "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"]),
-                    "invo_page_count":miss_code[list(miss_code.keys())[0]]["NumberOfPages"],
+                    "invo_page_count":pg_cnt,
                     "created_on":timestmp,
                     "updated_on":timestmp,
                     "documentstatus":4,
@@ -871,11 +886,16 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                     document_type = ""
                 # update document data tab:
                 # insert doc data:
+
                 try:
                     docData_invoID_ck5 = invoID_lw[miss_code[list(miss_code.keys())[0]]["InvoiceID"]]
                     logger.info(f"invoID_lw: {invoID_lw}")
                 except Exception:
                     docData_invoID_ck5 = miss_code[list(miss_code.keys())[0]]["InvoiceID"]
+                try:
+                    misc_amt = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["misc"])
+                except Exception:
+                    misc_amt = 0 
                 corp_docdata_insert = {"invoice_id":docData_invoID_ck5,
                             "invoice_date":miss_code[list(miss_code.keys())[0]]["InvoiceDate"],
                                 "vendor_name":miss_code[list(miss_code.keys())[0]]["VendorName"],
@@ -896,7 +916,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
                             "pst_sk":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-SK"]),
                             "pst_bc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-BC"]),
                             "ecology_fee":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Ecology Fee"]),
-                            "misc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["misc"]),
+                            "misc":misc_amt,
                             "approver": invoice_ApproverName ,
                             "approver_title":invo_approver_Designation
                             }
@@ -916,21 +936,21 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt):
     try:
         
         try:
-            # Check if the record exists in corp_coding_tab
-            existing_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+            # # Check if the record exists in corp_coding_tab
+            # existing_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
 
-            if not existing_coding:
-                # Insert new record if it doesn't exist
-                coding_data_insert = {
-                    "corp_doc_id": corp_doc_id,
-                    "created_on": timestmp,
-                    "template_type": template_type,
-                }
-                corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
-                db.add(corp_coding_insert)
-                db.flush()  # Flush to get ID without committing
-                corp_code_id = corp_coding_insert.corp_coding_id
-                print("corp_code_id: ", corp_code_id)
+            # if not existing_coding:
+            #     # Insert new record if it doesn't exist
+            #     coding_data_insert = {
+            #         "corp_doc_id": corp_doc_id,
+            #         "created_on": timestmp,
+            #         "template_type": template_type,
+            #     }
+            #     corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
+            #     db.add(corp_coding_insert)
+            #     db.flush()  # Flush to get ID without committing
+            #     corp_code_id = corp_coding_insert.corp_coding_id
+            #     print("corp_code_id: ", corp_code_id)
 
             # Check if the record exists in corp_docdata
             existing_docdata = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
