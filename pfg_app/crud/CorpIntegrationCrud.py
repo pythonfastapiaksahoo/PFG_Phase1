@@ -1871,6 +1871,9 @@ def upsert_coding_line_data(user_id, corp_doc_id, corp_coding_id, updates, db):
             db.add(corp_coding)
             is_new_record = True
         else:
+            corp_coding = db.query(model.corp_coding_tab).filter_by(corp_coding_id=corp_coding_id).first()
+            if not corp_coding:
+                raise ValueError(f"corp_coding record not found for corp_coding_id: {corp_coding_id}")
             is_new_record = False
 
         consolidated_updates = []
@@ -1997,7 +2000,7 @@ def upsert_coding_line_data(user_id, corp_doc_id, corp_coding_id, updates, db):
             return {"message": "Field(s) already exist or are the same", "status": "no_change"}
         
     except Exception as e:
-        logger.info(f"Error in upsert_coding_line_data: {str(e)}")
+        logger.info(f"Error in upsert_coding_line_data: {traceback.format_exc()}")
         db.rollback()
         return {"message": "An error occurred while updating", "status": "error"}
 
