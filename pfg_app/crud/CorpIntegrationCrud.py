@@ -1139,6 +1139,7 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
         return {"data": data, "total_items": total_items}
 
     except Exception as e:
+        logger.info(traceback.format_exc())
         return {"error": str(e), "total_items": 0}
     
     
