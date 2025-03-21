@@ -132,12 +132,15 @@ def extract_invoice_details_using_openai(blob_data):
                 - invoicetotal: "123.45"
                 - GST: "0.5"
                 - PST: "2.23"
+                - PST-SK: "N/A"
+                - PST-BC: "N/A"
                 - Bottle Deposit: "N/A"
                 - Shipping Charges: "N/A"
+                - Litter Deposit: "N/A"
                 - Ecology Fee: "N/A"
                 - Fuel Surcharge: "N/A"
                 - Freight Charges: "N/A"
-                - Litter Deposit: "N/A"
+                - misc: "N/A"
                 - Currency: "CAD"
 
                 The expected output should be:
@@ -156,10 +159,11 @@ def extract_invoice_details_using_openai(blob_data):
                     "PST-BC": "N/A",
                     "Bottle Deposit": "N/A",
                     "Shipping Charges": "N/A",
+                    "Litter Deposit": "N/A",
                     "Ecology Fee": "N/A",
                     "Fuel Surcharge": "N/A",
-                    "Freight Charges": "N/A",
-                    "Litter Deposit": "N/A",
+                    "Freight": "N/A",
+                    "misc": "N/A",
                     "Currency": "CAD"
                 }
 
@@ -297,10 +301,11 @@ def extract_invoice_details_using_openai(blob_data):
             "PST-BC": "Max retries reached",
             "Bottle Deposit": "Max retries reached",
             "Shipping Charges": "Max retries reached",
+            "Litter Deposit": "Max retries reached",
             "Ecology Fee": "Max retries reached",
             "Fuel Surcharge": "Max retries reached",
             "Freight": "Max retries reached",
-            "Litter Deposit": "Max retries reached",
+            "misc": "Max retries reached",
             "Currency": "CAD"
         }
     
@@ -323,10 +328,11 @@ def extract_invoice_details_using_openai(blob_data):
             "PST-BC": "Response not found",
             "Bottle Deposit": "Response not found",
             "Shipping Charges": "Response not found",
+            "Litter Deposit": "Response not found",
             "Ecology Fee": "Response not found",
             "Fuel Surcharge": "Response not found",
             "Freight": "Response not found",
-            "Litter Deposit": "Response not found",
+            "misc": "Response not found",
             "Currency": "CAD"
         }
     return cleaned_json, total_pages, file_size_mb
