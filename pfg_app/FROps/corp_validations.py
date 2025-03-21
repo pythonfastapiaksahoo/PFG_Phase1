@@ -1171,7 +1171,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 for st in coding_details:
                                                                     store_value = coding_details[st]["store"]
                                                                     coding_details[st]["store"] = store_value.zfill(4)  # Pad with leading zeros
-
+                                                                    dept_value = coding_details[st]["dept"]
+                                                                    coding_details[st]["dept"] = dept_value.zfill(4)  # Pad with leading zeros
+                                                            
                                                                 # Explicitly mark field as modified
                                                                 flag_modified(row, "coding_details")
 
