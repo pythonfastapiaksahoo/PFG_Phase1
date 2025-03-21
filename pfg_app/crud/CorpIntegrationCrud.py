@@ -2764,7 +2764,7 @@ async def uploadMissingFile(u_id, inv_id, file, db):
         dir_path = eml_filepath.split(".eml")[0]
         
         # Define container and blob names
-        container_name = "email-pdf-containerr"  # Replace with actual container
+        container_name = "email-pdf-container"  # Replace with actual container
         blob_path = f"{dir_path}/{file.filename}"
         
         # Read file bytes
@@ -2811,7 +2811,7 @@ async def uploadMissingEmailFile(u_id, inv_id, file, db):
         if not dir_path:
             raise ValueError("Failed to extract directory path from email_filepath")
         # Define container and blob names
-        container_name = "email-pdf-containerr"  # Replace with actual container
+        container_name = "email-pdf-container"  # Replace with actual container
         blob_path = f"{dir_path}/{file.filename}"
         
         # Read file bytes
