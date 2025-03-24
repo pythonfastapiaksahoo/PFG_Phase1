@@ -1,4 +1,4 @@
-
+git+https://github.com/ksvhistorian/compressed-rtf.git
 fastapi==0.103.0
 uvicorn==0.31.0
 sqlalchemy==1.4.27
