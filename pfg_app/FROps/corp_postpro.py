@@ -113,6 +113,8 @@ def clean_invoice_ids(data):
 
 
 def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_id):
+    update_FR_status = 0
+    update_FR_status_msg = "Failed in postprocessing"
     
     try:
         # Cleaning invoice IDs
@@ -538,13 +540,23 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                                     "approver_title":op_1['approval_details']['Designation'],
                                 }
                     
-                    corp_doc = model.corp_document_tab(**corp_doc_data)
-                    db.add(corp_doc)
-                    db.commit()
-                    logger.info(f"Corp document added: {corp_doc}")
-                    corp_doc_id = corp_doc.corp_doc_id
-                    logger.info(f"Corp document added {timestmp}- postpro: {corp_doc} ,op_1: {op_1}")
-                    lt_corp_doc_id.append(corp_doc_id)
+                    try:
+                        corp_doc = model.corp_document_tab(**corp_doc_data)
+                        db.add(corp_doc)
+                        db.commit()
+                        logger.info(f"Corp document added: {corp_doc}")
+                        corp_doc_id = corp_doc.corp_doc_id
+                        logger.info(f"Corp document added {timestmp}- postpro: {corp_doc} ,op_1: {op_1}")
+                        lt_corp_doc_id.append(corp_doc_id)
+                        update_FR_status = 1
+                        update_FR_status_msg = "Success"
+
+                    except Exception as e:
+                        update_FR_status = 0
+                        update_FR_status_msg = update_FR_status_msg+": "+str(e)
+                        logger.info(f"Corp document not added: {corp_doc} ,op_1: {op_1}")
+                        logger.info(traceback.format_exc())
+                    
 
                     try:
                         if list(doc_dt_rw.keys())[0] in mail_rw_dt:
@@ -867,10 +879,17 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     "vendor_id":0,
                     
                 }  
-                corp_doc = model.corp_document_tab(**missing_code_docTab)
-                db.add(corp_doc)
-                db.commit()
-                corp_doc_id = corp_doc.corp_doc_id
+                try:
+                    corp_doc = model.corp_document_tab(**missing_code_docTab)
+                    db.add(corp_doc)
+                    db.commit()
+                    corp_doc_id = corp_doc.corp_doc_id
+                    update_FR_status_msg = "Success"
+                except Exception as e:
+                    update_FR_status = 0
+                    update_FR_status_msg = update_FR_status_msg+": "+str(e)
+                    logger.info(f"Corp document not added: {corp_doc} ,op_1: {op_1}")
+                    logger.info(traceback.format_exc())
                 lt_corp_doc_id.append(corp_doc_id)
                 print("corp_doc_id: ",corp_doc_id)
                 pdf_invoTotal = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"])
