@@ -3845,7 +3845,7 @@ def bulkProcessCorpVoucherData():
             lease.break_lease()
             
 
-def get_associated_coding_tab_details(u_id, mail_rw_key, db):
+def get_associated_coding_tab_details(u_id, invoice_id, db):
     """
     Retrieve all records from corp_coding_tab filtered by mail_rw_key and map_type = "unmapped".
 
@@ -3858,16 +3858,20 @@ def get_associated_coding_tab_details(u_id, mail_rw_key, db):
         List[corp_coding_tab]: A list of matching corp_coding_tab records.
     """
     try:
-        query = (
-        db.query(model.corp_coding_tab)
-        .filter(
-            model.corp_coding_tab.mail_rw_key == mail_rw_key,
-            model.corp_coding_tab.map_type == "Unmapped",
+        mail_row_key = db.query(model.corp_document_tab.mail_row_key).filter(model.corp_document_tab.corp_doc_id == invoice_id).first()
+        if mail_row_key:
+            query = (
+            db.query(model.corp_coding_tab)
+            .filter(
+                model.corp_coding_tab.mail_rw_key == mail_row_key[0],
+                model.corp_coding_tab.map_type == "Unmapped",
+                )
             )
-        )
-        data = query.all()
-        total_count = query.count()
-        return {"total_count": total_count, "data": data}
+            data = query.all()
+            total_count = query.count()
+            return {"total_count": total_count, "data": data}
+        else:
+            return {"No mail row key found for the invoice id": invoice_id}
     except Exception:
         logger.error(f"Error in get_associated_coding_tab_details : {traceback.format_exc()}")
         return {"total_count": 0, "data": []}
