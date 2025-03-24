@@ -1,4 +1,4 @@
-
+compressed_rtf==1.0.6
 fastapi==0.103.0
 uvicorn==0.31.0
 sqlalchemy==1.4.27
