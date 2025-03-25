@@ -1851,20 +1851,22 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
 #         return {"message": "An error occurred while updating", "status": "error"}
 
 
-def upsert_coding_line_data(user_id, corp_doc_id, corp_coding_id, updates, db): 
+def upsert_coding_line_data(user_id, corp_doc_id, updates, db): 
     try:
         # Fetch document status
         docStatus_id, docSubStatus_id = db.query(
             model.corp_document_tab.documentstatus, model.corp_document_tab.documentsubstatus
         ).filter(model.corp_document_tab.corp_doc_id == corp_doc_id).first() or (None, None)
         
-        if not corp_coding_id:
+        # Fetch or create corp_coding record
+        corp_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+        if not corp_coding:
             # Fetch or create corp_coding record
             # If no record exists, fetch mail_row_key and queue_task_id from corp_trigger_tab
             corp_trigger = db.query(model.corp_trigger_tab).filter_by(documentid=corp_doc_id).first()
             
             mail_row_key = corp_trigger.mail_row_key if corp_trigger else None
-            queue_task_id = corp_trigger.queue_task_id if corp_trigger else None
+            queue_task_id = corp_trigger.corp_queue_id if corp_trigger else None
 
             corp_coding = model.corp_coding_tab(
                 corp_doc_id=corp_doc_id,
@@ -1875,9 +1877,6 @@ def upsert_coding_line_data(user_id, corp_doc_id, corp_coding_id, updates, db):
             db.add(corp_coding)
             is_new_record = True
         else:
-            corp_coding = db.query(model.corp_coding_tab).filter_by(corp_coding_id=corp_coding_id).first()
-            if not corp_coding:
-                raise ValueError(f"corp_coding record not found for corp_coding_id: {corp_coding_id}")
             is_new_record = False
 
         consolidated_updates = []
@@ -1893,8 +1892,8 @@ def upsert_coding_line_data(user_id, corp_doc_id, corp_coding_id, updates, db):
             if field_type == dict:
                 if old_value != new_value:
                     setattr(corp_coding, field, new_value)
-                    old_value_str = json.dumps(old_value) if old_value is not None else None
-                    new_value_str = json.dumps(new_value) if new_value is not None else None
+                    # old_value_str = json.dumps(old_value) if old_value is not None else None
+                    # new_value_str = json.dumps(new_value) if new_value is not None else None
                     any_updates = True
                     # Log the update in CorpDocumentUpdates with the new logic
                     inv_up_data_id = (
@@ -1914,8 +1913,8 @@ def upsert_coding_line_data(user_id, corp_doc_id, corp_coding_id, updates, db):
                     data = {
                         "doc_id": corp_doc_id,
                         "updated_field": field,
-                        "old_value": old_value_str,
-                        "new_value": new_value_str,
+                        "old_value": json.dumps(old_value) if isinstance(old_value, dict) else str(old_value),  # Convert dict to JSON string
+                        "new_value": json.dumps(new_value) if isinstance(new_value, dict) else str(new_value),  # Convert dict to JSON string
                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         "user_id": user_id,
                         "is_active": 1
@@ -1959,14 +1958,14 @@ def upsert_coding_line_data(user_id, corp_doc_id, corp_coding_id, updates, db):
                         db.flush()
                     
                     data = {
-                        "doc_id": corp_doc_id,
-                        "updated_field": field,
-                        "old_value": old_value,  # Keep as original type
-                        "new_value": new_value,  # Keep as original type
-                        "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                        "user_id": user_id,
-                        "is_active": 1
-                    }
+                            "doc_id": corp_doc_id,
+                            "updated_field": field,
+                            "old_value": json.dumps(old_value) if isinstance(old_value, dict) else str(old_value),  
+                            "new_value": json.dumps(new_value) if isinstance(new_value, dict) else str(new_value),  
+                            "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                            "user_id": user_id,
+                            "is_active": 1
+                        }
                     
                     update_log = model.CorpDocumentUpdates(**data)
                     db.add(update_log)
