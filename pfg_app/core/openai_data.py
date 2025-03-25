@@ -268,8 +268,8 @@ def extract_invoice_details_using_openai(blob_data):
                         cleaned_json = json.loads(cl_data.replace("'", '"'))
                     except BaseException:
                         cleaned_json = data
-
-                return cleaned_json, total_pages, file_size_mb 
+                status = "OpenAI Details Extracted"
+                return cleaned_json, total_pages, file_size_mb, status
                 # break
             elif response.status_code == 429:  # Handle rate limiting
                 logger.info(f"Error: {response.status_code}, {response.text}")
@@ -287,59 +287,61 @@ def extract_invoice_details_using_openai(blob_data):
         # If max retries are reached, return failure response
         logger.error("Max retries reached. Exiting.")
         cleaned_json = {
-            "NumberOfPages": "Max retries reached",
-            "CreditNote": "Max retries reached",
-            "VendorName": "Max retries reached",
-            "VendorAddress": "Max retries reached",
-            "InvoiceID": "Max retries reached",
-            "InvoiceDate": "Max retries reached",
-            "SubTotal": "Max retries reached",
-            "invoicetotal": "Max retries reached",
-            "GST": "Max retries reached",
-            "PST": "Max retries reached",
-            "PST-SK": "Max retries reached",
-            "PST-BC": "Max retries reached",
-            "Bottle Deposit": "Max retries reached",
-            "Shipping Charges": "Max retries reached",
-            "Litter Deposit": "Max retries reached",
-            "Ecology Fee": "Max retries reached",
-            "Fuel Surcharge": "Max retries reached",
-            "Freight": "Max retries reached",
-            "misc": "Max retries reached",
+            "NumberOfPages": "",
+            "CreditNote": "",
+            "VendorName": "",
+            "VendorAddress": "",
+            "InvoiceID": "",
+            "InvoiceDate": "",
+            "SubTotal": "",
+            "invoicetotal": "",
+            "GST": "",
+            "PST": "",
+            "PST-SK": "",
+            "PST-BC": "",
+            "Bottle Deposit": "",
+            "Shipping Charges": "",
+            "Litter Deposit": "",
+            "Ecology Fee": "",
+            "Fuel Surcharge": "",
+            "Freight": "",
+            "misc": "",
             "Currency": "CAD"
         }
-    
-        return cleaned_json, total_pages, file_size_mb
+        status = "OpenAI - Max retries reached"
+        return cleaned_json, total_pages, file_size_mb, status
 
     except Exception:
         logger.info(traceback.format_exc())
         cleaned_json = {
-            "NumberOfPages": "Response not found",
-            "CreditNote": "NA",
-            "VendorName": "Response not found",
-            "VendorAddress": "Response not found",
-            "InvoiceID": "Response not found",
-            "InvoiceDate": "Response not found",
-            "SubTotal": "Response not found",
-            "invoicetotal": "Response not found",
-            "GST": "Response not found",
-            "PST": "Response not found",
-            "PST-SK": "Response not found",
-            "PST-BC": "Response not found",
-            "Bottle Deposit": "Response not found",
-            "Shipping Charges": "Response not found",
-            "Litter Deposit": "Response not found",
-            "Ecology Fee": "Response not found",
-            "Fuel Surcharge": "Response not found",
-            "Freight": "Response not found",
-            "misc": "Response not found",
+            "NumberOfPages": "",
+            "CreditNote": "",
+            "VendorName": "",
+            "VendorAddress": "",
+            "InvoiceID": "",
+            "InvoiceDate": "",
+            "SubTotal": "",
+            "invoicetotal": "",
+            "GST": "",
+            "PST": "",
+            "PST-SK": "",
+            "PST-BC": "",
+            "Bottle Deposit": "",
+            "Shipping Charges": "",
+            "Litter Deposit": "",
+            "Ecology Fee": "",
+            "Fuel Surcharge": "",
+            "Freight": "",
+            "misc": "",
             "Currency": "CAD"
         }
-    return cleaned_json, total_pages, file_size_mb
+    status = "OpenAI - Response not found"
+    return cleaned_json, total_pages, file_size_mb, status
 
 def extract_approver_details_using_openai(msg):
     try:
         logger.info(f"OpenAI Extracting approver details started")
+        status = None
         max_length = 30000
         content = msg.get_body(preferencelist=('html', 'plain')).get_content()
         
@@ -453,6 +455,7 @@ def extract_approver_details_using_openai(msg):
                 for choice in result["choices"]:
                     content = choice["message"]["content"].strip()
                     logger.info(f"Content: {content}")
+                status = "Approval detail extracted"
                 break
             elif response.status_code == 429:  # Handle rate limiting
                 logger.info(f"Error in Corp OpenAI: {response.status_code}, {response.text}")
@@ -460,7 +463,7 @@ def extract_approver_details_using_openai(msg):
                 logger.info(f"Rate limit hit. Retrying after {10} seconds...")
                 time.sleep(10)
             else:
-                logger.info(f"Error in Corp OpenAI:: {response.status_code}, {response.text}")
+                logger.info(f"Error in Corp OpenAI: {response.status_code}, {response.text}")
                 retry_count += 1
                 # wait_time = 2**retry_count + random.uniform(0, 1)  # noqa: S311
                 # logger.info(f"Retrying in {wait_time:.2f} seconds...")
@@ -469,15 +472,16 @@ def extract_approver_details_using_openai(msg):
         
         if retry_count == max_retries:
             logger.error("Max retries reached. Exiting.")
+            status = "OpenAI - max retry reached"
             content = json.dumps(
                 {
-                "from": "Max retries reached",
-                "sent": "Max retries reached",
-                "to": "Max retries reached",
-                "Approver": "Max retries reached",
-                "Designation": "Max retries reached",
-                "Approved keyword": "Max retries reached",
-                "Approved keyword exists": "Max retries reached"
+                "from": "",
+                "sent": "",
+                "to": "",
+                "Approver": "",
+                "Designation": "",
+                "Approved keyword": "",
+                "Approved keyword exists": ""
             }
             )
         cl_data = (
@@ -499,16 +503,17 @@ def extract_approver_details_using_openai(msg):
 
     except Exception:
         logger.info(traceback.format_exc())
+        status = "OpenAI - Response not found"
         cleaned_json = {
-                "from": "Response not found",
-                "sent": "Response not found",
-                "to": "Response not found",
-                "Approver": "Response not found",
-                "Designation": "Response not found",
-                "Approved keyword": "Response not found",
-                "Approved keyword exists": "Response not found"
+                "from": "",
+                "sent": "",
+                "to": "",
+                "Approver": "",
+                "Designation": "",
+                "Approved keyword": "",
+                "Approved keyword exists": ""
             }
-    return cleaned_json
+    return cleaned_json, status
 
 
 # def extract_invoice_details_using_openai(blob_data):
