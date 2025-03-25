@@ -201,21 +201,26 @@ def format_data_for_template2(parsed_data):
         }
         approver_details = {}
 
-        # Process the single table
-        if tables:
-            table = tables[0]  # There's only one table
-            for i, row in enumerate(table):
-                if i == 0 and "Approver Name:" in row[0]:  # Approver details
-                    for detail_row in table[:3]:  # First three rows contain approver details
-                        if "Approver Name:" in detail_row[0]:
-                            approver_details["approverName"] = detail_row[1]
-                        elif "Approver TM ID:" in detail_row[0]:
-                            approver_details["TMID"] = detail_row[1]
-                        elif "Approval Title:" in detail_row[0]:
-                            approver_details["title"] = detail_row[1]
-                elif i == 3 and "Invoice #" in row[0]:  # Invoice headers
-                    headers = row
-                elif i > 3:  # Invoice data
+        # Flatten the tables_data list if nested improperly
+        cleaned_tables = []
+        for table in tables:
+            if isinstance(table, list) and all(isinstance(row, list) for row in table):
+                cleaned_tables.extend(table)  # Flatten nested lists
+            else:
+                cleaned_tables.append(table)
+
+        # Process the table
+        for i, row in enumerate(cleaned_tables):
+            if isinstance(row, list) and len(row) > 1:
+                if "Approver Name:" in row[0]:
+                    approver_details["approverName"] = row[1]
+                elif "Approver TM ID:" in row[0]:
+                    approver_details["TMID"] = row[1]
+                elif "Approval Title:" in row[0]:
+                    approver_details["title"] = row[1]
+                elif "Invoice #" in row[0]:
+                    headers = row  # Identify header row
+                elif len(row) >= 9:  # Ensure valid invoice row with enough columns
                     invoice_data["invoice#"].append(row[0])
                     invoice_data["store"].append(row[1])
                     invoice_data["dept"].append(row[2])
@@ -243,7 +248,6 @@ def format_data_for_template2(parsed_data):
         # Combine into final structured JSON
         structured_output = {
                         "email_metadata": email_metadata, 
-
                         "invoiceDetails": { 
                             "store": [''], 
                             "dept": [''], 
