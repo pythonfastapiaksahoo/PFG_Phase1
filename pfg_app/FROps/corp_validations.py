@@ -5,7 +5,7 @@ from pfg_app.FROps.customCall import date_cnv
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 from sqlalchemy import func
 from sqlalchemy.orm.attributes import flag_modified
-
+from fuzzywuzzy import fuzz
 import pandas as pd
 from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
 from pfg_app.logger_module import logger
@@ -24,6 +24,31 @@ def check_date_format(date_str):
     except ValueError:
         return False
     
+def normalize_title(title):
+    """Remove extra spaces, hyphens, and convert to lowercase."""
+    title = re.sub(r'[-\s]+', ' ', title).strip().lower()
+    return title
+
+def is_acronym_match(full_title, acronym):
+    """Check if title2 is an acronym of title1."""
+    words = full_title.split()
+    acronym_generated = "".join(word[0].upper() for word in words)
+    return acronym_generated == acronym.upper()
+
+def is_match(title1, title2, threshold=85):
+    """Check for either acronym match or fuzzy match after normalization."""
+    # Normalize titles (remove hyphens, extra spaces, lowercase)
+    title1_norm = normalize_title(title1)
+    title2_norm = normalize_title(title2)
+    
+    # Fuzzy match score
+    similarity = fuzz.ratio(title1_norm, title2_norm)
+    
+    # Check if acronym match OR fuzzy similarity is high
+    if is_acronym_match(title1, title2) or similarity >= threshold:
+        return True, similarity
+    return False, similarity
+
 
 def names_match(name1, name2):
     name1 = (name1 or "").strip().lower()  # Convert None to empty string
@@ -1072,7 +1097,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             approval_title_val_status = 0
                                             invo_approver_title =str(list(df_corp_docdata['approver_title'])[0]).lower()
                                             coding_approver_title = str(list(df_corp_coding['approver_title'])[0]).lower()
-                                            if (invo_approver_title == coding_approver_title) or (skip_title_check==1):
+                                            match, score = is_match(invo_approver_title, coding_approver_title)
+                                            if match or (skip_title_check==1):
                                                 title_status_code = 0
                                                 logger.info("Approver title match")
                                                 approval_title_val_status = 1
