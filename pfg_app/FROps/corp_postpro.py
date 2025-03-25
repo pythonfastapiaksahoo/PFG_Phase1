@@ -557,8 +557,9 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                         logger.info(f"Corp document not added: {corp_doc} ,op_1: {op_1}")
                         logger.info(traceback.format_exc())
                     
-
+                    #updating trigger tab:
                     try:
+                        logger.info(f"update to corp_trigger_tab: doc_dt_rw:{doc_dt_rw}")
                         if list(doc_dt_rw.keys())[0] in mail_rw_dt:
                             pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
                             corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
@@ -579,7 +580,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
 
                     except Exception as e:  
                         logger.error( f"Error updating corp_trigger_tab: {e}")
-                        db.rollback()
+                        # db.rollback()
                     # vendor mapping:
                     query = db.query(
                         model.Vendor.idVendor,
@@ -715,28 +716,28 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     print("corp_data_id: ",corp_data_id)
             except Exception as er:
                 logger.error(f"Error in inserting corp_docdata: {er} =>" + traceback.format_exc())
-                try:
-                    if list(doc_dt_rw.keys())[0] in mail_rw_dt:
-                        pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
-                        corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
-                        mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
-                    else:
-                        pdf_blobpath = ""
-                        mail_row_key = ""
-                        corp_trg_id = ""
-                    try:
-                        if corp_trg_id !="":
+                # try:
+                #     if list(doc_dt_rw.keys())[0] in mail_rw_dt:
+                #         pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
+                #         corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
+                #         mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
+                #     else:
+                #         pdf_blobpath = ""
+                #         mail_row_key = ""
+                #         corp_trg_id = ""
+                #     try:
+                #         if corp_trg_id !="":
 
-                            corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
-                            if corp_trigger:
-                                corp_trigger.status = update_FR_status_msg
-                                corp_trigger.updated_at = timestmp  # Ensure it's a datetime object
-                                db.commit()  # Save changes
-                    except Exception as e:  
-                        logger.error( f"Error updating corp_trigger_tab: {e}")
-                        db.rollback()
-                except Exception as e:
-                    logger.error( f"Error in updating corp_trigger_tab: {e}")
+                #             corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+                #             if corp_trigger:
+                #                 corp_trigger.status = update_FR_status_msg
+                #                 corp_trigger.updated_at = timestmp  # Ensure it's a datetime object
+                #                 db.commit()  # Save changes
+                #     except Exception as e:  
+                #         logger.error( f"Error updating corp_trigger_tab: {e}")
+                #         db.rollback()
+                # except Exception as e:
+                #     logger.error( f"Error in updating corp_trigger_tab: {e}")
 
         # processing invoice without attachment:
         # document status & substatus:  4 , 130
@@ -784,20 +785,21 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
             # lt_corp_doc_id.append(corp_doc_id)
          
 
-            try:
-               
-                if corp_trg_id !="":
+            # try:
+            #     logger.info(f"update to corp_trigger_tab: corp_trigger_id:{corp_trg_id}")
+            #     if corp_trg_id !="":
 
-                    corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
-                    if corp_trigger:
-                        corp_trigger.status = update_FR_status_msg
-                        corp_trigger.documentid = corp_doc_id
-                        corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
-                        db.commit()  # Save changes
+            #         corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+                    
+            #         if corp_trigger:
+            #             corp_trigger.status = update_FR_status_msg
+            #             corp_trigger.documentid = corp_doc_id
+            #             corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
+            #             db.commit()  # Save changes
 
-            except Exception as e:  
-                logger.error( f"Error updating corp_trigger_tab: {e}")
-                db.rollback()
+            # except Exception as e:  
+            #     logger.error( f"Error updating corp_trigger_tab: {e}")
+            #     db.rollback()
             
            #insert record in docdata:
             # corp_docdata_insert = { 
@@ -892,6 +894,34 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     logger.info(f"Corp document not added: {corp_doc} ,op_1: {op_1}")
                     logger.info(traceback.format_exc())
                     corp_doc_id = ""
+
+                # update to trigger tab: 
+                
+                try:
+                    logger.info(f"update to corp_trigger_tab: miss_code:{miss_code}")
+                    if list(miss_code.keys())[0] in mail_rw_dt:
+                        pdf_blobpath = mail_rw_dt[list(miss_code.keys())[0]]["pdf_blob_path"]
+                        corp_trg_id = mail_rw_dt[list(miss_code.keys())[0]]["corp_trigger_id"]
+                        mail_row_key = mail_rw_dt[list(miss_code.keys())[0]]["mail_row_key"]
+                        
+                    else:
+                        pdf_blobpath = ""
+                        mail_row_key = ""
+                        corp_trg_id = ""
+                    if corp_trg_id !="":
+
+                        corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
+                        if corp_trigger:
+                            corp_trigger.status = update_FR_status_msg
+                            corp_trigger.documentid = corp_doc_id
+                            corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
+                            db.commit()  # Save changes
+
+                except Exception as e:  
+                    logger.error( f"Error updating corp_trigger_tab: {e}")
+
+                #-----------------------
+                
                 lt_corp_doc_id.append(corp_doc_id)
                 print("corp_doc_id: ",corp_doc_id)
                 pdf_invoTotal = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"])
