@@ -549,7 +549,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                         logger.info(f"Corp document added {timestmp}- postpro: {corp_doc} ,op_1: {op_1}")
                         lt_corp_doc_id.append(corp_doc_id)
                         update_FR_status = 1
-                        update_FR_status_msg = "Success"
+                        update_FR_status_msg = "Processed"
 
                     except Exception as e:
                         update_FR_status = 0
@@ -572,7 +572,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
 
                             corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
                             if corp_trigger:
-                                corp_trigger.status = "Processed"
+                                corp_trigger.status = update_FR_status_msg
                                 corp_trigger.documentid = corp_doc_id
                                 corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
                                 db.commit()  # Save changes
@@ -729,7 +729,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
 
                             corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
                             if corp_trigger:
-                                corp_trigger.status = f"Error - {str(er)}"
+                                corp_trigger.status = update_FR_status_msg
                                 corp_trigger.updated_at = timestmp  # Ensure it's a datetime object
                                 db.commit()  # Save changes
                     except Exception as e:  
@@ -790,7 +790,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
 
                     corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
                     if corp_trigger:
-                        corp_trigger.status = "Processed"
+                        corp_trigger.status = update_FR_status_msg
                         corp_trigger.documentid = corp_doc_id
                         corp_trigger.updated_at = datetime.now(tz_region)  # Ensure it's a datetime object
                         db.commit()  # Save changes
@@ -848,6 +848,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
         # porcessing without coding details:
         # document status & substatus: 4 , 134
         for miss_code in op_1['invoice_detail_list']:
+            logger.info(f"miss_code: {miss_code}")
             pdf_blobpath = mail_rw_dt[list(miss_code.keys())[0]]["pdf_blob_path"]
             corp_trg_id = mail_rw_dt[list(miss_code.keys())[0]]["corp_trigger_id"]
             mail_row_key = mail_rw_dt[list(miss_code.keys())[0]]["mail_row_key"]
@@ -884,12 +885,13 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     db.add(corp_doc)
                     db.commit()
                     corp_doc_id = corp_doc.corp_doc_id
-                    update_FR_status_msg = "Success"
+                    update_FR_status_msg = "Processed"
                 except Exception as e:
                     update_FR_status = 0
                     update_FR_status_msg = update_FR_status_msg+": "+str(e)
                     logger.info(f"Corp document not added: {corp_doc} ,op_1: {op_1}")
                     logger.info(traceback.format_exc())
+                    corp_doc_id = ""
                 lt_corp_doc_id.append(corp_doc_id)
                 print("corp_doc_id: ",corp_doc_id)
                 pdf_invoTotal = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"])
