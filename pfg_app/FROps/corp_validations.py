@@ -338,57 +338,54 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             return return_status
             
         if docStatus in (32,2,4,24):
-            
-            if docSubStatus == 134:
-                nocoding_ck = 0
+            nocoding_ck = 0
+            corp_coding_data = (
+                db.query(model.corp_coding_tab)
+                .filter(model.corp_coding_tab.corp_doc_id == doc_id)
+                .all()
+            )
+
+            # Check if any records exist
+            if not corp_coding_data:
+                logger.info(f"docID: {doc_id} - No records found for the given doc_id.")
+            else:
+                for row in corp_coding_data:
+                    coding_details = row.coding_details  # Assuming this is a dictionary
+
+                    if coding_details and isinstance(coding_details, dict) and len(coding_details) > 0:
+                        logger.info(f"Records found in coding_details- docID: {doc_id} - : {coding_details}")
+                        nocoding_ck = 1
+                    else:
+                        logger.info(f"docID: {doc_id} - coding_details is empty or not a dictionary.")
+                #--
+            if nocoding_ck == 1:
+                docSubStatus = 7
+            else:
+                docSubStatus = 134
+                docStatus = 4
                 
-                corp_coding_data = (
-                    db.query(model.corp_coding_tab)
-                    .filter(model.corp_coding_tab.corp_doc_id == doc_id)
-                    .all()
-                )
+                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                            model.corp_document_tab.last_updated_by: userID,
+                            model.corp_document_tab.updated_on: timeStmp,
+                            model.corp_document_tab.vendor_id: vendor_id,
 
-                # Check if any records exist
-                if not corp_coding_data:
-                    logger.info(f"docID: {doc_id} - No records found for the given doc_id.")
-                else:
-                    for row in corp_coding_data:
-                        coding_details = row.coding_details  # Assuming this is a dictionary
-
-                        if coding_details and isinstance(coding_details, dict) and len(coding_details) > 0:
-                            logger.info(f"Records found in coding_details- docID: {doc_id} - : {coding_details}")
-                            nocoding_ck = 1
-                        else:
-                            logger.info(f"docID: {doc_id} - coding_details is empty or not a dictionary.")
-                    #--
-                if nocoding_ck == 1:
-                    docSubStatus = 7
-                else:
-                    docSubStatus = 134
-                    docStatus = 4
-                   
-                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                        ).update(
-                            {
-                                model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                                model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                                model.corp_document_tab.last_updated_by: userID,
-                                model.corp_document_tab.updated_on: timeStmp,
-                                model.corp_document_tab.vendor_id: vendor_id,
-
-                            }
-                        )
-                    db.commit()
-                    logger.info(f"docID: {doc_id} - Coding - No Coding Lines Found")
-                    return_status["Status overview"] = {"status": 0,
-                                            "StatusCode":0,
-                                            "response": [
-                                                            "Coding - No Coding Lines Found"
-                                                        ],
-                                                    }
-                    logger.info(f"return corp validations(ln 61): {return_status}")
-                    return return_status
-            elif docSubStatus == 130:
+                        }
+                    )
+                db.commit()
+                logger.info(f"docID: {doc_id} - Coding - No Coding Lines Found")
+                return_status["Status overview"] = {"status": 0,
+                                        "StatusCode":0,
+                                        "response": [
+                                                        "Coding - No Coding Lines Found"
+                                                    ],
+                                                }
+                logger.info(f"return corp validations(ln 61): {return_status}")
+                return return_status
+            if docSubStatus == 130:
                 return_status["Status overview"] = {"status": 0,
                                             "StatusCode":0,
                                             "response": [
