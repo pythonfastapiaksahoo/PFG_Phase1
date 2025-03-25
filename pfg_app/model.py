@@ -1603,7 +1603,7 @@ class corp_coding_tab(Base):
     template_type = Column(String, nullable=True)
     mail_rw_key = Column(String, nullable=True)
     queue_task_id = Column((Integer), nullable=True)
-    
+    map_type = Column(String, nullable=True)
 
 class corp_docdata(Base):
     __tablename__ = "corp_docdata"
