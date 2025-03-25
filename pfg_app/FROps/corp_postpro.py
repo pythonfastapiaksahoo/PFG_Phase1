@@ -115,6 +115,7 @@ def clean_invoice_ids(data):
 def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_id):
     update_FR_status = 0
     update_FR_status_msg = "Failed in postprocessing"
+    db = next(get_db())
     
     try:
         # Cleaning invoice IDs
@@ -145,7 +146,40 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
     except Exception:
             approval_status = "Not approved"
     
+    try:
+        query = db.query(
+            model.Vendor.idVendor,
+            model.Vendor.VendorName,
+            model.Vendor.Synonyms,
+            model.Vendor.Address,
+            model.Vendor.VendorCode,
+        ).filter(
+            func.jsonb_extract_path_text(
+                model.Vendor.miscellaneous, "VENDOR_STATUS"
+            )
+            == "A"
+        )
+        rows = query.all()
+        columns = ["idVendor", "VendorName", "Synonyms", "Address", "VendorCode"]
 
+        vendorName_df = pd.DataFrame(rows, columns=columns)
+
+        #corp_metadata
+        corp_metadata_query = db.query(model.corp_metadata)
+        corp_metadata_rows = corp_metadata_query.all()
+
+        # Convert list of ORM objects to a list of dictionaries
+        corp_metadata_data = [row.__dict__ for row in corp_metadata_rows]
+
+
+        # for row in corp_metadata_data:
+        #     row.pop('_sa_instance_state', None)
+
+        # Create DataFrame
+        corp_metadata_df = pd.DataFrame(corp_metadata_data)
+    except Exception as e:
+        logger.error(f"Error in getting vendor mapping: {e}")
+        logger.info(traceback.format_exc())
     try:
         creditLt = []
         credit_notes = {}
@@ -170,7 +204,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
         credit_invo = 2
         
     corp_doc_id = ""
-    db = next(get_db())
+    
     timestmp =datetime.now(tz_region) 
     coding_tab_data = {}
     # credit_invo = 0
@@ -322,7 +356,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 
                     
                     all_invo_coding[invoice_details['invoice#'][rw]] = coding_tab_data
-        elif template_type == 'Template 1' or template_type == 'Template 3':
+        elif template_type == 'Template 1' or template_type == 'Template 3' or template_type == 'Unknown Template':
             # template 1 & 3
             temp_found = 1
             missing_val = []
@@ -442,6 +476,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
         else:
             temp_found = 0
             logger.info(f"No template found: data: {op_1}, mail_row_key: {mail_row_key}, file_path: {file_path}, sender: {sender}, mail_rw_dt : {mail_rw_dt} ")
+
     
     
     if temp_found==1:
@@ -582,41 +617,39 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                         logger.error( f"Error updating corp_trigger_tab: {e}")
                         # db.rollback()
                     # vendor mapping:
-                    query = db.query(
-                        model.Vendor.idVendor,
-                        model.Vendor.VendorName,
-                        model.Vendor.Synonyms,
-                        model.Vendor.Address,
-                        model.Vendor.VendorCode,
-                    ).filter(
-                        func.jsonb_extract_path_text(
-                            model.Vendor.miscellaneous, "VENDOR_STATUS"
-                        )
-                        == "A"
-                    )
-                    rows = query.all()
-                    columns = ["idVendor", "VendorName", "Synonyms", "Address", "VendorCode"]
+                    # query = db.query(
+                    #     model.Vendor.idVendor,
+                    #     model.Vendor.VendorName,
+                    #     model.Vendor.Synonyms,
+                    #     model.Vendor.Address,
+                    #     model.Vendor.VendorCode,
+                    # ).filter(
+                    #     func.jsonb_extract_path_text(
+                    #         model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    #     )
+                    #     == "A"
+                    # )
+                    # rows = query.all()
+                    # columns = ["idVendor", "VendorName", "Synonyms", "Address", "VendorCode"]
 
-                    vendorName_df = pd.DataFrame(rows, columns=columns)
+                    # vendorName_df = pd.DataFrame(rows, columns=columns)
 
-                    #corp_metadata
-                    corp_metadata_query = db.query(model.corp_metadata)
-                    corp_metadata_rows = corp_metadata_query.all()
+                    # #corp_metadata
+                    # corp_metadata_query = db.query(model.corp_metadata)
+                    # corp_metadata_rows = corp_metadata_query.all()
 
-                    # Convert list of ORM objects to a list of dictionaries
-                    corp_metadata_data = [row.__dict__ for row in corp_metadata_rows]
-
-
-                    # for row in corp_metadata_data:
-                    #     row.pop('_sa_instance_state', None)
-
-                    # Create DataFrame
-                    corp_metadata_df = pd.DataFrame(corp_metadata_data)
+                    # # Convert list of ORM objects to a list of dictionaries
+                    # corp_metadata_data = [row.__dict__ for row in corp_metadata_rows]
 
 
+                    # # for row in corp_metadata_data:
+                    # #     row.pop('_sa_instance_state', None)
+
+                    # # Create DataFrame
+                    # corp_metadata_df = pd.DataFrame(corp_metadata_data)
 
                     vendorname = doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorName"]
-                    vendor_address =doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
+                    vendor_address = doc_dt_rw[list(doc_dt_rw.keys())[0]]["VendorAddress"]
                     matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
                     try:
                         
@@ -717,28 +750,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     print("corp_data_id: ",corp_data_id)
             except Exception as er:
                 logger.error(f"Error in inserting corp_docdata: {er} =>" + traceback.format_exc())
-                # try:
-                #     if list(doc_dt_rw.keys())[0] in mail_rw_dt:
-                #         pdf_blobpath = mail_rw_dt[list(doc_dt_rw.keys())[0]]["pdf_blob_path"]
-                #         corp_trg_id = mail_rw_dt[list(doc_dt_rw.keys())[0]]["corp_trigger_id"]
-                #         mail_row_key = mail_rw_dt[list(doc_dt_rw.keys())[0]]["mail_row_key"]
-                #     else:
-                #         pdf_blobpath = ""
-                #         mail_row_key = ""
-                #         corp_trg_id = ""
-                #     try:
-                #         if corp_trg_id !="":
-
-                #             corp_trigger = db.query(model.corp_trigger_tab).filter_by(corp_trigger_id=corp_trg_id).first()
-                #             if corp_trigger:
-                #                 corp_trigger.status = update_FR_status_msg
-                #                 corp_trigger.updated_at = timestmp  # Ensure it's a datetime object
-                #                 db.commit()  # Save changes
-                #     except Exception as e:  
-                #         logger.error( f"Error updating corp_trigger_tab: {e}")
-                #         db.rollback()
-                # except Exception as e:
-                #     logger.error( f"Error in updating corp_trigger_tab: {e}")
+                
 
         # processing invoice without attachment:
         # document status & substatus:  4 , 130
@@ -764,7 +776,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 logger.info(f"invoID_lw: {invoID_lw}")
             except Exception:
                 docData_invoID_ck2 = all_invo_coding[miss_att]["invoice_number"]
-           
+
             # update coding details
             try:
                 app_status = approval_status
@@ -874,6 +886,18 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     logger.error( f"Error updating corp_trigger_tab: {e}")
 
                 #-----------------------
+
+                #vendor mapping:
+                try:
+                    logger.info(f"vendor mapping: miss_code:{miss_code}")
+                    vendorname = miss_code[list(miss_code.keys())[0]]["VendorName"]
+                    vendor_address =miss_code[list(miss_code.keys())[0]]["VendorAddress"]
+                    matchVendorCorp(vendorname,vendor_address,corp_metadata_df,vendorName_df, userID,corp_doc_id,db)
+                except Exception as e:
+                    logger.info(f"Error in vendor mapping: {e}")
+                    logger.info(traceback.format_exc())
+
+                #-------------------------
                 
                 lt_corp_doc_id.append(corp_doc_id)
                 print("corp_doc_id: ",corp_doc_id)
