@@ -657,29 +657,30 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     except Exception:
                         app_status = "Not approved"
                     # update coding details 
-                    coding_data_insert = {'invoice_id':all_invo_coding[att_invoID]['invoice_number'],
-                                'corp_doc_id':corp_doc_id,
-                                'coding_details':all_invo_coding[att_invoID]['coding_data'],
-                                'approver_name':all_invo_coding[att_invoID]['approverName'],
-                                
-                                'tmid':all_invo_coding[att_invoID]['TMID'],
-                                'approver_title':all_invo_coding[att_invoID]['approver_title'],
-                                'invoicetotal':cleanAmt_all(credit_invo,all_invo_coding[att_invoID]['invoicetotal']),
-                                'gst':cleanAmt_all(credit_invo,all_invo_coding[att_invoID]['gst']),
-                                'created_on': timestmp,
-                                'sender_name': all_invo_coding[att_invoID]['sender'],
-                                'sender_email':all_invo_coding[att_invoID]['sender_email'],
-                                'sent_to':all_invo_coding[att_invoID]['sent_to'],
-                                'sent_time':all_invo_coding[att_invoID]['sent_time'],
-                                'approver_email':all_invo_coding[att_invoID]['approver_email'],
-                                'approved_on':all_invo_coding[att_invoID]['approved_on'],
-                                'approval_status':app_status,
-                                'document_type':all_invo_coding[att_invoID]['document_type'],
-                                'template_type':template_type,
-                                'mail_rw_key': mail_row_key,
-                                'queue_task_id': queue_task_id,
-                                'map_type':"System map",
-                                }
+                    coding_data_insert = {
+                        'invoice_id': all_invo_coding[att_invoID].get('invoice_number', ""),
+                        'corp_doc_id': corp_doc_id,
+                        'coding_details': all_invo_coding[att_invoID].get('coding_data', ""),
+                        'approver_name': all_invo_coding[att_invoID].get('approverName', ""),
+                        'tmid': all_invo_coding[att_invoID].get('TMID', ""),
+                        'approver_title': all_invo_coding[att_invoID].get('approver_title', ""),
+                        'invoicetotal': cleanAmt_all(credit_invo, all_invo_coding[att_invoID].get('invoicetotal', 0)),
+                        'gst': cleanAmt_all(credit_invo, all_invo_coding[att_invoID].get('gst', 0)),
+                        'created_on': timestmp,
+                        'sender_name': all_invo_coding[att_invoID].get('sender', ""),
+                        'sender_email': all_invo_coding[att_invoID].get('sender_email', ""),
+                        'sent_to': all_invo_coding[att_invoID].get('sent_to', ""),
+                        'sent_time': all_invo_coding[att_invoID].get('sent_time', ""),
+                        'approver_email': all_invo_coding[att_invoID].get('approver_email', ""),
+                        'approved_on': all_invo_coding[att_invoID].get('approved_on', ""),
+                        'approval_status': app_status,
+                        'document_type': all_invo_coding[att_invoID].get('document_type', ""),
+                        'template_type': template_type,
+                        'mail_rw_key': mail_row_key,
+                        'queue_task_id': queue_task_id,
+                        'map_type': "System map",
+                    }
+
                     
 
                     corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
@@ -775,7 +776,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 logger.info(f"invoID_lw: {invoID_lw}")
             except Exception:
                 docData_invoID_ck2 = all_invo_coding[miss_att]["invoice_number"]
-            
+
             # update coding details
             try:
                 app_status = approval_status
@@ -783,28 +784,29 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 app_status = "Not approved"
 
             coding_data_insert = {
-                            'invoice_id':all_invo_coding[miss_att]['invoice_number'],
-                            # 'corp_doc_id':corp_doc_id,
-                            'coding_details':all_invo_coding[miss_att]['coding_data'],
-                            'approver_name':all_invo_coding[miss_att]['approverName'],
-                            'tmid':all_invo_coding[miss_att]['TMID'],
-                            'approver_title':all_invo_coding[miss_att]['approver_title'],
-                            'invoicetotal':cleanAmt_all(credit_invo,all_invo_coding[miss_att]['invoicetotal']),
-                            'gst':cleanAmt_all(credit_invo,all_invo_coding[miss_att]['gst']),
-                            'created_on': timestmp,
-                            'sender_name': all_invo_coding[miss_att]['sender'],
-                            'sender_email':all_invo_coding[miss_att]['sender_email'],
-                            'sent_to':all_invo_coding[miss_att]['sent_to'],
-                            'sent_time':all_invo_coding[miss_att]['sent_time'],
-                            'approver_email':all_invo_coding[miss_att]['approver_email'],
-                            'approved_on':all_invo_coding[miss_att]['approved_on'],
-                            'approval_status':app_status,
-                            'document_type':all_invo_coding[miss_att]['document_type'],
-                            'template_type':template_type,
-                            'mail_rw_key': mail_row_key,
-                            'queue_task_id': queue_task_id,
-                            'map_type':"Unmapped",
-                            }
+                'invoice_id': all_invo_coding[miss_att].get('invoice_number', ""),
+                # 'corp_doc_id': corp_doc_id,
+                'coding_details': all_invo_coding[miss_att].get('coding_data', ""),
+                'approver_name': all_invo_coding[miss_att].get('approverName', ""),
+                'tmid': all_invo_coding[miss_att].get('TMID', ""),
+                'approver_title': all_invo_coding[miss_att].get('approver_title', ""),
+                'invoicetotal': cleanAmt_all(credit_invo, all_invo_coding[miss_att].get('invoicetotal', 0)),
+                'gst': cleanAmt_all(credit_invo, all_invo_coding[miss_att].get('gst', 0)),
+                'created_on': timestmp,
+                'sender_name': all_invo_coding[miss_att].get('sender', ""),
+                'sender_email': all_invo_coding[miss_att].get('sender_email', ""),
+                'sent_to': all_invo_coding[miss_att].get('sent_to', ""),
+                'sent_time': all_invo_coding[miss_att].get('sent_time', ""),
+                'approver_email': all_invo_coding[miss_att].get('approver_email', ""),
+                'approved_on': all_invo_coding[miss_att].get('approved_on', ""),
+                'approval_status': app_status,
+                'document_type': all_invo_coding[miss_att].get('document_type', ""),
+                'template_type': template_type,
+                'mail_rw_key': mail_row_key,
+                'queue_task_id': queue_task_id,
+                'map_type': "Unmapped",
+            }
+
             corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
             db.add(corp_coding_insert)
             db.commit()
