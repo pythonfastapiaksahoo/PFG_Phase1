@@ -115,6 +115,7 @@ def clean_invoice_ids(data):
 def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_id):
     update_FR_status = 0
     update_FR_status_msg = "Failed in postprocessing"
+    db = next(get_db())
     
     try:
         # Cleaning invoice IDs
@@ -203,7 +204,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
         credit_invo = 2
         
     corp_doc_id = ""
-    db = next(get_db())
+    
     timestmp =datetime.now(tz_region) 
     coding_tab_data = {}
     # credit_invo = 0
@@ -355,7 +356,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 
                     
                     all_invo_coding[invoice_details['invoice#'][rw]] = coding_tab_data
-        elif template_type == 'Template 1' or template_type == 'Template 3':
+        elif template_type == 'Template 1' or template_type == 'Template 3' or template_type == 'Unknown Template':
             # template 1 & 3
             temp_found = 1
             missing_val = []
@@ -475,6 +476,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
         else:
             temp_found = 0
             logger.info(f"No template found: data: {op_1}, mail_row_key: {mail_row_key}, file_path: {file_path}, sender: {sender}, mail_rw_dt : {mail_rw_dt} ")
+
     
     
     if temp_found==1:
