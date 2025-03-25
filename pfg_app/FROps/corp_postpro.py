@@ -979,12 +979,17 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
             #     db.flush()  # Flush to get ID without committing
             #     corp_code_id = corp_coding_insert.corp_coding_id
             #     print("corp_code_id: ", corp_code_id)
+            try:
+                # Check if the record exists in corp_docdata:
+                if not corp_doc_id or corp_doc_id == '':
+                    existing_docdata = None
+                else:
+                    corp_doc_id = int(corp_doc_id)
+                    existing_docdata = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
+            except: 
+                existing_docdata = None
 
-            # Check if the record exists in corp_docdata
-            existing_docdata = db.query(model.corp_docdata).filter_by(corp_doc_id=corp_doc_id).first()
-
-            if not existing_docdata:
-                # Insert new record if it doesn't exist
+            if not existing_docdata:  # Only insert if the record does NOT exist
                 corp_docdata_insert = {"corp_doc_id": corp_doc_id}
                 corp_docdata_insert_data = model.corp_docdata(**corp_docdata_insert)
                 db.add(corp_docdata_insert_data)
