@@ -96,6 +96,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
     title = title.strip().lower()
     title_variants = {
         "senior manager": "Senior Manager",
+        "Senior Finance Manager": "Senior Manager",
         "sr. manager": "Senior Manager",
         "sr manager": "Senior Manager",
         "vice president": "VP"
