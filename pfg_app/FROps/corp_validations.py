@@ -569,6 +569,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 
                     except Exception as e:
                         logger.info(f"Error in getting metadata: {e}")
+                        df_corp_metadata = pd.DataFrame()
                     
                     if not df_corp_metadata.empty:
                         metadata_currency = list(df_corp_metadata['currency'])[0]
@@ -1163,50 +1164,57 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             approval_title_val_msg = ""
                                             approval_title_val_status = 0
                                             invo_approver_title =str(list(df_corp_docdata['approver_title'])[0]).lower()
+                                            sender_title = str(list(df_corp_coding['sender_title'])[0]).lower()
                                             coding_approver_title = str(list(df_corp_coding['approver_title'])[0]).lower()
-                                            match, score = is_match(invo_approver_title, coding_approver_title)
-                                            if match or (skip_title_check==1):
-                                                title_status_code = 0
-                                                logger.info("Approver title match")
-                                                approval_title_val_status = 1
-                                                if skip_title_check==1:
-                                                    approval_title_val_msg = "Approver title match skipped by user"
-                                                else:
-                                                    approval_title_val_msg = "Success"
-                                                approval_Amt_val_status = 0
-                                                approval_Amt_val_msg = ""
-                                                #amount_approval_check = 7
-                                                if credit_ck==1:
-                                                    logger.info("Amount limit approval skipped for credit")
-                                                    approval_Amt_val_status = 1
-                                                    approval_Amt_val_msg = "Amount limit approval skipped for credit"
-                                                    eml_status_code = 0
-                                                elif (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
-                                                    logger.info("Amount approved")
-                                                    approval_Amt_val_status = 1
-                                                    if amount_approval_check==1:
-                                                        approval_Amt_val_msg = "Amount limit approval skipped by user"
+                                            if sender_title.lower() not in ["na","",None]:
+                                                match, score = is_match(sender_title, coding_approver_title)
+                                                if match or (skip_title_check==1):
+                                                    title_status_code = 0
+                                                    logger.info("Approver title match")
+                                                    approval_title_val_status = 1
+                                                    if skip_title_check==1:
+                                                        approval_title_val_msg = "Approver title match skipped by user"
                                                     else:
-                                                        approval_Amt_val_msg = "Amount approved"
-                                                    eml_status_code = 0
-                                                else:
-                                                    approvrd_ck= approvrd_ck * 0
-                                                    eml_status_code = 7
-                                                    logger.info("Approval limits conformance mismatch")
-                                                    approval_Amt_val_msg = "Approval limits conformance mismatch"
-                                                return_status["Approval amount validation"] = {"status": approval_Amt_val_status,
-                                                                    "StatusCode":eml_status_code,
-                                                                    "response": [
-                                                                                    approval_Amt_val_msg
-                                                                                ],
-                                                                    }
+                                                        approval_title_val_msg = "Success"
+                                                    approval_Amt_val_status = 0
+                                                    approval_Amt_val_msg = ""
+                                                    #amount_approval_check = 7
+                                                    if credit_ck==1:
+                                                        logger.info("Amount limit approval skipped for credit")
+                                                        approval_Amt_val_status = 1
+                                                        approval_Amt_val_msg = "Amount limit approval skipped for credit"
+                                                        eml_status_code = 0
+                                                    elif (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
+                                                        logger.info("Amount approved")
+                                                        approval_Amt_val_status = 1
+                                                        if amount_approval_check==1:
+                                                            approval_Amt_val_msg = "Amount limit approval skipped by user"
+                                                        else:
+                                                            approval_Amt_val_msg = "Amount approved"
+                                                        eml_status_code = 0
+                                                    else:
+                                                        approvrd_ck= approvrd_ck * 0
+                                                        eml_status_code = 7
+                                                        logger.info("Approval limits conformance mismatch")
+                                                        approval_Amt_val_msg = "Approval limits conformance mismatch"
+                                                    return_status["Approval amount validation"] = {"status": approval_Amt_val_status,
+                                                                        "StatusCode":eml_status_code,
+                                                                        "response": [
+                                                                                        approval_Amt_val_msg
+                                                                                    ],
+                                                                        }
 
-                                                #--
+                                                    #--
+                                                else:
+                                                    approvrd_ck = approvrd_ck * 0
+                                                    title_status_code = 6
+                                                    logger.info("Approver title mismatch")
+                                                    approval_title_val_msg = f"Approver title mismatch: Sender title: '{sender_title}' Vs Approver title: '{coding_approver_title}'"
                                             else:
                                                 approvrd_ck = approvrd_ck * 0
                                                 title_status_code = 6
                                                 logger.info("Approver title mismatch")
-                                                approval_title_val_msg = "Approver title mismatch"
+                                                approval_title_val_msg = f"Approver title mismatch: Sender title: '{sender_title}' Vs Approver title: '{coding_approver_title}'"
                                             return_status["Approval title validation"] = {"status": approval_title_val_status,
                                                                 "StatusCode":title_status_code,
                                                                 "response": [
