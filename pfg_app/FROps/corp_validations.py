@@ -86,13 +86,13 @@ def email_belongs_to_name(name, email):
 #     return False
 
 # def is_amount_approved(amount: float, title: str) -> bool:
-    logger.info(f"Approval limits: {amount}, {title}")
-    approval_limits = {
-        (0, 24999): {"Supervisor", "Manager","Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-        (0, 74999): {"Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-        (0, 499999): {"Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-        (0, float("inf")): {"Managing Director", "VP", "Vice President"},
-    }
+#     logger.info(f"Approval limits: {amount}, {title}")
+#     approval_limits = {
+#         (0, 24999): {"Supervisor", "Manager","Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
+#         (0, 74999): {"Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
+#         (0, 499999): {"Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
+#         (0, float("inf")): {"Managing Director", "VP", "Vice President"},
+#     }
     
     title = title.strip().lower()
     title_variants = {
