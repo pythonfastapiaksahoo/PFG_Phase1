@@ -514,7 +514,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                         att_invoPageCount = ''
                     att_invoTotal = cleanAmt_all(credit_invo,invTotl)
                     if "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
-                        gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
+                        gst_amt = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST'])
                     else:
                         gst_amt = 0
                     # elif "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
