@@ -3913,3 +3913,20 @@ def map_coding_details_by_corp_doc_id(user_id, corp_doc_id, corp_coding_id, db):
     except Exception:
         logger.error(f"Error in map_coding_details : {traceback.format_exc()}")    
         return {"message": "An error occurred while mapping coding details", "status": "failure"}
+    
+
+def set_map_type_to_user_reviewed(user_id, corp_coding_id, db): 
+    try:
+        # Fetch or create corp_coding record
+        corp_coding = db.query(model.corp_coding_tab).filter_by(corp_coding_id=corp_coding_id).first()
+        if corp_coding.corp_doc_id == None and corp_coding.map_type == "Unmapped":
+            corp_coding.map_type = "user_reviewed"  # Set map_type
+            db.add(corp_coding)
+            db.commit()
+            db.refresh(corp_coding)
+
+        return {"message": "Coding details mapped type updated to user_reviewed successfully", "status": "success"}
+    except Exception:
+        logger.error(f"Error in map_coding_details : {traceback.format_exc()}")    
+        return {"message": "An error occurred while mapping coding details", "status": "failure"}
+
