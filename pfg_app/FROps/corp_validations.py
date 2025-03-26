@@ -94,32 +94,32 @@ def email_belongs_to_name(name, email):
 #         (0, float("inf")): {"Managing Director", "VP", "Vice President"},
 #     }
     
-    title = title.strip().lower()
-    title_variants = {
-        "senior manager": "Senior Manager",
-        "Senior Finance Manager": "Senior Manager",
-        "sr. manager": "Senior Manager",
-        "sr manager": "Senior Manager",
-        "vice president": "VP",
-        "Supervisor, Accounts Payable": "Supervisor",
-        "Supervisor, Accounts Receivable": "Supervisor",
-    }
+#     title = title.strip().lower()
+#     title_variants = {
+#         "senior manager": "Senior Manager",
+#         "Senior Finance Manager": "Senior Manager",
+#         "sr. manager": "Senior Manager",
+#         "sr manager": "Senior Manager",
+#         "vice president": "VP",
+#         "Supervisor, Accounts Payable": "Supervisor",
+#         "Supervisor, Accounts Receivable": "Supervisor",
+#     }
 
-    # Check if any key in title_variants is a substring of the title
-    for key, normalized in title_variants.items():
-        if key in title:
-            normalized_title = normalized
-            break
-    else:
-        normalized_title = title.title()
+#     # Check if any key in title_variants is a substring of the title
+#     for key, normalized in title_variants.items():
+#         if key in title:
+#             normalized_title = normalized
+#             break
+#     else:
+#         normalized_title = title.title()
     
-    for (lower, upper), allowed_titles in approval_limits.items():
-        if lower <= amount <= upper:
-            logger.info(f"Title: {normalized_title}")
-            logger.info(f"Allowed titles: {allowed_titles}")
-            return normalized_title in allowed_titles
+#     for (lower, upper), allowed_titles in approval_limits.items():
+#         if lower <= amount <= upper:
+#             logger.info(f"Title: {normalized_title}")
+#             logger.info(f"Allowed titles: {allowed_titles}")
+#             return normalized_title in allowed_titles
     
-    return False
+#     return False
 
 def is_amount_approved(amount: float, title: str) -> bool:
     logger.info(f"Approval limits: {amount}, {title}")
@@ -148,14 +148,14 @@ def is_amount_approved(amount: float, title: str) -> bool:
     # **Step 1: Normalize title (remove special chars, extra spaces, and lowercase it)**
     title_cleaned = re.sub(r"[^a-zA-Z\s]", "", title)  # Remove special characters
     title_cleaned = re.sub(r"\s+", " ", title_cleaned).strip().lower()  # Normalize spaces
-    logger.info("title_cleaned: ",title_cleaned)
+    logger.info(f"title_cleaned: {title_cleaned}")
     # **Step 2: Match title (partial match support)**
     normalized_title = None
     for key in title_variants:
         print(key)
         if key in title_cleaned:  # Check if title contains a known designation
             normalized_title = title_variants[key]
-            logger.info("normalized_title: ",normalized_title)
+            logger.info(f"normalized_title: {normalized_title}")
             if normalized_title!="Manager":
                 break
 
