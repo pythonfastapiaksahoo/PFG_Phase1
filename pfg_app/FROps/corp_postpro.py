@@ -116,7 +116,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
     update_FR_status = 0
     update_FR_status_msg = "Failed in postprocessing"
     db = next(get_db())
-    
+    sender_title = "NA"
     try:
         # Cleaning invoice IDs
         op_1,invoID_lw = clean_invoice_ids(op_unCl_1)
@@ -273,16 +273,24 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                         if len(op_1['coding_details']['email_metadata']['from'].split("<"))==2:
                             sender = op_1['coding_details']['email_metadata']['from'].split("<")[0]
                             sender_email = op_1['coding_details']['email_metadata']['from'].split("<")[1][:-1]
+                            sender_title = "NA"
+                            if sender:
+                                if "(" in sender:
+                                    if len(sender.split("(")[-1]) >3:
+                                        if ")" in sender.split("(")[-1]:
+                                            sender_title = sender.split("(")[-1].split(")")[0]
                         else:
                             sender = ""
                             sender_email = ""
                             missing_val.append('sender_email')
                             missing_val.append('sender')
+                            missing_val.append('sender_title')
                     else:
                         sender = ""
                         sender_email = ""
                         missing_val.append('sender_email')
                         missing_val.append('sender')
+                        missing_val.append('sender_title')
                     if 'sent' in op_1['coding_details']['email_metadata']:
                         sent_time = op_1['coding_details']['email_metadata']['sent']
                     else:
@@ -299,6 +307,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     missing_val.append("sender_email")
                     missing_val.append("sent_time")
                     missing_val.append("sent_to")
+                    missing_val.append("sender_title")
                 if "TMID" in  op_1['coding_details']['approverDetails']:
                         TMID =  op_1['coding_details']['approverDetails']['TMID']
                 else:
@@ -365,14 +374,23 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 if "email_metadata" in op_1['coding_details']:
                     if "from" in op_1['coding_details']['email_metadata']:
                         if len(op_1['coding_details']['email_metadata']['from'].split("<"))==2:
+                            sender = op_1['coding_details']['email_metadata']['from'].split("<")[0]
                             coding_tab_data['sender'] = op_1['coding_details']['email_metadata']['from'].split("<")[0]
                             coding_tab_data['sender_email'] = op_1['coding_details']['email_metadata']['from'].split("<")[1][:-1]
+                            sender_title = "NA"
+                            if "(" in sender:
+                                if len(sender.split("(")[-1]) >3:
+                                    if ")" in sender.split("(")[-1]:
+                                        sender_title = sender.split("(")[-1].split(")")[0]
+                            coding_tab_data['sender_title'] = sender_title
                         else:
                             missing_val.append('sender')
                             missing_val.append('sender_email')
+                            missing_val.append('sender_title')
                     else:
                         missing_val.append('sender')
                         missing_val.append('sender_email')
+                        missing_val.append('sender_title')
                     if 'sent' in op_1['coding_details']['email_metadata']:
                         coding_tab_data['sent_time'] = op_1['coding_details']['email_metadata']['sent']
                     else:
@@ -387,6 +405,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     missing_val.append("sender_email")
                     missing_val.append("sent_time")
                     missing_val.append("sent_to")
+                    missing_val.append("sender_title")
 
 
                 if "invoiceDetails" in op_1['coding_details']:
@@ -679,6 +698,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                         'mail_rw_key': mail_row_key,
                         'queue_task_id': queue_task_id,
                         'map_type': "System map",
+                        'sender_title': all_invo_coding[att_invoID].get('sender_title', "NA"),
+                        
                     }
 
                     
@@ -805,6 +826,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 'mail_rw_key': mail_row_key,
                 'queue_task_id': queue_task_id,
                 'map_type': "Unmapped",
+                'sender_title': all_invo_coding[miss_att].get('sender_title', "NA"),
             }
 
             corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
@@ -1008,4 +1030,5 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
             db.rollback()  # Rollback transaction in case of error
             logger.info(f"Error: {str(e)}")
             logger.error(traceback.format_exc())
+
       
