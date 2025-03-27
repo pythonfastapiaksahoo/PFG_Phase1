@@ -122,7 +122,7 @@ def email_belongs_to_name(name, email):
 #     return False
 
 def is_amount_approved(amount: float, title: str) -> bool:
-    logger.info(f"Approval limits: {amount}, {title}")
+    print(f"Approval limits: {amount}, {title}")
 
     approval_limits = {
         (0, 24999): {"Supervisor", "Manager", "Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
@@ -143,21 +143,21 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "managing director": "Managing Director",
         "vice president": "VP",
         "vp": "VP",
-        "rmpo": "Regional Manager"
     }
 
     # **Step 1: Normalize title (remove special chars, extra spaces, and lowercase it)**
     title_cleaned = re.sub(r"[^a-zA-Z\s]", "", title)  # Remove special characters
     title_cleaned = re.sub(r"\s+", " ", title_cleaned).strip().lower()  # Normalize spaces
-    logger.info(f"title_cleaned: {title_cleaned}")
+    print("title_cleaned: ",title_cleaned)
     # **Step 2: Match title (partial match support)**
     normalized_title = None
     for key in title_variants:
         print(key)
         if key in title_cleaned:  # Check if title contains a known designation
             normalized_title = title_variants[key]
-            logger.info(f"normalized_title: {normalized_title}")
+            print("normalized_title: ",normalized_title)
             if normalized_title!="Manager":
+            
                 break
 
     if not normalized_title:
@@ -166,9 +166,9 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     # **Step 3: Check Approval Limits**
     for (lower, upper), allowed_titles in approval_limits.items():
-        if 0 <= amount <= upper:
-            logger.info(f"Final Normalized Title: {normalized_title}")
-            logger.info(f"Allowed Titles for {amount}: {allowed_titles}")
+        if lower <= amount <= upper:
+            # logger.info(f"Final Normalized Title: {normalized_title}")
+            # logger.info(f"Allowed Titles for {amount}: {allowed_titles}")
             return normalized_title in allowed_titles
 
     return False

@@ -350,67 +350,44 @@ def extract_approver_details_using_openai(msg):
         
         if max_length and len(content) > max_length:
             email_content = content[:max_length]
-        prompt = """
-            Below is the example of an email chain having the following structure just for reference:
-            
-            From: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com> 
-            Sent: 21 November 2024 23:31
-            To: AP Auto Expense <ap_auto_expense@pattisonfoodgroup.com>
-            Subject: FW: Com Pro AR226369 $668.19
+        prompt = """ 
+            Below is an example of an email chain having the following structure just for reference:  
 
-            approved
-
-            Kathy March
-            Senior Finance Manager
+            From: Sender Name <sender@email.com>
+            Sent: Date 
+            To: Recipient Name <recipient@email.com>
+            Subject: Subject of the email
 
 
-            From: Ryan Doak (Office Services Representative) <ryan_doak@pattisonfoodgroup.com>
-            Sent: Thursday, November 21, 2024 9:44 AM
-            To: Kathy March (Senior Manager, Finance) <Kathy_March@pattisonfoodgroup.com>
-            Subject: Com Pro AR226369 $668.19
+            approved  
 
-            Hi Kathy,
-
-            Please review, add approval and forward to ap_auto_expense.
-
-            Invoice#        AR226369        *must be same as attachment
-                    GST:    29.83
-            Grand Total:    668.19
-            Approver Name:    Kathy March
-            Approver TM ID:   350161
-            Approval Title:   Senior Manager
-
-            Store Dept  Account  SL  Project Activity Amount
-
-            8000  0003  71999                         638.36
-
-            Thanks,
-
-            Ryan Doak
-            Office Services Representative | Mailroom
-            Phone: 604-882-7830
+            Approver Name
+            Approver Designation
 
 
-            Using the above example email chain, Extract the details from attached email content:
-            - Extract the keyword "approved" if found. If a negative phrase like "not approved," "cannot be approved," or similar is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
-            - Also if the keyword "approved" is found and the phrase like ""please approve" or "please approve the invoice" is present, set "Approved keyword" to "Not Approved" and "Approved keyword exists" to "No".
-            - Extract the email address of the Approver's email just above the "approved" phrase.
-            - Extract the email address of the recipient from the "To" field of Approver's email.
-            - Extract the approver name just below the "approved" phrase.
-            - Extract the approver's designation from the "Approver" field.
-            - Extract the sent date of the approver's email and Convert the Sent date to a YYYY-MM-DD format.
-            - Extract the relevant information from the last email sent only and format it as a JSON object, adhering strictly to the sample structure provided below:
 
-            {
-                "from": "from email address",
-                "sent": "sent date",
-                "to": "to email address",
-                "Approver": "Approver name",
-                "Designation": "approver designation",
-                "Approved keyword": "Approved" or "Not Approved",
-                "Approved keyword exists": "Yes" or "No"
-            }
-            """
+            Using the above example email chain, extract details only from the attached email content and ensure that no values from the reference example are used.  
+
+            ### Extraction Criteria:  
+            - Extract the email address of the sender from the last email sent. Otherwise, return "NA"..  
+            - Extract the sent date of the last email and convert it to YYYY-MM-DD format. Otherwise, return "NA".  
+            - Extract the recipient’s email address from the "To" field of the last email sent. Otherwise, return "NA".  
+            - Extract the approver name only if explicitly mentioned below the "approved" phrase. Otherwise, return "NA".  
+            - Extract the approver's designation only if explicitly stated. Otherwise, return "NA".  
+            - Identify if the keyword **"approved"** exists in the approver's email. If it does, set **"Approved keyword"** to `"Approved"`. If a negative phrase such as `"not approved"`, `"cannot be approved"`, or similar is found, set **"Approved keyword"** to `"Not Approved"` and **"Approved keyword exists"** to `"No"`. If neither is present, return `"No"`.  
+
+            ### Output Format:  
+            If the required details are found in the extracted email, return them in the JSON structure below. If any field is missing, default to `"NA"` instead of using any values from the reference example.  
+            {  
+                "from": "Sender email address or NA",  
+                "sent": "Sent date in YYYY-MM-DD or NA",  
+                "to": "Recipient email address or NA",  
+                "Approver": "Approver name or NA",  
+                "Designation": "Approver designation or NA",  
+                "Approved keyword": "Approved" or "Not Approved" or "NA",  
+                "Approved keyword exists": "Yes" or "No"  
+            }  
+        """
         # Construct messages with both the text prompt and the email content
         data = {
             "messages": [
