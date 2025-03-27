@@ -1304,12 +1304,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             if sender_title.lower() not in ["na","",None]:
                                                 match, score = is_match(sender_title, coding_approver_title)
                                             else:
-                                                score = 0
-                                                approvrd_ck = approvrd_ck * 0
-                                                title_status_code = 6
-                                                logger.info("Approver title mismatch")
-                                                approval_title_val_msg = f"Approver title mismatch: Sender title: '{sender_title}' Vs Approver title: '{coding_approver_title}'"
+                                                if skip_title_check!=1:
+                                                    score = 0
+                                                    approvrd_ck = approvrd_ck * 0
+                                                    title_status_code = 6
+                                                    logger.info("Approver title mismatch")
+                                                    approval_title_val_msg = f"Approver title mismatch: Sender title: '{sender_title}' Vs Approver title: '{coding_approver_title}'"
                                                 match = False
+                                            logger.info(f"match status: {match}, score: {score},skip_title_check: {skip_title_check}")
                                             if match or (skip_title_check==1):
                                                 title_status_code = 0
                                                 logger.info("Approver title match")
