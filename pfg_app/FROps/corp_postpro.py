@@ -270,15 +270,18 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
             if "coding_details" in op_1:
                 if "email_metadata" in op_1['coding_details']:
                     if "from" in op_1['coding_details']['email_metadata']:
+                        logger.info(f"op_1['coding_details']['email_metadata']: {op_1['coding_details']['email_metadata']}")
                         if len(op_1['coding_details']['email_metadata']['from'].split("<"))==2:
                             sender = op_1['coding_details']['email_metadata']['from'].split("<")[0]
                             sender_email = op_1['coding_details']['email_metadata']['from'].split("<")[1][:-1]
                             sender_title = "NA"
+                            
                             if sender:
                                 if "(" in sender:
                                     if len(sender.split("(")[-1]) >3:
                                         if ")" in sender.split("(")[-1]:
                                             sender_title = sender.split("(")[-1].split(")")[0]
+                                            logger.info(f"sender_title extracted: {sender_title}")
                         else:
                             sender = ""
                             sender_email = ""
@@ -340,6 +343,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     else:
                         coding_tab_data['document_type'] = "Unknown"
                     coding_tab_data['sender'] = sender
+                    coding_tab_data['sender_title'] = sender_title
                     coding_tab_data['sender_email'] = sender_email
                     coding_tab_data['sent_to'] = sent_to
                     coding_tab_data['sent_time'] = sent_time
@@ -361,10 +365,11 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                                             'amount':cleanAmt_all(credit_invo,float(cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw]))  - float(cleanAmt_all(credit_invo,invoice_details['GST'][rw])))
                     }
                     coding_tab_data['coding_data'] = coding_data
-                    print(invoice_details['invoice#'][rw])
+                    logger.info(f"invoice_details['invoice#'][{rw}]: {invoice_details['invoice#'][rw]}")  
                 
                     
                     all_invo_coding[invoice_details['invoice#'][rw]] = coding_tab_data
+            logger.info(f"all_invo_coding line 372: {all_invo_coding}")
         elif template_type == 'Template 1' or template_type == 'Template 3' or template_type == 'Unknown Template':
             # template 1 & 3
             temp_found = 1
