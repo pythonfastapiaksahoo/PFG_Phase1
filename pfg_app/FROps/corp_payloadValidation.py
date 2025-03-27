@@ -15,6 +15,73 @@ from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 tz_region = tz.timezone("US/Pacific")
 
 
+# def validate_voucher_distribution(db, vchr_dist_stg):
+#     """
+#     Validates each field (except amount) from VCHR_DIST_STG against the respective database tables.
+#     Returns status_check (1 if valid, 0 if any issue), voucher_status, and Failed_Code dictionaries.
+#     """
+#     status_ck = 1
+#     voucher_status = {}
+#     Failed_Code = {}
+
+#     for line, details in vchr_dist_stg.items():
+#         store = details.get("store")
+#         dept = details.get("dept")
+#         account = details.get("account")
+#         sl = details.get("SL")
+#         project = details.get("project")
+#         activity = details.get("activity")
+
+#         # Validate Store
+#         if store:
+#             store_exists = db.query(model.PFGStore).filter_by(STORE=store).first()
+#             if not store_exists:
+#                 voucher_status[f"store_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Store {store} not found"}
+#                 Failed_Code[f"store_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Store {store} not found"}
+#                 status_ck = 0
+
+#         # Validate Department
+#         if dept:
+#             dept_exists = db.query(model.PFGDepartment).filter_by(DEPTID=dept).first()
+#             if not dept_exists:
+#                 voucher_status[f"dept_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Department {dept} not found"}
+#                 Failed_Code[f"dept_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Department {dept} not found"}
+#                 status_ck = 0
+
+#         # Validate Account
+#         if account:
+#             account_exists = db.query(model.PFGAccount).filter_by(ACCOUNT=account).first()
+#             if not account_exists:
+#                 voucher_status[f"account_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Account {account} not found"}
+#                 Failed_Code[f"account_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Account {account} not found"}
+#                 status_ck = 0
+
+#         # Validate Strategic Ledger (SL)
+#         if sl:
+#             sl_exists = db.query(model.PFGStrategicLedger).filter_by(CHARTFIELD1=sl).first()
+#             if not sl_exists:
+#                 voucher_status[f"SL_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Strategic Ledger {sl} not found"}
+#                 Failed_Code[f"SL_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Strategic Ledger {sl} not found"}
+#                 status_ck = 0
+
+#         # Validate Project
+#         if project:
+#             project_exists = db.query(model.PFGProject).filter_by(PROJECT_ID=project).first()
+#             if not project_exists:
+#                 voucher_status[f"project_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Project {project} not found"}
+#                 Failed_Code[f"project_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Project {project} not found"}
+#                 status_ck = 0
+
+#         # Validate Project Activity
+#         if activity and project:
+#             activity_exists = db.query(model.PFGProjectActivity).filter_by(PROJECT_ID=project, ACTIVITY_ID=activity).first()
+#             if not activity_exists:
+#                 voucher_status[f"activity_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Project Activity {activity} not found"}
+#                 Failed_Code[f"activity_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Project Activity {activity} not found"}
+#                 status_ck = 0
+
+#     return status_ck, voucher_status, Failed_Code
+
 def payload_dbUpdate(doc_id,userID,db):
     timeStmp =datetime.now(tz_region) 
     SentToPeopleSoft = 0
@@ -120,6 +187,15 @@ def payload_dbUpdate(doc_id,userID,db):
                     else:
                         voucher_status[i] = {'status':1,'StatusCode':0,
                                     'status_msg':"success" }
+                    # else:
+                    #     # Call the validation function when all required fields exist
+                    #     status_ck, validation_status, validation_errors = validate_voucher_distribution(
+                    #         db, data['VCHR_DIST_STG']
+                    #     )
+                        
+                    #     # Update voucher_status and Failed_Code with validation results
+                    #     voucher_status.update(validation_status)
+                    #     Failed_Code.update(validation_errors)
                     
             else:
                 voucher_status[i] = {'status':1,'StatusCode':0,

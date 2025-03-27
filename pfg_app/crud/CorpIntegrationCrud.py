@@ -93,7 +93,12 @@ def format_data_for_template1(parsed_data):
             "activity": [],
             "amount": []
         }
-        approver_details = {}
+        # approver_details = {}
+        approver_details = {
+            "approverName": '',
+            "TMID": '',
+            "title": ''
+        }
 
         # Process the table to differentiate cases
         for table in tables:
@@ -178,6 +183,102 @@ def format_data_for_template1(parsed_data):
         return final_json
     
     
+# def format_data_for_template2(parsed_data):
+#     try:
+#         # Extract metadata
+#         email_metadata = parsed_data["email_metadata"]
+
+#         # Extract table data
+#         tables = parsed_data["tables_data"]
+
+#         # Initialize dictionaries
+#         invoice_data = {
+#             "invoice#": [],
+#             "store": [],
+#             "dept": [],
+#             "account": [],
+#             "SL": [],
+#             "project": [],
+#             "activity": [],
+#             "GST": [],
+#             "invoicetotal": [],
+#             "subtotal": None
+#         }
+#         # approver_details = {}
+#         approver_details = {
+#             "approverName": '',
+#             "TMID": '',
+#             "title": ''
+#         }
+#         # Flatten the tables_data list if nested improperly
+#         cleaned_tables = []
+#         for table in tables:
+#             if isinstance(table, list) and all(isinstance(row, list) for row in table):
+#                 cleaned_tables.extend(table)  # Flatten nested lists
+#             else:
+#                 cleaned_tables.append(table)
+
+#         # Process the table
+#         for i, row in enumerate(cleaned_tables):
+#             if isinstance(row, list) and len(row) > 1:
+#                 if "Approver Name:" in row[0]:
+#                     approver_details["approverName"] = row[1]
+#                 elif "Approver TM ID:" in row[0]:
+#                     approver_details["TMID"] = row[1]
+#                 elif "Approval Title:" in row[0]:
+#                     approver_details["title"] = row[1]
+#                 elif "Invoice #" in row[0]:
+#                     headers = row  # Identify header row
+#                 elif len(row) >= 9:  # Ensure valid invoice row with enough columns
+#                     invoice_data["invoice#"].append(row[0])
+#                     invoice_data["store"].append(row[1])
+#                     invoice_data["dept"].append(row[2])
+#                     invoice_data["account"].append(row[3])
+#                     invoice_data["SL"].append(row[4])
+#                     invoice_data["project"].append(row[5])
+#                     invoice_data["activity"].append(row[6])
+#                     invoice_data["GST"].append(row[7])
+#                     invoice_data["invoicetotal"].append(row[8])
+
+#         # Combine into final structured JSON
+#         structured_output = {
+#             "email_metadata": email_metadata,
+#             "invoiceDetails": invoice_data,
+#             "approverDetails": approver_details
+#         }
+
+#         # Convert to JSON and print
+#         final_json = json.dumps(structured_output, indent=4)
+#         # print(final_json)
+#         return final_json
+
+#     except Exception:
+#         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
+#         # Combine into final structured JSON
+#         structured_output = {
+#                         "email_metadata": email_metadata, 
+#                         "invoiceDetails": { 
+#                             "store": [''], 
+#                             "dept": [''], 
+#                             "account": [''], 
+#                             "SL": [''],
+#                             "project": [''],
+#                             "activity": [''], 
+#                             "amount": [''], 
+#                             "invoice#": '', 
+#                             "GST": '', 
+#                             "invoicetotal": '', 
+#                         }, 
+#                         "approverDetails": { 
+#                             "approverName": '', 
+#                             "TMID": '', 
+#                             "title": '',
+#                         }
+#                     }
+#         # Convert to JSON and print
+#         final_json = json.dumps(structured_output, indent=4)
+#         return final_json
+
 def format_data_for_template2(parsed_data):
     try:
         # Extract metadata
@@ -199,7 +300,12 @@ def format_data_for_template2(parsed_data):
             "invoicetotal": [],
             "subtotal": None
         }
-        approver_details = {}
+        
+        approver_details = {
+            "approverName": '',
+            "TMID": '',
+            "title": ''
+        }
 
         # Flatten the tables_data list if nested improperly
         cleaned_tables = []
@@ -212,13 +318,17 @@ def format_data_for_template2(parsed_data):
         # Process the table
         for i, row in enumerate(cleaned_tables):
             if isinstance(row, list) and len(row) > 1:
-                if "Approver Name:" in row[0]:
-                    approver_details["approverName"] = row[1]
-                elif "Approver TM ID:" in row[0]:
-                    approver_details["TMID"] = row[1]
-                elif "Approval Title:" in row[0]:
-                    approver_details["title"] = row[1]
-                elif "Invoice #" in row[0]:
+                # Extract key-value pair
+                key = row[0].strip()  # Key is the first element
+                value = next((value for value in row[1:] if value.strip()), "")  # Get first non-empty value
+
+                if "Approver Name" in key:
+                    approver_details["approverName"] = value
+                elif "Approver TM ID" in key:
+                    approver_details["TMID"] = value
+                elif "Approval Title" in key:
+                    approver_details["title"] = value
+                elif "Invoice #" in key:
                     headers = row  # Identify header row
                 elif len(row) >= 9:  # Ensure valid invoice row with enough columns
                     invoice_data["invoice#"].append(row[0])
@@ -238,35 +348,34 @@ def format_data_for_template2(parsed_data):
             "approverDetails": approver_details
         }
 
-        # Convert to JSON and print
+        # Convert to JSON and return
         final_json = json.dumps(structured_output, indent=4)
-        # print(final_json)
         return final_json
 
     except Exception:
         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
         # Combine into final structured JSON
         structured_output = {
-                        "email_metadata": email_metadata, 
-                        "invoiceDetails": { 
-                            "store": [''], 
-                            "dept": [''], 
-                            "account": [''], 
-                            "SL": [''],
-                            "project": [''],
-                            "activity": [''], 
-                            "amount": [''], 
-                            "invoice#": '', 
-                            "GST": '', 
-                            "invoicetotal": '', 
-                        }, 
-                        "approverDetails": { 
-                            "approverName": '', 
-                            "TMID": '', 
-                            "title": '',
-                        }
-                    }
-        # Convert to JSON and print
+            "email_metadata": email_metadata, 
+            "invoiceDetails": { 
+                "store": [''], 
+                "dept": [''], 
+                "account": [''], 
+                "SL": [''],
+                "project": [''],
+                "activity": [''], 
+                "amount": [''], 
+                "invoice#": '', 
+                "GST": '', 
+                "invoicetotal": '', 
+            }, 
+            "approverDetails": { 
+                "approverName": '', 
+                "TMID": '', 
+                "title": '',
+            }
+        }
+        # Convert to JSON and return
         final_json = json.dumps(structured_output, indent=4)
         return final_json
     
@@ -288,8 +397,12 @@ def format_data_for_template3(parsed_data):
             "activity": [],
             "amount": []  # Changed to 'amount' as the column name is "Amount"
         }
-        approver_details = {}
-
+        # approver_details = {}
+        approver_details = {
+            "approverName": '',
+            "TMID": '',
+            "title": ''
+        }
         # Process the table to differentiate cases
         for table in tables:
             for i, row in enumerate(table):
@@ -1408,6 +1521,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "approval_status",
                     "mail_rw_key",
                     "map_type",
+                    "sender_title",
                     
                 )
             )
@@ -3930,3 +4044,38 @@ def set_map_type_to_user_reviewed(user_id, corp_coding_id, db):
         logger.error(f"Error in map_coding_details : {traceback.format_exc()}")    
         return {"message": "An error occurred while mapping coding details", "status": "failure"}
 
+async def readcorpvendorname(u_id, db):
+    """This function reads the list of VendorNames.
+
+    It contains 2 parameters.
+    :param u_id: The user ID for which to fetch vendor data.
+    :param db: It provides a session to interact with the backend
+        Database, that is of Session Object Type.
+    :return: It returns a result of dictionary type.
+    """
+    try:
+        # Extract VENDOR_STATUS from the JSONB column and include it in the result
+        vendor_status_expr = func.jsonb_extract_path_text(
+            model.Vendor.miscellaneous, "VENDOR_STATUS"
+        )
+
+        # Query to get vendor names, codes, and status for both A and I vendors
+        query = db.query(
+            model.Vendor.VendorName, 
+            model.Vendor.VendorCode, 
+            vendor_status_expr.label("VendorStatus")  # Extracted status
+        ).filter(vendor_status_expr.in_(["A", "I"]))  # Fetch both active and inactive vendors
+        
+        data = query.all()
+        return data
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(
+            status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
+        )
+    finally:
+        db.close()
+        
+
+# 
