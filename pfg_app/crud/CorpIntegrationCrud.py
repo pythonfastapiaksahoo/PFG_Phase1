@@ -1408,6 +1408,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "approval_status",
                     "mail_rw_key",
                     "map_type",
+                    "sender_title",
                     
                 )
             )
