@@ -143,6 +143,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "managing director": "Managing Director",
         "vice president": "VP",
         "vp": "VP",
+        "rmpo": "Regional Manager",
     }
 
     # **Step 1: Normalize title (remove special chars, extra spaces, and lowercase it)**
