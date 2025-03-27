@@ -72,3 +72,5 @@ venv311
 pfgenv
 # ENV FILE
 .env
+*.ipynb
+*.json
