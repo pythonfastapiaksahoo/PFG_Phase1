@@ -143,6 +143,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "managing director": "Managing Director",
         "vice president": "VP",
         "vp": "VP",
+        "rmpo": "Regional Manager"
     }
 
     # **Step 1: Normalize title (remove special chars, extra spaces, and lowercase it)**
@@ -165,12 +166,64 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     # **Step 3: Check Approval Limits**
     for (lower, upper), allowed_titles in approval_limits.items():
-        if lower <= amount <= upper:
+        if 0 <= amount <= upper:
             logger.info(f"Final Normalized Title: {normalized_title}")
             logger.info(f"Allowed Titles for {amount}: {allowed_titles}")
             return normalized_title in allowed_titles
 
     return False
+
+# def update_Credit_data(doc_id, db):
+#     try:
+#         # Fetch the records from all tables using joins
+#         record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
+#                 .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+#                 .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+#                 .filter(model.corp_document_tab.corp_doc_id == doc_id) \
+#                 .first()
+
+#         if record:
+#             # Update the values for corp_document_tab
+#             if record[0]:  # Checking if the corp_document_tab record exists
+#                 record[0].invoicetotal = round(-abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
+#                 record[0].gst = round(-abs(record[0].gst), 2) if record[0].gst else None
+
+#             # Update the values for corp_coding_tab
+#             if record[1]:  # Checking if the corp_coding_tab record exists
+#                 record[1].invoicetotal = round(-abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
+#                 record[1].gst = round(-abs(record[1].gst), 2) if record[1].gst else None
+
+#                 # Update amount values inside coding_details
+#                 if record[1].coding_details:
+#                     for key, value in record[1].coding_details.items():
+#                         if 'amount' in value and value['amount']:
+#                             value['amount'] = round(-abs(value['amount']), 2)
+
+#                     # Mark JSON column as modified
+#                     flag_modified(record[1], "coding_details")
+
+#             # Update the values for corp_docdata
+#             if record[2]:  # Checking if the corp_docdata record exists
+#                 fields = [
+#                     "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
+#                     "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
+#                     "ecology_fee", "misc"
+#                 ]
+                
+#                 for field in fields:
+#                     value = getattr(record[2], field)  # Get current value
+#                     if value:  # Check if value is not None
+#                         setattr(record[2], field, round(-abs(value), 2))  # Convert to negative and round
+
+#             # Commit changes for all records in a single call
+#             db.commit()
+#             print(f"Updated invoicetotal, gst, and other fields for docID {doc_id} successfully.")
+#         else:
+#             logger.info(f"No record found for docID {doc_id}")
+
+#     except Exception as e:
+#         logger.error(f"Error in validate_corpdoc: {e}")
+#         logger.info(traceback.format_exc())
 
 def update_Credit_data(doc_id, db):
     try:
@@ -184,13 +237,13 @@ def update_Credit_data(doc_id, db):
         if record:
             # Update the values for corp_document_tab
             if record[0]:  # Checking if the corp_document_tab record exists
-                record[0].invoicetotal = round(-abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
-                record[0].gst = round(-abs(record[0].gst), 2) if record[0].gst else None
+                record[0].invoicetotal = round(-abs(record[0].invoicetotal or 0), 2)
+                record[0].gst = round(-abs(record[0].gst or 0), 2)
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
-                record[1].invoicetotal = round(-abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
-                record[1].gst = round(-abs(record[1].gst), 2) if record[1].gst else None
+                record[1].invoicetotal = round(-abs(record[1].invoicetotal or 0), 2)
+                record[1].gst = round(-abs(record[1].gst or 0), 2)
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
@@ -211,8 +264,7 @@ def update_Credit_data(doc_id, db):
                 
                 for field in fields:
                     value = getattr(record[2], field)  # Get current value
-                    if value:  # Check if value is not None
-                        setattr(record[2], field, round(-abs(value), 2))  # Convert to negative and round
+                    setattr(record[2], field, round(-abs(value or 0), 2))  # Convert to negative and round
 
             # Commit changes for all records in a single call
             db.commit()
@@ -223,6 +275,60 @@ def update_Credit_data(doc_id, db):
     except Exception as e:
         logger.error(f"Error in validate_corpdoc: {e}")
         logger.info(traceback.format_exc())
+
+
+# def update_Credit_data_to_positive(doc_id, db):
+#     try:
+#         # Fetch the records from all tables using joins
+#         record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
+#                 .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+#                 .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+#                 .filter(model.corp_document_tab.corp_doc_id == doc_id) \
+#                 .first()
+
+#         if record:
+#             # Update the values for corp_document_tab
+#             if record[0]:  # Checking if the corp_document_tab record exists
+#                 record[0].invoicetotal = round(abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
+#                 record[0].gst = round(abs(record[0].gst), 2) if record[0].gst else None
+
+#             # Update the values for corp_coding_tab
+#             if record[1]:  # Checking if the corp_coding_tab record exists
+#                 record[1].invoicetotal = round(abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
+#                 record[1].gst = round(abs(record[1].gst), 2) if record[1].gst else None
+
+#                 # Update amount values inside coding_details
+#                 if record[1].coding_details:
+#                     for key, value in record[1].coding_details.items():
+#                         if 'amount' in value and value['amount']:
+#                             value['amount'] = round(abs(value['amount']), 2)
+
+#                     # Mark JSON column as modified
+#                     flag_modified(record[1], "coding_details")
+
+#             # Update the values for corp_docdata
+#             if record[2]:  # Checking if the corp_docdata record exists
+#                 fields = [
+#                     "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
+#                     "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
+#                     "ecology_fee", "misc"
+#                 ]
+                
+#                 for field in fields:
+#                     value = getattr(record[2], field)  # Get current value
+#                     if value:  # Check if value is not None
+#                         setattr(record[2], field, round(abs(value), 2))  # Convert to positive and round
+
+#             # Commit changes for all records in a single call
+#             db.commit()
+#             print(f"Updated invoicetotal, gst, and other fields to positive for docID {doc_id} successfully.")
+#         else:
+#             logger.info(f"No record found for docID {doc_id}")
+
+#     except Exception as e:
+#         logger.error(f"Error in update_Credit_data_to_positive: {e}")
+#         logger.info(traceback.format_exc())
+
 
 def update_Credit_data_to_positive(doc_id, db):
     try:
@@ -236,13 +342,13 @@ def update_Credit_data_to_positive(doc_id, db):
         if record:
             # Update the values for corp_document_tab
             if record[0]:  # Checking if the corp_document_tab record exists
-                record[0].invoicetotal = round(abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
-                record[0].gst = round(abs(record[0].gst), 2) if record[0].gst else None
+                record[0].invoicetotal = round(abs(record[0].invoicetotal or 0), 2)
+                record[0].gst = round(abs(record[0].gst or 0), 2)
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
-                record[1].invoicetotal = round(abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
-                record[1].gst = round(abs(record[1].gst), 2) if record[1].gst else None
+                record[1].invoicetotal = round(abs(record[1].invoicetotal or 0), 2)
+                record[1].gst = round(abs(record[1].gst or 0), 2)
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
@@ -263,8 +369,7 @@ def update_Credit_data_to_positive(doc_id, db):
                 
                 for field in fields:
                     value = getattr(record[2], field)  # Get current value
-                    if value:  # Check if value is not None
-                        setattr(record[2], field, round(abs(value), 2))  # Convert to positive and round
+                    setattr(record[2], field, round(abs(value or 0), 2))  # Convert to positive and round
 
             # Commit changes for all records in a single call
             db.commit()
@@ -275,7 +380,6 @@ def update_Credit_data_to_positive(doc_id, db):
     except Exception as e:
         logger.error(f"Error in update_Credit_data_to_positive: {e}")
         logger.info(traceback.format_exc())
-
 
 def validate_corpdoc(doc_id,userID,skipConf,db):
     timeStmp = datetime.now(tz_region)
