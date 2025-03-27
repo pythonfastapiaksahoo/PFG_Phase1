@@ -24,9 +24,34 @@ def check_date_format(date_str):
     except ValueError:
         return False
     
+# def normalize_title(title):
+#     """Remove extra spaces, hyphens, and convert to lowercase."""
+#     title = re.sub(r'[-\s]+', ' ', title).strip().lower()
+#     return title
+
+# def is_acronym_match(full_title, acronym):
+#     """Check if title2 is an acronym of title1."""
+#     words = full_title.split()
+#     acronym_generated = "".join(word[0].upper() for word in words)
+#     return acronym_generated == acronym.upper()
+
+# def is_match(title1, title2, threshold=85):
+#     """Check for either acronym match or fuzzy match after normalization."""
+#     # Normalize titles (remove hyphens, extra spaces, lowercase)
+#     title1_norm = normalize_title(title1)
+#     title2_norm = normalize_title(title2)
+    
+#     # Fuzzy match score
+#     similarity = fuzz.ratio(title1_norm, title2_norm)
+    
+#     # Check if acronym match OR fuzzy similarity is high
+#     if is_acronym_match(title1, title2) or similarity >= threshold:
+#         return True, similarity
+#     return False, similarity
 def normalize_title(title):
-    """Remove extra spaces, hyphens, and convert to lowercase."""
-    title = re.sub(r'[-\s]+', ' ', title).strip().lower()
+    """Remove extra spaces, punctuation, and convert to lowercase."""
+    title = re.sub(r'[^a-zA-Z0-9\s]', '', title)  # Remove special characters like commas
+    title = re.sub(r'\s+', ' ', title).strip().lower()
     return title
 
 def is_acronym_match(full_title, acronym):
@@ -36,17 +61,22 @@ def is_acronym_match(full_title, acronym):
     return acronym_generated == acronym.upper()
 
 def is_match(title1, title2, threshold=85):
-    """Check for either acronym match or fuzzy match after normalization."""
-    # Normalize titles (remove hyphens, extra spaces, lowercase)
+    """Check for acronym match, fuzzy match, or if one title is a subset of the other."""
+    # Normalize titles (remove punctuation, extra spaces, lowercase)
     title1_norm = normalize_title(title1)
     title2_norm = normalize_title(title2)
     
+    # Check for direct subset match (either title1 in title2 OR title2 in title1)
+    if title1_norm in title2_norm or title2_norm in title1_norm:
+        return True, 100  # Perfect subset match
+
     # Fuzzy match score
     similarity = fuzz.ratio(title1_norm, title2_norm)
-    
+
     # Check if acronym match OR fuzzy similarity is high
     if is_acronym_match(title1, title2) or similarity >= threshold:
         return True, similarity
+
     return False, similarity
 
 
@@ -146,11 +176,10 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "rmpo": "Regional Manager",
     }
 
-    # **Step 1: Normalize title (remove special chars, extra spaces, and lowercase it)**
     title_cleaned = re.sub(r"[^a-zA-Z\s]", "", title)  # Remove special characters
     title_cleaned = re.sub(r"\s+", " ", title_cleaned).strip().lower()  # Normalize spaces
     print("title_cleaned: ",title_cleaned)
-    # **Step 2: Match title (partial match support)**
+
     normalized_title = None
     for key in title_variants:
         print(key)
