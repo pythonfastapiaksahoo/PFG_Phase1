@@ -1,6 +1,8 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.responses import PlainTextResponse
+from pfg_app.graph_api.manage_subscriptions import get_subscriptions
 from pfg_app.graph_api.message_processing import process_new_message
+from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
 from pfg_app.model import BackgroundTask, CorpMail
 from sqlalchemy.orm import Session
 from pfg_app.logger_module import get_operation_id, logger
@@ -66,7 +68,27 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                 db.commit()
                 db.refresh(corp_mail)
                 # Offload processing to a background task
-                background_tasks.add_task(process_new_message, message_id, f"CE-{corp_mail.id}", operation_id)
+                background_tasks.add_task(process_new_message, message_id, corp_mail.id, operation_id)
     logger.info(f"Webhook received {len(notifications)} notifications")
     return Response(status_code=202)
+
+# List all the subscriptions
+@router.get("/subscriptions")
+def list_subscriptions(db: Session = Depends(get_db)):
+    """
+    List all the subscriptions
+    """
+    results = {
+        "subscriptions-in-db": [],
+        "subscriptions-in-graph": [],
+    }
+    subscriptions = db.query(BackgroundTask).filter(BackgroundTask.task_name == "subscription_renewal_loop").all()
+    for subscription in subscriptions:
+        results["subscriptions-in-db"].append(subscription.task_metadata)
+    # Get the subscriptions from the graph
+    token_manager = MSGraphAPITokenManager()
+    access_token = token_manager.get_access_token()
+    subscriptions = get_subscriptions(access_token)
+    results["subscriptions-in-graph"] = subscriptions
+    return results
 

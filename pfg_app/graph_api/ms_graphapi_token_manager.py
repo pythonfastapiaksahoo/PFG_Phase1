@@ -2,6 +2,8 @@ import threading
 import time
 from typing import Optional
 from msal import ConfidentialClientApplication
+from pfg_app import settings
+from pfg_app.logger_module import logger
 
 class MSGraphAPITokenManager:
     _instance = None
@@ -16,9 +18,9 @@ class MSGraphAPITokenManager:
         return cls._instance
 
     def _initialize(self):
-        self.client_id = 'ed58b50b-0e5b-48fb-851a-58b1d78e0d9a' # '0ad6a251-8dd7-4bae-a375-fa01404f2143' # TODO:FLAG_GRAPH
-        self.client_secret = 'vL08Q~l2r5pxyJy2azzUeYUPnw3kNZ7Ugzj-RcZ5' # 'RhK8Q~kx6dAXMN59S_iyXefy9gnhLj2zxBVdhcKG' # TODO:FLAG_GRAPH
-        self.tenant_id = 'fdb969dd-87c5-4a41-87d6-86f80f4581db' # '86fb359e-1360-4ab3-b90d-2a68e8c007b9' # TODO:FLAG_GRAPH
+        self.client_id = settings.graph_client_id # TODO:FLAG_GRAPH
+        self.client_secret = settings.graph_client_secret # TODO:FLAG_GRAPH
+        self.tenant_id = settings.graph_tenant_id # TODO:FLAG_GRAPH
         
         self._access_token = None
         self._token_expiration = 0
@@ -50,9 +52,9 @@ class MSGraphAPITokenManager:
                     self._token_expiration = current_time + result.get('expires_in', 3600)
                     return self._access_token
                 else:
-                    print(f"Token acquisition failed: {result.get('error')}")
+                    logger.info(f"Token acquisition failed: {result.get('error')}")
                     return None
             
             except Exception as e:
-                print(f"Error obtaining access token: {e}")
+                logger.info(f"Error obtaining access token: {e}")
                 return None

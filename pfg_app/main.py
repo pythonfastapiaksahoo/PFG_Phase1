@@ -240,9 +240,12 @@ async def app_startup():
         # check if the background task is present and if not create a new one
         background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == "subscription_renewal_loop").first()
         if not background_task:
-            background_task = BackgroundTask(status="active", task_name="subscription_renewal_loop")
-            db.add(background_task)
-            db.commit()
+            try:
+                background_task = BackgroundTask(status="active", task_name="subscription_renewal_loop")
+                db.add(background_task)
+                db.commit()
+            except IntegrityError:
+                logger.error("Background task already exists")
         logger.info("All Background Tasks reset to active state")
 
         background_task_thread = threading.Thread(target=subscription_renewal_loop, daemon=True, kwargs={"operation_id": operation_id})
@@ -343,7 +346,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.101.04"
+            response.headers["api-version"] = "0.102.01"
 
             logger.info(
                 "Sending response from FastAPI"

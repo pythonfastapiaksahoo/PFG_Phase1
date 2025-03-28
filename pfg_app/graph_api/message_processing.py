@@ -1,3 +1,4 @@
+import traceback
 import requests
 import base64
 from pfg_app import settings
@@ -22,7 +23,7 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
         access_token = token_manager.get_access_token()
 
         # 2) Fetch message metadata with attachments expanded
-        meta_url = f"https://graph.microsoft.com/v1.0/users/devap_auto_expense@pattisonfoodgroup.com/messages/{message_id}?$expand=attachments" # TODO:FLAG_GRAPH
+        meta_url = f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/messages/{message_id}?$expand=attachments" # TODO:FLAG_GRAPH
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Accept": "application/json"
@@ -35,7 +36,7 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
         message_subject = message_data.get("subject", "NoSubject")
 
         # 3) Retrieve the full MIME content (native RFC822 format)
-        mime_url = f"https://graph.microsoft.com/v1.0/users/devap_auto_expense@pattisonfoodgroup.com/messages/{message_id}/$value" # TODO:FLAG_GRAPH
+        mime_url = f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/messages/{message_id}/$value" # TODO:FLAG_GRAPH
         mime_headers = {
             "Authorization": f"Bearer {access_token}",
             "Accept": "message/rfc822"
@@ -123,5 +124,5 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
         #     move_resp.raise_for_status()
         #     print(f"Message {message_id} moved to 'inbox' folder.")
 
-    except Exception as e:
-        print(f"Error processing message {message_id}: {e}")
+    except Exception:
+        logger.info(f"Error processing message {message_id}: {traceback.format_exc()}")

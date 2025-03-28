@@ -29,8 +29,8 @@ def get_subscriptions(access_token):
         subscriptions = response.json()
         return subscriptions
     else:
-        print(f"Error: {response.status_code}")
-        print(response.text)
+        logger.info(f"Error: {response.status_code}")
+        logger.info(response.text)
         return None
     
 
@@ -55,11 +55,11 @@ def delete_subscription(access_token, subscription_id):
     response = requests.delete(endpoint, headers=headers)
     
     if response.status_code == 204:  # Success response for deletion is 204 No Content
-        print(f"Successfully deleted subscription {subscription_id}")
+        logger.info(f"Successfully deleted subscription {subscription_id}")
         return True
     else:
-        print(f"Error deleting subscription: {response.status_code}")
-        print(response.text)
+        logger.info(f"Error deleting subscription: {response.status_code}")
+        logger.info(response.text)
         return False
     
 def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
@@ -88,13 +88,13 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
     }
     url = f"https://graph.microsoft.com/v1.0/subscriptions"
     resp = requests.post(url, headers=headers, json=body)
-    print(resp.text)
+    logger.info(resp.text)
     if resp.status_code == 201:
         data = resp.json()
-        print(data)
+        logger.info(data)
         subscription_details["SUBSCRIPTION_ID"] = data["id"]
-        subscription_details["SUBSCRIPTION_EXPIRATION"] = parse_timestamp(data["expirationDateTime"])
-        print("Created new subscription:", subscription_details["SUBSCRIPTION_ID"], "expires:", data["expirationDateTime"])
+        subscription_details["SUBSCRIPTION_EXPIRATION"] = data["expirationDateTime"]
+        logger.info("Created new subscription:", subscription_details["SUBSCRIPTION_ID"], "expires:", data["expirationDateTime"])
         return subscription_details
     else:
         raise Exception(f"Failed to create subscription: {resp.status_code} {resp.text}")
@@ -104,11 +104,16 @@ def subscription_renewal_loop(operation_id):
     try:
         db = next(get_db())
         # get the background task and lock it and if it could not be locked end the thread
-        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == f"{settings.local_user_name}-subscription_renewal_loop").with_for_update(skip_locked=True).first()
+        if settings.build_type == "debug":
+            background_task_name = f"{settings.local_user_name}-subscription_renewal_loop"
+        else:
+            background_task_name = "subscription_renewal_loop"
+        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == background_task_name).with_for_update(skip_locked=True).first()
         # If we didn't acquire the lock, exit the thread function gracefully.
         if background_task is None:
             logger.info("Background task is picked by other Threads, exiting the thread")
             return
+        
 
         while True:
             try:
@@ -130,11 +135,12 @@ def create_or_renew_subscription(background_task,db):
     # from background_task get the subscription_details if it is not present create a new one
     subscription_details = background_task.task_metadata
     if not subscription_details:
-        subscription_details = create_subscriptions(access_token,'https://7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook','devap_auto_expense@pattisonfoodgroup.com') # TODO:FLAG_GRAPH `'ds-cursor@datasemantics.co'`
+        subscription_details = create_subscriptions(access_token,'https://dev.mail.ia.owfg.com',settings.graph_corporate_mail_id) # TODO:FLAG_GRAPH
         background_task.task_metadata = subscription_details
         db.add(background_task)
         db.commit()
         return
+    
 
 
     # If we have at least 30 minutes left, skip renewal
@@ -153,8 +159,8 @@ def create_or_renew_subscription(background_task,db):
     }
     body = {
         "changeType": "created",
-        "notificationUrl": 'https://7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook', # TODO:FLAG_GRAPH
-        "resource": f"/users/devap_auto_expense@pattisonfoodgroup.com/mailFolders('Inbox')/messages", # TODO:FLAG_GRAPH
+        "notificationUrl": 'https://dev.mail.ia.owfg.com', # TODO:FLAG_GRAPH # 7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook
+        "resource": f"/users/{settings.graph_corporate_mail_id}/mailFolders('Inbox')/messages", # TODO:FLAG_GRAPH
         "expirationDateTime": expiration_str,
         "clientState": subscription_details["CLIENT_STATE"]
     }
@@ -168,26 +174,19 @@ def create_or_renew_subscription(background_task,db):
         if resp.status_code == 200:
             data = resp.json()
             subscription_details["SUBSCRIPTION_EXPIRATION"] = data["expirationDateTime"]
-            print("Subscription renewed:", subscription_details["SUBSCRIPTION_ID"], "expires:", parse_timestamp(data["expirationDateTime"]))
+            logger.info("Subscription renewed:", subscription_details["SUBSCRIPTION_ID"], "expires:", parse_timestamp(data["expirationDateTime"]))
             # update the background task
             background_task.task_metadata = subscription_details
             db.add(background_task)
             db.commit()
             return
         else:
-            print(f"Renewal failed, creating a new subscription. {resp.status_code} {resp.text}")
+            logger.info(f"Renewal failed, creating a new subscription. {resp.status_code} {resp.text}")
             subscription_details["SUBSCRIPTION_ID"] = None  # reset to create a new one
             # update the background task
             background_task.task_metadata = subscription_details
             db.add(background_task)
             db.commit()
             return
-
-
-    # # Create a new subscription
-    # subscription_details = create_subscriptions(access_token,'https://7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook','devap_auto_expense@pattisonfoodgroup.com') # TODO:FLAG_GRAPH
-    # # update the background task
-    # background_task.task_metadata = subscription_details
-    # db.commit()
 
 
