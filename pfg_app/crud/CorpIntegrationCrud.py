@@ -93,7 +93,12 @@ def format_data_for_template1(parsed_data):
             "activity": [],
             "amount": []
         }
-        approver_details = {}
+        # approver_details = {}
+        approver_details = {
+            "approverName": '',
+            "TMID": '',
+            "title": ''
+        }
 
         # Process the table to differentiate cases
         for table in tables:
@@ -178,6 +183,102 @@ def format_data_for_template1(parsed_data):
         return final_json
     
     
+# def format_data_for_template2(parsed_data):
+#     try:
+#         # Extract metadata
+#         email_metadata = parsed_data["email_metadata"]
+
+#         # Extract table data
+#         tables = parsed_data["tables_data"]
+
+#         # Initialize dictionaries
+#         invoice_data = {
+#             "invoice#": [],
+#             "store": [],
+#             "dept": [],
+#             "account": [],
+#             "SL": [],
+#             "project": [],
+#             "activity": [],
+#             "GST": [],
+#             "invoicetotal": [],
+#             "subtotal": None
+#         }
+#         # approver_details = {}
+#         approver_details = {
+#             "approverName": '',
+#             "TMID": '',
+#             "title": ''
+#         }
+#         # Flatten the tables_data list if nested improperly
+#         cleaned_tables = []
+#         for table in tables:
+#             if isinstance(table, list) and all(isinstance(row, list) for row in table):
+#                 cleaned_tables.extend(table)  # Flatten nested lists
+#             else:
+#                 cleaned_tables.append(table)
+
+#         # Process the table
+#         for i, row in enumerate(cleaned_tables):
+#             if isinstance(row, list) and len(row) > 1:
+#                 if "Approver Name:" in row[0]:
+#                     approver_details["approverName"] = row[1]
+#                 elif "Approver TM ID:" in row[0]:
+#                     approver_details["TMID"] = row[1]
+#                 elif "Approval Title:" in row[0]:
+#                     approver_details["title"] = row[1]
+#                 elif "Invoice #" in row[0]:
+#                     headers = row  # Identify header row
+#                 elif len(row) >= 9:  # Ensure valid invoice row with enough columns
+#                     invoice_data["invoice#"].append(row[0])
+#                     invoice_data["store"].append(row[1])
+#                     invoice_data["dept"].append(row[2])
+#                     invoice_data["account"].append(row[3])
+#                     invoice_data["SL"].append(row[4])
+#                     invoice_data["project"].append(row[5])
+#                     invoice_data["activity"].append(row[6])
+#                     invoice_data["GST"].append(row[7])
+#                     invoice_data["invoicetotal"].append(row[8])
+
+#         # Combine into final structured JSON
+#         structured_output = {
+#             "email_metadata": email_metadata,
+#             "invoiceDetails": invoice_data,
+#             "approverDetails": approver_details
+#         }
+
+#         # Convert to JSON and print
+#         final_json = json.dumps(structured_output, indent=4)
+#         # print(final_json)
+#         return final_json
+
+#     except Exception:
+#         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
+#         # Combine into final structured JSON
+#         structured_output = {
+#                         "email_metadata": email_metadata, 
+#                         "invoiceDetails": { 
+#                             "store": [''], 
+#                             "dept": [''], 
+#                             "account": [''], 
+#                             "SL": [''],
+#                             "project": [''],
+#                             "activity": [''], 
+#                             "amount": [''], 
+#                             "invoice#": '', 
+#                             "GST": '', 
+#                             "invoicetotal": '', 
+#                         }, 
+#                         "approverDetails": { 
+#                             "approverName": '', 
+#                             "TMID": '', 
+#                             "title": '',
+#                         }
+#                     }
+#         # Convert to JSON and print
+#         final_json = json.dumps(structured_output, indent=4)
+#         return final_json
+
 def format_data_for_template2(parsed_data):
     try:
         # Extract metadata
@@ -199,23 +300,37 @@ def format_data_for_template2(parsed_data):
             "invoicetotal": [],
             "subtotal": None
         }
-        approver_details = {}
+        
+        approver_details = {
+            "approverName": '',
+            "TMID": '',
+            "title": ''
+        }
 
-        # Process the single table
-        if tables:
-            table = tables[0]  # There's only one table
-            for i, row in enumerate(table):
-                if i == 0 and "Approver Name:" in row[0]:  # Approver details
-                    for detail_row in table[:3]:  # First three rows contain approver details
-                        if "Approver Name:" in detail_row[0]:
-                            approver_details["approverName"] = detail_row[1]
-                        elif "Approver TM ID:" in detail_row[0]:
-                            approver_details["TMID"] = detail_row[1]
-                        elif "Approval Title:" in detail_row[0]:
-                            approver_details["title"] = detail_row[1]
-                elif i == 3 and "Invoice #" in row[0]:  # Invoice headers
-                    headers = row
-                elif i > 3:  # Invoice data
+        # Flatten the tables_data list if nested improperly
+        cleaned_tables = []
+        for table in tables:
+            if isinstance(table, list) and all(isinstance(row, list) for row in table):
+                cleaned_tables.extend(table)  # Flatten nested lists
+            else:
+                cleaned_tables.append(table)
+
+        # Process the table
+        for i, row in enumerate(cleaned_tables):
+            if isinstance(row, list) and len(row) > 1:
+                # Extract key-value pair
+                key = row[0].strip()  # Key is the first element
+                value = next((value for value in row[1:] if value.strip()), "")  # Get first non-empty value
+
+                if "Approver Name" in key:
+                    approver_details["approverName"] = value
+                elif "Approver TM ID" in key:
+                    approver_details["TMID"] = value
+                elif "Approval Title" in key:
+                    approver_details["title"] = value
+                elif "Invoice #" in key:
+                    headers = row  # Identify header row
+                elif len(row) >= 9:  # Ensure valid invoice row with enough columns
                     invoice_data["invoice#"].append(row[0])
                     invoice_data["store"].append(row[1])
                     invoice_data["dept"].append(row[2])
@@ -233,36 +348,34 @@ def format_data_for_template2(parsed_data):
             "approverDetails": approver_details
         }
 
-        # Convert to JSON and print
+        # Convert to JSON and return
         final_json = json.dumps(structured_output, indent=4)
-        # print(final_json)
         return final_json
 
     except Exception:
         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
         # Combine into final structured JSON
         structured_output = {
-                        "email_metadata": email_metadata, 
-
-                        "invoiceDetails": { 
-                            "store": [''], 
-                            "dept": [''], 
-                            "account": [''], 
-                            "SL": [''],
-                            "project": [''],
-                            "activity": [''], 
-                            "amount": [''], 
-                            "invoice#": '', 
-                            "GST": '', 
-                            "invoicetotal": '', 
-                        }, 
-                        "approverDetails": { 
-                            "approverName": '', 
-                            "TMID": '', 
-                            "title": '',
-                        }
-                    }
-        # Convert to JSON and print
+            "email_metadata": email_metadata, 
+            "invoiceDetails": { 
+                "store": [''], 
+                "dept": [''], 
+                "account": [''], 
+                "SL": [''],
+                "project": [''],
+                "activity": [''], 
+                "amount": [''], 
+                "invoice#": '', 
+                "GST": '', 
+                "invoicetotal": '', 
+            }, 
+            "approverDetails": { 
+                "approverName": '', 
+                "TMID": '', 
+                "title": '',
+            }
+        }
+        # Convert to JSON and return
         final_json = json.dumps(structured_output, indent=4)
         return final_json
     
@@ -284,8 +397,12 @@ def format_data_for_template3(parsed_data):
             "activity": [],
             "amount": []  # Changed to 'amount' as the column name is "Amount"
         }
-        approver_details = {}
-
+        # approver_details = {}
+        approver_details = {
+            "approverName": '',
+            "TMID": '',
+            "title": ''
+        }
         # Process the table to differentiate cases
         for table in tables:
             for i, row in enumerate(table):
@@ -1139,6 +1256,7 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
         return {"data": data, "total_items": total_items}
 
     except Exception as e:
+        logger.info(traceback.format_exc())
         return {"error": str(e), "total_items": 0}
     
     
@@ -1397,8 +1515,14 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "gst",
                     "approval_status",
                     "sender_name",
+                    "sender_email",
+                    "approver_email",
                     "approved_on",
                     "approval_status",
+                    "mail_rw_key",
+                    "map_type",
+                    "sender_title",
+                    
                 )
             )
         )
@@ -1690,44 +1814,200 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
         db.rollback()
         return {"message": "An error occurred while updating", "status": "error"}
 
-async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
+# async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
+#     try:
+#         # Fetch document status
+#         docStatus_id, docSubStatus_id = db.query(
+#             model.corp_document_tab.documentstatus, model.corp_document_tab.documentsubstatus
+#         ).filter(model.corp_document_tab.corp_doc_id == corp_doc_id).first() or (None, None)
+
+#         # Fetch or create corp_coding record
+#         corp_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+
+#         if not corp_coding:
+#             # If no record exists, create a new one
+#             corp_coding = model.corp_coding_tab(corp_doc_id=corp_doc_id)
+#             db.add(corp_coding)
+#             is_new_record = True
+#         else:
+#             is_new_record = False
+
+#         consolidated_updates = []
+        
+#         corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+#         if not corp_doc_tab:
+#             return {"message": "No record found in corp_document_tab for the given corp_doc_id", "status": "error"}
+#         any_updates = False
+#         # Process each update
+#         for update in updates:
+#             field = update.field
+#             old_value = update.OldValue
+#             new_value = update.NewValue
+#             field_type = type(getattr(corp_coding, field))
+#             # Ensure the field exists in the model
+#             if field_type == dict:
+#                 # Compare JSON objects
+#                 if old_value != new_value:
+#                     setattr(corp_coding, field, new_value)  # Store as JSON string
+#                     # Convert old and new values to JSON string before storing
+#                     old_value_str = json.dumps(old_value) if old_value is not None else None
+#                     new_value_str = json.dumps(new_value) if new_value is not None else None
+#                     any_updates = True
+#                     # Log the update in CorpDocumentUpdates with the new logic
+#                     inv_up_data_id = (
+#                         db.query(model.CorpDocumentUpdates.iddocumentupdates)
+#                         .filter_by(doc_id=corp_doc_id)
+#                         .all()
+#                     )
+#                     if len(inv_up_data_id) > 0:
+#                         # If present, set the active status to false for the old row
+#                         if corp_doc_id:
+#                             db.query(model.CorpDocumentUpdates).filter_by(
+#                                 doc_id=corp_doc_id, is_active=1
+#                             ).update({"is_active": 0})
+                        
+#                         db.flush()
+                    
+#                     data = {
+#                         "doc_id": corp_doc_id,
+#                         "updated_field": field,
+#                         "old_value": old_value_str,  # Keep as original type
+#                         "new_value": new_value_str,  # Keep as original type
+#                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#                         "user_id": user_id,
+#                         "is_active": 1
+#                     }
+                    
+#                     update_log = model.CorpDocumentUpdates(**data)
+#                     db.add(update_log)
+#                     db.flush()
+#                     consolidated_updates.append(f"{field}: JSON Updated")
+
+#             else:
+#                 # Convert new & old values to the correct data type
+#                 if field_type == int:
+#                     old_value = int(old_value) if old_value not in [None, ""] else None
+#                     new_value = int(new_value) if new_value not in [None, ""] else None
+#                 elif field_type == float:
+#                     old_value = float(old_value) if old_value not in [None, ""] else None
+#                     new_value = float(new_value) if new_value not in [None, ""] else None
+#                 elif field_type == str:
+#                     old_value = str(old_value) if old_value is not None else ""
+#                     new_value = str(new_value) if new_value is not None else ""
+#                 # Check if the document update table already has rows present in it
+            
+#                 # Update only if value changes
+#                 if old_value != new_value:
+#                     setattr(corp_coding, field, new_value)
+#                     any_updates = True
+#                     # Log the update in CorpDocumentUpdates with the new logic
+#                     inv_up_data_id = (
+#                         db.query(model.CorpDocumentUpdates.iddocumentupdates)
+#                         .filter_by(doc_id=corp_doc_id)
+#                         .all()
+#                     )
+#                     if len(inv_up_data_id) > 0:
+#                         # If present, set the active status to false for the old row
+#                         if corp_doc_id:
+#                             db.query(model.CorpDocumentUpdates).filter_by(
+#                                 doc_id=corp_doc_id, is_active=1
+#                             ).update({"is_active": 0})
+                        
+#                         db.flush()
+                    
+#                     data = {
+#                         "doc_id": corp_doc_id,
+#                         "updated_field": field,
+#                         "old_value": old_value,  # Keep as original type
+#                         "new_value": new_value,  # Keep as original type
+#                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#                         "user_id": user_id,
+#                         "is_active": 1
+#                     }
+                    
+#                     update_log = model.CorpDocumentUpdates(**data)
+#                     db.add(update_log)
+#                     db.flush()
+#                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
+
+#                 # If the field is one of the specified ones, update corp_document_tab as well
+#                 if field in ["invoice_id", "invoicetotal", "invoice_date","approver_title"]:
+#                     corp_doc_field = "approved_by" if field == "approver_name" else field
+#                     setattr(corp_doc_tab, corp_doc_field, new_value)
+#                     consolidated_updates.append(f"{corp_doc_field} (corp_document_tab): {old_value} -> {new_value}")
+#         # If it's a new record, insert it
+#         if is_new_record:
+#             db.add(corp_coding)
+
+#         # Updating the consolidated history log
+#         if any_updates:
+#             try:
+#                 corp_update_docHistory(
+#                     corp_doc_id,
+#                     user_id,
+#                     docStatus_id,
+#                     "; ".join(consolidated_updates),
+#                     db,
+#                     docSubStatus_id
+#                 )
+#             except Exception as e:
+#                 logger.info(f"Error updating document history: {traceback.format_exc()}")
+            
+#             # Commit the transaction
+#             db.commit()
+#             return {"result": "updated", "updated_data": data}
+#         else:
+#             return {"message": "Field(s) already exist or are the same", "status": "no_change"}
+        
+#     except Exception as e:
+#         logger.info(f"Error in upsert_coding_line_data: {str(e)}")
+#         db.rollback()
+#         return {"message": "An error occurred while updating", "status": "error"}
+
+
+def upsert_coding_line_data(user_id, corp_doc_id, updates, db): 
     try:
         # Fetch document status
         docStatus_id, docSubStatus_id = db.query(
             model.corp_document_tab.documentstatus, model.corp_document_tab.documentsubstatus
         ).filter(model.corp_document_tab.corp_doc_id == corp_doc_id).first() or (None, None)
-
+        
         # Fetch or create corp_coding record
         corp_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
-
         if not corp_coding:
-            # If no record exists, create a new one
-            corp_coding = model.corp_coding_tab(corp_doc_id=corp_doc_id)
+            # Fetch or create corp_coding record
+            # If no record exists, fetch mail_row_key and queue_task_id from corp_trigger_tab
+            corp_trigger = db.query(model.corp_trigger_tab).filter_by(documentid=corp_doc_id).first()
+            
+            mail_row_key = corp_trigger.mail_row_key if corp_trigger else None
+            queue_task_id = corp_trigger.corp_queue_id if corp_trigger else None
+
+            corp_coding = model.corp_coding_tab(
+                corp_doc_id=corp_doc_id,
+                mail_rw_key=mail_row_key,
+                queue_task_id=queue_task_id,
+                map_type="user_map"  # Set map_type
+            )
             db.add(corp_coding)
             is_new_record = True
         else:
             is_new_record = False
 
         consolidated_updates = []
-        
-        corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
-        if not corp_doc_tab:
-            return {"message": "No record found in corp_document_tab for the given corp_doc_id", "status": "error"}
         any_updates = False
+
         # Process each update
         for update in updates:
             field = update.field
             old_value = update.OldValue
             new_value = update.NewValue
             field_type = type(getattr(corp_coding, field))
-            # Ensure the field exists in the model
+            
             if field_type == dict:
-                # Compare JSON objects
                 if old_value != new_value:
-                    setattr(corp_coding, field, new_value)  # Store as JSON string
-                    # Convert old and new values to JSON string before storing
-                    old_value_str = json.dumps(old_value) if old_value is not None else None
-                    new_value_str = json.dumps(new_value) if new_value is not None else None
+                    setattr(corp_coding, field, new_value)
+                    # old_value_str = json.dumps(old_value) if old_value is not None else None
+                    # new_value_str = json.dumps(new_value) if new_value is not None else None
                     any_updates = True
                     # Log the update in CorpDocumentUpdates with the new logic
                     inv_up_data_id = (
@@ -1747,8 +2027,8 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     data = {
                         "doc_id": corp_doc_id,
                         "updated_field": field,
-                        "old_value": old_value_str,  # Keep as original type
-                        "new_value": new_value_str,  # Keep as original type
+                        "old_value": json.dumps(old_value) if isinstance(old_value, dict) else str(old_value),  # Convert dict to JSON string
+                        "new_value": json.dumps(new_value) if isinstance(new_value, dict) else str(new_value),  # Convert dict to JSON string
                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         "user_id": user_id,
                         "is_active": 1
@@ -1792,30 +2072,31 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                         db.flush()
                     
                     data = {
-                        "doc_id": corp_doc_id,
-                        "updated_field": field,
-                        "old_value": old_value,  # Keep as original type
-                        "new_value": new_value,  # Keep as original type
-                        "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                        "user_id": user_id,
-                        "is_active": 1
-                    }
+                            "doc_id": corp_doc_id,
+                            "updated_field": field,
+                            "old_value": json.dumps(old_value) if isinstance(old_value, dict) else str(old_value),  
+                            "new_value": json.dumps(new_value) if isinstance(new_value, dict) else str(new_value),  
+                            "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                            "user_id": user_id,
+                            "is_active": 1
+                        }
                     
                     update_log = model.CorpDocumentUpdates(**data)
                     db.add(update_log)
                     db.flush()
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
-                # If the field is one of the specified ones, update corp_document_tab as well
-                if field in ["invoice_id", "invoicetotal", "invoice_date","approver_title"]:
-                    corp_doc_field = "approved_by" if field == "approver_name" else field
-                    setattr(corp_doc_tab, corp_doc_field, new_value)
-                    consolidated_updates.append(f"{corp_doc_field} (corp_document_tab): {old_value} -> {new_value}")
-        # If it's a new record, insert it
+                # Only update corp_document_tab if NOT a new record
+                if not is_new_record and field in ["invoice_id", "invoicetotal", "invoice_date", "approver_title"]:
+                    corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+                    if corp_doc_tab:
+                        corp_doc_field = "approved_by" if field == "approver_name" else field
+                        setattr(corp_doc_tab, corp_doc_field, new_value)
+                        consolidated_updates.append(f"{corp_doc_field} (corp_document_tab): {old_value} -> {new_value}")
+
         if is_new_record:
             db.add(corp_coding)
 
-        # Updating the consolidated history log
         if any_updates:
             try:
                 corp_update_docHistory(
@@ -1836,7 +2117,7 @@ async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
             return {"message": "Field(s) already exist or are the same", "status": "no_change"}
         
     except Exception as e:
-        logger.info(f"Error in upsert_coding_line_data: {str(e)}")
+        logger.info(f"Error in upsert_coding_line_data: {traceback.format_exc()}")
         db.rollback()
         return {"message": "An error occurred while updating", "status": "error"}
 
@@ -3679,3 +3960,122 @@ def bulkProcessCorpVoucherData():
         db.close()
         if "lease" in locals():
             lease.break_lease()
+            
+
+def get_associated_coding_tab_details(u_id, invoice_id, db):
+    """
+    Retrieve all records from corp_coding_tab filtered by mail_rw_key and map_type = "unmapped".
+
+    Args:
+        u_id (int): The user ID.
+        mail_rw_key (str): The mail_rw_key to filter records.
+        db (Session): Database session dependency.
+
+    Returns:
+        List[corp_coding_tab]: A list of matching corp_coding_tab records.
+    """
+    try:
+        mail_row_key = db.query(model.corp_document_tab.mail_row_key).filter(model.corp_document_tab.corp_doc_id == invoice_id).first()
+        if mail_row_key:
+            query = (
+            db.query(model.corp_coding_tab)
+            .filter(
+                model.corp_coding_tab.mail_rw_key == mail_row_key[0],
+                model.corp_coding_tab.map_type == "Unmapped",
+                )
+            )
+            data = query.all()
+            total_count = query.count()
+            return {"total_count": total_count, "data": data}
+        else:
+            return {"No mail row key found for the invoice id": invoice_id}
+    except Exception:
+        logger.error(f"Error in get_associated_coding_tab_details : {traceback.format_exc()}")
+        return {"total_count": 0, "data": []}
+    
+
+def map_coding_details_by_corp_doc_id(user_id, corp_doc_id, corp_coding_id, db): 
+    try:
+        # Fetch document status
+        docStatus_id, docSubStatus_id = db.query(
+            model.corp_document_tab.documentstatus, model.corp_document_tab.documentsubstatus
+        ).filter(model.corp_document_tab.corp_doc_id == corp_doc_id).first() or (None, None)
+        
+        # Fetch or create corp_coding record
+        corp_coding = db.query(model.corp_coding_tab).filter_by(corp_coding_id=corp_coding_id).first()
+        if corp_coding.corp_doc_id == None and corp_coding.map_type == "Unmapped":
+            corp_coding.corp_doc_id = corp_doc_id
+            corp_coding.map_type = "user_map"  # Set map_type
+            db.add(corp_coding)
+            db.commit()
+            db.refresh(corp_coding)
+
+            dmsg = f"Coding details mapped successfully"
+        
+            try:
+                corp_update_docHistory(
+                    corp_doc_id,
+                    user_id,
+                    docStatus_id,
+                    dmsg,
+                    db,
+                    docSubStatus_id
+                )
+            except Exception as e:
+                logger.info(f"Error updating document history: {traceback.format_exc()}")
+        return {"message": "Coding details mapped successfully", "status": "success"}
+    except Exception:
+        logger.error(f"Error in map_coding_details : {traceback.format_exc()}")    
+        return {"message": "An error occurred while mapping coding details", "status": "failure"}
+    
+
+def set_map_type_to_user_reviewed(user_id, corp_coding_id, db): 
+    try:
+        # Fetch or create corp_coding record
+        corp_coding = db.query(model.corp_coding_tab).filter_by(corp_coding_id=corp_coding_id).first()
+        if corp_coding.corp_doc_id == None and corp_coding.map_type == "Unmapped":
+            corp_coding.map_type = "user_reviewed"  # Set map_type
+            db.add(corp_coding)
+            db.commit()
+            db.refresh(corp_coding)
+
+        return {"message": "Coding details mapped type updated to user_reviewed successfully", "status": "success"}
+    except Exception:
+        logger.error(f"Error in map_coding_details : {traceback.format_exc()}")    
+        return {"message": "An error occurred while mapping coding details", "status": "failure"}
+
+async def readcorpvendorname(u_id, db):
+    """This function reads the list of VendorNames.
+
+    It contains 2 parameters.
+    :param u_id: The user ID for which to fetch vendor data.
+    :param db: It provides a session to interact with the backend
+        Database, that is of Session Object Type.
+    :return: It returns a result of dictionary type.
+    """
+    try:
+        # Extract VENDOR_STATUS from the JSONB column and include it in the result
+        vendor_status_expr = func.jsonb_extract_path_text(
+            model.Vendor.miscellaneous, "VENDOR_STATUS"
+        )
+
+        # Query to get vendor names, codes, and status for both A and I vendors
+        query = db.query(
+            model.Vendor.VendorName, 
+            model.Vendor.VendorCode, 
+            vendor_status_expr.label("VendorStatus")  # Extracted status
+        ).filter(vendor_status_expr.in_(["A", "I"]))  # Fetch both active and inactive vendors
+        
+        data = query.all()
+        return data
+
+    except Exception:
+        logger.error(traceback.format_exc())
+        return Response(
+            status_code=500, headers={"Error": "Server error", "Desc": "Invalid result"}
+        )
+    finally:
+        db.close()
+        
+
+# 

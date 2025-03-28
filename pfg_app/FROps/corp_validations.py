@@ -5,7 +5,7 @@ from pfg_app.FROps.customCall import date_cnv
 from pfg_app.session.session import SQLALCHEMY_DATABASE_URL, get_db
 from sqlalchemy import func
 from sqlalchemy.orm.attributes import flag_modified
-
+from fuzzywuzzy import fuzz
 import pandas as pd
 from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
 from pfg_app.logger_module import logger
@@ -24,6 +24,61 @@ def check_date_format(date_str):
     except ValueError:
         return False
     
+# def normalize_title(title):
+#     """Remove extra spaces, hyphens, and convert to lowercase."""
+#     title = re.sub(r'[-\s]+', ' ', title).strip().lower()
+#     return title
+
+# def is_acronym_match(full_title, acronym):
+#     """Check if title2 is an acronym of title1."""
+#     words = full_title.split()
+#     acronym_generated = "".join(word[0].upper() for word in words)
+#     return acronym_generated == acronym.upper()
+
+# def is_match(title1, title2, threshold=85):
+#     """Check for either acronym match or fuzzy match after normalization."""
+#     # Normalize titles (remove hyphens, extra spaces, lowercase)
+#     title1_norm = normalize_title(title1)
+#     title2_norm = normalize_title(title2)
+    
+#     # Fuzzy match score
+#     similarity = fuzz.ratio(title1_norm, title2_norm)
+    
+#     # Check if acronym match OR fuzzy similarity is high
+#     if is_acronym_match(title1, title2) or similarity >= threshold:
+#         return True, similarity
+#     return False, similarity
+def normalize_title(title):
+    """Remove extra spaces, punctuation, and convert to lowercase."""
+    title = re.sub(r'[^a-zA-Z0-9\s]', '', title)  # Remove special characters like commas
+    title = re.sub(r'\s+', ' ', title).strip().lower()
+    return title
+
+def is_acronym_match(full_title, acronym):
+    """Check if title2 is an acronym of title1."""
+    words = full_title.split()
+    acronym_generated = "".join(word[0].upper() for word in words)
+    return acronym_generated == acronym.upper()
+
+def is_match(title1, title2, threshold=85):
+    """Check for acronym match, fuzzy match, or if one title is a subset of the other."""
+    # Normalize titles (remove punctuation, extra spaces, lowercase)
+    title1_norm = normalize_title(title1)
+    title2_norm = normalize_title(title2)
+    
+    # Check for direct subset match (either title1 in title2 OR title2 in title1)
+    if title1_norm in title2_norm or title2_norm in title1_norm:
+        return True, 100  # Perfect subset match
+
+    # Fuzzy match score
+    similarity = fuzz.ratio(title1_norm, title2_norm)
+
+    # Check if acronym match OR fuzzy similarity is high
+    if is_acronym_match(title1, title2) or similarity >= threshold:
+        return True, similarity
+
+    return False, similarity
+
 
 def names_match(name1, name2):
     name1 = (name1 or "").strip().lower()  # Convert None to empty string
@@ -60,38 +115,145 @@ def email_belongs_to_name(name, email):
     
 #     return False
 
-def is_amount_approved(amount: float, title: str) -> bool:
-    approval_limits = {
-        (0, 24999): {"Supervisor", "Manager","Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-        (0, 74999): {"Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-        (0, 499999): {"Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-        (0, float("inf")): {"Managing Director", "VP", "Vice President"},
-    }
+# def is_amount_approved(amount: float, title: str) -> bool:
+#     logger.info(f"Approval limits: {amount}, {title}")
+#     approval_limits = {
+#         (0, 24999): {"Supervisor", "Manager","Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
+#         (0, 74999): {"Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
+#         (0, 499999): {"Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
+#         (0, float("inf")): {"Managing Director", "VP", "Vice President"},
+#     }
     
-    title = title.strip().lower()
-    title_variants = {
-        "senior manager": "Senior Manager",
-        "sr. manager": "Senior Manager",
-        "sr manager": "Senior Manager",
-        "vice president": "VP"
+#     title = title.strip().lower()
+#     title_variants = {
+#         "senior manager": "Senior Manager",
+#         "Senior Finance Manager": "Senior Manager",
+#         "sr. manager": "Senior Manager",
+#         "sr manager": "Senior Manager",
+#         "vice president": "VP",
+#         "Supervisor, Accounts Payable": "Supervisor",
+#         "Supervisor, Accounts Receivable": "Supervisor",
+#     }
+
+#     # Check if any key in title_variants is a substring of the title
+#     for key, normalized in title_variants.items():
+#         if key in title:
+#             normalized_title = normalized
+#             break
+#     else:
+#         normalized_title = title.title()
+    
+#     for (lower, upper), allowed_titles in approval_limits.items():
+#         if lower <= amount <= upper:
+#             logger.info(f"Title: {normalized_title}")
+#             logger.info(f"Allowed titles: {allowed_titles}")
+#             return normalized_title in allowed_titles
+    
+#     return False
+
+def is_amount_approved(amount: float, title: str) -> bool:
+    print(f"Approval limits: {amount}, {title}")
+
+    approval_limits = {
+        (0, 24999): {"Supervisor", "Manager", "Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
+        (0, 74999): {"Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
+        (0, 499999): {"Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
+        (0, float("inf")): {"Managing Director", "VP"},
     }
 
-    # Check if any key in title_variants is a substring of the title
-    for key, normalized in title_variants.items():
-        if key in title:
-            normalized_title = normalized
-            break
-    else:
-        normalized_title = title.title()
-    
+    title_variants = {
+        "supervisor": "Supervisor",
+        "manager": "Manager",
+        "senior manager": "Senior Manager",
+        "sr manager": "Senior Manager",
+        "sr. manager": "Senior Manager",
+        "director": "Director",
+        "regional manager": "Regional Manager",
+        "general manager": "General Manager",
+        "managing director": "Managing Director",
+        "vice president": "VP",
+        "vp": "VP",
+        "rmpo": "Regional Manager",
+    }
+
+    title_cleaned = re.sub(r"[^a-zA-Z\s]", "", title)  # Remove special characters
+    title_cleaned = re.sub(r"\s+", " ", title_cleaned).strip().lower()  # Normalize spaces
+    print("title_cleaned: ",title_cleaned)
+
+    normalized_title = None
+    for key in title_variants:
+        print(key)
+        if key in title_cleaned:  # Check if title contains a known designation
+            normalized_title = title_variants[key]
+            print("normalized_title: ",normalized_title)
+            if normalized_title!="Manager":
+            
+                break
+
+    if not normalized_title:
+        print(f"Title '{title_cleaned}' not recognized. Defaulting to unmatched.")
+        return False  # If no title matches, return False
+
+    # **Step 3: Check Approval Limits**
     for (lower, upper), allowed_titles in approval_limits.items():
         if lower <= amount <= upper:
+            # logger.info(f"Final Normalized Title: {normalized_title}")
+            # logger.info(f"Allowed Titles for {amount}: {allowed_titles}")
             return normalized_title in allowed_titles
-    
+
     return False
 
+# def update_Credit_data(doc_id, db):
+#     try:
+#         # Fetch the records from all tables using joins
+#         record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
+#                 .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+#                 .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+#                 .filter(model.corp_document_tab.corp_doc_id == doc_id) \
+#                 .first()
 
+#         if record:
+#             # Update the values for corp_document_tab
+#             if record[0]:  # Checking if the corp_document_tab record exists
+#                 record[0].invoicetotal = round(-abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
+#                 record[0].gst = round(-abs(record[0].gst), 2) if record[0].gst else None
 
+#             # Update the values for corp_coding_tab
+#             if record[1]:  # Checking if the corp_coding_tab record exists
+#                 record[1].invoicetotal = round(-abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
+#                 record[1].gst = round(-abs(record[1].gst), 2) if record[1].gst else None
+
+#                 # Update amount values inside coding_details
+#                 if record[1].coding_details:
+#                     for key, value in record[1].coding_details.items():
+#                         if 'amount' in value and value['amount']:
+#                             value['amount'] = round(-abs(value['amount']), 2)
+
+#                     # Mark JSON column as modified
+#                     flag_modified(record[1], "coding_details")
+
+#             # Update the values for corp_docdata
+#             if record[2]:  # Checking if the corp_docdata record exists
+#                 fields = [
+#                     "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
+#                     "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
+#                     "ecology_fee", "misc"
+#                 ]
+                
+#                 for field in fields:
+#                     value = getattr(record[2], field)  # Get current value
+#                     if value:  # Check if value is not None
+#                         setattr(record[2], field, round(-abs(value), 2))  # Convert to negative and round
+
+#             # Commit changes for all records in a single call
+#             db.commit()
+#             print(f"Updated invoicetotal, gst, and other fields for docID {doc_id} successfully.")
+#         else:
+#             logger.info(f"No record found for docID {doc_id}")
+
+#     except Exception as e:
+#         logger.error(f"Error in validate_corpdoc: {e}")
+#         logger.info(traceback.format_exc())
 
 def update_Credit_data(doc_id, db):
     try:
@@ -105,13 +267,13 @@ def update_Credit_data(doc_id, db):
         if record:
             # Update the values for corp_document_tab
             if record[0]:  # Checking if the corp_document_tab record exists
-                record[0].invoicetotal = round(-abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
-                record[0].gst = round(-abs(record[0].gst), 2) if record[0].gst else None
+                record[0].invoicetotal = round(-abs(record[0].invoicetotal or 0), 2)
+                record[0].gst = round(-abs(record[0].gst or 0), 2)
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
-                record[1].invoicetotal = round(-abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
-                record[1].gst = round(-abs(record[1].gst), 2) if record[1].gst else None
+                record[1].invoicetotal = round(-abs(record[1].invoicetotal or 0), 2)
+                record[1].gst = round(-abs(record[1].gst or 0), 2)
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
@@ -132,8 +294,7 @@ def update_Credit_data(doc_id, db):
                 
                 for field in fields:
                     value = getattr(record[2], field)  # Get current value
-                    if value:  # Check if value is not None
-                        setattr(record[2], field, round(-abs(value), 2))  # Convert to negative and round
+                    setattr(record[2], field, round(-abs(value or 0), 2))  # Convert to negative and round
 
             # Commit changes for all records in a single call
             db.commit()
@@ -144,6 +305,60 @@ def update_Credit_data(doc_id, db):
     except Exception as e:
         logger.error(f"Error in validate_corpdoc: {e}")
         logger.info(traceback.format_exc())
+
+
+# def update_Credit_data_to_positive(doc_id, db):
+#     try:
+#         # Fetch the records from all tables using joins
+#         record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
+#                 .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+#                 .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
+#                 .filter(model.corp_document_tab.corp_doc_id == doc_id) \
+#                 .first()
+
+#         if record:
+#             # Update the values for corp_document_tab
+#             if record[0]:  # Checking if the corp_document_tab record exists
+#                 record[0].invoicetotal = round(abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
+#                 record[0].gst = round(abs(record[0].gst), 2) if record[0].gst else None
+
+#             # Update the values for corp_coding_tab
+#             if record[1]:  # Checking if the corp_coding_tab record exists
+#                 record[1].invoicetotal = round(abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
+#                 record[1].gst = round(abs(record[1].gst), 2) if record[1].gst else None
+
+#                 # Update amount values inside coding_details
+#                 if record[1].coding_details:
+#                     for key, value in record[1].coding_details.items():
+#                         if 'amount' in value and value['amount']:
+#                             value['amount'] = round(abs(value['amount']), 2)
+
+#                     # Mark JSON column as modified
+#                     flag_modified(record[1], "coding_details")
+
+#             # Update the values for corp_docdata
+#             if record[2]:  # Checking if the corp_docdata record exists
+#                 fields = [
+#                     "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
+#                     "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
+#                     "ecology_fee", "misc"
+#                 ]
+                
+#                 for field in fields:
+#                     value = getattr(record[2], field)  # Get current value
+#                     if value:  # Check if value is not None
+#                         setattr(record[2], field, round(abs(value), 2))  # Convert to positive and round
+
+#             # Commit changes for all records in a single call
+#             db.commit()
+#             print(f"Updated invoicetotal, gst, and other fields to positive for docID {doc_id} successfully.")
+#         else:
+#             logger.info(f"No record found for docID {doc_id}")
+
+#     except Exception as e:
+#         logger.error(f"Error in update_Credit_data_to_positive: {e}")
+#         logger.info(traceback.format_exc())
+
 
 def update_Credit_data_to_positive(doc_id, db):
     try:
@@ -157,13 +372,13 @@ def update_Credit_data_to_positive(doc_id, db):
         if record:
             # Update the values for corp_document_tab
             if record[0]:  # Checking if the corp_document_tab record exists
-                record[0].invoicetotal = round(abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
-                record[0].gst = round(abs(record[0].gst), 2) if record[0].gst else None
+                record[0].invoicetotal = round(abs(record[0].invoicetotal or 0), 2)
+                record[0].gst = round(abs(record[0].gst or 0), 2)
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
-                record[1].invoicetotal = round(abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
-                record[1].gst = round(abs(record[1].gst), 2) if record[1].gst else None
+                record[1].invoicetotal = round(abs(record[1].invoicetotal or 0), 2)
+                record[1].gst = round(abs(record[1].gst or 0), 2)
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
@@ -184,8 +399,7 @@ def update_Credit_data_to_positive(doc_id, db):
                 
                 for field in fields:
                     value = getattr(record[2], field)  # Get current value
-                    if value:  # Check if value is not None
-                        setattr(record[2], field, round(abs(value), 2))  # Convert to positive and round
+                    setattr(record[2], field, round(abs(value or 0), 2))  # Convert to positive and round
 
             # Commit changes for all records in a single call
             db.commit()
@@ -196,7 +410,6 @@ def update_Credit_data_to_positive(doc_id, db):
     except Exception as e:
         logger.error(f"Error in update_Credit_data_to_positive: {e}")
         logger.info(traceback.format_exc())
-
 
 def validate_corpdoc(doc_id,userID,skipConf,db):
     timeStmp = datetime.now(tz_region)
@@ -313,41 +526,55 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             return return_status
             
         if docStatus in (32,2,4,24):
-            
-            if docSubStatus == 134:
-                nocoding_ck = 0
-                corp_coding_data = (
-                    db.query(model.corp_coding_tab)
-                    .filter(model.corp_coding_tab.corp_doc_id == doc_id)
-                    .all()
-                )
+            nocoding_ck = 0
+            corp_coding_data = (
+                db.query(model.corp_coding_tab)
+                .filter(model.corp_coding_tab.corp_doc_id == doc_id)
+                .all()
+            )
 
-                # Check if any records exist
-                if not corp_coding_data:
-                    logger.info(f"docID: {doc_id} - No records found for the given doc_id.")
-                else:
-                    for row in corp_coding_data:
-                        coding_details = row.coding_details  # Assuming this is a dictionary
+            # Check if any records exist
+            if not corp_coding_data:
+                logger.info(f"docID: {doc_id} - No records found for the given doc_id.")
+            else:
+                for row in corp_coding_data:
+                    coding_details = row.coding_details  # Assuming this is a dictionary
 
-                        if coding_details and isinstance(coding_details, dict) and len(coding_details) > 0:
-                            logger.info(f"Records found in coding_details- docID: {doc_id} - : {coding_details}")
-                            nocoding_ck = 1
-                        else:
-                            logger.info(f"docID: {doc_id} - coding_details is empty or not a dictionary.")
-                    #--
-                    if nocoding_ck == 1:
-                        docSubStatus = 7
+                    if coding_details and isinstance(coding_details, dict) and len(coding_details) > 0:
+                        logger.info(f"Records found in coding_details- docID: {doc_id} - : {coding_details}")
+                        nocoding_ck = 1
                     else:
-                        logger.info(f"docID: {doc_id} - Coding - No Coding Lines Found")
-                        return_status["Status overview"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                "Coding - No Coding Lines Found"
-                                                            ],
-                                                        }
-                        logger.info(f"return corp validations(ln 61): {return_status}")
-                        return return_status
-            elif docSubStatus == 130:
+                        logger.info(f"docID: {doc_id} - coding_details is empty or not a dictionary.")
+                #--
+            if nocoding_ck == 1:
+                # docSubStatus = 7
+                logger.info(f"docID: {doc_id} - coding lines found")
+            else:
+                docSubStatus = 134
+                docStatus = 4
+                
+                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                            model.corp_document_tab.last_updated_by: userID,
+                            model.corp_document_tab.updated_on: timeStmp,
+                            model.corp_document_tab.vendor_id: vendor_id,
+
+                        }
+                    )
+                db.commit()
+                logger.info(f"docID: {doc_id} - Coding - No Coding Lines Found")
+                return_status["Status overview"] = {"status": 0,
+                                        "StatusCode":0,
+                                        "response": [
+                                                        "Coding - No Coding Lines Found"
+                                                    ],
+                                                }
+                logger.info(f"return corp validations(ln 61): {return_status}")
+                return return_status
+            if docSubStatus == 130:
                 return_status["Status overview"] = {"status": 0,
                                             "StatusCode":0,
                                             "response": [
@@ -477,6 +704,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 
                     except Exception as e:
                         logger.info(f"Error in getting metadata: {e}")
+                        df_corp_metadata = pd.DataFrame()
                     
                     if not df_corp_metadata.empty:
                         metadata_currency = list(df_corp_metadata['currency'])[0]
@@ -611,7 +839,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     # duplicate invoice
                     docStatus = 32
                     documentdesc = f"Duplicate invoice"
-                    substatus = 128
+                    docSubStatus = 128
                     return_status["Status overview"] = {"status": 0,
                                                 "StatusCode":0,
                                                 "response": [
@@ -619,12 +847,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             ],
                                                         }
                     
-                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,substatus)
+                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                     db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
                     ).update(
                         {
                             model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                            model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
                             model.corp_document_tab.last_updated_by: userID,
                             model.corp_document_tab.updated_on: timeStmp,
 
@@ -815,7 +1043,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         # Mandatory Header Validation:
                         if invDate_status==0:
                             docStatus = 4
-                            substatus = 132
+                            docSubStatus = 132
                             return_status["Invoice date validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -824,7 +1052,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                         elif invoTotal_status==0:
                             docStatus = 4
-                            substatus = 131
+                            docSubStatus = 131
                             return_status["invoice Total validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -833,7 +1061,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                         elif document_type_status==0:
                             docStatus = 4
-                            substatus = 129
+                            docSubStatus = 129
                             return_status["Document identifier validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -842,7 +1070,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                         elif currency_ck==0:
                             docStatus = 4
-                            substatus = 100
+                            docSubStatus = 100
                         
                         else:
                             return_status["Document identifier validation"] = {"status": 1,
@@ -879,7 +1107,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             if credit_ck==1:
                                 if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                     docStatus = 4
-                                    substatus = 136
+                                    docSubStatus = 136
                                     documentdesc = "Coding - Line total mismatch"
                                     return_status["Coding Line validation"] = {"status": 0,
                                                         "StatusCode":0,
@@ -898,7 +1126,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # else:
                             elif abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                 docStatus = 4
-                                substatus = 136
+                                docSubStatus = 136
                                 documentdesc = "Coding - Line total mismatch"
                                 return_status["Coding Line validation"] = {"status": 0,
                                                     "StatusCode":0,
@@ -939,7 +1167,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             if cod_lnMatch==1:
                                 if (abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09):
                                     docStatus = 4
-                                    substatus = 131
+                                    docSubStatus = 131
                                     documentdesc = "Invoice - Total mismatch with coding total"
                                     return_status["Coding validation"] = {"status": 0,
                                                     "StatusCode":0,
@@ -952,7 +1180,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                         try: 
                                             if (cod_gst.abs() > invoTotal_15.abs()).any():
                                                 docStatus = 4
-                                                substatus = 138
+                                                docSubStatus = 138
                                                 documentdesc = "Coding -GST exceeding 15%"
                                                 return_status["Coding validation"] = {"status": 0,
                                                             "StatusCode":0,
@@ -969,7 +1197,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     elif credit_ck==0:
                                         if (cod_gst > invoTotal_15).any():
                                             docStatus = 4
-                                            substatus = 138
+                                            docSubStatus = 138
                                             documentdesc = "Coding -GST exceeding 15%"
                                             return_status["Coding validation"] = {"status": 0,
                                                         "StatusCode":0,
@@ -985,7 +1213,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                         if pdf_invoTotal == 0 and zero_dlr_ck == 0:
                                             validation_status_ck = validation_status_ck * 0
                                             docStatus = 4
-                                            substatus = 139
+                                            docSubStatus = 139
                                             documentdesc = "Zero $ invoice approval required"
                                             # Zero $ invoice - need approval'
                                             return_status["Coding validation"] = {"status": 0,
@@ -1000,7 +1228,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             # need approval
                                             validation_status_ck = validation_status_ck * 0
                                             docStatus = 4
-                                            substatus = 140
+                                            docSubStatus = 140
                                             documentdesc =  "Approval needed: Invoice ≥ threshold"
                                             print("need approval")
                                             return_status["Amount approval needed"] = {"status": 0,
@@ -1071,8 +1299,21 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             approval_title_val_msg = ""
                                             approval_title_val_status = 0
                                             invo_approver_title =str(list(df_corp_docdata['approver_title'])[0]).lower()
+                                            sender_title = str(list(df_corp_coding['sender_title'])[0]).lower()
                                             coding_approver_title = str(list(df_corp_coding['approver_title'])[0]).lower()
-                                            if (invo_approver_title == coding_approver_title) or (skip_title_check==1):
+                                            
+                                            if sender_title.lower() not in ["na","",None]:
+                                                match, score = is_match(sender_title, coding_approver_title)
+                                            else:
+                                                score = 0
+                                                if skip_title_check!=1:
+                                                    approvrd_ck = approvrd_ck * 0
+                                                    title_status_code = 6
+                                                    logger.info("Approver title mismatch")
+                                                    approval_title_val_msg = f"Approver title mismatch: Sender title: '{sender_title}' Vs Approver title: '{coding_approver_title}'"
+                                                match = False
+                                            logger.info(f"match status: {match}, score: {score},skip_title_check: {skip_title_check}")
+                                            if match or (skip_title_check==1):
                                                 title_status_code = 0
                                                 logger.info("Approver title match")
                                                 approval_title_val_status = 1
@@ -1083,24 +1324,36 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 approval_Amt_val_status = 0
                                                 approval_Amt_val_msg = ""
                                                 #amount_approval_check = 7
-                                                if credit_ck==1:
-                                                    logger.info("Amount limit approval skipped for credit")
-                                                    approval_Amt_val_status = 1
-                                                    approval_Amt_val_msg = "Amount limit approval skipped for credit"
-                                                    eml_status_code = 0
-                                                elif (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
-                                                    logger.info("Amount approved")
-                                                    approval_Amt_val_status = 1
-                                                    if amount_approval_check==1:
-                                                        approval_Amt_val_msg = "Amount limit approval skipped by user"
-                                                    else:
-                                                        approval_Amt_val_msg = "Amount approved"
-                                                    eml_status_code = 0
+                                            else:
+                                                approvrd_ck = approvrd_ck * 0
+                                                title_status_code = 6
+                                                logger.info("Approver title mismatch")
+                                                approval_title_val_msg = f"Approver title mismatch: Sender title: '{sender_title}' Vs Approver title: '{coding_approver_title}'"
+                                            return_status["Approval title validation"] = {"status": approval_title_val_status,
+                                                        "StatusCode":title_status_code,
+                                                        "response": [
+                                                                        approval_title_val_msg
+                                                                    ],
+                                                        }
+
+                                            if credit_ck==1:
+                                                logger.info("Amount limit approval skipped for credit")
+                                                approval_Amt_val_status = 1
+                                                approval_Amt_val_msg = "Amount limit approval skipped for credit"
+                                                eml_status_code = 0
+                                            elif (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
+                                                logger.info("Amount approved")
+                                                approval_Amt_val_status = 1
+                                                if amount_approval_check==1:
+                                                    approval_Amt_val_msg = "Amount limit approval skipped by user"
                                                 else:
-                                                    approvrd_ck= approvrd_ck * 0
-                                                    eml_status_code = 7
-                                                    logger.info("Approval limits conformance mismatch")
-                                                    approval_Amt_val_msg = "Approval limits conformance mismatch"
+                                                    approval_Amt_val_msg = "Amount approved"
+                                                eml_status_code = 0
+                                            else:
+                                                approvrd_ck= approvrd_ck * 0
+                                                eml_status_code = 7
+                                                logger.info("Approval limits conformance mismatch")
+                                                approval_Amt_val_msg = "Approval limits conformance mismatch"
                                                 return_status["Approval amount validation"] = {"status": approval_Amt_val_status,
                                                                     "StatusCode":eml_status_code,
                                                                     "response": [
@@ -1109,18 +1362,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     }
 
                                                 #--
-                                            else:
-                                                approvrd_ck = approvrd_ck * 0
-                                                title_status_code = 6
-                                                logger.info("Approver title mismatch")
-                                                approval_title_val_msg = "Approver title mismatch"
-                                            return_status["Approval title validation"] = {"status": approval_title_val_status,
-                                                                "StatusCode":title_status_code,
-                                                                "response": [
-                                                                                approval_title_val_msg
-                                                                            ],
-                                                                }
-
+                                            
                                              
 
 
@@ -1148,7 +1390,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             if approvrd_ck==0:
                                                 validation_status_ck = validation_status_ck * 0
                                                 docStatus = 24
-                                                substatus = 70
+                                                docSubStatus = 70
                                                 documentdesc = "Invoice - Not Approved"
                                                 return_status["Approval Validation"] = {"status": 0,
                                                         "StatusCode":0,
@@ -1161,7 +1403,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     
                                                 if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
                                                     docStatus = 2
-                                                    substatus = 31
+                                                    docSubStatus = 31
                                                     documentdesc = "Invoice approved"
                                                     if validation_status_ck ==1:
                                                         try:
@@ -1171,7 +1413,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 for st in coding_details:
                                                                     store_value = coding_details[st]["store"]
                                                                     coding_details[st]["store"] = store_value.zfill(4)  # Pad with leading zeros
-
+                                                                    dept_value = coding_details[st]["dept"]
+                                                                    coding_details[st]["dept"] = dept_value.zfill(4)  # Pad with leading zeros
+                                                            
                                                                 # Explicitly mark field as modified
                                                                 flag_modified(row, "coding_details")
 
@@ -1207,7 +1451,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     return return_status
                                                 else: 
                                                     docStatus = 24
-                                                    substatus = 137
+                                                    docSubStatus = 137
                                                     documentdesc = "Pending Approval"
                                                     return_status["Approval needed"] = {"status": 0,
                                                         "StatusCode":3,
