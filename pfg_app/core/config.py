@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     erp_user: str = ""
     erp_password: str = ""
 
+    # Graph
+    graph_tenant_id: str = ""
+    graph_client_id: str = ""
+    graph_client_secret: str = ""
+    graph_corporate_mail_id: str = ""
+
     # local setup for testing
     local_user_name: str = "local"
     wkhtmltoimage_path: str = ""

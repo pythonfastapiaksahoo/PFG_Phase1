@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry.propagate import extract
 from opentelemetry.trace import SpanKind
+from sqlalchemy.exc import IntegrityError
 
 from pfg_app import scheduler, scheduler_container_client, settings
 from pfg_app.crud.commonCrud import (
@@ -17,8 +18,9 @@ from pfg_app.crud.commonCrud import (
     schedule_bulk_update_invoice_creation_job,
     schedule_bulk_update_invoice_status_job,
 )
+from pfg_app.graph_api.manage_subscriptions import subscription_renewal_loop
 from pfg_app.logger_module import logger, set_operation_id, tracer
-from pfg_app.model import QueueTask, CorpQueueTask
+from pfg_app.model import BackgroundTask, QueueTask, CorpQueueTask
 from pfg_app.routers import (
     FR,
     OCR,
@@ -221,7 +223,7 @@ async def app_startup():
             logger.warning(f"Error: {e.error_code} - {e.reason}")
         except Exception as e:
             logger.info(f"Exception: {e}" + traceback.format_exc())
-            
+    
         logger.info("Resetting all queues before starting the application")
         db = next(get_db())
         db.query(QueueTask).filter(QueueTask.status == "processing").update(
@@ -234,6 +236,21 @@ async def app_startup():
         })
         worker_thread.start()
         logger.info("OCR Worker thread started")
+        
+        # check if the background task is present and if not create a new one
+        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == "subscription_renewal_loop").first()
+        if not background_task:
+            try:
+                background_task = BackgroundTask(status="active", task_name="subscription_renewal_loop")
+                db.add(background_task)
+                db.commit()
+            except IntegrityError:
+                logger.error("Background task already exists")
+        logger.info("All Background Tasks reset to active state")
+
+        background_task_thread = threading.Thread(target=subscription_renewal_loop, daemon=True, kwargs={"operation_id": operation_id})
+        background_task_thread.start()
+        logger.info("Subscription Renewal Loop thread started")
         
         # Resetting Corp Queue task before starting the application
         db.query(CorpQueueTask).filter(CorpQueueTask.status == "processing").update(
@@ -250,27 +267,42 @@ async def app_startup():
         set_operation_id(operation_id)
         logger.info("Resetting all queues before starting the application")
         db = next(get_db())
-        db.query(QueueTask).filter(
-            QueueTask.status == f"{settings.local_user_name}-processing"
-        ).update({"status": f"{settings.local_user_name}-queued"})
-        db.commit()
-        logger.info("All DSD queues reset to queued state")
-        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
-            "operation_id": operation_id
-        })
-        worker_thread.start()
-        logger.info("OCR Worker thread started")
+        # db.query(QueueTask).filter(
+        #     QueueTask.status == f"{settings.local_user_name}-processing"
+        # ).update({"status": f"{settings.local_user_name}-queued"})
+        # db.commit()
+        # logger.info("All DSD queues reset to queued state")
+        # worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
+        #     "operation_id": operation_id
+        # })
+        # worker_thread.start()
+        # logger.info("OCR Worker thread started")
+
+        # check if the background task is present and if not create a new one
+        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == f"{settings.local_user_name}-subscription_renewal_loop").first()
+        if not background_task:
+            try:
+                background_task = BackgroundTask(status=f"{settings.local_user_name}-active", task_name=f"{settings.local_user_name}-subscription_renewal_loop")
+                db.add(background_task)
+                db.commit()
+            except IntegrityError:
+                logger.error("Background task already exists")
+        logger.info("All Background Tasks reset to active state")
+
+        background_task_thread = threading.Thread(target=subscription_renewal_loop, daemon=True, kwargs={"operation_id": operation_id})
+        background_task_thread.start()
+        logger.info("Subscription Renewal Loop thread started")
         
-        # Resetting Corp Queue task before starting the application
-        db.query(CorpQueueTask).filter(
-            CorpQueueTask.status == f"{settings.local_user_name}-processing"
-        ).update({"status": f"{settings.local_user_name}-queued"})
-        db.commit()
-        logger.info("All Corp queues reset to queued state")
-        corp_worker_thread = threading.Thread(target=CorpIntegrationapi.corp_queue_worker,
-                    daemon=True,kwargs={"operation_id": operation_id})
-        corp_worker_thread.start()
-        logger.info("CorpIntegration Worker thread started")
+        # # Resetting Corp Queue task before starting the application
+        # db.query(CorpQueueTask).filter(
+        #     CorpQueueTask.status == f"{settings.local_user_name}-processing"
+        # ).update({"status": f"{settings.local_user_name}-queued"})
+        # db.commit()
+        # logger.info("All Corp queues reset to queued state")
+        # corp_worker_thread = threading.Thread(target=CorpIntegrationapi.corp_queue_worker,
+        #             daemon=True,kwargs={"operation_id": operation_id})
+        # corp_worker_thread.start()
+        # logger.info("CorpIntegration Worker thread started")
     logger.info("Application is ready to process requests")
 
 
@@ -314,7 +346,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.102.09"
+            response.headers["api-version"] = "0.102.10"
 
             logger.info(
                 "Sending response from FastAPI"
