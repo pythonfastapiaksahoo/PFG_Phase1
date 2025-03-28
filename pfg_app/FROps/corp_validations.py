@@ -1324,32 +1324,6 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 approval_Amt_val_status = 0
                                                 approval_Amt_val_msg = ""
                                                 #amount_approval_check = 7
-                                                if credit_ck==1:
-                                                    logger.info("Amount limit approval skipped for credit")
-                                                    approval_Amt_val_status = 1
-                                                    approval_Amt_val_msg = "Amount limit approval skipped for credit"
-                                                    eml_status_code = 0
-                                                elif (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
-                                                    logger.info("Amount approved")
-                                                    approval_Amt_val_status = 1
-                                                    if amount_approval_check==1:
-                                                        approval_Amt_val_msg = "Amount limit approval skipped by user"
-                                                    else:
-                                                        approval_Amt_val_msg = "Amount approved"
-                                                    eml_status_code = 0
-                                                else:
-                                                    approvrd_ck= approvrd_ck * 0
-                                                    eml_status_code = 7
-                                                    logger.info("Approval limits conformance mismatch")
-                                                    approval_Amt_val_msg = "Approval limits conformance mismatch"
-                                                return_status["Approval amount validation"] = {"status": approval_Amt_val_status,
-                                                                    "StatusCode":eml_status_code,
-                                                                    "response": [
-                                                                                    approval_Amt_val_msg
-                                                                                ],
-                                                                    }
-
-                                                #--
                                             else:
                                                 approvrd_ck = approvrd_ck * 0
                                                 title_status_code = 6
@@ -1362,6 +1336,33 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     ],
                                                         }
 
+                                            if credit_ck==1:
+                                                logger.info("Amount limit approval skipped for credit")
+                                                approval_Amt_val_status = 1
+                                                approval_Amt_val_msg = "Amount limit approval skipped for credit"
+                                                eml_status_code = 0
+                                            elif (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
+                                                logger.info("Amount approved")
+                                                approval_Amt_val_status = 1
+                                                if amount_approval_check==1:
+                                                    approval_Amt_val_msg = "Amount limit approval skipped by user"
+                                                else:
+                                                    approval_Amt_val_msg = "Amount approved"
+                                                eml_status_code = 0
+                                            else:
+                                                approvrd_ck= approvrd_ck * 0
+                                                eml_status_code = 7
+                                                logger.info("Approval limits conformance mismatch")
+                                                approval_Amt_val_msg = "Approval limits conformance mismatch"
+                                                return_status["Approval amount validation"] = {"status": approval_Amt_val_status,
+                                                                    "StatusCode":eml_status_code,
+                                                                    "response": [
+                                                                                    approval_Amt_val_msg
+                                                                                ],
+                                                                    }
+
+                                                #--
+                                            
                                              
 
 
