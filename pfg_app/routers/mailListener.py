@@ -46,7 +46,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     for notification in notifications:
         # (A) Verify clientState to ensure authenticity
         # fetch the subscription details from the database
-        subscription_details = db.query(BackgroundTask).filter(BackgroundTask.task_name == f"{settings.local_user_name}-subscription_renewal_loop").first()
+        subscription_details = db.query(BackgroundTask).filter(BackgroundTask.task_name == "subscription_renewal_loop").first() # TODO: FLAG_GRAPH
         if not subscription_details:
             logger.error("Subscription details not found in the database")
             continue

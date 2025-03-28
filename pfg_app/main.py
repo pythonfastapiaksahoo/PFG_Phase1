@@ -278,20 +278,20 @@ async def app_startup():
         # worker_thread.start()
         # logger.info("OCR Worker thread started")
 
-        # check if the background task is present and if not create a new one
-        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == f"{settings.local_user_name}-subscription_renewal_loop").first()
-        if not background_task:
-            try:
-                background_task = BackgroundTask(status=f"{settings.local_user_name}-active", task_name=f"{settings.local_user_name}-subscription_renewal_loop")
-                db.add(background_task)
-                db.commit()
-            except IntegrityError:
-                logger.error("Background task already exists")
-        logger.info("All Background Tasks reset to active state")
+        # # check if the background task is present and if not create a new one
+        # background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == f"{settings.local_user_name}-subscription_renewal_loop").first()
+        # if not background_task:
+        #     try:
+        #         background_task = BackgroundTask(status=f"{settings.local_user_name}-active", task_name=f"{settings.local_user_name}-subscription_renewal_loop")
+        #         db.add(background_task)
+        #         db.commit()
+        #     except IntegrityError:
+        #         logger.error("Background task already exists")
+        # logger.info("All Background Tasks reset to active state")
 
-        background_task_thread = threading.Thread(target=subscription_renewal_loop, daemon=True, kwargs={"operation_id": operation_id})
-        background_task_thread.start()
-        logger.info("Subscription Renewal Loop thread started")
+        # background_task_thread = threading.Thread(target=subscription_renewal_loop, daemon=True, kwargs={"operation_id": operation_id})
+        # background_task_thread.start()
+        # logger.info("Subscription Renewal Loop thread started")
         
         # # Resetting Corp Queue task before starting the application
         # db.query(CorpQueueTask).filter(
