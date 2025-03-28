@@ -1,6 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.responses import PlainTextResponse
-from pfg_app.graph_api.manage_subscriptions import get_subscriptions
+from pfg_app.azuread.auth import get_admin_user
+from pfg_app.graph_api.manage_subscriptions import delete_subscription, get_subscriptions
 from pfg_app.graph_api.message_processing import process_new_message
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
 from pfg_app.model import BackgroundTask, CorpMail
@@ -52,7 +53,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         subscription_details = subscription_details.task_metadata
         if notification.get("clientState") != subscription_details.get("CLIENT_STATE"):
             # Ignore if mismatch
-            print("clientState mismatch. Possible spoofed request.")
+            logger.error("clientState mismatch. Possible spoofed request.")
             continue
 
         # (B) Handle creation event
@@ -74,7 +75,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
 
 # List all the subscriptions
 @router.get("/subscriptions")
-def list_subscriptions(db: Session = Depends(get_db)):
+def list_subscriptions(db: Session = Depends(get_db), admin_user: bool = Depends(get_admin_user)):
     """
     List all the subscriptions
     """
@@ -92,3 +93,13 @@ def list_subscriptions(db: Session = Depends(get_db)):
     results["subscriptions-in-graph"] = subscriptions
     return results
 
+# Delete a subscription
+@router.delete("/subscriptions/{subscription_id}")
+def delete_subscriptions(subscription_id: str, db: Session = Depends(get_db), admin_user: bool = Depends(get_admin_user)):
+    """
+    Delete a subscription
+    """
+    token_manager = MSGraphAPITokenManager()
+    access_token = token_manager.get_access_token()
+    delete_subscription(access_token, subscription_id)
+    return {"message": "Subscription deleted"}
