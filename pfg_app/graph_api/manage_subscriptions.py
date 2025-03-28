@@ -100,6 +100,7 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
         raise Exception(f"Failed to create subscription: {resp.status_code} {resp.text}")
 
 def subscription_renewal_loop(operation_id):
+    logger.info(f"subscription_renewal_loop operation_id:{operation_id}")
     set_operation_id(operation_id)
     try:
         db = next(get_db())
@@ -108,7 +109,10 @@ def subscription_renewal_loop(operation_id):
             background_task_name = f"{settings.local_user_name}-subscription_renewal_loop"
         else:
             background_task_name = "subscription_renewal_loop"
-        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == background_task_name).with_for_update(skip_locked=True).first()
+        logger.info(f"subscription_renewal_loop background_task_name:{background_task_name}")
+        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == background_task_name)
+        # .with_for_update(skip_locked=True).
+        background_task = background_task.first()
         # If we didn't acquire the lock, exit the thread function gracefully.
         if background_task is None:
             logger.info("Background task is picked by other Threads, exiting the thread")
@@ -116,11 +120,14 @@ def subscription_renewal_loop(operation_id):
         
 
         while True:
+            logger.info(f"subscription_renewal_loop loop running")
             try:
                 create_or_renew_subscription(background_task,db)
             except Exception:
                 logger.error(f"create_or_renew_subscription_task error: {traceback.format_exc()}")
+            logger.info(f"subscription_renewal_loop loop sleeping for 5 minutes")
             time.sleep(300)  # 5 minutes
+            logger.info(f"subscription_renewal_loop loop woke up")
     except Exception:
         logger.error(f"subscription_renewal_loop error: {traceback.format_exc()}")
 
