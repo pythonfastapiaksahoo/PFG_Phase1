@@ -839,7 +839,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     # duplicate invoice
                     docStatus = 32
                     documentdesc = f"Duplicate invoice"
-                    substatus = 128
+                    docSubStatus = 128
                     return_status["Status overview"] = {"status": 0,
                                                 "StatusCode":0,
                                                 "response": [
@@ -847,12 +847,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             ],
                                                         }
                     
-                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,substatus)
+                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                     db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
                     ).update(
                         {
                             model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                            model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
                             model.corp_document_tab.last_updated_by: userID,
                             model.corp_document_tab.updated_on: timeStmp,
 
@@ -1043,7 +1043,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         # Mandatory Header Validation:
                         if invDate_status==0:
                             docStatus = 4
-                            substatus = 132
+                            docSubStatus = 132
                             return_status["Invoice date validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -1052,7 +1052,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                         elif invoTotal_status==0:
                             docStatus = 4
-                            substatus = 131
+                            docSubStatus = 131
                             return_status["invoice Total validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -1061,7 +1061,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                         elif document_type_status==0:
                             docStatus = 4
-                            substatus = 129
+                            docSubStatus = 129
                             return_status["Document identifier validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -1070,7 +1070,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                         elif currency_ck==0:
                             docStatus = 4
-                            substatus = 100
+                            docSubStatus = 100
                         
                         else:
                             return_status["Document identifier validation"] = {"status": 1,
@@ -1107,7 +1107,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             if credit_ck==1:
                                 if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                     docStatus = 4
-                                    substatus = 136
+                                    docSubStatus = 136
                                     documentdesc = "Coding - Line total mismatch"
                                     return_status["Coding Line validation"] = {"status": 0,
                                                         "StatusCode":0,
@@ -1126,7 +1126,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # else:
                             elif abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
                                 docStatus = 4
-                                substatus = 136
+                                docSubStatus = 136
                                 documentdesc = "Coding - Line total mismatch"
                                 return_status["Coding Line validation"] = {"status": 0,
                                                     "StatusCode":0,
@@ -1167,7 +1167,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             if cod_lnMatch==1:
                                 if (abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09):
                                     docStatus = 4
-                                    substatus = 131
+                                    docSubStatus = 131
                                     documentdesc = "Invoice - Total mismatch with coding total"
                                     return_status["Coding validation"] = {"status": 0,
                                                     "StatusCode":0,
@@ -1180,7 +1180,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                         try: 
                                             if (cod_gst.abs() > invoTotal_15.abs()).any():
                                                 docStatus = 4
-                                                substatus = 138
+                                                docSubStatus = 138
                                                 documentdesc = "Coding -GST exceeding 15%"
                                                 return_status["Coding validation"] = {"status": 0,
                                                             "StatusCode":0,
@@ -1197,7 +1197,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     elif credit_ck==0:
                                         if (cod_gst > invoTotal_15).any():
                                             docStatus = 4
-                                            substatus = 138
+                                            docSubStatus = 138
                                             documentdesc = "Coding -GST exceeding 15%"
                                             return_status["Coding validation"] = {"status": 0,
                                                         "StatusCode":0,
@@ -1213,7 +1213,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                         if pdf_invoTotal == 0 and zero_dlr_ck == 0:
                                             validation_status_ck = validation_status_ck * 0
                                             docStatus = 4
-                                            substatus = 139
+                                            docSubStatus = 139
                                             documentdesc = "Zero $ invoice approval required"
                                             # Zero $ invoice - need approval'
                                             return_status["Coding validation"] = {"status": 0,
@@ -1228,7 +1228,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             # need approval
                                             validation_status_ck = validation_status_ck * 0
                                             docStatus = 4
-                                            substatus = 140
+                                            docSubStatus = 140
                                             documentdesc =  "Approval needed: Invoice ≥ threshold"
                                             print("need approval")
                                             return_status["Amount approval needed"] = {"status": 0,
@@ -1389,7 +1389,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             if approvrd_ck==0:
                                                 validation_status_ck = validation_status_ck * 0
                                                 docStatus = 24
-                                                substatus = 70
+                                                docSubStatus = 70
                                                 documentdesc = "Invoice - Not Approved"
                                                 return_status["Approval Validation"] = {"status": 0,
                                                         "StatusCode":0,
@@ -1402,7 +1402,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     
                                                 if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
                                                     docStatus = 2
-                                                    substatus = 31
+                                                    docSubStatus = 31
                                                     documentdesc = "Invoice approved"
                                                     if validation_status_ck ==1:
                                                         try:
@@ -1450,7 +1450,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     return return_status
                                                 else: 
                                                     docStatus = 24
-                                                    substatus = 137
+                                                    docSubStatus = 137
                                                     documentdesc = "Pending Approval"
                                                     return_status["Approval needed"] = {"status": 0,
                                                         "StatusCode":3,
