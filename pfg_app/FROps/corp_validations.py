@@ -547,7 +547,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         logger.info(f"docID: {doc_id} - coding_details is empty or not a dictionary.")
                 #--
             if nocoding_ck == 1:
-                docSubStatus = 7
+                # docSubStatus = 7
+                logger.info(f"docID: {doc_id} - coding lines found")
             else:
                 docSubStatus = 134
                 docStatus = 4
@@ -1304,8 +1305,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             if sender_title.lower() not in ["na","",None]:
                                                 match, score = is_match(sender_title, coding_approver_title)
                                             else:
+                                                score = 0
                                                 if skip_title_check!=1:
-                                                    score = 0
                                                     approvrd_ck = approvrd_ck * 0
                                                     title_status_code = 6
                                                     logger.info("Approver title mismatch")
