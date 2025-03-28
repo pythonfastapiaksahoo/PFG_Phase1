@@ -120,7 +120,7 @@ def subscription_renewal_loop(operation_id):
                 create_or_renew_subscription(background_task,db)
             except Exception:
                 logger.error(f"create_or_renew_subscription_task error: {traceback.format_exc()}")
-            time.sleep(120)  # 2 minutes
+            time.sleep(300)  # 5 minutes
     except Exception:
         logger.error(f"subscription_renewal_loop error: {traceback.format_exc()}")
 
