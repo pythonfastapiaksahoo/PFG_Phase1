@@ -94,7 +94,7 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
         logger.info(data)
         subscription_details["SUBSCRIPTION_ID"] = data["id"]
         subscription_details["SUBSCRIPTION_EXPIRATION"] = data["expirationDateTime"]
-        logger.info("Created new subscription:", subscription_details["SUBSCRIPTION_ID"], "expires:", data["expirationDateTime"])
+        logger.info(f"Created new subscription:{subscription_details['SUBSCRIPTION_ID']} expires:{data['expirationDateTime']}")
         return subscription_details
     else:
         raise Exception(f"Failed to create subscription: {resp.status_code} {resp.text}")
@@ -120,7 +120,7 @@ def subscription_renewal_loop(operation_id):
                 create_or_renew_subscription(background_task,db)
             except Exception:
                 logger.error(f"create_or_renew_subscription_task error: {traceback.format_exc()}")
-            time.sleep(120)  # 2 minutes
+            time.sleep(300)  # 5 minutes
     except Exception:
         logger.error(f"subscription_renewal_loop error: {traceback.format_exc()}")
 
@@ -174,7 +174,7 @@ def create_or_renew_subscription(background_task,db):
         if resp.status_code == 200:
             data = resp.json()
             subscription_details["SUBSCRIPTION_EXPIRATION"] = data["expirationDateTime"]
-            logger.info("Subscription renewed:", subscription_details["SUBSCRIPTION_ID"], "expires:", parse_timestamp(data["expirationDateTime"]))
+            logger.info(f"Subscription renewed:{subscription_details['SUBSCRIPTION_ID']} expires:{parse_timestamp(data['expirationDateTime'])}")
             # update the background task
             background_task.task_metadata = subscription_details
             db.add(background_task)
