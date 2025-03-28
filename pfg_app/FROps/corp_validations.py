@@ -919,12 +919,28 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                         else:
                             amount_approval_check = 0
+                        if "8" in str(skipConf):
+                            skip_currency_check = 1
+                            documentdesc = "Currency validation skipped by user"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                        else:
+                            skip_currency_check = 0
 
                         #currency validation: 
                         try:
                             if mand_currency != metadata_currency:
-                                return_status["Currency validation"] = {"status": 0,
+                                if skip_currency_check == 1:
+                                    currency_ck = 1
+                                    return_status["Currency validation"] = {"status": 1,
                                                     "StatusCode":0,
+                                                    "response": [
+                                                                    f"Currency validation skipped by user"
+                                                                ],
+                                                            }
+                                    currency_ck_msg = f"Currency validation skipped by user"
+                                else:
+                                    return_status["Currency validation"] = {"status": 0,
+                                                    "StatusCode":8,
                                                     "response": [
                                                                     f"Currency validation failed: invoice currency {mand_currency} does not match metadata currency {metadata_currency}"
                                                                 ],
@@ -942,6 +958,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             logger.info(f"Error in currency validation: {e}")
                             logger.info(traceback.format_exc())
                             currency_ck = 0
+                            currency_ck_msg = "Error:"+str(e)
 
                             
                         
@@ -1248,25 +1265,25 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             coding_approver_name = list(df_corp_coding['approver_name'])[0]
                                             invo_approver_name =  list(df_corp_docdata['approver'])[0]
                                             
-                                            if (names_match(coding_approver_name, invo_approver_name) or (skip_name_check==1)):
-                                                logger.info("Names match (ignoring case & order)")
-                                                approval_nm_val_status = 1
-                                                if skip_name_check==1:
-                                                    approval_nm_val_msg = "Name check skipped by user"
-                                                else:
-                                                    approval_nm_val_msg = "Success"
-                                                name_ck_status = 0
-                                            else:
-                                                name_ck_status = 4
-                                                approvrd_ck =approvrd_ck * 0
-                                                logger.info("Approver and Sender Mismatch")
-                                                approval_nm_val_msg = "Approver and Sender Mismatch"
-                                            return_status["Approval name validation"] = {"status": approval_nm_val_status,
-                                                                "StatusCode":name_ck_status,
-                                                                "response": [
-                                                                                approval_nm_val_msg
-                                                                            ],
-                                                                }
+                                            # if (names_match(coding_approver_name, invo_approver_name) or (skip_name_check==1)):
+                                            #     logger.info("Names match (ignoring case & order)")
+                                            #     approval_nm_val_status = 1
+                                            #     if skip_name_check==1:
+                                            #         approval_nm_val_msg = "Name check skipped by user"
+                                            #     else:
+                                            #         approval_nm_val_msg = "Success"
+                                            #     name_ck_status = 0
+                                            # else:
+                                            #     name_ck_status = 4
+                                            #     approvrd_ck =approvrd_ck * 0
+                                            #     logger.info("Approver and Sender Mismatch")
+                                            #     approval_nm_val_msg = "Approver and Sender Mismatch"
+                                            # return_status["Approval name validation"] = {"status": approval_nm_val_status,
+                                            #                     "StatusCode":name_ck_status,
+                                            #                     "response": [
+                                            #                                     approval_nm_val_msg
+                                            #                                 ],
+                                            #                     }
                                             
                                             #email check:
                                             # skip_email_check = 5
@@ -1341,7 +1358,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 approval_Amt_val_status = 1
                                                 approval_Amt_val_msg = "Amount limit approval skipped for credit"
                                                 eml_status_code = 0
-                                            elif (is_amount_approved(float(pdf_invoTotal), invo_approver_title) or (amount_approval_check == 1)):
+                                            elif (is_amount_approved(float(pdf_invoTotal), coding_approver_title) or (amount_approval_check == 1)):
                                                 logger.info("Amount approved")
                                                 approval_Amt_val_status = 1
                                                 if amount_approval_check==1:
