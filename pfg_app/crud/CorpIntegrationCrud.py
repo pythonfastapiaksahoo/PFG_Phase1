@@ -587,7 +587,8 @@ def clean_parsed_data(parsed_data):
             return [clean_parsed_data(item) for item in parsed_data]
         elif isinstance(parsed_data, str):
             # If the data is a string, replace '$\xa0' and any extra whitespace
-            return parsed_data.replace('$\xa0', '').strip()
+            # return parsed_data.replace('$\xa0', '').strip()
+            return parsed_data.replace('\xa0', ' ').replace('$', '').strip()
         else:
             # If it's neither dict, list, nor string, return it as is
             return parsed_data
