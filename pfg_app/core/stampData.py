@@ -541,7 +541,7 @@ import logging
 
 def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors):
     vndMth_address_ck = 0  # Indicates if address matching was successful
-    matched_id_vendor = None  # To store the matched idVendor if found
+    matched_id_vendor = 0  # To store the matched idVendor if found
     logger.info(f"in VndMatchFn_corp: openai_vendor_name:{openai_vendor_name},openai_vendor_address:{openai_vendor_address}")
     try:
         # Ensure required values are non-null
@@ -567,11 +567,11 @@ def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
 
                                 Please identify the most accurate match by considering name and address variations, abbreviations, and common formatting differences.
 
-                                Return the response **strictly** in the following JSON format:
-                                {{
+                                Return the response **strictly** in the following JSON format only, without any changes:
+                                {
                                   "vendormatchfound": "yes" or "no",  
                                   "vendorID": "matching_vendor_id" or ""  
-                                }}"""
+                                }"""
                             ),
                         }
                     ],
@@ -621,13 +621,16 @@ def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
                 vndMth_address_ck = 1
                 matched_id_vendor = vndMth.get("vendorID")
         except Exception:
+            logger.info(f"content:{content}")
             logger.error("Failed to parse JSON response.")
             logger.error(f"{traceback.format_exc()}")
+            vndMth_address_ck = 0
+            matched_id_vendor = 0
         
     except Exception:
         logger.error(f"{traceback.format_exc()}")
         vndMth_address_ck = 0
-        matched_id_vendor = None
+        matched_id_vendor = 0
     logger.info(f"vndMth_address_ck:{vndMth_address_ck},matched_id_vendor:{matched_id_vendor}")
     return vndMth_address_ck, matched_id_vendor
 
