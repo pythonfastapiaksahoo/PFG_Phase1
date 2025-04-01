@@ -257,14 +257,6 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 else:
                     approver_title = ""
 
-                # if "Approved keyword exists" in op_1['approval_details']:
-                #     if op_1['approval_details']["Approved keyword exists"] == "yes":
-                #         if 'Approved keyword' in op_1['approval_details']:
-                #             cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
-                #             if cln_approval_status =='approved' :
-                #                 approval_status = "Approved"
-                #             else:
-                #                 approval_status = "Not approved"
             
             missing_val = []
             if "coding_details" in op_1:
@@ -991,21 +983,83 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
     try:
         
         try:
-            # # Check if the record exists in corp_coding_tab
-            # existing_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+            # Check if the record exists in corp_coding_tab
+            existing_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+            try:
+                if not existing_coding:
+                    # Insert new record if it doesn't exist                
+                    sender = "NA"
+                    sender_email = "NA"
+                    sender_title = "NA"
+                    sent_time = "NA"
+                    sent_to = "NA"
+                    tmid = "NA"
+                    if credit_invo == 1:   
+                        document_type = "credit"
+                    elif credit_invo == 0:
+                        document_type = "invoice"
+                    else:
+                        document_type = "Unknown"
+                    approved_on = ""
+                    #----------------------------------------------
+                    if "coding_details" in op_1:
+                        if "email_metadata" in op_1['coding_details']:
+                            if "from" in op_1['coding_details']['email_metadata']:
+                                logger.info(f"op_1['coding_details']['email_metadata']: {op_1['coding_details']['email_metadata']}")
+                                if len(op_1['coding_details']['email_metadata']['from'].split("<"))==2:
+                                    sender = op_1['coding_details']['email_metadata']['from'].split("<")[0]
+                                    sender_email = op_1['coding_details']['email_metadata']['from'].split("<")[1][:-1]
+                                    sender_title = "NA"
+                                    
+                                    if sender:
+                                        if "(" in sender:
+                                            if len(sender.split("(")[-1]) >3:
+                                                if ")" in sender.split("(")[-1]:
+                                                    sender_title = sender.split("(")[-1].split(")")[0]
+                                                    logger.info(f"sender_title extracted: {sender_title}")
+                                
+                            if 'sent' in op_1['coding_details']['email_metadata']:
+                                sent_time = op_1['coding_details']['email_metadata']['sent']
+                            
+                            if 'to' in op_1['coding_details']['email_metadata']:
+                                sent_to = op_1['coding_details']['email_metadata']['to']
 
-            # if not existing_coding:
-            #     # Insert new record if it doesn't exist
-            #     coding_data_insert = {
-            #         "corp_doc_id": corp_doc_id,
-            #         "created_on": timestmp,
-            #         "template_type": template_type,
-            #     }
-            #     corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
-            #     db.add(corp_coding_insert)
-            #     db.flush()  # Flush to get ID without committing
-            #     corp_code_id = corp_coding_insert.corp_coding_id
-            #     print("corp_code_id: ", corp_code_id)
+                        if "TMID" in  op_1['coding_details']['approverDetails']:
+                                tmid =  op_1['coding_details']['approverDetails']['TMID']
+                    if "sent" in op_1['approval_details']:
+                        approved_on = op_1['approval_details']['sent']
+                    else:
+                        approved_on = ""
+
+
+                    coding_data_insert = {
+                            'approver_name': coding_approverName,
+                            'tmid': tmid,
+                            'approver_title': invo_approver_Designation,
+                            'created_on': timestmp,
+                            'sender_name': sender,
+                            'sender_email': sender_email,
+                            'sent_to':sent_to,
+                            'sent_time':sent_time ,
+                            'approver_email': invo_approver_email,
+                            'approved_on':approved_on,
+                            'approval_status':approval_status ,
+                            'document_type': document_type,
+                            'template_type': document_type,
+                            'mail_rw_key': mail_row_key,
+                            'queue_task_id': queue_task_id,
+                            'map_type': "Metadata",
+                            'sender_title':sender_title ,
+                        }
+                    corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
+                    db.add(corp_coding_insert)
+                    db.flush()  # Flush to get ID without committing
+                    corp_code_id = corp_coding_insert.corp_coding_id
+                    print("corp_code_id: ", corp_code_id)
+                    #----------------------------------------------
+            except Exception as e:
+                logger.error(f"Error in inserting coding details: {e}")
+                logger.info(traceback.format_exc())
             try:
                 # Check if the record exists in corp_docdata:
                 if not corp_doc_id or corp_doc_id == '':
