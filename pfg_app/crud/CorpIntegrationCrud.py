@@ -1192,6 +1192,7 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
                 "mail_number": row.mail_row_key,
                 "created_at": row.latest_created_at,
                 "associated_invoice_files": [],
+                "total_attachment_count": 0,  # Default to 0
             }
 
             # Get related attachments
@@ -1201,18 +1202,31 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
                 .all()
             )
 
-            for attachment in related_attachments:
-                associated_invoice_files = {
-                    "filepath": attachment.blobpath,
-                    "type": attachment.blobpath.split(".")[-1] if attachment.blobpath else None,
-                    "document_id": attachment.documentid,
-                    "status": attachment.status,
-                    "file_size": attachment.filesize,
-                    "vendor_id": attachment.vendor_id,
-                    "page_count": attachment.pagecount,
-                }
-                data_to_insert["associated_invoice_files"].append(associated_invoice_files)
-
+            if related_attachments:
+                for attachment in related_attachments:
+                    associated_invoice_files = {
+                        "filepath": attachment.blobpath,
+                        "type": attachment.blobpath.split(".")[-1] if attachment.blobpath else None,
+                        "document_id": attachment.documentid,
+                        "status": attachment.status,
+                        "file_size": attachment.filesize,
+                        "vendor_id": attachment.vendor_id,
+                        "page_count": attachment.pagecount,
+                    }
+                    data_to_insert["associated_invoice_files"].append(associated_invoice_files)
+                data_to_insert["total_attachment_count"] = len(related_attachments)
+            else:
+                # Default structure when no invoice is found
+                data_to_insert["associated_invoice_files"].append({
+                    "filepath": None,
+                    "type": None,
+                    "document_id": None,
+                    "status": "Invoice Missing",
+                    "file_size": None,
+                    "vendor_id": None,
+                    "page_count": 0,
+                })
+                data_to_insert["total_attachment_count"] = 0
             # Get email metadata
             queue_task = (
                 db.query(model.CorpQueueTask)
@@ -1233,23 +1247,6 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
                 data_to_insert["subject"] = None
                 data_to_insert["status"] = queue_task.status
                 data_to_insert["queue_task_id"] = queue_task.id
-
-            # Count total attachments
-            data_to_insert["total_attachment_count"] = len(data_to_insert["associated_invoice_files"])
-
-            # # Determine Overallstatus
-            # statuses = {attachment["status"] for attachment in data_to_insert["associated_invoice_files"]}
-
-            # if not data_to_insert["associated_invoice_files"]:
-            #     data_to_insert["Overallstatus"] = "Queued"
-            # elif statuses == {"Processed"}:
-            #     data_to_insert["Overallstatus"] = "Completed"
-            # elif "Processed" in statuses:
-            #     data_to_insert["Overallstatus"] = "Partially Completed"
-            # elif statuses:
-            #     data_to_insert["Overallstatus"] = "Error"
-            # else:
-            #     data_to_insert["Overallstatus"] = "Unknown"
 
             data.append(data_to_insert)
 
