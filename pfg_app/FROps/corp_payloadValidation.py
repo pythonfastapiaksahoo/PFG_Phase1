@@ -110,9 +110,6 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if store_exists:
                 print("valid store")
             else:
-                # voucher_status[f"store_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Store {store} not found"}
-                # Failed_Code[f"store_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Store {store} not found"}
-                # status_ck = 0
                 store_msg.append(f"Line:{line} - Store:{store}")
 
         # Validate Department
