@@ -210,7 +210,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
     NotOnboarded_matching_vendors = {}
     matching_vendors = {}
     matching_vendors = find_best_vendor_match_onboarded(openai_vendor_name, openai_vendor_address, corp_metadata_df)
-    logger.info(f"Matching vendor corp: matching_vendors length: {len(matching_vendors)}")
+    logger.info(f"Matching vendor corp: matching_vendors length: {len(matching_vendors)},{matching_vendors}")
 
     if len(matching_vendors)==1:
         if matching_vendors[(list(matching_vendors.keys())[0])]["bestmatch"]=='Full Match':
@@ -311,14 +311,18 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         db.commit()
         
     elif openAIcall_required==1:
+        logger.info(f"OpenAIcall_required: {openAIcall_required}")
         if len(matching_vendors)>1:
             # openAI call with matching_vendors
             vndMth_address_ck, matched_id_vendor = VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
             # matching_vendors
+            logger.info(f"line 319 - vndMth_address_ck: {vndMth_address_ck}, matched_id_vendor: {matched_id_vendor}")
             
         elif len(NotOnboarded_matching_vendors)>1:
+            logger.info(f"NotOnboarded_matching_vendors: {NotOnboarded_matching_vendors}")
             # openAI call with NotOnboarded_matching_vendors
             vndMth_address_ck, matched_id_vendor = VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
+            logger.info(f"line 325 - vndMth_address_ck: {vndMth_address_ck}, matched_id_vendor: {matched_id_vendor}")
         if vndMth_address_ck in [1,"yes"]:
             vendorID = matched_id_vendor
             docStatus = 4
@@ -336,7 +340,25 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
             db.commit()
 
             # "vendormatchfound": "yes" or "no",  
-            #                           "vendorID": "matching_vendor_id" or ""  
+            #                           "vendorID": "matching_vendor_id" or "" 
+        else:
+            logger.info("line 331 - vendorID: {vendorID}")
+            if vendorID in [None, ""]:
+                vendorID = 0
+            docStatus = 4
+            substatus = 8
+            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+            ).update(
+                {
+                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                    model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                    model.corp_document_tab.last_updated_by: userID,
+                    model.corp_document_tab.vendor_id: vendorID,
+
+                }
+            )
+            db.commit()
+
             
     else:
         if vendorFound!=1:
