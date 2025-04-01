@@ -579,44 +579,43 @@ def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
         #     ]
         # }
         data = {
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": (
-                                        f"""Given the following extracted vendor details:
-                                        Vendor Name: {openai_vendor_name}
-                                        Vendor Address: {openai_vendor_address}
+    "messages": [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        f"""Given the following extracted vendor details:
+                        Vendor Name: {openai_vendor_name}
+                        Vendor Address: {openai_vendor_address}
 
-                                        Below are potential matching vendors from the database, where addresses might be abbreviated or formatted differently:
+                        Below are potential matching vendors from the database, where addresses might be abbreviated or formatted differently:
 
-                                        {json.dumps(matching_vendors, indent=2)}
+                        {json.dumps(matching_vendors, indent=2)}
 
-                                        **Task:** Identify the most accurate match based on name and address variations, abbreviations, and common formatting differences.
-                                        
-                                        **Instructions:**
-                                        - Consider minor formatting differences (e.g., abbreviations, punctuation, and spacing).
-                                        - Ignore casing differences.
-                                        - Select the best match based on overall similarity.
-                                        - If no match is found, return "vendormatchfound": "no".
-
-                                        **Strict Output Format (JSON only):**
-                                        ```
-                                        {
-                                        "vendormatchfound": "yes" or "no",  
-                                        "vendorID": "matching_vendor_id" or ""  
-                                        }
-                                        ```
-                                        **Do not include any explanations or extra text outside this JSON format.**
-                                        """
-                                    ),
-                                }
-                            ],
-                        }
-                    ]
+                        **Task:** Identify the most accurate match based on name and address variations, abbreviations, and common formatting differences.
+                        
+                        **Instructions:**
+                        - Consider minor formatting differences (e.g., abbreviations, punctuation, and spacing).
+                        - Ignore casing differences.
+                        - Select the best match based on overall similarity.
+                        - If no match is found, return:
+                        
+                        ```
+                        {{
+                          "vendormatchfound": "yes" or "no",  
+                          "vendorID": "matching_vendor_id" or ""  
+                        }}
+                        ```
+                        **Strictly output only valid JSON without extra text.**
+                        """
+                    ),
                 }
+            ],
+        }
+    ]
+}
 
 
         # Make API call to Azure OpenAI
