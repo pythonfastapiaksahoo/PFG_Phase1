@@ -48,7 +48,7 @@ def crd_clean_amount(amount_str):
 
 
 # db = SCHEMA
-def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Session):
+def IntegratedvoucherData(userID, inv_id, gst_amt, payload_subtotal, CreditNote, db: Session):
     voucher_data_status = 1
     intStatus = 0
     recvLineNum = 0
@@ -275,6 +275,21 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
             logger.debug(traceback.format_exc())   
             vat_applicability = 'O' 
         
+        try:
+            get_tmid_qry = (
+                db.query(model.User)
+                .filter(model.User.idUser == userID, model.User.employee_id.isnot(None))
+                .first()
+            )
+
+            if get_tmid_qry:
+                employee_id = get_tmid_qry.employee_id
+            else:
+                employee_id = None  # Explicitly set to None when no matching record
+
+        except Exception as e:
+            logger.error(f"Error in getting employee_id: {e}")  # Use error level for logging
+            employee_id = None
         if voucher_data_status == 1:
 
             existing_record = (
@@ -307,6 +322,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
                 existing_record.freight_amt = freight_charges
                 existing_record.misc_amt = misc_amt
                 existing_record.vat_applicability = vat_applicability
+                existing_record.opr_id = employee_id
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -334,7 +350,8 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
                     "currency_code": currency_code,
                     "freight_amt": freight_charges,
                     "misc_amt": misc_amt,
-                    "vat_applicability": vat_applicability
+                    "vat_applicability": vat_applicability,
+                    "opr_id": employee_id
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
@@ -345,7 +362,7 @@ def IntegratedvoucherData(inv_id, gst_amt, payload_subtotal, CreditNote, db: Ses
 
 
 def nonIntegratedVoucherData(
-    inv_id, gst_amt, payload_subtotal, CreditNote, db: Session
+    userID, inv_id, gst_amt, payload_subtotal, CreditNote, db: Session
 ):
     nonIntStatus = 1
     nonIntStatusMsg = ""
@@ -630,6 +647,22 @@ def nonIntegratedVoucherData(
             logger.debug(traceback.format_exc())   
             vat_applicability = 'O' 
         
+        try:
+            get_tmid_qry = (
+                db.query(model.User)
+                .filter(model.User.idUser == userID, model.User.employee_id.isnot(None))
+                .first()
+            )
+
+            if get_tmid_qry:
+                employee_id = get_tmid_qry.employee_id
+            else:
+                employee_id = None  # Explicitly set to None when no matching record
+
+        except Exception as e:
+            logger.error(f"Error in getting employee_id: {e}")  # Use error level for logging
+            employee_id = None
+        
         if nonIntStatus == 1:
 
             existing_record = (
@@ -661,6 +694,7 @@ def nonIntegratedVoucherData(
                 existing_record.freight_amt = freight_charges
                 existing_record.misc_amt = misc_amt
                 existing_record.vat_applicability = vat_applicability
+                existing_record.opr_id = employee_id
             else:
                 # If no record exists, create a new one
                 VoucherData_insert_data = {
@@ -688,7 +722,8 @@ def nonIntegratedVoucherData(
                     "currency_code": currency_code,
                     "freight_amt": freight_charges,
                     "misc_amt": misc_amt,
-                    "vat_applicability": vat_applicability
+                    "vat_applicability": vat_applicability,
+                    "opr_id": employee_id
                 }
                 VD_db_data = model.VoucherData(**VoucherData_insert_data)
                 db.add(VD_db_data)
@@ -2563,6 +2598,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                             logger.debug(traceback.format_exc())
                                         skipValidationCK, skipValidationStatusMsg = (
                                             nonIntegratedVoucherData(
+                                                userID,
                                                 docID,
                                                 gst_amt,
                                                 payload_subtotal,
@@ -2662,6 +2698,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
                                                 vdrMatchStatus,
                                                 vdrStatusMsg,
                                             ) = IntegratedvoucherData(
+                                                userID,
                                                 docID,
                                                 gst_amt,
                                                 payload_subtotal,
