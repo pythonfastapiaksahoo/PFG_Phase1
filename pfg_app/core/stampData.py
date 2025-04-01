@@ -611,13 +611,17 @@ def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
         # Process JSON response safely
         logger.info(f"openAI vendor match content:{content}")
         try:
-            vndMth = json.loads(content)
+            if isinstance(content, dict):
+                vndMth = content  # No need to parse
+            else:
+                vndMth = json.loads(content)
             logger.info(f"Response from corp vendor match: {vndMth}")
             if vndMth.get("vendormatchfound") == "yes":
                 vndMth_address_ck = 1
                 matched_id_vendor = vndMth.get("vendorID")
-        except json.JSONDecodeError:
+        except Exception:
             logger.error("Failed to parse JSON response.")
+            logger.error(f"{traceback.format_exc()}")
         
     except Exception:
         logger.error(f"{traceback.format_exc()}")
