@@ -1,3 +1,5 @@
+#corp_validations
+
 import re
 from pfg_app import model
 from pfg_app.FROps.corp_payloadValidation import payload_dbUpdate
@@ -435,6 +437,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     vrd_status = 0
     process_inactive = 0
     approval_Amt_val_status = 0
+    metadata_currency = ""
+
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -808,14 +812,25 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             invDate_msg = "Valid Date Format"
                             invDate_status = 1
                     else:
-                        return_status["Invoice date validation"] = {"status": 0,
-                                                        "StatusCode":0,
-                                                        "response": [
-                                                                        "Metadata is not valid."
-                                                                    ],
-                                                                }
-                        invDate_msg = "Valid Date Format"
-                        invDate_status = 0
+                        if check_date_format(mand_invDate) == False:
+
+                            return_status["Invoice date validation"] = {"status": 0,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            "Metadata is not valid."
+                                                                        ],
+                                                                    }
+                            invDate_msg = "Invalid Date Format"
+                            invDate_status = 0
+                        else:
+                            return_status["Invoice date validation"] = {"status": 1,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            "Success."
+                                                                        ],
+                                                                    }
+                            invDate_msg = "Valid Date Format"
+                            invDate_status = 1
                 except Exception as e:
                     logger.error(f"Error in validate_corpdoc: {e}")
                     logger.info(traceback.format_exc())

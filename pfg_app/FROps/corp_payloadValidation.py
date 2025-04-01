@@ -1,3 +1,5 @@
+#corp_payloadValidations
+
 import traceback
 from sqlalchemy.orm import aliased
 import pandas as pd
@@ -82,6 +84,125 @@ tz_region = tz.timezone("US/Pacific")
 
 #     return status_ck, voucher_status, Failed_Code
 
+    
+    
+def validate_voucher_distribution(db, vchr_dist_stg):   
+    # status_ck = 1
+    # voucher_status = {}
+    # coding_Failed_Code = {}
+    store_msg = []
+    dept_msg = []
+    acc_msg = []
+    sl_msg = []
+    prj_msg = []
+    act_msg = []
+    for line, details in vchr_dist_stg.items():
+        store = details.get("store")
+        dept = details.get("dept")
+        account = details.get("account")
+        sl = details.get("SL")
+        project = details.get("project")
+        activity = details.get("activity")
+        print(store,dept,account)
+        # Validate Store
+        if store:
+            store_exists = db.query(model.PFGStore).filter_by(STORE=store).first()
+            if store_exists:
+                print("valid store")
+            else:
+                # voucher_status[f"store_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Store {store} not found"}
+                # Failed_Code[f"store_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Store {store} not found"}
+                # status_ck = 0
+                store_msg.append(f"Line:{line} - Store:{store}")
+
+        # Validate Department
+        if dept:
+           
+            dept_exists = db.query(model.PFGDepartment).filter_by(DEPTID=dept).first()
+            if dept_exists:
+                print("valid dept")
+            else:
+                dept_msg.append(f"Line:{line} - Dept:{dept}") 
+
+        # Validate Account
+        if account:
+            account_exists = db.query(model.PFGAccount).filter_by(ACCOUNT=account).first()
+            if account_exists:
+                print("valid account")
+            else:
+              
+                acc_msg.append(f"Line:{line} - Acc:{account}") 
+
+
+        # Validate Strategic Ledger (SL)
+        if sl:
+            sl_exists = db.query(model.PFGStrategicLedger).filter_by(CHARTFIELD1=sl).first()
+            if sl_exists:
+                print("valid SL")
+            else:
+                sl_msg.append(f"Line:{line} - SL:{sl}") 
+
+        # Validate Project
+        if project:
+            project_exists = db.query(model.PFGProject).filter_by(PROJECT_ID=project).first()
+            if project_exists:
+                print("Valid project")
+            else:
+               
+                prj_msg.append(f"Line:{line} - Proj:{project}") 
+
+        # Validate Project Activity
+        if activity and project:
+            activity_exists = db.query(model.PFGProjectActivity).filter_by(PROJECT_ID=project, ACTIVITY_ID=activity).first()
+            if activity_exists:
+                print("activity_exists valid")
+            else:
+                act_msg.append(f"Line:{line} - Proj/Act:{project}/{activity}") 
+
+    val_status_msg = "Invalid data:"   
+    invl_status_cd = 1
+    if len(store_msg)>0:
+        val_status_msg = f"{val_status_msg} Store:{store_msg}"
+        invl_status_cd = invl_status_cd * 0
+
+    if len(dept_msg)>0:
+        if val_status_msg=="Invalid data:" :
+            val_status_msg = f"{val_status_msg} Department{dept_msg}"
+        else:
+            val_status_msg = f"{val_status_msg} | Department:{dept_msg}"
+        invl_status_cd = invl_status_cd * 0
+
+    if len(acc_msg)>0:
+        if val_status_msg=="Invalid data:" :
+            val_status_msg = f"{val_status_msg} Account:{acc_msg}"
+        else:
+            val_status_msg = f"{val_status_msg} | Account:{acc_msg}"
+        invl_status_cd = invl_status_cd * 0
+
+    if len(sl_msg)>0:
+        if val_status_msg=="Invalid data:" :
+            val_status_msg = f"{val_status_msg} SL:{sl_msg}"
+        else:
+            val_status_msg = f"{val_status_msg} | SL:{sl_msg}"
+        invl_status_cd = invl_status_cd * 0     
+
+    if len(prj_msg)>0:
+        if val_status_msg=="Invalid data:" :
+            val_status_msg = f"{val_status_msg} Project:{prj_msg}"
+        else:
+            val_status_msg = f"{val_status_msg} | Project:{prj_msg}"
+        invl_status_cd = invl_status_cd * 0
+    print("act_msg:",act_msg)
+    if len(act_msg)>0:
+        if val_status_msg=="Invalid data:" :
+            val_status_msg = f"{val_status_msg} Proj & Activity mismatch:{act_msg}"
+        else:
+            val_status_msg = f"{val_status_msg} | Proj & Activity mismatch:{act_msg}"
+        invl_status_cd = invl_status_cd * 0
+
+    return invl_status_cd,val_status_msg
+
+
 def payload_dbUpdate(doc_id,userID,db):
     timeStmp =datetime.now(tz_region) 
     SentToPeopleSoft = 0
@@ -158,77 +279,97 @@ def payload_dbUpdate(doc_id,userID,db):
         "VAT_APPLICABILITY": VAT_APPLICABILITY,
         "VCHR_SRC":"CRP"
     }
+
     voucher_status = {}
     Failed_Code = {}
     status_ck = 1
-    for i in data:
-        if data[i] is None:
-            voucher_status[i] = {'status':0,'StatusCode':0,
-                                'status_msg':str(i)+" missing." }
-            status_ck = status_ck * 0
-            Failed_Code[i] = {'status':0,'StatusCode':0,
-                                'status_msg':str(i)+" missing." }
-        else:
-            if i=='VCHR_DIST_STG':
-                missing_cdFd = []
-                for cd in data['VCHR_DIST_STG']:
-                    set1 = set(data['VCHR_DIST_STG'][cd].keys())
-                    # set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store',}
-                    set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store','account'}
-
-                    difference =  set2 - set1  # or set1.difference(set2)
-                    if len(difference)>0:
-                        missing_cdFd.append(difference)
-                        voucher_status['Coding validation failed'] = {'status':0,'StatusCode':0,
-                                    'status_msg':"Line"+str(cd)+": "+str(difference)+" missing." }
-                        status_ck = status_ck * 0
-                        Failed_Code['Coding validation failed'] = {'status':0,'StatusCode':0,
-                                    'status_msg':"Line"+str(cd)+": "+str(difference)+" missing." }
-                    else:
-                        voucher_status[i] = {'status':1,'StatusCode':0,
-                                    'status_msg':"success" }
-                    # else:
-                    #     # Call the validation function when all required fields exist
-                    #     status_ck, validation_status, validation_errors = validate_voucher_distribution(
-                    #         db, data['VCHR_DIST_STG']
-                    #     )
-                        
-                    #     # Update voucher_status and Failed_Code with validation results
-                    #     voucher_status.update(validation_status)
-                    #     Failed_Code.update(validation_errors)
-                    
-            else:
-                voucher_status[i] = {'status':1,'StatusCode':0,
-                                'status_msg':"success" }
     try:
-        db.query(model.corp_coding_tab).filter( model.corp_coding_tab.corp_doc_id == doc_id
-        ).update(
-            {
-                model.corp_coding_tab.voucher_status: voucher_status,  # noqa: E501
-                
-
-            }
-
-        )
-        db.commit()
-        if status_ck == 1:
-            return_status["Payload validation"] = {"status": 1,
-                                                    "StatusCode":0,
-                                                    "response": [
-                                                                    f"Success"
-                                                                ],
-                                                            }
+        invl_status_cd,val_status_msg = validate_voucher_distribution(db, list(df_corp_coding_tab['coding_details'])[0])
+        if invl_status_cd == 1:
+            voucher_status['Voucher distribution validation'] = {'status':1,'StatusCode':0,
+                                'status_msg':val_status_msg }
+            status_ck = status_ck * 1
+        else:
+            Failed_Code['Voucher distribution validation'] = {'status':0,'StatusCode':0,
+                                'status_msg':val_status_msg }
+            status_ck = status_ck * 0
     except Exception as e:
-        logger.info(f"Error in updating coding tab: {e}")
-        return_status["Payload validation"] = {"status": 0,
-                                                    "StatusCode":0,
-                                                    "response": [
-                                                                    f"Error: {e}"
-                                                                ],
-                                                            }
+        voucher_status['Failed data validation'] = {'status':0,'StatusCode':0,
+                                'status_msg':str(e) }
+        status_ck = status_ck * 0
+        Failed_Code['Failed data validation'] = {'status':0,'StatusCode':0,
+                                'status_msg':str(e) }
         
-        db.rollback()
+    if invl_status_cd==1:
+        for i in data:
+            if data[i] is None:
+                voucher_status[i] = {'status':0,'StatusCode':0,
+                                    'status_msg':str(i)+" missing." }
+                status_ck = status_ck * 0
+                Failed_Code[i] = {'status':0,'StatusCode':0,
+                                    'status_msg':str(i)+" missing." }
+            else:
+                if i=='VCHR_DIST_STG':
+                    missing_cdFd = []
+                    for cd in data['VCHR_DIST_STG']:
+                        set1 = set(data['VCHR_DIST_STG'][cd].keys())
+                        # set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store',}
+                        set2 = {'SL', 'activity', 'amount', 'dept', 'project', 'store','account'}
 
+                        difference =  set2 - set1  # or set1.difference(set2)
+                        if len(difference)>0:
+                            missing_cdFd.append(difference)
+                            voucher_status['Coding validation failed'] = {'status':0,'StatusCode':0,
+                                        'status_msg':"Line"+str(cd)+": "+str(difference)+" missing." }
+                            status_ck = status_ck * 0
+                            Failed_Code['Coding validation failed'] = {'status':0,'StatusCode':0,
+                                        'status_msg':"Line"+str(cd)+": "+str(difference)+" missing." }
+                        else:
+                            voucher_status[i] = {'status':1,'StatusCode':0,
+                                        'status_msg':"success" }
+                        # else:
+                        #     # Call the validation function when all required fields exist
+                        #     status_ck, validation_status, validation_errors = validate_voucher_distribution(
+                        #         db, data['VCHR_DIST_STG']
+                        #     )
+                            
+                        #     # Update voucher_status and Failed_Code with validation results
+                        #     voucher_status.update(validation_status)
+                        #     Failed_Code.update(validation_errors)
+                        
+                else:
+                    voucher_status[i] = {'status':1,'StatusCode':0,
+                                    'status_msg':"success" }
+        try:
+            db.query(model.corp_coding_tab).filter( model.corp_coding_tab.corp_doc_id == doc_id
+            ).update(
+                {
+                    model.corp_coding_tab.voucher_status: voucher_status,  # noqa: E501
+                    
+
+                }
+
+            )
+            db.commit()
+            if status_ck == 1:
+                return_status["Payload validation"] = {"status": 1,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        f"Success"
+                                                                    ],
+                                                                }
+        except Exception as e:
+            logger.info(f"Error in updating coding tab: {e}")
+            return_status["Payload validation"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        f"Error: {e}"
+                                                                    ],
+                                                                }
+            
+        # db.rollback()
+    else:
+        status_ck = 0
     if status_ck == 1:
 
         # Check if a record exists
