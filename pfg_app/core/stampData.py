@@ -607,10 +607,11 @@ def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
         else:
             logger.error("Max retries reached. Exiting.")
             content = json.dumps({"vendormatchfound": "no", "vendorID": ""})
-
+    
         # Process JSON response safely
         logger.info(f"openAI vendor match content:{content}")
         try:
+            content = content.replace("json","")
             if isinstance(content, dict):
                 vndMth = content  # No need to parse
             else:
