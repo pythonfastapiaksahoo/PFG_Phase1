@@ -610,7 +610,7 @@ def payload_dbUpdate(doc_id,userID,db):
     else:
 
         docStatus = 4
-        docSubStatus = 36
+        docSubStatus = 4
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
             ).update(
                 {
