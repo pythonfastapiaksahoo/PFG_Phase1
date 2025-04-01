@@ -1003,6 +1003,12 @@ def processInvoiceVoucher(doc_id, db):
                                         if voucherdata.gst_amt
                                         else 0
                                     ),
+                                    "VCHR_SRC": "DSD",
+                                    "OPRID": (
+                                        voucherdata.opr_id
+                                        if voucherdata.opr_id
+                                        else "BATCHAP"
+                                    ),
                                     "VCHR_LINE_STG": [
                                         {
                                             "BUSINESS_UNIT": "MERCH",
@@ -1063,6 +1069,7 @@ def processInvoiceVoucher(doc_id, db):
                                                         if voucherdata.storenumber
                                                         else ""
                                                     ),
+                                                    "CHARTFIELD1": "",
                                                     "MERCHANDISE_AMT": (
                                                         voucherdata.Merchandise_Amt
                                                         if voucherdata.Merchandise_Amt

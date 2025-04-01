@@ -1482,6 +1482,7 @@ class VoucherData(Base):
     freight_amt = Column(Float, nullable=True)
     misc_amt = Column(Float, nullable=True)
     vat_applicability = Column(String, nullable=True)
+    opr_id = Column(String, nullable=True)
 
 
 class NonintegratedStores(Base):
