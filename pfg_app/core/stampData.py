@@ -542,7 +542,7 @@ import logging
 def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors):
     vndMth_address_ck = 0  # Indicates if address matching was successful
     matched_id_vendor = None  # To store the matched idVendor if found
-
+    logger.info(f"in VndMatchFn_corp: openai_vendor_name:{openai_vendor_name},openai_vendor_address:{openai_vendor_address}")
     try:
         # Ensure required values are non-null
         openai_vendor_name = openai_vendor_name or ""
@@ -609,6 +609,7 @@ def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
             content = json.dumps({"vendormatchfound": "no", "vendorID": ""})
 
         # Process JSON response safely
+        logger.info(f"openAI vendor match content:{content}")
         try:
             vndMth = json.loads(content)
             logger.info(f"Response from corp vendor match: {vndMth}")
@@ -622,7 +623,7 @@ def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
         logger.error(f"{traceback.format_exc()}")
         vndMth_address_ck = 0
         matched_id_vendor = None
-
+    logger.info(f"vndMth_address_ck:{vndMth_address_ck},matched_id_vendor:{matched_id_vendor}")
     return vndMth_address_ck, matched_id_vendor
 
 
