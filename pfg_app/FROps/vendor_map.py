@@ -339,24 +339,25 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
             #                           "vendorID": "matching_vendor_id" or ""  
             
     else:
-        # update as vendorNotFound:docStatus = 26 & substatus = 107
-        docStatus = 26
-        substatus = 107
-        documentdesc = "vendor not found"
+        if vendorFound!=1:
+            # update as vendorNotFound:docStatus = 26 & substatus = 107
+            docStatus = 26
+            substatus = 107
+            documentdesc = "vendor not found"
 
-        corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
-        
-        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
-            ).update(
-                {
-                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                    model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
-                    model.corp_document_tab.last_updated_by: userID,
-                    model.corp_document_tab.vendor_id:0,
-                }
-            )
-        db.commit()
-        logger.info(f"line 334-vendorFound:{vendorFound} ")
+            corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+            
+            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+                ).update(
+                    {
+                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                        model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                        model.corp_document_tab.last_updated_by: userID,
+                        model.corp_document_tab.vendor_id:0,
+                    }
+                )
+            db.commit()
+            logger.info(f"line 334-vendorFound:{vendorFound} ")
     return 
             
             
