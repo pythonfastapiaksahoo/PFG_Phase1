@@ -651,7 +651,13 @@ def VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
         logger.info(f"openAI vendor match content:{content}")
         try:
             content = content.replace("json","")
-            content = re.sub(r"^```|```$", "", content.strip())
+            content = (
+            content.replace("json", "")
+            .replace("\n", "")
+            .replace("'''", "")
+            .replace("```", "")
+        )
+            # content = re.sub(r"^```|```$", "", content.strip())
             if isinstance(content, dict):
                 vndMth = content  # No need to parse
             else:
