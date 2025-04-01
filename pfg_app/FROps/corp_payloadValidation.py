@@ -586,12 +586,19 @@ def payload_dbUpdate(doc_id,userID,db):
                     )
                 except Exception:
                     logger.debug(f"{traceback.format_exc()}")
-            return_status["Sent to PeopleSoft"] = {
-                                            "status": SentToPeopleSoft,
-                                            "StatusCode":0,
-                                            "response": [dmsg],
-                                        }
-
+            if docStatus == 4:
+                return_status["Payload Data Error"] = { 
+                    "status": SentToPeopleSoft, 
+                    "StatusCode": 0,
+                    "response": [dmsg],
+                }
+            else:
+                return_status["Sent to PeopleSoft"] = {
+                    "status": SentToPeopleSoft,
+                    "StatusCode": 0,
+                    "response": [dmsg],
+                }
+            
             # return_status["PeopleSoft response"] = {"status": 1,
             #                                     "StatusCode":0,
             #                                     "response": [
