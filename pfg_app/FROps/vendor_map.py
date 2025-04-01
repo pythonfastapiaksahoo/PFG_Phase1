@@ -319,7 +319,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         elif len(NotOnboarded_matching_vendors)>1:
             # openAI call with NotOnboarded_matching_vendors
             vndMth_address_ck, matched_id_vendor = VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
-        if vndMth_address_ck=='yes':
+        if vndMth_address_ck in [1,"yes"]:
             vendorID = matched_id_vendor
             docStatus = 4
             substatus = 11
