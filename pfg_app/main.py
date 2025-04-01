@@ -315,7 +315,7 @@ async def add_operation_id(request: Request, call_next):
             response.headers["x-operation-id"] = operation_id or "unknown"
 
 
-            response.headers["api-version"] = "0.103.12"
+            response.headers["api-version"] = "0.103.13"
 
 
 

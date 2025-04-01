@@ -213,6 +213,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
     logger.info(f"Matching vendor corp: matching_vendors length: {len(matching_vendors)},{matching_vendors}")
 
     if len(matching_vendors)==1:
+        logger.info(f"line 216: matching_vendors: {matching_vendors}")
         if matching_vendors[(list(matching_vendors.keys())[0])]["bestmatch"]=='Full Match':
             vendorFound=1
         elif matching_vendors[(list(matching_vendors.keys())[0])]["bestmatch"]=='Name Match':
@@ -342,9 +343,10 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
             # "vendormatchfound": "yes" or "no",  
             #                           "vendorID": "matching_vendor_id" or "" 
         else:
-            logger.info("line 331 - vendorID: {vendorID}")
+            vendorID = matched_id_vendor
             if vendorID in [None, ""]:
                 vendorID = 0
+            vendorID = 0
             docStatus = 4
             substatus = 8
             db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
