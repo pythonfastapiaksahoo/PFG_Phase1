@@ -129,7 +129,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
                 print("valid account")
             else:
               
-                acc_msg.append(f"Line:{line} - Account:{account}") 
+                acc_msg.append(f"Line:{line} - Acc:{account}") 
 
 
         # Validate Strategic Ledger (SL)
@@ -138,7 +138,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if sl_exists:
                 print("valid SL")
             else:
-                sl_msg.append(f"Line:{line} - Strategic Ledger:{sl}") 
+                sl_msg.append(f"Line:{line} - SL:{sl}") 
 
         # Validate Project
         if project:
@@ -147,7 +147,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
                 print("Valid project")
             else:
                
-                prj_msg.append(f"Line:{line} - Project:{project}") 
+                prj_msg.append(f"Line:{line} - Proj:{project}") 
 
         # Validate Project Activity
         if activity and project:
@@ -155,7 +155,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if activity_exists:
                 print("activity_exists valid")
             else:
-                act_msg.append(f"Line:{line} - Project:{project}") 
+                act_msg.append(f"Line:{line} - Proj/Act:{project}/{activity}") 
 
     val_status_msg = "Invalid data:"   
     invl_status_cd = 1
@@ -179,9 +179,9 @@ def validate_voucher_distribution(db, vchr_dist_stg):
 
     if len(sl_msg)>0:
         if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Strategic Ledger:{sl_msg}"
+            val_status_msg = f"{val_status_msg} SL:{sl_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Strategic Ledger:{sl_msg}"
+            val_status_msg = f"{val_status_msg} | SL:{sl_msg}"
         invl_status_cd = invl_status_cd * 0     
 
     if len(prj_msg)>0:
@@ -193,9 +193,9 @@ def validate_voucher_distribution(db, vchr_dist_stg):
     print("act_msg:",act_msg)
     if len(act_msg)>0:
         if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Project & Activity:{act_msg}"
+            val_status_msg = f"{val_status_msg} Proj & Activity mismatch:{act_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Project & Activity:{act_msg}"
+            val_status_msg = f"{val_status_msg} | Proj & Activity mismatch:{act_msg}"
         invl_status_cd = invl_status_cd * 0
 
     return invl_status_cd,val_status_msg
