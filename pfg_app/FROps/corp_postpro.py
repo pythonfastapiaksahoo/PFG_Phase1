@@ -984,7 +984,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
         
         try:
             # Check if the record exists in corp_coding_tab
-            existing_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+            existing_coding = db.query(model.corp_coding_tab).filter_by(mail_rw_key=mail_row_key).first()
             try:
                 if not existing_coding:
                     # Insert new record if it doesn't exist                
