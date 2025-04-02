@@ -727,6 +727,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         return return_status
                 #----------------------------   
                 try:   
+                    logger.info(f"line 730: vendor_code: {vendor_code}")
                     if vendor_code in [None,0]:
                         if vendor_id is not None:
                                 try: 
@@ -737,6 +738,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             )
                                     df_corp_VrdID_cd = pd.DataFrame([row.__dict__ for row in corp_VrdID_cd_qry])
                                     vendor_cd_update = int(list(df_corp_VrdID_cd['VendorCode'])[0])
+                                    logger.info(f"line 741: vendor_cd_update: {vendor_cd_update}")
                                     if len(vendor_cd_update)>0:
 
                                         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
