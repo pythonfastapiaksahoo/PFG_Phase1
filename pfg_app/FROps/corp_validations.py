@@ -732,8 +732,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         if vendor_id is not None:
                                 try: 
                                     corp_VrdID_cd_qry = (
-                                                db.query(model.vendor)
-                                                .filter(model.vendor.idVendor == vendor_id)
+                                                db.query(model.Vendorendor)
+                                                .filter(model.Vendor.idVendor == vendor_id)
                                                 .all()
                                             )
                                     df_corp_VrdID_cd = pd.DataFrame([row.__dict__ for row in corp_VrdID_cd_qry])
