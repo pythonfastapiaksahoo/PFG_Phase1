@@ -485,7 +485,59 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
         elif docStatus in (26,25):
 
             if vendor_id is not None:
-                #check if vendor is active or not: -
+                
+                # ------------------------------------------------------ 
+                if vendor_code is not None:
+                    if vendor_id == 0:
+                        try: 
+                            vendor_id_update = int(list(df_corp_metadata['vendorid'])[0])
+                            if type(vendor_id_update) == int:
+                                vendor_id = vendor_id_update
+                        except Exception as e:
+                            logger.info(f"Error in updating vendorid: {e}")
+
+                        
+                docStatus = 4
+                docSubStatus = 11
+                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                            model.corp_document_tab.last_updated_by: userID,
+                            model.corp_document_tab.updated_on: timeStmp,
+                            model.corp_document_tab.vendor_id: vendor_id,
+
+                        }
+                    )
+                db.commit()
+            else:
+                
+                print("Vendor mapping required")
+                return_status["Status overview"] = {"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                "Vendor mapping required"
+                                                            ],
+                                                    }
+                logger.info(f"return corp validations(ln 37): {return_status}")
+                return return_status
+            
+        elif docStatus in (10,):
+            print("Document rejected")
+            return_status["Status overview"] = {"status": 0,
+                                            "StatusCode":0,
+                                            "response": [
+                                                            "Document rejected."
+                                                        ],
+                                                    }
+            logger.info(f"return corp validations(ln 48): {return_status}")
+            return return_status
+            
+        if docStatus in (32,2,4,24):
+            # ------
+            #check if vendor is active or not: -
+            try:
                 if "9" in str(skipConf):
                     process_inactive = 1
                     documentdesc = "Inactive vendor invoice processed by user"
@@ -536,56 +588,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             return return_status
                     except Exception as e:
                         logger.error(f"Vendor not found {e}")
-                        logger.info(traceback)
-                # ------------------------------------------------------ 
-                if vendor_code is not None:
-                    if vendor_id == 0:
-                        try: 
-                            vendor_id_update = int(list(df_corp_metadata['vendorid'])[0])
-                            if type(vendor_id_update) == int:
-                                vendor_id = vendor_id_update
-                        except Exception as e:
-                            logger.info(f"Error in updating vendorid: {e}")
+                        logger.info(traceback.format_exc())
 
-                        
-                docStatus = 4
-                docSubStatus = 11
-                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                    ).update(
-                        {
-                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                            model.corp_document_tab.last_updated_by: userID,
-                            model.corp_document_tab.updated_on: timeStmp,
-                            model.corp_document_tab.vendor_id: vendor_id,
+            except Exception:
+                logger.info(traceback.format_exc())
+            #-----
 
-                        }
-                    )
-                db.commit()
-            else:
-                
-                print("Vendor mapping required")
-                return_status["Status overview"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                "Vendor mapping required"
-                                                            ],
-                                                    }
-                logger.info(f"return corp validations(ln 37): {return_status}")
-                return return_status
-            
-        elif docStatus in (10,):
-            print("Document rejected")
-            return_status["Status overview"] = {"status": 0,
-                                            "StatusCode":0,
-                                            "response": [
-                                                            "Document rejected."
-                                                        ],
-                                                    }
-            logger.info(f"return corp validations(ln 48): {return_status}")
-            return return_status
-            
-        if docStatus in (32,2,4,24):
             nocoding_ck = 0
             corp_coding_data = (
                 db.query(model.corp_coding_tab)
