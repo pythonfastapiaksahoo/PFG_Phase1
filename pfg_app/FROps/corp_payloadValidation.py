@@ -96,6 +96,8 @@ def validate_voucher_distribution(db, vchr_dist_stg):
     sl_msg = []
     prj_msg = []
     act_msg = []
+    misssing_PA = []
+    prj_fd = 0
     for line, details in vchr_dist_stg.items():
         store = details.get("store")
         dept = details.get("dept")
@@ -141,14 +143,27 @@ def validate_voucher_distribution(db, vchr_dist_stg):
 
         # Validate Project
         if project:
+            prj_fd = 1
             project_exists = db.query(model.PFGProject).filter_by(PROJECT_ID=project).first()
             if project_exists:
                 print("Valid project")
+                
             else:
                
                 prj_msg.append(f"Line:{line} - Proj:{project}") 
 
         # Validate Project Activity
+        if prj_fd == 1:
+            if activity:
+                print("activity exists")
+            else:
+                print("missing activity")
+                misssing_PA.append(f"Line:{line} - Activity missing")
+        else:
+            if activity:
+                print("misssing project")
+                misssing_PA.append(f"Line:{line} - Project missing")
+
         if activity and project:
             activity_exists = db.query(model.PFGProjectActivity).filter_by(PROJECT_ID=project, ACTIVITY_ID=activity).first()
             if activity_exists:
@@ -195,6 +210,12 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             val_status_msg = f"{val_status_msg} Proj & Activity mismatch:{act_msg}"
         else:
             val_status_msg = f"{val_status_msg} | Proj & Activity mismatch:{act_msg}"
+        invl_status_cd = invl_status_cd * 0
+    if len(misssing_PA)>0:
+        if val_status_msg=="Invalid data:" :
+            val_status_msg = f"{val_status_msg} Project & Activity missing:{misssing_PA}"
+        else:
+            val_status_msg = f"{val_status_msg} | Project & Activity missing:{misssing_PA}"
         invl_status_cd = invl_status_cd * 0
     logger.info(f"return fomr validate_voucher- invl_status_cd{invl_status_cd}, val_status_msg: {val_status_msg}")
     return invl_status_cd,val_status_msg

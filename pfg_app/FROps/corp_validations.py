@@ -725,7 +725,45 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                         logger.info(f"return corp validations(ln 70): {return_status}")
                         return return_status
-                #----------------------------
+                #----------------------------   
+                try:   
+                    if vendor_code in [None,0]:
+                        if vendor_id is not None:
+                                try: 
+                                    corp_VrdID_cd_qry = (
+                                                db.query(model.vendor)
+                                                .filter(model.vendor.idVendor == vendor_id)
+                                                .all()
+                                            )
+                                    df_corp_VrdID_cd = pd.DataFrame([row.__dict__ for row in corp_VrdID_cd_qry])
+                                    vendor_cd_update = int(list(df_corp_VrdID_cd['VendorCode'])[0])
+                                    if len(vendor_cd_update)>0:
+
+                                        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                                            ).update(
+                                                {
+                                                    
+                                                    model.corp_document_tab.vendor_code: vendor_cd_update,
+
+                                                }
+                                            )
+                                        db.commit()
+
+                                    else:
+                                        return_status["Vendor mapping required"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Vendor Code missing."
+                                                                    ],
+                                                            }
+                                        logger.info(f"return corp validations(ln 70): {return_status}")
+                                        return return_status
+                                except Exception as e:
+                                    logger.info(f"Error in updating vendorid: {e}")
+
+                        #------
+                except Exception as e:
+                    logger.info(traceback.format_exc())
                 #date validation:
                 try:
                     corp_coding_data = (
