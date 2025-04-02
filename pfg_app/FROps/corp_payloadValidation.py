@@ -196,7 +196,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
         else:
             val_status_msg = f"{val_status_msg} | Proj & Activity mismatch:{act_msg}"
         invl_status_cd = invl_status_cd * 0
-
+    logger.info(f"return fomr validate_voucher- invl_status_cd{invl_status_cd}, val_status_msg: {val_status_msg}")
     return invl_status_cd,val_status_msg
 
 
@@ -254,6 +254,7 @@ def payload_dbUpdate(doc_id,userID,db):
                                                                     f"TM ID missing."
                                                                 ],
                                                             }
+        logger.info(f"return line 275: {return_status}")
         return return_status
 
     data = {
@@ -276,7 +277,7 @@ def payload_dbUpdate(doc_id,userID,db):
         "VAT_APPLICABILITY": VAT_APPLICABILITY,
         "VCHR_SRC":"CRP"
     }
-
+    logger.info(f"data: {data}")
     voucher_status = {}
     Failed_Code = {}
     status_ck = 1
@@ -614,6 +615,7 @@ def payload_dbUpdate(doc_id,userID,db):
                                                                 f"Error: {e}"
                                                             ],
                                                         }
+        logger.info(f"return line 617: {return_status}")
         return return_status
     else:
 
@@ -631,5 +633,5 @@ def payload_dbUpdate(doc_id,userID,db):
                 }
             )
         db.commit()
-    
+        logger.info(f"return line 634: {Failed_Code}")
         return Failed_Code
