@@ -737,9 +737,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 .all()
                                             )
                                     df_corp_VrdID_cd = pd.DataFrame([row.__dict__ for row in corp_VrdID_cd_qry])
-                                    vendor_cd_update = int(list(df_corp_VrdID_cd['VendorCode'])[0])
+                                    vendor_cd_update = str(list(df_corp_VrdID_cd['VendorCode'])[0])
                                     logger.info(f"line 741: vendor_cd_update: {vendor_cd_update}")
-                                    if len(vendor_cd_update)>0:
+                                    if len(str(vendor_cd_update))>0:
 
                                         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
                                             ).update(
@@ -761,6 +761,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                         logger.info(f"return corp validations(ln 70): {return_status}")
                                         return return_status
                                 except Exception as e:
+                                    logger.info(traceback.format_exc())
                                     logger.info(f"Error in updating vendorid: {e}")
 
                         #------
