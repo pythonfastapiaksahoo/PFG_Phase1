@@ -732,7 +732,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         if vendor_id is not None:
                                 try: 
                                     corp_VrdID_cd_qry = (
-                                                db.query(model.Vendorendor)
+                                                db.query(model.Vendor)
                                                 .filter(model.Vendor.idVendor == vendor_id)
                                                 .all()
                                             )
