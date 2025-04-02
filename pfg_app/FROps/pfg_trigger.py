@@ -281,7 +281,7 @@ def IntegratedvoucherData(userID, inv_id, gst_amt, payload_subtotal, CreditNote,
                 .filter(model.User.idUser == userID, model.User.employee_id.isnot(None))
                 .first()
             )
-
+           
             if get_tmid_qry:
                 employee_id = get_tmid_qry.employee_id
             else:
@@ -2740,6 +2740,7 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                                         nonIntStatus, nonIntStatusMsg = (
                                             nonIntegratedVoucherData(
+                                                userID,
                                                 docID,
                                                 gst_amt,
                                                 payload_subtotal,
@@ -3224,18 +3225,6 @@ def pfg_sync(docID, userID, db: Session, customCall=0, skipCk=0):
 
                             logger.error(f"{traceback.format_exc()}")
                             overAllstatus_msg = "Failed"
-                    # try:
-                    #     db.query(model.Document).filter(
-                    #         model.Document.idDocument == docID
-                    #     ).update(
-                    #         {
-                    #             model.Document.documentStatusID: documentstatus,
-                    #             model.Document.documentsubstatusID: documentSubstatus,
-                    #         }
-                    #     )
-                    #     db.commit()
-                    # except Exception as err:
-                    #     logger.info(f"ErrorUpdatingPostingData: {err}")
 
                 except Exception as err:
                     logger.error(f"{traceback.format_exc()}")

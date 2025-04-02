@@ -438,7 +438,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     process_inactive = 0
     approval_Amt_val_status = 0
     metadata_currency = ""
-
+    VB_status = 0
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -814,8 +814,36 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     except Exception as e:
                         logger.info(f"Error in getting metadata: {e}")
                         df_corp_metadata = pd.DataFrame()
-                    
+                    logger.info(f"df_corp_metadata: {df_corp_metadata}")
+                    try: 
+                        if df_corp_metadata.empty: 
+                            if "A" in str(skipConf):
+                                VB_documentdesc = "User processing invoice manually"
+                                VB_status = 1
+                                VB_status_code = 0
+                                return_status["Vendor not onboarded"] = {"status": VB_status,
+                                                            "StatusCode":VB_status_code,
+                                                            "response": [
+                                                                            VB_documentdesc
+                                                                        ],
+                                                                    }
+                            else:
+                                VB_documentdesc = "Onboard vendor/proceess manually"
+                                VB_status = 0
+                                VB_status_code = 10
+                                corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus) 
+                                return_status["Vendor not onboarded"] = {"status": VB_status,
+                                                            "StatusCode":VB_status_code,
+                                                            "response": [
+                                                                            VB_documentdesc
+                                                                        ],
+                                                                    }
+                                return return_status
+                    except Exception as e:
+                        logger.info(traceback.format_exc())
+                        
                     if not df_corp_metadata.empty:
+                        VB_status = 1
                         metadata_currency = list(df_corp_metadata['currency'])[0]
                         date_format = list(df_corp_metadata['dateformat'])[0]
                         if check_date_format(mand_invDate) == False:
@@ -860,6 +888,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                             invDate_msg = "Valid Date Format"
                             invDate_status = 1
+                        
                     else:
                         if check_date_format(mand_invDate) == False:
 
@@ -978,6 +1007,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                         }
                     )
+
                     db.commit()
                     logger.info(f"return corp validations(ln 111): {return_status}")
                     return return_status
@@ -989,6 +1019,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Success."
                                                                 ],
                                                             }
+                    
                     # invoice total validation:
                         logger.info(f"ready for validations-docID: {doc_id}")
                         if "1" in str(skipConf):
@@ -1178,6 +1209,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                         
                         # Mandatory Header Validation:
+                        
                         if invDate_status==0:
                             docStatus = 4
                             docSubStatus = 132
