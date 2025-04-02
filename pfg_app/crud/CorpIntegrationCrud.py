@@ -3241,6 +3241,7 @@ async def read_corp_paginate_doc_inv_list(
                     "approved_by",
                     "approver_title",
                     "invoice_type",
+                    "created_on",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
