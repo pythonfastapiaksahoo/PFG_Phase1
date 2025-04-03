@@ -888,8 +888,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     "documentstatus":4,
                     "documentsubstatus":134,
                     "sender": sender,
-                    "approved_by":op_1['approval_details']['Approver'],
-                    "approver_title":op_1['approval_details']['Designation']
+                    "approved_by":coding_approverName,
+                    "approver_title":coding_approver_Designation
                     
                 }  
                 try:
