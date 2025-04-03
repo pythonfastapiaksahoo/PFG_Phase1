@@ -712,8 +712,16 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
         # Extract directory and base name from .eml file path
         eml_directory = os.path.dirname(eml_file_path)  # Directory path in the blob container
         eml_base_name = os.path.splitext(os.path.basename(eml_file_path))[0]  # File name without extension
-        blob_name = f"{eml_directory}/{eml_base_name}.pdf"  # PDF will be saved in the same directory
+        # Remove special characters (keep letters, numbers, underscores)
+        eml_base_name_clean = re.sub(r'[^a-zA-Z0-9_]', '_', eml_base_name)
 
+        # Replace multiple underscores with a single underscore
+        eml_base_name_clean = re.sub(r'_+', '_', eml_base_name_clean)
+
+        # Trim to 50 characters if it's too long
+        eml_base_name_clean = eml_base_name_clean[:50].strip('_')  # Strip leading/trailing underscores
+        blob_name = f"{eml_directory}/{eml_base_name_clean}.pdf"
+        
         # Decode the base64 image data
         image_data = base64.b64decode(encoded_image)
         img = Image.open(BytesIO(image_data))
