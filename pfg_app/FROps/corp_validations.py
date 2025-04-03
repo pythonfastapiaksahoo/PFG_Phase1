@@ -534,7 +534,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             logger.info(f"return corp validations(ln 48): {return_status}")
             return return_status
             
-        if docStatus in (32,2,4,24):
+        if docStatus in (32,2,4,24,21):
             # ------
             #check if vendor is active or not: -
             try:
