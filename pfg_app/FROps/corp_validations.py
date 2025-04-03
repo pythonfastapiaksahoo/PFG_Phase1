@@ -79,8 +79,8 @@ def clean_coding_amount(amount_str):
         return round(float(amount_str), 2)
     
     try:
-        # Check if the amount is enclosed in parentheses (indicating a negative value)
-        is_negative = "(" in amount_str and ")" in amount_str
+        # Check if the value is negative due to a '-' sign
+        is_negative = "-" in amount_str or ("(" in amount_str and ")" in amount_str)
         
         # Extract numeric values including decimal points
         cleaned_amount = re.findall(r"[\d.]+", amount_str)

@@ -50,27 +50,24 @@ def crd_clean_amount(amount_str):
 
 
 def clean_coding_amount(amount_str):
-    logger.info(f"amount_str: {amount_str}")
     if amount_str in [None, ""]:
         return 0.0
     if isinstance(amount_str, (float, int)):
         return round(float(amount_str), 2)
     
     try:
-        # Check if the amount is enclosed in parentheses (indicating a negative value)
-        is_negative = "(" in amount_str and ")" in amount_str
+        # Check if the value is negative due to a '-' sign
+        is_negative = "-" in amount_str or ("(" in amount_str and ")" in amount_str)
         
         # Extract numeric values including decimal points
         cleaned_amount = re.findall(r"[\d.]+", amount_str)
         
         if cleaned_amount:
             amount = float("".join(cleaned_amount))
-            logger.info(f" cleaned_amount: {amount}")
             return round(-amount if is_negative else amount, 2)
     except Exception:
-        logger.info(f"Error in clean_coding_amount: {traceback.format_exc()}")
         return 0.0
-    logger.info(f"Returning 0.0")
+    
     return 0.0
 
 def cleanAmt_all(credit_invo, amount_str):
