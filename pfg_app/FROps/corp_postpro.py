@@ -1,3 +1,5 @@
+#corp_postpro
+
 import re
 import traceback
 from datetime import datetime, timezone
@@ -44,6 +46,28 @@ def crd_clean_amount(amount_str):
     except Exception:
         logger.info(traceback.format_exc())
         return 0.0
+    return 0.0
+
+
+def clean_coding_amount(amount_str):
+    if amount_str in [None, ""]:
+        return 0.0
+    if isinstance(amount_str, (float, int)):
+        return round(float(amount_str), 2)
+    
+    try:
+        # Check if the amount is enclosed in parentheses (indicating a negative value)
+        is_negative = "(" in amount_str and ")" in amount_str
+        
+        # Extract numeric values including decimal points
+        cleaned_amount = re.findall(r"[\d.]+", amount_str)
+        
+        if cleaned_amount:
+            amount = float("".join(cleaned_amount))
+            return round(-amount if is_negative else amount, 2)
+    except Exception:
+        return 0.0
+    
     return 0.0
 
 def cleanAmt_all(credit_invo, amount_str):
@@ -257,14 +281,6 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 else:
                     approver_title = ""
 
-                # if "Approved keyword exists" in op_1['approval_details']:
-                #     if op_1['approval_details']["Approved keyword exists"] == "yes":
-                #         if 'Approved keyword' in op_1['approval_details']:
-                #             cln_approval_status = re.sub(r'[^a-zA-Z0-9]', '', str(op_1['approval_details']['Approved keyword']).lower())
-                #             if cln_approval_status =='approved' :
-                #                 approval_status = "Approved"
-                #             else:
-                #                 approval_status = "Not approved"
             
             missing_val = []
             if "coding_details" in op_1:
@@ -347,7 +363,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     coding_tab_data['sender_email'] = sender_email
                     coding_tab_data['sent_to'] = sent_to
                     coding_tab_data['sent_time'] = sent_time
-                    coding_tab_data["gst"] = cleanAmt_all(credit_invo, invoice_details['GST'][rw])
+                    # coding_tab_data["gst"] = cleanAmt_all(credit_invo, invoice_details['GST'][rw])
+                    coding_tab_data["gst"] = clean_coding_amount(invoice_details['GST'][rw])
                     coding_tab_data["invoice_number"]  = invoice_details['invoice#'][rw]
                     coding_tab_data['approverName'] = coding_approverName
                     coding_tab_data["approver_email"] = invo_approver_email 
@@ -355,15 +372,17 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     coding_tab_data["approver_title"] = coding_approver_Designation
                     coding_tab_data["approval_status"] = approval_status
                     coding_tab_data["TMID"] = TMID
-                    coding_tab_data["invoicetotal"] =cleanAmt_all(credit_invo, invoice_details["invoicetotal"][rw])
+                    # coding_tab_data["invoicetotal"] =cleanAmt_all(credit_invo, invoice_details["invoicetotal"][rw])
+                    coding_tab_data["invoicetotal"] = clean_coding_amount(invoice_details["invoicetotal"][rw])
                     coding_data[1] = {'store':invoice_details['store'][rw],
                                             'dept':invoice_details['dept'][rw],
                                             'account':invoice_details['account'][rw],
                                             'SL':invoice_details['SL'][rw],
                                             'project':invoice_details['project'][rw],
                                             'activity':invoice_details['activity'][rw],
-                                            'amount':cleanAmt_all(credit_invo,float(cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw]))  - float(cleanAmt_all(credit_invo,invoice_details['GST'][rw])))
-                    }
+                                            'anount': clean_coding_amount(invoice_details['invoicetotal'][rw])-clean_coding_amount(invoice_details['GST'][rw]) ,
+                                            # 'amount':cleanAmt_all(credit_invo,float(cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw]))  - float(cleanAmt_all(credit_invo,invoice_details['GST'][rw])))
+                    }   
                     coding_tab_data['coding_data'] = coding_data
                     logger.info(f"invoice_details['invoice#'][{rw}]: {invoice_details['invoice#'][rw]}")  
                 
@@ -421,13 +440,15 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                             coding_tab_data['document_type'] = "invoice"
                         else:
                             coding_tab_data['document_type'] = "Unknown"
-                        c_invoTotal = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['invoicetotal'])
+                        # c_invoTotal = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['invoicetotal'])
+                        c_invoTotal = clean_coding_amount(op_1['coding_details']['invoiceDetails']['invoicetotal'])
                     if c_invoTotal:
                         coding_tab_data['invoicetotal'] = c_invoTotal
                     else:
-                        coding_tab_data['invoicetotal'] = None
+                        coding_tab_data['invoicetotal'] = 0.0
                     if "GST" in op_1['coding_details']['invoiceDetails']:
-                        c_gst = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['GST'])
+                        # c_gst = cleanAmt_all(credit_invo, op_1['coding_details']['invoiceDetails']['GST'])
+                        c_gst = clean_coding_amount(op_1['coding_details']['invoiceDetails']['GST'])
                         coding_tab_data["gst"] = c_gst
                     if 'invoice#' in op_1['coding_details']['invoiceDetails']:
                         c_invoID = op_1['coding_details']['invoiceDetails']['invoice#']
@@ -447,7 +468,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                                                 'SL':invoice_details['SL'][0],
                                                 'project':invoice_details['project'][0],
                                                 'activity':invoice_details['activity'][0],
-                                                'amount':cleanAmt_all(credit_invo,invoice_details['amount'][0])
+                                                # 'amount':cleanAmt_all(credit_invo,invoice_details['amount'][0])
+                                                'amount': clean_coding_amount(invoice_details['amount'][0])
                                                 }
                         else:
                             for rw in range(len(invoice_details[keys_to_check[0]])):
@@ -457,7 +479,9 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                                                     'SL':invoice_details['SL'][rw],
                                                     'project':invoice_details['project'][rw],
                                                     'activity':invoice_details['activity'][rw],
-                                                    'amount':cleanAmt_all(credit_invo,invoice_details['amount'][rw])}
+                                                    # 'amount':cleanAmt_all(credit_invo,invoice_details['amount'][rw])
+                                                    'amount': clean_coding_amount(invoice_details['amount'][rw])
+                                                    }
                         coding_tab_data["coding_data"] = coding_data
                     else:
                         coding_tab_data["coding_data"] = {}
@@ -688,8 +712,10 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                         'approver_name': all_invo_coding[att_invoID].get('approverName', ""),
                         'tmid': all_invo_coding[att_invoID].get('TMID', ""),
                         'approver_title': all_invo_coding[att_invoID].get('approver_title', ""),
-                        'invoicetotal': cleanAmt_all(credit_invo, all_invo_coding[att_invoID].get('invoicetotal', 0)),
-                        'gst': cleanAmt_all(credit_invo, all_invo_coding[att_invoID].get('gst', 0)),
+                        # 'invoicetotal': cleanAmt_all(credit_invo, all_invo_coding[att_invoID].get('invoicetotal', 0)),
+                        'invoicetotal': clean_coding_amount(all_invo_coding[att_invoID].get('invoicetotal', 0)),
+                        # 'gst': cleanAmt_all(credit_invo, all_invo_coding[att_invoID].get('gst', 0)),
+                        'gst': clean_coding_amount(all_invo_coding[att_invoID].get('gst', 0)),
                         'created_on': timestmp,
                         'sender_name': all_invo_coding[att_invoID].get('sender', ""),
                         'sender_email': all_invo_coding[att_invoID].get('sender_email', ""),
@@ -816,8 +842,10 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 'approver_name': all_invo_coding[miss_att].get('approverName', ""),
                 'tmid': all_invo_coding[miss_att].get('TMID', ""),
                 'approver_title': all_invo_coding[miss_att].get('approver_title', ""),
-                'invoicetotal': cleanAmt_all(credit_invo, all_invo_coding[miss_att].get('invoicetotal', 0)),
-                'gst': cleanAmt_all(credit_invo, all_invo_coding[miss_att].get('gst', 0)),
+                # 'invoicetotal': cleanAmt_all(credit_invo, all_invo_coding[miss_att].get('invoicetotal', 0)),
+                'invoicetotal': clean_coding_amount(all_invo_coding[miss_att].get('invoicetotal', 0)),
+                # 'gst': cleanAmt_all(credit_invo, all_invo_coding[miss_att].get('gst', 0)),
+                'gst': clean_coding_amount(all_invo_coding[miss_att].get('gst', 0)),
                 'created_on': timestmp,
                 'sender_name': all_invo_coding[miss_att].get('sender', ""),
                 'sender_email': all_invo_coding[miss_att].get('sender_email', ""),
@@ -858,20 +886,46 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 except Exception:
                     pg_cnt = 0
 
+                try:
+                    if "coding_details" in op_1:
+                        if "email_metadata" in op_1['coding_details']:
+                            if "from" in op_1['coding_details']['email_metadata']:
+                                if len(op_1['coding_details']['email_metadata']['from'].split("<"))==2:
+                                    sender = op_1['coding_details']['email_metadata']['from'].split("<")[0]
+                                else:
+                                    sender = ""
+                            else:
+                                sender = ""
+                        else:
+                            sender = ""
+                    else:
+                            sender = ""
+                except Exception:
+                    logger.info(f"Error in sender: {traceback.format_exc()}")
+
+                if "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                        gst_amt = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST'])
+                else:
+                    gst_amt = 0
+                gst = cleanAmt_all(credit_invo, gst_amt)
+
                 missing_code_docTab = {
                     "invoice_id":docData_invoID_ck3,
+                    "invoice_date":miss_code[list(miss_code.keys())[0]]['InvoiceDate'],
+                    "gst":gst,
                     "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
                     "email_filepath": file_path,
                     "invo_filepath": pdf_blobpath,
                     "mail_row_key": mail_row_key,
                     "email_filepath_pdf":email_filepath_pdf,
-                    "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"]),
                     "invo_page_count":pg_cnt,
                     "created_on":timestmp,
                     "updated_on":timestmp,
                     "documentstatus":4,
                     "documentsubstatus":134,
-                    "vendor_id":0,
+                    "sender": sender,
+                    "approved_by":coding_approverName,
+                    "approver_title":coding_approver_Designation
                     
                 }  
                 try:
@@ -991,21 +1045,83 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
     try:
         
         try:
-            # # Check if the record exists in corp_coding_tab
-            # existing_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
+            # Check if the record exists in corp_coding_tab
+            existing_coding = db.query(model.corp_coding_tab).filter_by(mail_rw_key=mail_row_key).first()
+            try:
+                if not existing_coding:
+                    # Insert new record if it doesn't exist                
+                    sender = "NA"
+                    sender_email = "NA"
+                    sender_title = "NA"
+                    sent_time = "NA"
+                    sent_to = "NA"
+                    tmid = "NA"
+                    if credit_invo == 1:   
+                        document_type = "credit"
+                    elif credit_invo == 0:
+                        document_type = "invoice"
+                    else:
+                        document_type = "Unknown"
+                    approved_on = ""
+                    #----------------------------------------------
+                    if "coding_details" in op_1:
+                        if "email_metadata" in op_1['coding_details']:
+                            if "from" in op_1['coding_details']['email_metadata']:
+                                logger.info(f"op_1['coding_details']['email_metadata']: {op_1['coding_details']['email_metadata']}")
+                                if len(op_1['coding_details']['email_metadata']['from'].split("<"))==2:
+                                    sender = op_1['coding_details']['email_metadata']['from'].split("<")[0]
+                                    sender_email = op_1['coding_details']['email_metadata']['from'].split("<")[1][:-1]
+                                    sender_title = "NA"
+                                    
+                                    if sender:
+                                        if "(" in sender:
+                                            if len(sender.split("(")[-1]) >3:
+                                                if ")" in sender.split("(")[-1]:
+                                                    sender_title = sender.split("(")[-1].split(")")[0]
+                                                    logger.info(f"sender_title extracted: {sender_title}")
+                                
+                            if 'sent' in op_1['coding_details']['email_metadata']:
+                                sent_time = op_1['coding_details']['email_metadata']['sent']
+                            
+                            if 'to' in op_1['coding_details']['email_metadata']:
+                                sent_to = op_1['coding_details']['email_metadata']['to']
 
-            # if not existing_coding:
-            #     # Insert new record if it doesn't exist
-            #     coding_data_insert = {
-            #         "corp_doc_id": corp_doc_id,
-            #         "created_on": timestmp,
-            #         "template_type": template_type,
-            #     }
-            #     corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
-            #     db.add(corp_coding_insert)
-            #     db.flush()  # Flush to get ID without committing
-            #     corp_code_id = corp_coding_insert.corp_coding_id
-            #     print("corp_code_id: ", corp_code_id)
+                        if "TMID" in  op_1['coding_details']['approverDetails']:
+                                tmid =  op_1['coding_details']['approverDetails']['TMID']
+                    if "sent" in op_1['approval_details']:
+                        approved_on = op_1['approval_details']['sent']
+                    else:
+                        approved_on = ""
+
+
+                    coding_data_insert = {
+                            'approver_name': coding_approverName,
+                            'tmid': tmid,
+                            'approver_title': invo_approver_Designation,
+                            'created_on': timestmp,
+                            'sender_name': sender,
+                            'sender_email': sender_email,
+                            'sent_to':sent_to,
+                            'sent_time':sent_time ,
+                            'approver_email': invo_approver_email,
+                            'approved_on':approved_on,
+                            'approval_status':approval_status ,
+                            'document_type': document_type,
+                            'template_type': document_type,
+                            'mail_rw_key': mail_row_key,
+                            'queue_task_id': queue_task_id,
+                            'map_type': "Metadata",
+                            'sender_title':sender_title ,
+                        }
+                    corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
+                    db.add(corp_coding_insert)
+                    db.flush()  # Flush to get ID without committing
+                    corp_code_id = corp_coding_insert.corp_coding_id
+                    print("corp_code_id: ", corp_code_id)
+                    #----------------------------------------------
+            except Exception as e:
+                logger.error(f"Error in inserting coding details: {e}")
+                logger.info(traceback.format_exc())
             try:
                 # Check if the record exists in corp_docdata:
                 if not corp_doc_id or corp_doc_id == '':

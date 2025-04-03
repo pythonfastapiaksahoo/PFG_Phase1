@@ -1,3 +1,7 @@
+#corp_validations:
+
+#corp_validations
+
 import re
 from pfg_app import model
 from pfg_app.FROps.corp_payloadValidation import payload_dbUpdate
@@ -11,6 +15,7 @@ from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
 from pfg_app.logger_module import logger
 import traceback
 import pytz as tz
+
 tz_region = tz.timezone("US/Pacific")
 # doc_id = 144
 # userID = 1
@@ -24,30 +29,6 @@ def check_date_format(date_str):
     except ValueError:
         return False
     
-# def normalize_title(title):
-#     """Remove extra spaces, hyphens, and convert to lowercase."""
-#     title = re.sub(r'[-\s]+', ' ', title).strip().lower()
-#     return title
-
-# def is_acronym_match(full_title, acronym):
-#     """Check if title2 is an acronym of title1."""
-#     words = full_title.split()
-#     acronym_generated = "".join(word[0].upper() for word in words)
-#     return acronym_generated == acronym.upper()
-
-# def is_match(title1, title2, threshold=85):
-#     """Check for either acronym match or fuzzy match after normalization."""
-#     # Normalize titles (remove hyphens, extra spaces, lowercase)
-#     title1_norm = normalize_title(title1)
-#     title2_norm = normalize_title(title2)
-    
-#     # Fuzzy match score
-#     similarity = fuzz.ratio(title1_norm, title2_norm)
-    
-#     # Check if acronym match OR fuzzy similarity is high
-#     if is_acronym_match(title1, title2) or similarity >= threshold:
-#         return True, similarity
-#     return False, similarity
 def normalize_title(title):
     """Remove extra spaces, punctuation, and convert to lowercase."""
     title = re.sub(r'[^a-zA-Z0-9\s]', '', title)  # Remove special characters like commas
@@ -91,65 +72,26 @@ def email_belongs_to_name(name, email):
     name_parts = set(name.lower().split())  # Convert name into a set of lowercase words
     return any(part in email_prefix for part in name_parts)  # Check if any name part is in the email
 
-# def is_amount_approved(amount: float, title: str) -> bool:
-#     approval_limits = {
-#         (0, 24999): {"Supervisor", "Manager"},
-#         (25000, 74999): {"Senior Manager", "Sr. Manager"},
-#         (75000, 499999): {"Director", "Regional Manager", "General Manager"},
-#         (500000, float("inf")): {"Managing Director", "VP", "Vice President"},
-#     }
+def clean_coding_amount(amount_str):
+    if amount_str in [None, ""]:
+        return 0.0
+    if isinstance(amount_str, (float, int)):
+        return round(float(amount_str), 2)
     
-#     title = title.strip().lower()
-#     title_variants = {
-#         "senior manager": "Senior Manager",
-#         "sr. manager": "Senior Manager",
-#         "sr manager": "Senior Manager",
-#         "vice president": "VP"
-#     }
+    try:
+        # Check if the amount is enclosed in parentheses (indicating a negative value)
+        is_negative = "(" in amount_str and ")" in amount_str
+        
+        # Extract numeric values including decimal points
+        cleaned_amount = re.findall(r"[\d.]+", amount_str)
+        
+        if cleaned_amount:
+            amount = float("".join(cleaned_amount))
+            return round(-amount if is_negative else amount, 2)
+    except Exception:
+        return 0.0
     
-#     normalized_title = title_variants.get(title, title.title())
-    
-#     for (lower, upper), allowed_titles in approval_limits.items():
-#         if lower <= amount <= upper:
-#             return normalized_title in allowed_titles
-    
-#     return False
-
-# def is_amount_approved(amount: float, title: str) -> bool:
-#     logger.info(f"Approval limits: {amount}, {title}")
-#     approval_limits = {
-#         (0, 24999): {"Supervisor", "Manager","Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-#         (0, 74999): {"Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-#         (0, 499999): {"Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-#         (0, float("inf")): {"Managing Director", "VP", "Vice President"},
-#     }
-    
-#     title = title.strip().lower()
-#     title_variants = {
-#         "senior manager": "Senior Manager",
-#         "Senior Finance Manager": "Senior Manager",
-#         "sr. manager": "Senior Manager",
-#         "sr manager": "Senior Manager",
-#         "vice president": "VP",
-#         "Supervisor, Accounts Payable": "Supervisor",
-#         "Supervisor, Accounts Receivable": "Supervisor",
-#     }
-
-#     # Check if any key in title_variants is a substring of the title
-#     for key, normalized in title_variants.items():
-#         if key in title:
-#             normalized_title = normalized
-#             break
-#     else:
-#         normalized_title = title.title()
-    
-#     for (lower, upper), allowed_titles in approval_limits.items():
-#         if lower <= amount <= upper:
-#             logger.info(f"Title: {normalized_title}")
-#             logger.info(f"Allowed titles: {allowed_titles}")
-#             return normalized_title in allowed_titles
-    
-#     return False
+    return 0.0
 
 def is_amount_approved(amount: float, title: str) -> bool:
     print(f"Approval limits: {amount}, {title}")
@@ -203,58 +145,6 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     return False
 
-# def update_Credit_data(doc_id, db):
-#     try:
-#         # Fetch the records from all tables using joins
-#         record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
-#                 .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
-#                 .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
-#                 .filter(model.corp_document_tab.corp_doc_id == doc_id) \
-#                 .first()
-
-#         if record:
-#             # Update the values for corp_document_tab
-#             if record[0]:  # Checking if the corp_document_tab record exists
-#                 record[0].invoicetotal = round(-abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
-#                 record[0].gst = round(-abs(record[0].gst), 2) if record[0].gst else None
-
-#             # Update the values for corp_coding_tab
-#             if record[1]:  # Checking if the corp_coding_tab record exists
-#                 record[1].invoicetotal = round(-abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
-#                 record[1].gst = round(-abs(record[1].gst), 2) if record[1].gst else None
-
-#                 # Update amount values inside coding_details
-#                 if record[1].coding_details:
-#                     for key, value in record[1].coding_details.items():
-#                         if 'amount' in value and value['amount']:
-#                             value['amount'] = round(-abs(value['amount']), 2)
-
-#                     # Mark JSON column as modified
-#                     flag_modified(record[1], "coding_details")
-
-#             # Update the values for corp_docdata
-#             if record[2]:  # Checking if the corp_docdata record exists
-#                 fields = [
-#                     "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
-#                     "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
-#                     "ecology_fee", "misc"
-#                 ]
-                
-#                 for field in fields:
-#                     value = getattr(record[2], field)  # Get current value
-#                     if value:  # Check if value is not None
-#                         setattr(record[2], field, round(-abs(value), 2))  # Convert to negative and round
-
-#             # Commit changes for all records in a single call
-#             db.commit()
-#             print(f"Updated invoicetotal, gst, and other fields for docID {doc_id} successfully.")
-#         else:
-#             logger.info(f"No record found for docID {doc_id}")
-
-#     except Exception as e:
-#         logger.error(f"Error in validate_corpdoc: {e}")
-#         logger.info(traceback.format_exc())
-
 def update_Credit_data(doc_id, db):
     try:
         # Fetch the records from all tables using joins
@@ -272,14 +162,18 @@ def update_Credit_data(doc_id, db):
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
-                record[1].invoicetotal = round(-abs(record[1].invoicetotal or 0), 2)
-                record[1].gst = round(-abs(record[1].gst or 0), 2)
+                # record[1].invoicetotal = round(-abs(record[1].invoicetotal or 0), 2)
+                record[1].invoicetotal = clean_coding_amount(record[1].invoicetotal or 0)
+                # record[1].gst = round(-abs(record[1].gst or 0), 2)
+                record[1].gst = clean_coding_amount(record[1].gst or 0)
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
                     for key, value in record[1].coding_details.items():
                         if 'amount' in value and value['amount']:
-                            value['amount'] = round(-abs(value['amount']), 2)
+                            # value['amount'] = round(-abs(value['amount']), 2)
+                            value['amount'] = clean_coding_amount(value['amount'])
+
 
                     # Mark JSON column as modified
                     flag_modified(record[1], "coding_details")
@@ -307,59 +201,6 @@ def update_Credit_data(doc_id, db):
         logger.info(traceback.format_exc())
 
 
-# def update_Credit_data_to_positive(doc_id, db):
-#     try:
-#         # Fetch the records from all tables using joins
-#         record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
-#                 .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
-#                 .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
-#                 .filter(model.corp_document_tab.corp_doc_id == doc_id) \
-#                 .first()
-
-#         if record:
-#             # Update the values for corp_document_tab
-#             if record[0]:  # Checking if the corp_document_tab record exists
-#                 record[0].invoicetotal = round(abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
-#                 record[0].gst = round(abs(record[0].gst), 2) if record[0].gst else None
-
-#             # Update the values for corp_coding_tab
-#             if record[1]:  # Checking if the corp_coding_tab record exists
-#                 record[1].invoicetotal = round(abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
-#                 record[1].gst = round(abs(record[1].gst), 2) if record[1].gst else None
-
-#                 # Update amount values inside coding_details
-#                 if record[1].coding_details:
-#                     for key, value in record[1].coding_details.items():
-#                         if 'amount' in value and value['amount']:
-#                             value['amount'] = round(abs(value['amount']), 2)
-
-#                     # Mark JSON column as modified
-#                     flag_modified(record[1], "coding_details")
-
-#             # Update the values for corp_docdata
-#             if record[2]:  # Checking if the corp_docdata record exists
-#                 fields = [
-#                     "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
-#                     "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
-#                     "ecology_fee", "misc"
-#                 ]
-                
-#                 for field in fields:
-#                     value = getattr(record[2], field)  # Get current value
-#                     if value:  # Check if value is not None
-#                         setattr(record[2], field, round(abs(value), 2))  # Convert to positive and round
-
-#             # Commit changes for all records in a single call
-#             db.commit()
-#             print(f"Updated invoicetotal, gst, and other fields to positive for docID {doc_id} successfully.")
-#         else:
-#             logger.info(f"No record found for docID {doc_id}")
-
-#     except Exception as e:
-#         logger.error(f"Error in update_Credit_data_to_positive: {e}")
-#         logger.info(traceback.format_exc())
-
-
 def update_Credit_data_to_positive(doc_id, db):
     try:
         # Fetch the records from all tables using joins
@@ -377,14 +218,17 @@ def update_Credit_data_to_positive(doc_id, db):
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
-                record[1].invoicetotal = round(abs(record[1].invoicetotal or 0), 2)
-                record[1].gst = round(abs(record[1].gst or 0), 2)
+                # record[1].invoicetotal = round(abs(record[1].invoicetotal or 0), 2)
+                record[1].invoicetotal = clean_coding_amount(record[1].invoicetotal or 0)
+                # record[1].gst = round(abs(record[1].gst or 0), 2)
+                record[1].gst = clean_coding_amount(record[1].gst or 0)
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
                     for key, value in record[1].coding_details.items():
                         if 'amount' in value and value['amount']:
-                            value['amount'] = round(abs(value['amount']), 2)
+                            # value['amount'] = round(abs(value['amount']), 2)
+                            value['amount'] = clean_coding_amount(value['amount'])
 
                     # Mark JSON column as modified
                     flag_modified(record[1], "coding_details")
@@ -436,7 +280,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     process_inactive = 0
     approval_Amt_val_status = 0
     metadata_currency = ""
-
+    VB_status = 0
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -483,7 +327,59 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
         elif docStatus in (26,25):
 
             if vendor_id is not None:
-                #check if vendor is active or not: -
+                
+                # ------------------------------------------------------ 
+                if vendor_code is not None:
+                    if vendor_id == 0:
+                        try: 
+                            vendor_id_update = int(list(df_corp_metadata['vendorid'])[0])
+                            if type(vendor_id_update) == int:
+                                vendor_id = vendor_id_update
+                        except Exception as e:
+                            logger.info(f"Error in updating vendorid: {e}")
+
+                        
+                docStatus = 4
+                docSubStatus = 11
+                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                            model.corp_document_tab.last_updated_by: userID,
+                            model.corp_document_tab.updated_on: timeStmp,
+                            model.corp_document_tab.vendor_id: vendor_id,
+
+                        }
+                    )
+                db.commit()
+            else:
+                
+                print("Vendor mapping required")
+                return_status["Status overview"] = {"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                "Vendor mapping required"
+                                                            ],
+                                                    }
+                logger.info(f"return corp validations(ln 37): {return_status}")
+                return return_status
+            
+        elif docStatus in (10,):
+            print("Document rejected")
+            return_status["Status overview"] = {"status": 0,
+                                            "StatusCode":0,
+                                            "response": [
+                                                            "Document rejected."
+                                                        ],
+                                                    }
+            logger.info(f"return corp validations(ln 48): {return_status}")
+            return return_status
+            
+        if docStatus in (32,2,4,24,21):
+            # ------
+            #check if vendor is active or not: -
+            try:
                 if "9" in str(skipConf):
                     process_inactive = 1
                     documentdesc = "Inactive vendor invoice processed by user"
@@ -534,56 +430,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             return return_status
                     except Exception as e:
                         logger.error(f"Vendor not found {e}")
-                        logger.info(traceback)
-                # ------------------------------------------------------ 
-                if vendor_code is not None:
-                    if vendor_id == 0:
-                        try: 
-                            vendor_id_update = int(list(df_corp_metadata['vendorid'])[0])
-                            if type(vendor_id_update) == int:
-                                vendor_id = vendor_id_update
-                        except Exception as e:
-                            logger.info(f"Error in updating vendorid: {e}")
+                        logger.info(traceback.format_exc())
 
-                        
-                docStatus = 4
-                docSubStatus = 11
-                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                    ).update(
-                        {
-                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                            model.corp_document_tab.last_updated_by: userID,
-                            model.corp_document_tab.updated_on: timeStmp,
-                            model.corp_document_tab.vendor_id: vendor_id,
+            except Exception:
+                logger.info(traceback.format_exc())
+            #-----
 
-                        }
-                    )
-                db.commit()
-            else:
-                
-                print("Vendor mapping required")
-                return_status["Status overview"] = {"status": 0,
-                                                "StatusCode":0,
-                                                "response": [
-                                                                "Vendor mapping required"
-                                                            ],
-                                                    }
-                logger.info(f"return corp validations(ln 37): {return_status}")
-                return return_status
-            
-        elif docStatus in (10,):
-            print("Document rejected")
-            return_status["Status overview"] = {"status": 0,
-                                            "StatusCode":0,
-                                            "response": [
-                                                            "Document rejected."
-                                                        ],
-                                                    }
-            logger.info(f"return corp validations(ln 48): {return_status}")
-            return return_status
-            
-        if docStatus in (32,2,4,24):
             nocoding_ck = 0
             corp_coding_data = (
                 db.query(model.corp_coding_tab)
@@ -715,7 +567,48 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                         logger.info(f"return corp validations(ln 70): {return_status}")
                         return return_status
-                #----------------------------
+                #----------------------------   
+                try:   
+                    logger.info(f"line 730: vendor_code: {vendor_code}")
+                    if vendor_code in [None,0]:
+                        if vendor_id is not None:
+                                try: 
+                                    corp_VrdID_cd_qry = (
+                                                db.query(model.Vendor)
+                                                .filter(model.Vendor.idVendor == vendor_id)
+                                                .all()
+                                            )
+                                    df_corp_VrdID_cd = pd.DataFrame([row.__dict__ for row in corp_VrdID_cd_qry])
+                                    vendor_cd_update = str(list(df_corp_VrdID_cd['VendorCode'])[0])
+                                    logger.info(f"line 741: vendor_cd_update: {vendor_cd_update}")
+                                    if len(str(vendor_cd_update))>0:
+
+                                        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                                            ).update(
+                                                {
+                                                    
+                                                    model.corp_document_tab.vendor_code: vendor_cd_update,
+
+                                                }
+                                            )
+                                        db.commit()
+
+                                    else:
+                                        return_status["Vendor mapping required"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Vendor Code missing."
+                                                                    ],
+                                                            }
+                                        logger.info(f"return corp validations(ln 70): {return_status}")
+                                        return return_status
+                                except Exception as e:
+                                    logger.info(traceback.format_exc())
+                                    logger.info(f"Error in updating vendorid: {e}")
+
+                        #------
+                except Exception as e:
+                    logger.info(traceback.format_exc())
                 #date validation:
                 try:
                     corp_coding_data = (
@@ -763,8 +656,36 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     except Exception as e:
                         logger.info(f"Error in getting metadata: {e}")
                         df_corp_metadata = pd.DataFrame()
-                    
+                    logger.info(f"df_corp_metadata: {df_corp_metadata}")
+                    try: 
+                        if df_corp_metadata.empty: 
+                            if "A" in str(skipConf):
+                                VB_documentdesc = "User processing invoice manually"
+                                VB_status = 1
+                                VB_status_code = 0
+                                return_status["Vendor not onboarded"] = {"status": VB_status,
+                                                            "StatusCode":VB_status_code,
+                                                            "response": [
+                                                                            VB_documentdesc
+                                                                        ],
+                                                                    }
+                            else:
+                                VB_documentdesc = "Onboard vendor/proceess manually"
+                                VB_status = 0
+                                VB_status_code = 10
+                                corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus) 
+                                return_status["Vendor not onboarded"] = {"status": VB_status,
+                                                            "StatusCode":VB_status_code,
+                                                            "response": [
+                                                                            VB_documentdesc
+                                                                        ],
+                                                                    }
+                                return return_status
+                    except Exception as e:
+                        logger.info(traceback.format_exc())
+                        
                     if not df_corp_metadata.empty:
+                        VB_status = 1
                         metadata_currency = list(df_corp_metadata['currency'])[0]
                         date_format = list(df_corp_metadata['dateformat'])[0]
                         if check_date_format(mand_invDate) == False:
@@ -809,6 +730,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                             invDate_msg = "Valid Date Format"
                             invDate_status = 1
+                        
                     else:
                         if check_date_format(mand_invDate) == False:
 
@@ -927,6 +849,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                         }
                     )
+
                     db.commit()
                     logger.info(f"return corp validations(ln 111): {return_status}")
                     return return_status
@@ -938,6 +861,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Success."
                                                                 ],
                                                             }
+                    
                     # invoice total validation:
                         logger.info(f"ready for validations-docID: {doc_id}")
                         if "1" in str(skipConf):
@@ -1127,6 +1051,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                         
                         # Mandatory Header Validation:
+                        
                         if invDate_status==0:
                             docStatus = 4
                             docSubStatus = 132
@@ -1359,6 +1284,16 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             approval_email_val_status = 0
                                             approval_email_val_msg = ""
                                             coding_approver_email = list(df_corp_coding['sender_email'])[0]
+                                            if coding_approver_name in [None,""]:
+                                                return_status["Approval validation"] = {"status": 0,
+                                                                "StatusCode":0,
+                                                                "response": [
+                                                                                "Approver name not found"
+                                                                            ],
+                                                                }
+                                                return return_status
+                                            
+
                                             if( email_belongs_to_name(coding_approver_name, coding_approver_email) or (skip_email_check==1)):
                                                 logger.info(f"Email '{coding_approver_email}' belongs to '{coding_approver_name}'")
                                                 approval_email_val_status = 1
