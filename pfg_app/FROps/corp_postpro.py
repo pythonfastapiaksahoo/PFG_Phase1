@@ -77,31 +77,7 @@ def cleanAmt_all(credit_invo, amount_str):
         rtn_amt = clean_amount(amount_str)
     return rtn_amt
 
-# def remove_special_chars(s):
-#     return re.sub(r'[^a-zA-Z0-9]', '', s)
 
-# def clean_invoice_ids(data):
-#     # Function to clean invoice IDs
-#     def clean_value(value):
-#         if isinstance(value, str):
-#             return re.sub(r'[^a-zA-Z0-9]', '', value)  # Remove special characters
-#         return value
-#     invoID_lw = {}
-#     # Cleaning in invoiceDetails section
-#     if 'coding_details' in data and 'invoiceDetails' in data['coding_details']:
-#         if 'invoice#' in data['coding_details']['invoiceDetails']:
-#             invoice_value = data['coding_details']['invoiceDetails']['invoice#']
-#             if isinstance(invoice_value, list):
-#                 data['coding_details']['invoiceDetails']['invoice#'] = [clean_value(v) for v in invoice_value]
-#             else:
-#                 data['coding_details']['invoiceDetails']['invoice#'] = clean_value(invoice_value)
-    
-#     # Cleaning in invoice_detail_list section
-#     if 'invoice_detail_list' in data:
-#         for invoice in data['invoice_detail_list']:
-#             for key, value in invoice.items():
-#                 if 'InvoiceID' in value:
-#                     value['InvoiceID'] = clean_value(value['InvoiceID'])
     
 #     return data
 def clean_invoice_ids(data):
@@ -569,6 +545,20 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     #     gst_amt = doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST']
                     gst = cleanAmt_all(credit_invo, gst_amt)
                     att_invoDate = doc_dt_rw[list(doc_dt_rw.keys())[0]]['InvoiceDate']
+                    # if str(doc_dt_rw[list(doc_dt_rw.keys())[0]]['CreditNote']).lower() == 'yes':
+                    #     credit_invo = 1
+                    # else:
+                    #     credit_invo = 0
+
+
+                    
+                    if str(doc_dt_rw[list(doc_dt_rw.keys())[0]]['CreditNote']).lower() == "yes":
+                        credit_invo = 1
+                    elif str(doc_dt_rw[list(doc_dt_rw.keys())[0]]['CreditNote']).lower() == "no":
+                        credit_invo = 0
+                    else:
+                        credit_invo = 2
+
                     
                     if credit_invo==1:
                         document_type = "Credit"
@@ -986,13 +976,24 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 pdf_gst = cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"])
                 pdf_subTotal = cleanAmt_all(credit_invo, pdf_invoTotal-pdf_gst)
                 try:
-                    crd_nt = miss_code[list(miss_code.keys())[0]]["CreditNote"]
-                    if crd_nt.lower() == "yes":
-                        document_type = "credit"
+
+                    if str(miss_code[list(miss_code.keys())[0]]['CreditNote']).lower() == "yes":
+                        credit_invo = 1
+                    elif str(miss_code[list(miss_code.keys())[0]]['CreditNote']).lower() == "no":
+                        credit_invo = 0
                     else:
-                        document_type = "invoice"
+                        credit_invo = 2
+
+                    
+                    if credit_invo==1:
+                        document_type = "Credit"
+                    elif credit_invo == 0:
+                        document_type = "Invoice"   
+                    else:
+                        document_type = "Unknown"
+
                 except Exception:
-                    document_type = ""
+                    document_type = "Unknown"
                 # update document data tab:
                 # insert doc data:
 
