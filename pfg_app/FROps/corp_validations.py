@@ -1442,6 +1442,16 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             approval_email_val_status = 0
                                             approval_email_val_msg = ""
                                             coding_approver_email = list(df_corp_coding['sender_email'])[0]
+                                            if coding_approver_name in [None,""]:
+                                                return_status["Approval validation"] = {"status": 0,
+                                                                "StatusCode":0,
+                                                                "response": [
+                                                                                "Approver name not found"
+                                                                            ],
+                                                                }
+                                                return return_status
+                                            
+
                                             if( email_belongs_to_name(coding_approver_name, coding_approver_email) or (skip_email_check==1)):
                                                 logger.info(f"Email '{coding_approver_email}' belongs to '{coding_approver_name}'")
                                                 approval_email_val_status = 1
