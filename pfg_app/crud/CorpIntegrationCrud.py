@@ -1985,7 +1985,7 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                 corp_doc_id=corp_doc_id,
                 mail_rw_key=mail_row_key,
                 queue_task_id=queue_task_id,
-                map_type="user_map"  # Set map_type
+                map_type="manual_map"  # Set map_type
             )
             db.add(corp_coding)
             is_new_record = True
@@ -1998,8 +1998,10 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     db,
                     docSubStatus_id
                 )
+                db.commit()  # ✅ Commit immediately after updating history
             except Exception as e:
                 logger.info(f"Error updating document history: {traceback.format_exc()}")
+                db.rollback()
         else:
             is_new_record = False
 
