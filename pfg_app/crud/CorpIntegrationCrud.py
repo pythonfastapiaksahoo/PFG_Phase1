@@ -1989,6 +1989,17 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
             )
             db.add(corp_coding)
             is_new_record = True
+            try:
+                corp_update_docHistory(
+                    corp_doc_id,
+                    user_id,
+                    docStatus_id,
+                    "coding details added manually.",
+                    db,
+                    docSubStatus_id
+                )
+            except Exception as e:
+                logger.info(f"Error updating document history: {traceback.format_exc()}")
         else:
             is_new_record = False
 
@@ -4010,7 +4021,7 @@ def map_coding_details_by_corp_doc_id(user_id, corp_doc_id, corp_coding_id, db):
             db.commit()
             db.refresh(corp_coding)
 
-            dmsg = f"Coding details mapped successfully"
+            dmsg = f"Coding details mapped by user."
         
             try:
                 corp_update_docHistory(
