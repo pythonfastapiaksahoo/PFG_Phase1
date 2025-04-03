@@ -850,20 +850,46 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                 except Exception:
                     pg_cnt = 0
 
+                try:
+                    if "coding_details" in op_1:
+                        if "email_metadata" in op_1['coding_details']:
+                            if "from" in op_1['coding_details']['email_metadata']:
+                                if len(op_1['coding_details']['email_metadata']['from'].split("<"))==2:
+                                    sender = op_1['coding_details']['email_metadata']['from'].split("<")[0]
+                                else:
+                                    sender = ""
+                            else:
+                                sender = ""
+                        else:
+                            sender = ""
+                    else:
+                            sender = ""
+                except Exception:
+                    logger.info(f"Error in sender: {traceback.format_exc()}")
+
+                if "GST" in doc_dt_rw[list(doc_dt_rw.keys())[0]]:
+                        gst_amt = cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]['GST'])
+                else:
+                    gst_amt = 0
+                gst = cleanAmt_all(credit_invo, gst_amt)
+
                 missing_code_docTab = {
                     "invoice_id":docData_invoID_ck3,
+                    "invoice_date":miss_code[list(miss_code.keys())[0]]['InvoiceDate'],
+                    "gst":gst,
                     "invoicetotal":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["invoicetotal"]),
                     "email_filepath": file_path,
                     "invo_filepath": pdf_blobpath,
                     "mail_row_key": mail_row_key,
                     "email_filepath_pdf":email_filepath_pdf,
-                    "gst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["GST"]),
                     "invo_page_count":pg_cnt,
                     "created_on":timestmp,
                     "updated_on":timestmp,
                     "documentstatus":4,
                     "documentsubstatus":134,
-                    "vendor_id":0,
+                    "sender": sender,
+                    "approved_by":op_1['approval_details']['Approver'],
+                    "approver_title":op_1['approval_details']['Designation']
                     
                 }  
                 try:
