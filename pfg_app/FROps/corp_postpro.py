@@ -50,6 +50,7 @@ def crd_clean_amount(amount_str):
 
 
 def clean_coding_amount(amount_str):
+    logger.info(f"amount_str: {amount_str}")
     if amount_str in [None, ""]:
         return 0.0
     if isinstance(amount_str, (float, int)):
@@ -64,10 +65,12 @@ def clean_coding_amount(amount_str):
         
         if cleaned_amount:
             amount = float("".join(cleaned_amount))
+            logger.info(f" cleaned_amount: {amount}")
             return round(-amount if is_negative else amount, 2)
     except Exception:
+        logger.info(f"Error in clean_coding_amount: {traceback.format_exc()}")
         return 0.0
-    
+    logger.info(f"Returning 0.0")
     return 0.0
 
 def cleanAmt_all(credit_invo, amount_str):
@@ -364,7 +367,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     coding_tab_data['sent_to'] = sent_to
                     coding_tab_data['sent_time'] = sent_time
                     # coding_tab_data["gst"] = cleanAmt_all(credit_invo, invoice_details['GST'][rw])
-                    coding_tab_data["gst"] = clean_coding_amount(invoice_details['GST'][rw])
+                    coding_tab_data["gst"] = clean_coding_amount(str(invoice_details['GST'][rw]))
                     coding_tab_data["invoice_number"]  = invoice_details['invoice#'][rw]
                     coding_tab_data['approverName'] = coding_approverName
                     coding_tab_data["approver_email"] = invo_approver_email 
@@ -373,14 +376,14 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     coding_tab_data["approval_status"] = approval_status
                     coding_tab_data["TMID"] = TMID
                     # coding_tab_data["invoicetotal"] =cleanAmt_all(credit_invo, invoice_details["invoicetotal"][rw])
-                    coding_tab_data["invoicetotal"] = clean_coding_amount(invoice_details["invoicetotal"][rw])
+                    coding_tab_data["invoicetotal"] = clean_coding_amount(str(invoice_details["invoicetotal"][rw]))
                     coding_data[1] = {'store':invoice_details['store'][rw],
                                             'dept':invoice_details['dept'][rw],
                                             'account':invoice_details['account'][rw],
                                             'SL':invoice_details['SL'][rw],
                                             'project':invoice_details['project'][rw],
                                             'activity':invoice_details['activity'][rw],
-                                            'anount': clean_coding_amount(invoice_details['invoicetotal'][rw])-clean_coding_amount(invoice_details['GST'][rw]) ,
+                                            'amount':clean_coding_amount(clean_coding_amount(str(invoice_details['invoicetotal'][rw]))-clean_coding_amount(str(invoice_details['GST'][rw]))) ,
                                             # 'amount':cleanAmt_all(credit_invo,float(cleanAmt_all(credit_invo,invoice_details['invoicetotal'][rw]))  - float(cleanAmt_all(credit_invo,invoice_details['GST'][rw])))
                     }   
                     coding_tab_data['coding_data'] = coding_data
@@ -734,7 +737,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                     }
 
                     
-
+                    logger.info(f"coding_data_insert: {coding_data_insert}")
                     corp_coding_insert = model.corp_coding_tab(**coding_data_insert)
                     db.add(corp_coding_insert)
                     db.commit()

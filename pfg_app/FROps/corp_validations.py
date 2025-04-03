@@ -157,22 +157,28 @@ def update_Credit_data(doc_id, db):
         if record:
             # Update the values for corp_document_tab
             if record[0]:  # Checking if the corp_document_tab record exists
+                # logger.info(f"Before record[0].invoicetotal: {record[0].invoicetotal}, record[0].gst: {record[0].gst}")
                 record[0].invoicetotal = round(-abs(record[0].invoicetotal or 0), 2)
                 record[0].gst = round(-abs(record[0].gst or 0), 2)
+                # logger.info(f"After record[0].invoicetotal: {record[0].invoicetotal}, record[0].gst: {record[0].gst}")
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
                 # record[1].invoicetotal = round(-abs(record[1].invoicetotal or 0), 2)
+                logger.info(f"Before record[1].invoicetotal: {record[1].invoicetotal}, record[1].gst: {record[1].gst}")
                 record[1].invoicetotal = clean_coding_amount(record[1].invoicetotal or 0)
                 # record[1].gst = round(-abs(record[1].gst or 0), 2)
                 record[1].gst = clean_coding_amount(record[1].gst or 0)
+                logger.info(f"After record[1].invoicetotal: {record[1].invoicetotal}, record[1].gst: {record[1].gst}")
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
                     for key, value in record[1].coding_details.items():
                         if 'amount' in value and value['amount']:
                             # value['amount'] = round(-abs(value['amount']), 2)
+                            logger.info(f"Before value['amount']: {value['amount']}")
                             value['amount'] = clean_coding_amount(value['amount'])
+                            logger.info(f"After value['amount']: {value['amount']}")
 
 
                     # Mark JSON column as modified
