@@ -141,7 +141,7 @@ def create_or_renew_subscription(background_task,db):
     access_token = token_manager.get_access_token()
     # from background_task get the subscription_details if it is not present create a new one
     subscription_details = background_task.task_metadata
-    if not subscription_details:
+    if not subscription_details or not subscription_details["SUBSCRIPTION_ID"] or not subscription_details["SUBSCRIPTION_EXPIRATION"]:
         subscription_details = create_subscriptions(access_token,'https://dev.mail.ia.owfg.com',settings.graph_corporate_mail_id) # TODO:FLAG_GRAPH
         background_task.task_metadata = subscription_details
         db.add(background_task)
@@ -151,7 +151,7 @@ def create_or_renew_subscription(background_task,db):
 
 
     # If we have at least 30 minutes left, skip renewal
-    if subscription_details["SUBSCRIPTION_ID"] and subscription_details["SUBSCRIPTION_EXPIRATION"] and (subscription_details["SUBSCRIPTION_EXPIRATION"] - now_ts > 1800):
+    if subscription_details["SUBSCRIPTION_ID"] and subscription_details["SUBSCRIPTION_EXPIRATION"] and (parse_timestamp(subscription_details["SUBSCRIPTION_EXPIRATION"]) - now_ts > 1800):
         return  # still valid
 
 
@@ -181,7 +181,7 @@ def create_or_renew_subscription(background_task,db):
         if resp.status_code == 200:
             data = resp.json()
             subscription_details["SUBSCRIPTION_EXPIRATION"] = data["expirationDateTime"]
-            logger.info(f"Subscription renewed:{subscription_details['SUBSCRIPTION_ID']} expires:{parse_timestamp(data['expirationDateTime'])}")
+            logger.info(f"Subscription renewed:{subscription_details['SUBSCRIPTION_ID']} expires:{data['expirationDateTime']}")
             # update the background task
             background_task.task_metadata = subscription_details
             db.add(background_task)
@@ -190,6 +190,7 @@ def create_or_renew_subscription(background_task,db):
         else:
             logger.info(f"Renewal failed, creating a new subscription. {resp.status_code} {resp.text}")
             subscription_details["SUBSCRIPTION_ID"] = None  # reset to create a new one
+            subscription_details["SUBSCRIPTION_EXPIRATION"] = None
             # update the background task
             background_task.task_metadata = subscription_details
             db.add(background_task)
