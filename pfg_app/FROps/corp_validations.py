@@ -1071,14 +1071,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         try:
                             logger.info(f"invoice total: {float(mand_invoTotal)}, invoice coding total: {float(cod_invoTotal)}")
                             logger.info(f"invoice gst: {float(mand_gst)}, invoice coding gst: {float(cod_gst)}")
-                            if clean_coding_amount(str(mand_invoTotal)) - clean_coding_amount(str(cod_invoTotal))>0.09:
+                            if abs(clean_coding_amount(str(mand_invoTotal)) - clean_coding_amount(str(cod_invoTotal)))>0.09:
                                 invo_cod_total_mismatch = 0
                                 
                                 # invoice_status_msg ="Invoice total mismatch with coding total"
                                 
                             else:
                                 invo_cod_total_mismatch = 1
-                            if clean_coding_amount(str(mand_gst)) - clean_coding_amount(str(cod_gst))>0.09:
+                            if abs(clean_coding_amount(str(mand_gst)) - clean_coding_amount(str(cod_gst)))>0.09:
                                 invo_cod_gst_mismatch = 0
 
                                 
@@ -1104,6 +1104,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Invoice GST mismatch with coding total"
                                                                 ],
                                                             }
+                            
                             validation_ck_all = validation_ck_all*0
                         
                         if invDate_status==0:
