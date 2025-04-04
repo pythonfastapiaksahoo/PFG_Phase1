@@ -116,6 +116,8 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "vice president": "VP",
         "vp": "VP",
         "rmpo": "Regional Manager",
+        "generalmanager, pattisson food group":"General Manager",
+        "generalmanager": "General Manager",
     }
 
     title_cleaned = re.sub(r"[^a-zA-Z\s]", "", title)  # Remove special characters
@@ -287,6 +289,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     approval_Amt_val_status = 0
     metadata_currency = ""
     VB_status = 0
+    invo_cod_total_mismatch = 0
+    validation_ck_all = 1
+    invo_cod_gst_mismatch = 0
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -1055,10 +1060,54 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             document_type_msg = "Please review Document Type"
 
 
-                        
+                    
                         # Mandatory Header Validation:
+                        line_sum = 0
+                        amt_threshold = 25000
+                        cod_invoTotal =  df_corp_coding['invoicetotal']
+                        cod_gst = df_corp_coding['gst']
+                        template_type = df_corp_coding['template_type']
+                        
+                        try:
+                            logger.info(f"invoice total: {float(mand_invoTotal)}, invoice coding total: {float(cod_invoTotal)}")
+                            logger.info(f"invoice gst: {float(mand_gst)}, invoice coding gst: {float(cod_gst)}")
+                            if clean_coding_amount(str(mand_invoTotal)) - clean_coding_amount(str(cod_invoTotal))>0.09:
+                                invo_cod_total_mismatch = 0
+                                
+                                # invoice_status_msg ="Invoice total mismatch with coding total"
+                                
+                            else:
+                                invo_cod_total_mismatch = 1
+                            if clean_coding_amount(str(mand_gst)) - clean_coding_amount(str(cod_gst))>0.09:
+                                invo_cod_gst_mismatch = 0
+
+                                
+                            else:
+                                invo_cod_gst_mismatch = 1
+                        except Exception:
+                            logger.info(f"Error in invoice total mismatch: {traceback.format_exc()}")
+
+                        if invo_cod_total_mismatch==0:
+                            return_status["Invoice Total validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Invoice total mismatch with coding total"
+                                                                ],
+                                                            }
+                            validation_ck_all = validation_ck_all*0
+                                    
+                        if invo_cod_gst_mismatch==0:
+                                # invoice_status_msg ="Invoice GST mismatch with coding total"
+                            return_status["Invoice GST validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Invoice GST mismatch with coding total"
+                                                                ],
+                                                            }
+                            validation_ck_all = validation_ck_all*0
                         
                         if invDate_status==0:
+                            validation_ck_all = validation_ck_all*0
                             docStatus = 4
                             docSubStatus = 132
                             return_status["Invoice date validation"] = {"status": 0,
@@ -1067,7 +1116,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Invoice date is invalid, Please review."
                                                                 ],
                                                             }
-                        elif invoTotal_status==0:
+                            validation_ck_all = validation_ck_all*0
+                        if invoTotal_status==0:
                             docStatus = 4
                             docSubStatus = 131
                             return_status["invoice Total validation"] = {"status": 0,
@@ -1076,7 +1126,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Invoice total mismatch, Please review."
                                                                 ],
                                                             }
-                        elif document_type_status==0:
+                            validation_ck_all = validation_ck_all*0
+
+                        if document_type_status==0:
                             docStatus = 4
                             docSubStatus = 129
                             return_status["Document identifier validation"] = {"status": 0,
@@ -1085,24 +1137,23 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Document identifier mismatch, Please review."
                                                                 ],
                                                             }
-                        elif currency_ck==0:
+                            validation_ck_all = validation_ck_all*0
+                        if currency_ck==0:
+                            validation_ck_all = validation_ck_all*0
                             docStatus = 4
                             docSubStatus = 100
                         
-                        else:
+                        if validation_ck_all == 1:
                             return_status["Document identifier validation"] = {"status": 1,
                                                     "StatusCode":0,
                                                     "response": [
                                                                     "Success."
                                                                 ],
                                                             }
-                            line_sum = 0
-                            amt_threshold = 25000
-                            cod_invoTotal =  df_corp_coding['invoicetotal']
-                            cod_gst = df_corp_coding['gst']
-                            template_type = df_corp_coding['template_type']
+                            
                             # if template_type is None or (isinstance(template_type, pd.Series) and template_type.isna().all()):
                             #     template_type = ""
+                            
 
                             invoTotal_15 = (cod_invoTotal * 0.15)
 
