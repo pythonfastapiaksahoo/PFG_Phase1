@@ -8,6 +8,8 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 from tenacity import retry, stop_after_attempt, wait_exponential
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry import trace
 
 from pfg_app import settings
 from pfg_app.core.utils import build_rfc1738_url
@@ -72,6 +74,11 @@ else:
         max_overflow=5,
         pool_timeout=30,
     )
+    SQLAlchemyInstrumentor().instrument(
+        engine=engine,
+        tracer_provider=trace.get_tracer_provider(),
+    )
+    logger.info("SQLAlchemy instrumented")
 
     Session = scoped_session(
         sessionmaker(autocommit=False, autoflush=False, bind=engine)
