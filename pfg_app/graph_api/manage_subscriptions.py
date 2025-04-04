@@ -120,6 +120,9 @@ def subscription_renewal_loop(operation_id):
         
 
         while True:
+            # create a new operation id for the loop
+            operation_id = uuid.uuid4().hex
+            set_operation_id(operation_id)
             logger.info(f"subscription_renewal_loop loop running")
             try:
                 create_or_renew_subscription(background_task,db)
@@ -128,6 +131,8 @@ def subscription_renewal_loop(operation_id):
             logger.info(f"subscription_renewal_loop loop sleeping for 5 minutes")
             time.sleep(300)  # 5 minutes
             logger.info(f"subscription_renewal_loop loop woke up")
+
+
     except Exception:
         logger.error(f"subscription_renewal_loop error: {traceback.format_exc()}")
 
