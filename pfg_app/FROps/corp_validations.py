@@ -388,6 +388,56 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             return return_status
             
         if docStatus in (32,2,4,24,21):
+            #----------
+            try:
+                dupCk_document_data = (
+                db.query(model.corp_document_tab)
+                .filter(
+                    model.corp_document_tab.corp_doc_id != doc_id,
+                    model.corp_document_tab.vendor_id == vendor_id,
+                    model.corp_document_tab.documentstatus != 10,
+                    model.corp_document_tab.invoice_id == invoice_id
+                )
+                .all()
+                )
+
+                
+                df_dupCk_document = pd.DataFrame([
+                    {col: getattr(row, col) for col in model.corp_document_tab.__table__.columns.keys()}
+                    for row in dupCk_document_data
+                ])
+
+                if len(df_dupCk_document)>0:
+                    # duplicate invoice
+                    docStatus = 32
+                    documentdesc = f"Duplicate invoice"
+                    docSubStatus = 128
+                    return_status["Status overview"] = {"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                "Duplicate invoice."
+                                                            ],
+                                                        }
+                    
+                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                            model.corp_document_tab.last_updated_by: userID,
+                            model.corp_document_tab.updated_on: timeStmp,
+
+                        }
+                    )
+
+                    db.commit()
+                    logger.info(f"return corp validations(ln 111): {return_status}")
+                    return return_status
+            except Exception as e:
+                logger.info(f"Error in validate_corpdoc: {e}")
+                logger.info(traceback.format_exc())
+                
             # ------
             #check if vendor is active or not: -
             try:
