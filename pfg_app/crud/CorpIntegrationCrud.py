@@ -91,7 +91,10 @@ def format_data_for_template1(parsed_data):
             "SL": [],
             "project": [],
             "activity": [],
-            "amount": []
+            "amount": [],
+            "invoice#": '',
+            "GST": '',
+            "invoicetotal": '',
         }
         # approver_details = {}
         approver_details = {
@@ -395,7 +398,10 @@ def format_data_for_template3(parsed_data):
             "SL": [],
             "project": [],
             "activity": [],
-            "amount": []  # Changed to 'amount' as the column name is "Amount"
+            "amount": [],
+            "invoice#": '',
+            "GST": '',
+            "invoicetotal": '',
         }
         # approver_details = {}
         approver_details = {
