@@ -1747,6 +1747,8 @@ class CorpVoucherData(Base):
     SHIPTO_ID = Column(String(10), nullable=True)
     INVOICE_FILE_PATH = Column(String, nullable=True)
     EMAIL_PATH = Column(String, nullable=True)
+    UNIQUE_FILENAME_INVOICE = Column(String, nullable=True)
+    UNIQUE_FILENAME_EMAIL = Column(String, nullable=True)
 
 
 class TaskSchedular(Base): 
