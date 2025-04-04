@@ -1,3 +1,5 @@
+#corp_validations:
+
 #corp_validations
 
 import re
@@ -13,6 +15,7 @@ from pfg_app.crud.CorpIntegrationCrud import corp_update_docHistory
 from pfg_app.logger_module import logger
 import traceback
 import pytz as tz
+
 tz_region = tz.timezone("US/Pacific")
 # doc_id = 144
 # userID = 1
@@ -26,30 +29,6 @@ def check_date_format(date_str):
     except ValueError:
         return False
     
-# def normalize_title(title):
-#     """Remove extra spaces, hyphens, and convert to lowercase."""
-#     title = re.sub(r'[-\s]+', ' ', title).strip().lower()
-#     return title
-
-# def is_acronym_match(full_title, acronym):
-#     """Check if title2 is an acronym of title1."""
-#     words = full_title.split()
-#     acronym_generated = "".join(word[0].upper() for word in words)
-#     return acronym_generated == acronym.upper()
-
-# def is_match(title1, title2, threshold=85):
-#     """Check for either acronym match or fuzzy match after normalization."""
-#     # Normalize titles (remove hyphens, extra spaces, lowercase)
-#     title1_norm = normalize_title(title1)
-#     title2_norm = normalize_title(title2)
-    
-#     # Fuzzy match score
-#     similarity = fuzz.ratio(title1_norm, title2_norm)
-    
-#     # Check if acronym match OR fuzzy similarity is high
-#     if is_acronym_match(title1, title2) or similarity >= threshold:
-#         return True, similarity
-#     return False, similarity
 def normalize_title(title):
     """Remove extra spaces, punctuation, and convert to lowercase."""
     title = re.sub(r'[^a-zA-Z0-9\s]', '', title)  # Remove special characters like commas
@@ -93,65 +72,26 @@ def email_belongs_to_name(name, email):
     name_parts = set(name.lower().split())  # Convert name into a set of lowercase words
     return any(part in email_prefix for part in name_parts)  # Check if any name part is in the email
 
-# def is_amount_approved(amount: float, title: str) -> bool:
-#     approval_limits = {
-#         (0, 24999): {"Supervisor", "Manager"},
-#         (25000, 74999): {"Senior Manager", "Sr. Manager"},
-#         (75000, 499999): {"Director", "Regional Manager", "General Manager"},
-#         (500000, float("inf")): {"Managing Director", "VP", "Vice President"},
-#     }
+def clean_coding_amount(amount_str):
+    if amount_str in [None, ""]:
+        return 0.0
+    if isinstance(amount_str, (float, int)):
+        return round(float(amount_str), 2)
     
-#     title = title.strip().lower()
-#     title_variants = {
-#         "senior manager": "Senior Manager",
-#         "sr. manager": "Senior Manager",
-#         "sr manager": "Senior Manager",
-#         "vice president": "VP"
-#     }
+    try:
+        # Check if the value is negative due to a '-' sign
+        is_negative = "-" in amount_str or ("(" in amount_str and ")" in amount_str)
+        
+        # Extract numeric values including decimal points
+        cleaned_amount = re.findall(r"[\d.]+", amount_str)
+        
+        if cleaned_amount:
+            amount = float("".join(cleaned_amount))
+            return round(-amount if is_negative else amount, 2)
+    except Exception:
+        return 0.0
     
-#     normalized_title = title_variants.get(title, title.title())
-    
-#     for (lower, upper), allowed_titles in approval_limits.items():
-#         if lower <= amount <= upper:
-#             return normalized_title in allowed_titles
-    
-#     return False
-
-# def is_amount_approved(amount: float, title: str) -> bool:
-#     logger.info(f"Approval limits: {amount}, {title}")
-#     approval_limits = {
-#         (0, 24999): {"Supervisor", "Manager","Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-#         (0, 74999): {"Senior Manager", "Sr. Manager","Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-#         (0, 499999): {"Director", "Regional Manager", "General Manager","Managing Director", "VP", "Vice President"},
-#         (0, float("inf")): {"Managing Director", "VP", "Vice President"},
-#     }
-    
-#     title = title.strip().lower()
-#     title_variants = {
-#         "senior manager": "Senior Manager",
-#         "Senior Finance Manager": "Senior Manager",
-#         "sr. manager": "Senior Manager",
-#         "sr manager": "Senior Manager",
-#         "vice president": "VP",
-#         "Supervisor, Accounts Payable": "Supervisor",
-#         "Supervisor, Accounts Receivable": "Supervisor",
-#     }
-
-#     # Check if any key in title_variants is a substring of the title
-#     for key, normalized in title_variants.items():
-#         if key in title:
-#             normalized_title = normalized
-#             break
-#     else:
-#         normalized_title = title.title()
-    
-#     for (lower, upper), allowed_titles in approval_limits.items():
-#         if lower <= amount <= upper:
-#             logger.info(f"Title: {normalized_title}")
-#             logger.info(f"Allowed titles: {allowed_titles}")
-#             return normalized_title in allowed_titles
-    
-#     return False
+    return 0.0
 
 def is_amount_approved(amount: float, title: str) -> bool:
     print(f"Approval limits: {amount}, {title}")
@@ -205,58 +145,6 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     return False
 
-# def update_Credit_data(doc_id, db):
-#     try:
-#         # Fetch the records from all tables using joins
-#         record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
-#                 .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
-#                 .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
-#                 .filter(model.corp_document_tab.corp_doc_id == doc_id) \
-#                 .first()
-
-#         if record:
-#             # Update the values for corp_document_tab
-#             if record[0]:  # Checking if the corp_document_tab record exists
-#                 record[0].invoicetotal = round(-abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
-#                 record[0].gst = round(-abs(record[0].gst), 2) if record[0].gst else None
-
-#             # Update the values for corp_coding_tab
-#             if record[1]:  # Checking if the corp_coding_tab record exists
-#                 record[1].invoicetotal = round(-abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
-#                 record[1].gst = round(-abs(record[1].gst), 2) if record[1].gst else None
-
-#                 # Update amount values inside coding_details
-#                 if record[1].coding_details:
-#                     for key, value in record[1].coding_details.items():
-#                         if 'amount' in value and value['amount']:
-#                             value['amount'] = round(-abs(value['amount']), 2)
-
-#                     # Mark JSON column as modified
-#                     flag_modified(record[1], "coding_details")
-
-#             # Update the values for corp_docdata
-#             if record[2]:  # Checking if the corp_docdata record exists
-#                 fields = [
-#                     "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
-#                     "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
-#                     "ecology_fee", "misc"
-#                 ]
-                
-#                 for field in fields:
-#                     value = getattr(record[2], field)  # Get current value
-#                     if value:  # Check if value is not None
-#                         setattr(record[2], field, round(-abs(value), 2))  # Convert to negative and round
-
-#             # Commit changes for all records in a single call
-#             db.commit()
-#             print(f"Updated invoicetotal, gst, and other fields for docID {doc_id} successfully.")
-#         else:
-#             logger.info(f"No record found for docID {doc_id}")
-
-#     except Exception as e:
-#         logger.error(f"Error in validate_corpdoc: {e}")
-#         logger.info(traceback.format_exc())
-
 def update_Credit_data(doc_id, db):
     try:
         # Fetch the records from all tables using joins
@@ -269,19 +157,29 @@ def update_Credit_data(doc_id, db):
         if record:
             # Update the values for corp_document_tab
             if record[0]:  # Checking if the corp_document_tab record exists
+                # logger.info(f"Before record[0].invoicetotal: {record[0].invoicetotal}, record[0].gst: {record[0].gst}")
                 record[0].invoicetotal = round(-abs(record[0].invoicetotal or 0), 2)
                 record[0].gst = round(-abs(record[0].gst or 0), 2)
+                # logger.info(f"After record[0].invoicetotal: {record[0].invoicetotal}, record[0].gst: {record[0].gst}")
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
-                record[1].invoicetotal = round(-abs(record[1].invoicetotal or 0), 2)
-                record[1].gst = round(-abs(record[1].gst or 0), 2)
+                # record[1].invoicetotal = round(-abs(record[1].invoicetotal or 0), 2)
+                logger.info(f"Before record[1].invoicetotal: {record[1].invoicetotal}, record[1].gst: {record[1].gst}")
+                record[1].invoicetotal = clean_coding_amount(record[1].invoicetotal or 0)
+                # record[1].gst = round(-abs(record[1].gst or 0), 2)
+                record[1].gst = clean_coding_amount(record[1].gst or 0)
+                logger.info(f"After record[1].invoicetotal: {record[1].invoicetotal}, record[1].gst: {record[1].gst}")
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
                     for key, value in record[1].coding_details.items():
                         if 'amount' in value and value['amount']:
-                            value['amount'] = round(-abs(value['amount']), 2)
+                            # value['amount'] = round(-abs(value['amount']), 2)
+                            logger.info(f"Before value['amount']: {value['amount']}")
+                            value['amount'] = clean_coding_amount(value['amount'])
+                            logger.info(f"After value['amount']: {value['amount']}")
+
 
                     # Mark JSON column as modified
                     flag_modified(record[1], "coding_details")
@@ -309,59 +207,6 @@ def update_Credit_data(doc_id, db):
         logger.info(traceback.format_exc())
 
 
-# def update_Credit_data_to_positive(doc_id, db):
-#     try:
-#         # Fetch the records from all tables using joins
-#         record = db.query(model.corp_document_tab, model.corp_coding_tab, model.corp_docdata) \
-#                 .join(model.corp_coding_tab, model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id) \
-#                 .join(model.corp_docdata, model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id) \
-#                 .filter(model.corp_document_tab.corp_doc_id == doc_id) \
-#                 .first()
-
-#         if record:
-#             # Update the values for corp_document_tab
-#             if record[0]:  # Checking if the corp_document_tab record exists
-#                 record[0].invoicetotal = round(abs(record[0].invoicetotal), 2) if record[0].invoicetotal else None
-#                 record[0].gst = round(abs(record[0].gst), 2) if record[0].gst else None
-
-#             # Update the values for corp_coding_tab
-#             if record[1]:  # Checking if the corp_coding_tab record exists
-#                 record[1].invoicetotal = round(abs(record[1].invoicetotal), 2) if record[1].invoicetotal else None
-#                 record[1].gst = round(abs(record[1].gst), 2) if record[1].gst else None
-
-#                 # Update amount values inside coding_details
-#                 if record[1].coding_details:
-#                     for key, value in record[1].coding_details.items():
-#                         if 'amount' in value and value['amount']:
-#                             value['amount'] = round(abs(value['amount']), 2)
-
-#                     # Mark JSON column as modified
-#                     flag_modified(record[1], "coding_details")
-
-#             # Update the values for corp_docdata
-#             if record[2]:  # Checking if the corp_docdata record exists
-#                 fields = [
-#                     "invoicetotal", "subtotal", "bottledeposit", "shippingcharges",
-#                     "litterdeposit", "gst", "pst", "pst_sk", "pst_bc",
-#                     "ecology_fee", "misc"
-#                 ]
-                
-#                 for field in fields:
-#                     value = getattr(record[2], field)  # Get current value
-#                     if value:  # Check if value is not None
-#                         setattr(record[2], field, round(abs(value), 2))  # Convert to positive and round
-
-#             # Commit changes for all records in a single call
-#             db.commit()
-#             print(f"Updated invoicetotal, gst, and other fields to positive for docID {doc_id} successfully.")
-#         else:
-#             logger.info(f"No record found for docID {doc_id}")
-
-#     except Exception as e:
-#         logger.error(f"Error in update_Credit_data_to_positive: {e}")
-#         logger.info(traceback.format_exc())
-
-
 def update_Credit_data_to_positive(doc_id, db):
     try:
         # Fetch the records from all tables using joins
@@ -379,14 +224,17 @@ def update_Credit_data_to_positive(doc_id, db):
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
-                record[1].invoicetotal = round(abs(record[1].invoicetotal or 0), 2)
-                record[1].gst = round(abs(record[1].gst or 0), 2)
+                # record[1].invoicetotal = round(abs(record[1].invoicetotal or 0), 2)
+                record[1].invoicetotal = clean_coding_amount(record[1].invoicetotal or 0)
+                # record[1].gst = round(abs(record[1].gst or 0), 2)
+                record[1].gst = clean_coding_amount(record[1].gst or 0)
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
                     for key, value in record[1].coding_details.items():
                         if 'amount' in value and value['amount']:
-                            value['amount'] = round(abs(value['amount']), 2)
+                            # value['amount'] = round(abs(value['amount']), 2)
+                            value['amount'] = clean_coding_amount(value['amount'])
 
                     # Mark JSON column as modified
                     flag_modified(record[1], "coding_details")
