@@ -2099,7 +2099,7 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
                 # Only update corp_document_tab if NOT a new record
-                if not is_new_record and field in ["invoice_id", "invoicetotal", "invoice_date", "approver_title"]:
+                if not is_new_record and field in ["invoice_id", "invoicetotal", "invoice_date", "approver_title", "approver_name"]:
                     corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
                     if corp_doc_tab:
                         corp_doc_field = "approved_by" if field == "approver_name" else field
@@ -2174,8 +2174,16 @@ def corp_update_docHistory(documentID, userID, documentstatus, documentdesc, db,
         db.rollback()
         return {"DB error": "Error while inserting document history"}
     
+# Function to insert timestamp before the file extension
+def add_uniqueness_to_filename(filename, timestamp):
+    if not filename:
+        return f"unnamed_{timestamp}"
+    parts = filename.rsplit(".", 1)
+    if len(parts) == 2:
+        return f"{parts[0]}_{timestamp}.{parts[1]}"
+    else:
+        return f"{filename}_{timestamp}"
     
-
 # CRUD function to process the invoice voucher and send it to peoplesoft
 def processCorpInvoiceVoucher(doc_id, db):
     try:
@@ -2188,8 +2196,20 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
+        # Generate a timestamp string, e.g., "20250404_153045"
+        timestamp_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        invoice_dt = corpvoucherdata.INVOICE_DT
         invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH.split("/")[-1] or ""
         email_pdf_file_name = corpvoucherdata.EMAIL_PATH.split("/")[-1] or ""
+        
+        unique_invoice_file_name = add_uniqueness_to_filename(invoice_file_name, invoice_dt)
+        unique_email_pdf_file_name = add_uniqueness_to_filename(email_pdf_file_name, timestamp_str)
+        
+        # Save to DB
+        corpvoucherdata.UNIQUE_FILENAME_INVOICE = unique_invoice_file_name
+        corpvoucherdata.UNIQUE_FILENAME_EMAIL = unique_email_pdf_file_name
+
+        db.commit()
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
         if not corpvoucherdata.INVOICE_DT or not date_pattern.match(corpvoucherdata.INVOICE_DT):
@@ -2340,7 +2360,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
-                                    "FILE_NAME": invoice_file_name,
+                                    "FILE_NAME": unique_invoice_file_name,
                                     "base64file": base64file
                                 },
                                 {
@@ -2350,7 +2370,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
-                                    "FILE_NAME": email_pdf_file_name,
+                                    "FILE_NAME": unique_email_pdf_file_name,
                                     "base64file": base64eml
                                 }
                             ],
@@ -3699,6 +3719,8 @@ async def reject_corp_invoice(userID, invoiceID, reason, db):
     try:
         # Mapping reasons to substatus IDs
         reason_to_substatus = {
+            "Coding Error": 162,
+            "Approver missing": 161,
             "No Active Models/Templates": 158,
             "Vendor Not Onboarded": 157,
             "Duplicate": 156,
