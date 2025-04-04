@@ -50,3 +50,4 @@ email_validator==2.2.0
 imgkit==1.2.3
 urllib3==2.2.3
 pytesseract==0.3.13
+opentelemetry-instrumentation-sqlalchemy==0.52b1
