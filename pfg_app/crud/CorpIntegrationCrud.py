@@ -1988,7 +1988,7 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                 map_type="manual_map"  # Set map_type
             )
             db.add(corp_coding)
-            is_new_record = True
+            # is_new_record = True
             try:
                 corp_update_docHistory(
                     corp_doc_id,
@@ -2002,8 +2002,8 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
             except Exception as e:
                 logger.info(f"Error updating document history: {traceback.format_exc()}")
                 db.rollback()
-        else:
-            is_new_record = False
+        # else:
+        #     is_new_record = False
 
         consolidated_updates = []
         any_updates = False
@@ -2099,15 +2099,15 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
                 # Only update corp_document_tab if NOT a new record
-                if not is_new_record and field in ["invoice_id", "invoicetotal", "invoice_date", "approver_title", "approver_name"]:
+                if field in ["invoice_id", "invoicetotal", "invoice_date", "approver_title", "approver_name"]:
                     corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
                     if corp_doc_tab:
                         corp_doc_field = "approved_by" if field == "approver_name" else field
                         setattr(corp_doc_tab, corp_doc_field, new_value)
                         consolidated_updates.append(f"{corp_doc_field} (corp_document_tab): {old_value} -> {new_value}")
 
-        if is_new_record:
-            db.add(corp_coding)
+        # if is_new_record:
+        #     db.add(corp_coding)
 
         if any_updates:
             try:
