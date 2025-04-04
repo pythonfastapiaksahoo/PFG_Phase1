@@ -1361,6 +1361,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     approval_email_val_msg = "Success"
                                                 emal_status_code = 0
                                             else:
+                                                docStatus = 24
+                                                docSubStatus = 70
                                                 emal_status_code = 5
                                                 approvrd_ck=approvrd_ck * 0
                                                 logger.info(f"Email '{coding_approver_email}' does NOT belong to '{coding_approver_name}'")
@@ -1386,6 +1388,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             else:
                                                 score = 0
                                                 if skip_title_check!=1:
+                                                    docStatus = 24
+                                                    docSubStatus = 163
                                                     approvrd_ck = approvrd_ck * 0
                                                     title_status_code = 6
                                                     logger.info("Approver title mismatch")
@@ -1404,6 +1408,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     approval_Amt_val_msg = ""
                                                 #amount_approval_check = 7
                                             else:
+                                                docStatus = 24
+                                                docSubStatus = 163
                                                 approvrd_ck = approvrd_ck * 0
                                                 title_status_code = 6
                                                 logger.info("Approver title mismatch")
@@ -1429,6 +1435,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     approval_Amt_val_msg = "Amount approved"
                                                 eml_status_code = 0
                                             else:
+                                                docStatus = 24
+                                                docSubStatus = 164
                                                 approval_Amt_val_status =0
                                                 approvrd_ck= approvrd_ck * 0
                                                 eml_status_code = 7
@@ -1468,9 +1476,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             
                                                 
                                             if approvrd_ck==0:
+                                                if docStatus != 24:
+                                                    docStatus = 24
+                                                    docSubStatus = 137
                                                 validation_status_ck = validation_status_ck * 0
-                                                docStatus = 24
-                                                docSubStatus = 70
+                                                
                                                 documentdesc = "Invoice - Not Approved"
                                                 return_status["Approval Validation"] = {"status": 0,
                                                         "StatusCode":0,
