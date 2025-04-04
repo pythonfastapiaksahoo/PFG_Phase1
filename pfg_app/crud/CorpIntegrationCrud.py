@@ -3720,7 +3720,7 @@ async def reject_corp_invoice(userID, invoiceID, reason, db):
         # Mapping reasons to substatus IDs
         reason_to_substatus = {
             "Coding Error": 162,
-            "Approver missing": 161,
+            "Approval Missing": 161,
             "No Active Models/Templates": 158,
             "Vendor Not Onboarded": 157,
             "Duplicate": 156,
