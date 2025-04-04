@@ -97,8 +97,9 @@ def validate_voucher_distribution(db, vchr_dist_stg):
     prj_msg = []
     act_msg = []
     misssing_PA = []
-    prj_fd = 0
+    
     for line, details in vchr_dist_stg.items():
+        prj_fd = 0
         store = details.get("store")
         dept = details.get("dept")
         account = details.get("account")
