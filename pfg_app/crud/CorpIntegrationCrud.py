@@ -2041,12 +2041,13 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                             ).update({"is_active": 0})
                         
                         db.flush()
-                    
+                    old_value = json.dumps(old_value) if isinstance(old_value, dict) else str(old_value)
+                    new_value = json.dumps(new_value) if isinstance(new_value, dict) else str(new_value)
                     data = {
                         "doc_id": corp_doc_id,
                         "updated_field": field,
-                        "old_value": json.dumps(old_value) if isinstance(old_value, dict) else str(old_value),  # Convert dict to JSON string
-                        "new_value": json.dumps(new_value) if isinstance(new_value, dict) else str(new_value),  # Convert dict to JSON string
+                        "old_value": old_value,  # Convert dict to JSON string
+                        "new_value": new_value,  # Convert dict to JSON string
                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         "user_id": user_id,
                         "is_active": 1
@@ -2055,8 +2056,8 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     update_log = model.CorpDocumentUpdates(**data)
                     db.add(update_log)
                     db.flush()
-                    consolidated_updates.append(f"{field}: JSON Updated")
-
+                    # consolidated_updates.append(f"{field}: JSON Updated")
+                    consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
             else:
                 # Convert new & old values to the correct data type
                 if field_type == int:
