@@ -97,8 +97,9 @@ def validate_voucher_distribution(db, vchr_dist_stg):
     prj_msg = []
     act_msg = []
     misssing_PA = []
-    prj_fd = 0
+    
     for line, details in vchr_dist_stg.items():
+        prj_fd = 0
         store = details.get("store")
         dept = details.get("dept")
         account = details.get("account")
@@ -112,7 +113,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if store_exists:
                 print("valid store")
             else:
-                store_msg.append(f"Line:{line} - Store:{store}")
+                store_msg.append(f"Line:{line} -{store}")
 
         # Validate Department
         if dept:
@@ -121,8 +122,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if dept_exists:
                 print("valid dept")
             else:
-                dept_msg.append(f"Line:{line} - Dept:{dept}") 
-
+                dept_msg.append(f"Line:{line} -{dept}") 
         # Validate Account
         if account:
             account_exists = db.query(model.PFGAccount).filter_by(ACCOUNT=account).first()
@@ -130,8 +130,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
                 print("valid account")
             else:
               
-                acc_msg.append(f"Line:{line} - Acc:{account}") 
-
+                acc_msg.append(f"Line:{line} -{account}") 
 
         # Validate Strategic Ledger (SL)
         if sl:
@@ -139,7 +138,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if sl_exists:
                 print("valid SL")
             else:
-                sl_msg.append(f"Line:{line} - SL:{sl}") 
+                sl_msg.append(f"Line:{line} -{sl}") 
 
         # Validate Project
         if project:
@@ -150,7 +149,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
                 
             else:
                
-                prj_msg.append(f"Line:{line} - Proj:{project}") 
+                prj_msg.append(f"Line:{line} -{project}") 
 
         # Validate Project Activity
         if prj_fd == 1:
@@ -169,53 +168,53 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if activity_exists:
                 print("activity_exists valid")
             else:
-                act_msg.append(f"Line:{line} - Proj/Act:{project}/{activity}") 
+                act_msg.append(f"Line:{line} -{project}/{activity}") 
 
-    val_status_msg = "Invalid data:"   
+    val_status_msg = ""   
     invl_status_cd = 1
     if len(store_msg)>0:
-        val_status_msg = f"{val_status_msg} Store:{store_msg}"
+        val_status_msg = f"Invalid store:{store_msg}"
         invl_status_cd = invl_status_cd * 0
 
     if len(dept_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Department{dept_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Invalid department:{dept_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Department:{dept_msg}"
+            val_status_msg = f"{val_status_msg} | Invalid department: {dept_msg}"
         invl_status_cd = invl_status_cd * 0
 
     if len(acc_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Account:{acc_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Invalid account:{acc_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Account:{acc_msg}"
+            val_status_msg = f"{val_status_msg} | Invalid account::{acc_msg}"
         invl_status_cd = invl_status_cd * 0
 
     if len(sl_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} SL:{sl_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Invalid SL:{sl_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | SL:{sl_msg}"
+            val_status_msg = f"{val_status_msg} | Invalid SL:{sl_msg}"
         invl_status_cd = invl_status_cd * 0     
 
     if len(prj_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Project:{prj_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Invalid project:{prj_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Project:{prj_msg}"
+            val_status_msg = f"{val_status_msg} | Invalid project:{prj_msg}"
         invl_status_cd = invl_status_cd * 0
     print("act_msg:",act_msg)
     if len(act_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Proj & Activity mismatch:{act_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Proj & Activity mismatch(Proj/Act):{act_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Proj & Activity mismatch:{act_msg}"
+            val_status_msg = f"{val_status_msg} | Proj & Activity mismatch(Proj/Act):{act_msg}"
         invl_status_cd = invl_status_cd * 0
     if len(misssing_PA)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Project & Activity missing:{misssing_PA}"
+        if val_status_msg=="" :
+            val_status_msg = f"Project/Activity missing:{misssing_PA}"
         else:
-            val_status_msg = f"{val_status_msg} | Project & Activity missing:{misssing_PA}"
+            val_status_msg = f"{val_status_msg} | Project/Activity missing:{misssing_PA}"
         invl_status_cd = invl_status_cd * 0
     logger.info(f"return fomr validate_voucher- invl_status_cd{invl_status_cd}, val_status_msg: {val_status_msg}")
     return invl_status_cd,val_status_msg
