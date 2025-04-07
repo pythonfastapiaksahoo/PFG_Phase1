@@ -238,7 +238,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         vrd_cd = matching_vendors[list(matching_vendors.keys())[0]]["vendor_code"]
 
         docStatus = 4
-        documentdesc = f"Vendor match found:{vendorID}"
+        documentdesc = f"Vendor match found:{vrd_cd}"
         substatus = 11
         corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
         
@@ -279,7 +279,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         # vendor not found: docStatus = 26 & substatus = 107
         docStatus = 26
         substatus = 107
-        documentdesc = "vendor not found"
+        documentdesc = "Vendor match not found"
         corp_update_docHistory(docID, userID, docStatus, documentdesc, db,docStatus)
         
         
@@ -297,7 +297,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         # vendor not onboarded: docStatus = 25 & substatus = 106
         docStatus = 25
         substatus = 106
-        documentdesc = "vendor not onboarded"
+        documentdesc = "Vendor not onboarded"
         corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
         
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
