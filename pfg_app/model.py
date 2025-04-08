@@ -1539,7 +1539,7 @@ class CorpQueueTask(Base):
     updated_at = Column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
-    mail_row_key = Column(String(50), nullable=False)
+    mail_row_key = Column(String(50), nullable=False, unique=True)
     locked_at = Column(DateTime, nullable=True)
     # Define a GIN index on the request_data column
     __table_args__ = (
@@ -1559,7 +1559,7 @@ class corp_document_tab(Base):
     vendor_code = Column(String(45), nullable=True)
     uploaded_date = Column(DateTime, nullable=True)
     approver_title = Column(String(45), nullable=True)
-    last_updated_by = Column(String(45), nullable=True)
+    last_updated_by = Column(Integer, nullable=True)
     vendor_id = Column(Integer, nullable=True)
     documentstatus = Column((Integer), nullable=True)
     documentsubstatus = Column((Integer), nullable=True)

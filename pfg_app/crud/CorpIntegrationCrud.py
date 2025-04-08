@@ -3203,17 +3203,17 @@ async def read_corp_paginate_doc_inv_list(
             "Duplicate Invoice": 32,
         }
 
-        # new subquery to increase the loading time
-        sub_query_desc = (
-            db.query(
-                model.corp_hist_logs.document_id,
-                model.corp_hist_logs.histlog_id,
-                model.corp_hist_logs.user_id
-            )
-            .distinct(model.corp_hist_logs.document_id)
-            .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
-            .subquery()
-        )
+        # # new subquery to increase the loading time
+        # sub_query_desc = (
+        #     db.query(
+        #         model.corp_hist_logs.document_id,
+        #         model.corp_hist_logs.histlog_id,
+        #         model.corp_hist_logs.user_id
+        #     )
+        #     .distinct(model.corp_hist_logs.document_id)
+        #     .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
+        #     .subquery()
+        # )
 
         # Initial query setup for fetching document, status, and related entities
         data_query = (
@@ -3271,14 +3271,14 @@ async def read_corp_paginate_doc_inv_list(
             #     model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
             #     isouter=True,
             # )
-            .join(
-                sub_query_desc,
-                sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
-                isouter=True,
-            )
+            # .join(
+            #     sub_query_desc,
+            #     sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
+            #     isouter=True,
+            # )
             .join(
                 model.User,
-                model.User.idUser == sub_query_desc.c.user_id,
+                model.User.idUser == model.corp_document_tab.last_updated_by,
                 isouter=True,
             )
             .filter(

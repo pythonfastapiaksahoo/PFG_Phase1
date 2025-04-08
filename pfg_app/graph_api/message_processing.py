@@ -88,10 +88,10 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
         process_attachments(attachments, base_folder+f"/{message_subject}")
 
         # 7) Add an entry to the CorpQueue table
-        
+        new_mail_id = "CE-"+corp_mail_id
         request_data = {
             "eml_path": eml_url,
-            "mail_row_key": corp_mail_id,
+            "mail_row_key": new_mail_id,
             "sender": message_data.get("sender", {}).get("emailAddress", {}).get("address", "NoSender"),
             "subject": message_subject,
             "file_type": "eml",
@@ -106,7 +106,7 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
 
         # Create a new CorpQueueTask with the extracted mail_row_key
         new_task = CorpQueueTask(
-            request_data=request_data, status=queued_status, mail_row_key=corp_mail_id
+            request_data=request_data, status=queued_status, mail_row_key=new_mail_id
         )
         # Retry logic encapsulated in save_to_database
         task_id = save_to_database(new_task)
