@@ -1785,6 +1785,9 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                     if field in ["invoice_id", "invoicetotal", "invoice_date", "document_type"]:
                         setattr(corp_doc_tab, field, new_value)
                         consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
+
+                    # Update the 'last_updated_by' field in corp_document_tab
+                    corp_doc_tab.last_updated_by = user_id
         # Updating the consolidated history log for updated fields
         if any_updates:
             try:
@@ -2090,7 +2093,8 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                         corp_doc_field = "approved_by" if field == "approver_name" else field
                         setattr(corp_doc_tab, corp_doc_field, new_value)
                         consolidated_updates.append(f"{corp_doc_field} (corp_document_tab): {old_value} -> {new_value}")
-
+                    # Update the 'last_updated_by' field in corp_document_tab
+                    corp_doc_tab.last_updated_by = user_id
         if is_new_record:
             db.add(corp_coding)
 
@@ -2693,6 +2697,7 @@ def updateCorpInvoiceStatus(u_id, doc_id, db):
                     document.documentstatus = documentstatusid
                     document.documentsubstatus = docsubstatusid
                     document.voucher_id = voucher_id
+                    document.last_updated_by = userID
                     db.commit()
 
                     # Update document history
@@ -2878,6 +2883,7 @@ def bulkupdateCorpInvoiceStatus():
                                     "documentstatus": documentstatusid,
                                     "documentsubstatus": docsubstatusid,
                                     "voucher_id": voucher_id,
+                                    "last_updated_by": userID,
                                 }
                             )
                             # Collect doc history update data
@@ -3471,17 +3477,17 @@ async def download_corp_paginate_doc_inv_list(
             "Duplicate Invoice": 32,
         }
 
-        # new subquery to increase the loading time
-        sub_query_desc = (
-            db.query(
-                model.corp_hist_logs.document_id,
-                model.corp_hist_logs.histlog_id,
-                model.corp_hist_logs.user_id
-            )
-            .distinct(model.corp_hist_logs.document_id)
-            .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
-            .subquery()
-        )
+        # # new subquery to increase the loading time
+        # sub_query_desc = (
+        #     db.query(
+        #         model.corp_hist_logs.document_id,
+        #         model.corp_hist_logs.histlog_id,
+        #         model.corp_hist_logs.user_id
+        #     )
+        #     .distinct(model.corp_hist_logs.document_id)
+        #     .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
+        #     .subquery()
+        # )
 
         # Initial query setup for fetching document, status, and related entities
         data_query = (
@@ -3540,19 +3546,19 @@ async def download_corp_paginate_doc_inv_list(
             #     sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
             #     isouter=True,
             # )
-            .join(
-                sub_query_desc,
-                and_(
-                    sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
-                    sub_query_desc.c.histlog_id == db.query(func.max(model.corp_hist_logs.histlog_id)).filter(
-                        model.corp_hist_logs.document_id == model.corp_document_tab.corp_doc_id
-                    ).scalar_subquery(),
-                ),
-                isouter=True,
-            )
+            # .join(
+            #     sub_query_desc,
+            #     and_(
+            #         sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
+            #         sub_query_desc.c.histlog_id == db.query(func.max(model.corp_hist_logs.histlog_id)).filter(
+            #             model.corp_hist_logs.document_id == model.corp_document_tab.corp_doc_id
+            #         ).scalar_subquery(),
+            #     ),
+            #     isouter=True,
+            # )
             .join(
                 model.User,
-                model.User.idUser == sub_query_desc.c.user_id,
+                model.User.idUser == model.corp_document_tab.last_updated_by,
                 isouter=True,
             )
             # .filter(
@@ -3707,6 +3713,7 @@ async def reject_corp_invoice(userID, invoiceID, reason, db):
                 "documentsubstatus": substatus_id,
                 "documentdescription": reason + "- rejected" + " by " + first_name,
                 "updated_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "last_updated_by": userID,
             }
         )
 
@@ -3901,6 +3908,7 @@ def bulkProcessCorpVoucherData():
                         {
                             model.corp_document_tab.documentstatus: docStatus,
                             model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.last_updated_by: userID,
                             model.corp_document_tab.retry_count: case(
                                 (model.corp_document_tab.retry_count.is_(None), 1),  # If NULL, set to 1
                                 else_=model.corp_document_tab.retry_count + 1        # Otherwise, increment
@@ -3932,6 +3940,7 @@ def bulkProcessCorpVoucherData():
                         {
                             model.corp_document_tab.documentstatus: docStatus,
                             model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.last_updated_by: userID,
                         }
                     )
                     db.commit()
@@ -4005,6 +4014,13 @@ def map_coding_details_by_corp_doc_id(user_id, corp_doc_id, corp_coding_id, db):
             corp_coding.corp_doc_id = corp_doc_id
             corp_coding.map_type = "user_map"  # Set map_type
             db.add(corp_coding)
+            
+            # Fetch and update last_updated_by in corp_document_tab
+            corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+            if corp_doc_tab:
+                corp_doc_tab.last_updated_by = user_id
+                db.add(corp_doc_tab)
+                
             db.commit()
             db.refresh(corp_coding)
 
