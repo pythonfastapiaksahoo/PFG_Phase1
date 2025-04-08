@@ -1773,3 +1773,19 @@ class SetRetryCount(Base):
     updated_at= Column(DateTime, nullable=True) 
     updated_by = Column(String, nullable=True)
     task_name = Column(String, nullable=True )
+    
+    
+class LatestDocumentHistoryLog2(Base):
+    __tablename__ = "latest_documenthistorylog2"
+    
+    documentID = Column(Integer, primary_key=True)
+    iddocumenthistorylog = Column(Integer)
+    userID = Column(Integer)
+    
+
+class LatestDocumentCount(Base):
+    __tablename__ = "latest_document_count"
+    
+    id = Column(Integer, primary_key=True)
+    total_count = Column(Integer)
+    

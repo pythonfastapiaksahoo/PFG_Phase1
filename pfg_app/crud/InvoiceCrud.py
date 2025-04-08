@@ -109,25 +109,20 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
-        # # previous subquery 
+        
+        # # new subquery to increase the loading time
         # sub_query_desc = (
         #     db.query(
-        #     func.max(model.DocumentHistoryLogs.iddocumenthistorylog))
-        #     .group_by(model.DocumentHistoryLogs.documentID)
+        #         model.DocumentHistoryLogs.documentID,
+        #         model.DocumentHistoryLogs.iddocumenthistorylog,
+        #         model.DocumentHistoryLogs.userID
+        #     )
+        #     .distinct(model.DocumentHistoryLogs.documentID)
+        #     .order_by(model.DocumentHistoryLogs.documentID, model.DocumentHistoryLogs.iddocumenthistorylog.desc())
         #     .subquery()
         # )
         
-        # new subquery to increase the loading time
-        sub_query_desc = (
-            db.query(
-                model.DocumentHistoryLogs.documentID,
-                model.DocumentHistoryLogs.iddocumenthistorylog,
-                model.DocumentHistoryLogs.userID
-            )
-            .distinct(model.DocumentHistoryLogs.documentID)
-            .order_by(model.DocumentHistoryLogs.documentID, model.DocumentHistoryLogs.iddocumenthistorylog.desc())
-            .subquery()
-        )
+        sub_query_desc = aliased(model.LatestDocumentHistoryLog2)
 
         # Initial query setup for fetching document, status, and related entities
         data_query = (
@@ -185,27 +180,12 @@ async def read_paginate_doc_inv_list_with_ln_items(
             )
             .join(
                 sub_query_desc,
-                sub_query_desc.c.documentID == model.Document.idDocument,
+                sub_query_desc.documentID == model.Document.idDocument,
                 isouter=True,
             )
-            # # previous query
-            # .join(
-            #     model.DocumentHistoryLogs,
-            #     and_(
-            #         model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-            #         # model.DocumentHistoryLogs.CreatedOn == latest_history_log.c.latest_created_on,
-            #         model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
-            #     ),
-            #     isouter=True,
-            # )
-            # .join(
-            #     model.User,
-            #     model.User.idUser == model.DocumentHistoryLogs.userID,
-            #     isouter=True,
-            # )
             .join(
                 model.User,
-                model.User.idUser == sub_query_desc.c.userID,
+                model.User.idUser == sub_query_desc.userID,
                 isouter=True,
             )
             .filter(
@@ -312,8 +292,8 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 data_query = data_query.filter(filter_condition)
 
         # Get the total count of records before applying limit and offset
-        total_count = data_query.distinct(model.Document.idDocument).count()
-        
+        # total_count = data_query.distinct(model.Document.idDocument).count()
+        total_count = db.query(model.LatestDocumentCount.total_count).scalar()
         # Pagination
         offset, limit = off_limit
         off_val = (offset - 1) * limit
