@@ -41,7 +41,9 @@ if settings.build_type != "debug":
     os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"] = (
         settings.appinsights_connection_string
     )
-    configure_azure_monitor()
+    configure_azure_monitor(
+        instrumentation=["fastapi", "requests", "sqlalchemy"]   
+    )
     # Create OpenTelemetry tracer
     tracer = trace.get_tracer(__name__)
 
