@@ -1539,7 +1539,7 @@ class CorpQueueTask(Base):
     updated_at = Column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
-    mail_row_key = Column(String(50), nullable=False)
+    mail_row_key = Column(String(50), nullable=False, unique=True)
     locked_at = Column(DateTime, nullable=True)
     # Define a GIN index on the request_data column
     __table_args__ = (
