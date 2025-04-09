@@ -2082,16 +2082,31 @@ async def reject_invoice(userID, invoiceID, reason, db):
         if the operation fails.
     """
     try:
+        reason_to_substatus = {
+            "Coding Error": 162,
+            "Approval Missing": 161,
+            "No Active Models/Templates": 158,
+            "Vendor Not Onboarded": 157,
+            "Duplicate": 156,
+            "Missing Pages": 155,
+            "Invalid Scan": 154,
+            "Invoice Details Missing": 153,
+        }
+        # Determine the appropriate substatus ID, default to 159 if not found
+        substatus_id = reason_to_substatus.get(reason, 159)
+
         # Fetching the first name of the user performing the rejection
         first_name = (
             db.query(model.User.firstName).filter(model.User.idUser == userID).scalar()
         )
+
         # Updating the document's status to rejected
         db.query(model.Document).filter(model.Document.idDocument == invoiceID).update(
             {
                 "documentStatusID": 10,
-                "documentsubstatusID": 13,
-                "documentDescription": reason + " by " + first_name,
+                "documentsubstatusID": substatus_id,
+                "UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "documentDescription":reason + "- rejected" + " by " + first_name,
             }
         )
         # Commit the changes to the database
