@@ -292,7 +292,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     invo_cod_total_mismatch = 0
     validation_ck_all = 1
     invo_cod_gst_mismatch = 0
-    rounding_threshold = 0
+    rounding_threshold = 0.005
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -1304,7 +1304,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 # consider GST
                             if credit_ck==1:
-                                if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> rounding_threshold:
+                                if round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) ),2)> rounding_threshold:
                                     docStatus = 4
                                     docSubStatus = 136
                                     documentdesc = "Coding - Line total mismatch"
@@ -1329,7 +1329,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                     cod_lnMatch = 1
                             # else:
-                            elif abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )>rounding_threshold:
+                            elif round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) ),2)>rounding_threshold:
                                 docStatus = 4
                                 docSubStatus = 136
                                 documentdesc = "Coding - Line total mismatch"
