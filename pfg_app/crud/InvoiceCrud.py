@@ -521,14 +521,26 @@ async def read_paginate_doc_inv_list_with_ln_items(
         }
 
         if sort_column in sort_columns_map:
+            # sort_field = sort_columns_map.get(sort_column, model.Document.idDocument)
             sort_field = sort_columns_map[sort_column]
             if sort_order.lower() == "desc":
+                # Apply descending order to sort_field
                 data_query = data_query.order_by(sort_field.desc())
             else:
+                # Apply ascending order to sort_field
                 data_query = data_query.order_by(sort_field.asc())
 
-        # Fetch the paginated data
-        Documentdata = data_query.limit(limit).offset(off_val).all()
+            Documentdata = (data_query.limit(limit).offset(off_val).all())
+            
+        else:
+            data_query = data_query.order_by(model.Document.idDocument.desc())
+            # Apply pagination
+            Documentdata = (
+            data_query.distinct(model.Document.idDocument)
+            .limit(limit)
+            .offset(off_val)
+            .all()
+        )
 
         # Now fetch the last_updated_by field using the document IDs (after pagination)
         # document_ids = [doc.idDocument for doc in Documentdata]
