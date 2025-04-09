@@ -1202,7 +1202,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             logger.info(f"invoice total: {float(mand_invoTotal)}, invoice coding total: {float(cod_invoTotal)}")
                             logger.info(f"invoice gst: {float(mand_gst)}, invoice coding gst: {float(cod_gst)}")
                             if abs(clean_coding_amount(str(mand_invoTotal)) - clean_coding_amount(str(cod_invoTotal)))>rounding_threshold:
-                                invo_cod_total_mismatch = 0
+                                invo_cod_total_mismatch = 1
                                 
                                 # invoice_status_msg ="Invoice total mismatch with coding total"
                                 
