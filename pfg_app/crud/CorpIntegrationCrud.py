@@ -91,7 +91,10 @@ def format_data_for_template1(parsed_data):
             "SL": [],
             "project": [],
             "activity": [],
-            "amount": []
+            "amount": [],
+            "invoice#": '',
+            "GST": '',
+            "invoicetotal": '',
         }
         # approver_details = {}
         approver_details = {
@@ -395,7 +398,10 @@ def format_data_for_template3(parsed_data):
             "SL": [],
             "project": [],
             "activity": [],
-            "amount": []  # Changed to 'amount' as the column name is "Amount"
+            "amount": [],  
+            "invoice#": '',
+            "GST": '',
+            "invoicetotal": '',
         }
         # approver_details = {}
         approver_details = {
@@ -1785,6 +1791,9 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                     if field in ["invoice_id", "invoicetotal", "invoice_date", "document_type"]:
                         setattr(corp_doc_tab, field, new_value)
                         consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
+
+                    # Update the 'last_updated_by' field in corp_document_tab
+                    corp_doc_tab.last_updated_by = user_id
         # Updating the consolidated history log for updated fields
         if any_updates:
             try:
@@ -1983,12 +1992,25 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                 corp_doc_id=corp_doc_id,
                 mail_rw_key=mail_row_key,
                 queue_task_id=queue_task_id,
-                map_type="user_map"  # Set map_type
+                map_type="manual_map"  # Set map_type
             )
             db.add(corp_coding)
-            is_new_record = True
-        else:
-            is_new_record = False
+            # is_new_record = True
+            try:
+                corp_update_docHistory(
+                    corp_doc_id,
+                    user_id,
+                    docStatus_id,
+                    "coding details added manually.",
+                    db,
+                    docSubStatus_id
+                )
+                db.commit()  # ✅ Commit immediately after updating history
+            except Exception as e:
+                logger.info(f"Error updating document history: {traceback.format_exc()}")
+                db.rollback()
+        # else:
+        #     is_new_record = False
 
         consolidated_updates = []
         any_updates = False
@@ -2020,12 +2042,13 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                             ).update({"is_active": 0})
                         
                         db.flush()
-                    
+                    old_value = json.dumps(old_value) if isinstance(old_value, dict) else str(old_value)
+                    new_value = json.dumps(new_value) if isinstance(new_value, dict) else str(new_value)
                     data = {
                         "doc_id": corp_doc_id,
                         "updated_field": field,
-                        "old_value": json.dumps(old_value) if isinstance(old_value, dict) else str(old_value),  # Convert dict to JSON string
-                        "new_value": json.dumps(new_value) if isinstance(new_value, dict) else str(new_value),  # Convert dict to JSON string
+                        "old_value": old_value,
+                        "new_value": new_value,
                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         "user_id": user_id,
                         "is_active": 1
@@ -2034,7 +2057,7 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     update_log = model.CorpDocumentUpdates(**data)
                     db.add(update_log)
                     db.flush()
-                    consolidated_updates.append(f"{field}: JSON Updated")
+                    consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
             else:
                 # Convert new & old values to the correct data type
@@ -2084,15 +2107,16 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
 
                 # Only update corp_document_tab if NOT a new record
-                if not is_new_record and field in ["invoice_id", "invoicetotal", "invoice_date", "approver_title"]:
+                if field in ["invoice_id", "invoicetotal", "invoice_date", "approver_title", "approver_name"]:
                     corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
                     if corp_doc_tab:
                         corp_doc_field = "approved_by" if field == "approver_name" else field
                         setattr(corp_doc_tab, corp_doc_field, new_value)
                         consolidated_updates.append(f"{corp_doc_field} (corp_document_tab): {old_value} -> {new_value}")
-
-        if is_new_record:
-            db.add(corp_coding)
+                    # Update the 'last_updated_by' field in corp_document_tab
+                    corp_doc_tab.last_updated_by = user_id
+        # if is_new_record:
+        #     db.add(corp_coding)
 
         if any_updates:
             try:
@@ -2159,7 +2183,15 @@ def corp_update_docHistory(documentID, userID, documentstatus, documentdesc, db,
         db.rollback()
         return {"DB error": "Error while inserting document history"}
     
-    
+# Function to insert timestamp before the file extension
+def add_uniqueness_to_filename(filename, timestamp):
+    if not filename:
+        return f"unnamed_{timestamp}"
+    parts = filename.rsplit(".", 1)
+    if len(parts) == 2:
+        return f"{parts[0]}_{timestamp}.{parts[1]}"
+    else:
+        return f"{filename}_{timestamp}"    
 
 # CRUD function to process the invoice voucher and send it to peoplesoft
 def processCorpInvoiceVoucher(doc_id, db):
@@ -2173,8 +2205,20 @@ def processCorpInvoiceVoucher(doc_id, db):
         if not corpvoucherdata:
             return {"message": "Voucherdata not found for document ID: {doc_id}"}
         
+        # Generate a timestamp string, e.g., "20250404_153045"
+        timestamp_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        invoice_dt = corpvoucherdata.INVOICE_DT
         invoice_file_name = corpvoucherdata.INVOICE_FILE_PATH.split("/")[-1] or ""
         email_pdf_file_name = corpvoucherdata.EMAIL_PATH.split("/")[-1] or ""
+        
+        unique_invoice_file_name = add_uniqueness_to_filename(invoice_file_name, invoice_dt)
+        unique_email_pdf_file_name = add_uniqueness_to_filename(email_pdf_file_name, timestamp_str)
+        
+        # Save to DB
+        corpvoucherdata.UNIQUE_FILENAME_INVOICE = unique_invoice_file_name
+        corpvoucherdata.UNIQUE_FILENAME_EMAIL = unique_email_pdf_file_name
+        
+        db.commit()
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
         if not corpvoucherdata.INVOICE_DT or not date_pattern.match(corpvoucherdata.INVOICE_DT):
@@ -2325,7 +2369,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 1,
-                                    "FILE_NAME": invoice_file_name,
+                                    "FILE_NAME": unique_invoice_file_name,
                                     "base64file": base64file
                                 },
                                 {
@@ -2335,7 +2379,7 @@ def processCorpInvoiceVoucher(doc_id, db):
                                     "VENDOR_SETID": "GLOBL",
                                     "VENDOR_ID": corpvoucherdata.VENDOR_ID or "",
                                     "IMAGE_NBR": 2,
-                                    "FILE_NAME": email_pdf_file_name,
+                                    "FILE_NAME": unique_email_pdf_file_name,
                                     "base64file": base64eml
                                 }
                             ],
@@ -2693,6 +2737,7 @@ def updateCorpInvoiceStatus(u_id, doc_id, db):
                     document.documentstatus = documentstatusid
                     document.documentsubstatus = docsubstatusid
                     document.voucher_id = voucher_id
+                    document.last_updated_by = userID
                     db.commit()
 
                     # Update document history
@@ -2878,6 +2923,7 @@ def bulkupdateCorpInvoiceStatus():
                                     "documentstatus": documentstatusid,
                                     "documentsubstatus": docsubstatusid,
                                     "voucher_id": voucher_id,
+                                    "last_updated_by": userID,
                                 }
                             )
                             # Collect doc history update data
@@ -3471,17 +3517,17 @@ async def download_corp_paginate_doc_inv_list(
             "Duplicate Invoice": 32,
         }
 
-        # new subquery to increase the loading time
-        sub_query_desc = (
-            db.query(
-                model.corp_hist_logs.document_id,
-                model.corp_hist_logs.histlog_id,
-                model.corp_hist_logs.user_id
-            )
-            .distinct(model.corp_hist_logs.document_id)
-            .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
-            .subquery()
-        )
+        # # new subquery to increase the loading time
+        # sub_query_desc = (
+        #     db.query(
+        #         model.corp_hist_logs.document_id,
+        #         model.corp_hist_logs.histlog_id,
+        #         model.corp_hist_logs.user_id
+        #     )
+        #     .distinct(model.corp_hist_logs.document_id)
+        #     .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
+        #     .subquery()
+        # )
 
         # Initial query setup for fetching document, status, and related entities
         data_query = (
@@ -3540,19 +3586,19 @@ async def download_corp_paginate_doc_inv_list(
             #     sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
             #     isouter=True,
             # )
-            .join(
-                sub_query_desc,
-                and_(
-                    sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
-                    sub_query_desc.c.histlog_id == db.query(func.max(model.corp_hist_logs.histlog_id)).filter(
-                        model.corp_hist_logs.document_id == model.corp_document_tab.corp_doc_id
-                    ).scalar_subquery(),
-                ),
-                isouter=True,
-            )
+            # .join(
+            #     sub_query_desc,
+            #     and_(
+            #         sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
+            #         sub_query_desc.c.histlog_id == db.query(func.max(model.corp_hist_logs.histlog_id)).filter(
+            #             model.corp_hist_logs.document_id == model.corp_document_tab.corp_doc_id
+            #         ).scalar_subquery(),
+            #     ),
+            #     isouter=True,
+            # )
             .join(
                 model.User,
-                model.User.idUser == sub_query_desc.c.user_id,
+                model.User.idUser == model.corp_document_tab.last_updated_by,
                 isouter=True,
             )
             # .filter(
@@ -3707,6 +3753,7 @@ async def reject_corp_invoice(userID, invoiceID, reason, db):
                 "documentsubstatus": substatus_id,
                 "documentdescription": reason + "- rejected" + " by " + first_name,
                 "updated_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "last_updated_by": userID,
             }
         )
 
@@ -3901,6 +3948,7 @@ def bulkProcessCorpVoucherData():
                         {
                             model.corp_document_tab.documentstatus: docStatus,
                             model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.last_updated_by: userID,
                             model.corp_document_tab.retry_count: case(
                                 (model.corp_document_tab.retry_count.is_(None), 1),  # If NULL, set to 1
                                 else_=model.corp_document_tab.retry_count + 1        # Otherwise, increment
@@ -3932,6 +3980,7 @@ def bulkProcessCorpVoucherData():
                         {
                             model.corp_document_tab.documentstatus: docStatus,
                             model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.last_updated_by: userID,
                         }
                     )
                     db.commit()
@@ -4005,6 +4054,13 @@ def map_coding_details_by_corp_doc_id(user_id, corp_doc_id, corp_coding_id, db):
             corp_coding.corp_doc_id = corp_doc_id
             corp_coding.map_type = "user_map"  # Set map_type
             db.add(corp_coding)
+            
+            # Fetch and update last_updated_by in corp_document_tab
+            corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+            if corp_doc_tab:
+                corp_doc_tab.last_updated_by = user_id
+                db.add(corp_doc_tab)
+                
             db.commit()
             db.refresh(corp_coding)
 
