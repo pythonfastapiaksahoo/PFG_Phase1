@@ -521,14 +521,26 @@ async def read_paginate_doc_inv_list_with_ln_items(
         }
 
         if sort_column in sort_columns_map:
+            # sort_field = sort_columns_map.get(sort_column, model.Document.idDocument)
             sort_field = sort_columns_map[sort_column]
             if sort_order.lower() == "desc":
+                # Apply descending order to sort_field
                 data_query = data_query.order_by(sort_field.desc())
             else:
+                # Apply ascending order to sort_field
                 data_query = data_query.order_by(sort_field.asc())
 
-        # Fetch the paginated data
-        Documentdata = data_query.limit(limit).offset(off_val).all()
+            Documentdata = (data_query.limit(limit).offset(off_val).all())
+            
+        else:
+            data_query = data_query.order_by(model.Document.idDocument.desc())
+            # Apply pagination
+            Documentdata = (
+            data_query.distinct(model.Document.idDocument)
+            .limit(limit)
+            .offset(off_val)
+            .all()
+        )
 
         # Now fetch the last_updated_by field using the document IDs (after pagination)
         # document_ids = [doc.idDocument for doc in Documentdata]
@@ -548,7 +560,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 .subquery()  # Convert to a subquery for joining later
             )
 
-            # Step 2: Join the latest history log subquery with User table to get the last_updated_by (firstName)
+            # Join the latest history log subquery with User table to get the last_updated_by (firstName)
             user_query = (
                 db.query(
                     model.User.firstName.label("last_updated_by"),
@@ -560,17 +572,31 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 )
             )
 
-            # Step 3: Convert the result to a dictionary for fast lookup
+            # Convert the result to a dictionary for fast lookup
             user_dict = {user.documentID: user.last_updated_by for user in user_query}
 
-            # Step 4: Add 'last_updated_by' to Documentdata
+            # Add 'last_updated_by' to Documentdata
+            # for doc in Documentdata:
+            #     doc[0].last_updated_by = user_dict.get(doc[0].idDocument)
+            response_data = []
             for doc in Documentdata:
-                doc[0].last_updated_by = user_dict.get(doc[0].idDocument)
-
+                document_obj = {
+                    "Document": doc[0].__dict__,
+                    "DocumentStatus": doc[1].__dict__ if doc[1] else {},
+                    "DocumentSubStatus": doc[2].__dict__ if doc[2] else {},
+                    inv_choice[inv_type][0].__name__: doc[3].__dict__ if doc[3] else {},
+                    inv_choice[inv_type][1].__name__: doc[4].__dict__ if doc[4] else {},
+                    "last_updated_by": user_dict.get(doc[0].idDocument)
+                }
+                # Remove _sa_instance_state from each dictionary
+                for k, v in document_obj.items():
+                    if isinstance(v, dict):
+                        v.pop("_sa_instance_state", None)
+                response_data.append(document_obj)
             
 
         # Return paginated document data with last_updated_by
-        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
+        return {"ok": {"Documentdata": response_data, "TotalCount": total_count}}
 
     except Exception:
         logger.error(traceback.format_exc())
