@@ -2990,7 +2990,7 @@ def bulkupdateCorpInvoiceStatus():
                                 # Add to updates if not already present
                                 updates.append(
                                     {
-                                        "corp_doc_id": voucherdata.documentID,
+                                        "corp_doc_id": voucherdata.DOCUMENT_ID,
                                         "documentstatus": documentstatusid,
                                         "documentsubstatus": docsubstatusid,
                                         "voucher_id": voucher_id,
@@ -3000,7 +3000,7 @@ def bulkupdateCorpInvoiceStatus():
                                 # Collect doc history update data
                                 doc_history_updates.append(
                                     {
-                                        "document_id": voucherdata.documentID,
+                                        "document_id": voucherdata.DOCUMENT_ID,
                                         "user_id": userID,
                                         "document_status": documentstatusid,
                                         "document_desc": dmsg,
@@ -3010,7 +3010,7 @@ def bulkupdateCorpInvoiceStatus():
                                 )
                                 success_count += 1  # Increment success counter
                             else:
-                                logger.info(f"Skipping history update for documentID {voucherdata.documentID} as docsubstatusID {docsubstatusid} already exists.")
+                                logger.info(f"Skipping history update for documentID {voucherdata.DOCUMENT_ID} as docsubstatusID {docsubstatusid} already exists.")
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
                     # but don't interrupt the batch
