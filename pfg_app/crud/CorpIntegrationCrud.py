@@ -3730,6 +3730,8 @@ async def reject_corp_invoice(userID, invoiceID, reason, db):
     try:
         # Mapping reasons to substatus IDs
         reason_to_substatus = {
+            "Coding Error": 162,
+            "Approval Missing": 161,
             "No Active Models/Templates": 158,
             "Vendor Not Onboarded": 157,
             "Duplicate": 156,
@@ -4064,7 +4066,7 @@ def map_coding_details_by_corp_doc_id(user_id, corp_doc_id, corp_coding_id, db):
             db.commit()
             db.refresh(corp_coding)
 
-            dmsg = f"Coding details mapped successfully"
+            dmsg = f"Coding details mapped by user"
         
             try:
                 corp_update_docHistory(
