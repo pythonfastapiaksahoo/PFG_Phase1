@@ -391,6 +391,68 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
         if docStatus in (32,2,4,24,21):
             #----------
             try:
+                if invoice_id in [None, ""]:
+                 # Query corp_docdata
+                    corp_docdata = (
+                        db.query(model.corp_docdata)
+                        .filter(model.corp_docdata.corp_doc_id == doc_id)
+                        .all()
+                    )
+
+                    # df_corp_coding = pd.DataFrame([row.__dict__ for row in corp_coding_data])
+
+                    df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
+                    try:
+                        # Drop SQLAlchemy internal state column
+                        df_corp_docdata.drop(columns=["_sa_instance_state"], inplace=True, errors="ignore")
+
+                        # Check for empty fields (None or empty strings)
+                        empty_fields_report = df_corp_docdata.isnull() | (df_corp_docdata == '')
+
+                        missing_values_list = []
+
+                        for index, row in df_corp_docdata.iterrows():
+                            missing_columns = empty_fields_report.columns[empty_fields_report.loc[index]].tolist()
+                            missing_values_list.append(missing_columns)
+                        logger.info(f"missing_values_list: {missing_values_list}")
+                        if ['vendor_name', 'vendoraddress', 'customeraddress', 'doc_updates', 'customername', 'invoice_id', 'invoice_date'] in missing_values_list:
+                            docStatus = 4
+                            documentdesc = f"OpenAI extraction failed -  Rate Limit exceeded"
+                            docSubStatus = 165
+                            return_status["OpenAI extraction failed"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Rate limit exceeded,please update the data manually to proceed."
+                                                                    ],
+                                                                }
+                            
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                            ).update(
+                                {
+                                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                                    model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                                    model.corp_document_tab.last_updated_by: userID,
+                                    model.corp_document_tab.updated_on: timeStmp,
+
+                                }
+                            )
+
+                            db.commit()
+                            logger.info(f"Rate Limit exceeded: {return_status}")
+                        else:
+                            return_status["InvoiceID"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Invalid."
+                                                                    ],
+                                                                }
+                        return return_status
+                    except Exception as e:
+                        logger.info(traceback.format_exc())
+                        logger.info(f"Error: {e}")
+
+                
                 dupCk_document_data = (
                 db.query(model.corp_document_tab)
                 .filter(
@@ -410,6 +472,61 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                 if len(df_dupCk_document)>0:
                     # duplicate invoice
+                    try:
+                        try:
+                            corp_metadata_qry = (
+                                        db.query(model.corp_metadata)
+                                        .filter(model.corp_metadata.vendorid == vendor_id)
+                                        .all()
+                                    )
+                            df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                                    
+                        except Exception as e:
+                            logger.info(f"Error in getting metadata: {e}")
+                            df_corp_metadata = pd.DataFrame()
+
+                        if not df_corp_metadata.empty:
+                            try:
+                                corp_docdata = (
+                                    db.query(model.corp_docdata)
+                                    .filter(model.corp_docdata.corp_doc_id == doc_id)
+                                    .all()
+                                )
+                                df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
+                                mand_invDate = list(df_corp_docdata['invoice_date'])[0]
+                            except Exception as e:
+                                mand_invDate = ""
+                                logger.info(f"Error: {e}")
+                            # VB_status = 1
+                            # metadata_currency = list(df_corp_metadata['currency'])[0]
+                            date_format = list(df_corp_metadata['dateformat'])[0]
+                            if check_date_format(mand_invDate) == False:
+                                req_date, date_status = date_cnv(mand_invDate, date_format)
+                                if date_status == 1:
+                                    invDate_msg = "Valid Date Format"
+                                    invDate_status = 1
+                                    #update date to table:
+                                    # Update corp_document_tab
+                                    db.query(model.corp_document_tab).filter(
+                                        model.corp_document_tab.corp_doc_id == doc_id
+                                    ).update({model.corp_document_tab.invoice_date: req_date})
+
+                                    # Update corp_docdata
+                                    db.query(model.corp_docdata).filter(
+                                        model.corp_docdata.corp_doc_id == doc_id
+                                    ).update({model.corp_docdata.invoice_date: req_date})
+
+                                    db.commit()
+                                    return_status["Invoice date validation"] = {"status": 1,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            "Success."
+                                                                        ],
+                                                                    }
+                                
+                    except Exception as e:
+                        logger.info(f"Error: {e}")
+
                     docStatus = 32
                     documentdesc = f"Duplicate invoice"
                     docSubStatus = 128
@@ -713,17 +830,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     df_corp_coding = pd.DataFrame([row.__dict__ for row in corp_coding_data])
 
                     df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
-                    # if (document_type is not None):
-                    #     if document_type !="":
-                    #         if str(document_type).lower() in ('invoice','credit'):
-                    #             print(document_type)
-
-                    # Get metadata for the document:
-                    
-
-                    
-                    
-                    
+                 
+ 
                     # Check for mandatory fields:
                     mand_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
                     mand_gst = list(df_corp_docdata['gst'])[0]
@@ -943,6 +1051,61 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                 if len(df_dupCk_document)>0:
                     # duplicate invoice
+                    try:
+                        try:
+                            corp_metadata_qry = (
+                                        db.query(model.corp_metadata)
+                                        .filter(model.corp_metadata.vendorid == vendor_id)
+                                        .all()
+                                    )
+                            df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                                    
+                        except Exception as e:
+                            logger.info(f"Error in getting metadata: {e}")
+                            df_corp_metadata = pd.DataFrame()
+
+                        if not df_corp_metadata.empty:
+                            try:
+                                corp_docdata = (
+                                    db.query(model.corp_docdata)
+                                    .filter(model.corp_docdata.corp_doc_id == doc_id)
+                                    .all()
+                                )
+                                df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
+                                mand_invDate = list(df_corp_docdata['invoice_date'])[0]
+                            except Exception as e:
+                                mand_invDate = ""
+                                logger.info(f"Error: {e}")
+                            VB_status = 1
+                            metadata_currency = list(df_corp_metadata['currency'])[0]
+                            date_format = list(df_corp_metadata['dateformat'])[0]
+                            if check_date_format(mand_invDate) == False:
+                                req_date, date_status = date_cnv(mand_invDate, date_format)
+                                if date_status == 1:
+                                    invDate_msg = "Valid Date Format"
+                                    invDate_status = 1
+                                    #update date to table:
+                                    # Update corp_document_tab
+                                    db.query(model.corp_document_tab).filter(
+                                        model.corp_document_tab.corp_doc_id == doc_id
+                                    ).update({model.corp_document_tab.invoice_date: req_date})
+
+                                    # Update corp_docdata
+                                    db.query(model.corp_docdata).filter(
+                                        model.corp_docdata.corp_doc_id == doc_id
+                                    ).update({model.corp_docdata.invoice_date: req_date})
+
+                                    db.commit()
+                                    return_status["Invoice date validation"] = {"status": 1,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            "Success."
+                                                                        ],
+                                                                    }
+                                
+                    except Exception as e:
+                        logger.info(f"Error: {e}")
+                        logger.info(traceback.format_exc())
                     docStatus = 32
                     documentdesc = f"Duplicate invoice"
                     docSubStatus = 128
