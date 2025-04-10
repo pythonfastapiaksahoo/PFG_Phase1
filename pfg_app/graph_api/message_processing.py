@@ -88,7 +88,7 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
         process_attachments(attachments, base_folder+f"/{message_subject}")
 
         # 7) Add an entry to the CorpQueue table
-        new_mail_id = "CE-"+corp_mail_id
+        new_mail_id = "CE-" + str(corp_mail_id)
         request_data = {
             "eml_path": eml_url,
             "mail_row_key": new_mail_id,
