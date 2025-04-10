@@ -602,40 +602,84 @@ def clean_parsed_data(parsed_data):
         logger.info(f"Error while cleaning parsed data: {traceback.format_exc()}")
         return parsed_data
 
+# def has_extra_empty_strings(parsed_data):
+#     """
+#     Check if any row in tables_data contains the specific header with an extra empty string at the end.
+#     """
+#     tables_data = parsed_data.get("tables_data", [])
+#     target_header_with_extra = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount', '']
+    
+#     for table in tables_data:
+#         for row in table:
+#             if row == target_header_with_extra:
+#                 return True
+#     return False
+
 def has_extra_empty_strings(parsed_data):
     """
-    Check if any row in tables_data contains the specific header with an extra empty string at the end.
+    Check if any row in tables_data resembles a known template header but has extra empty strings.
     """
     tables_data = parsed_data.get("tables_data", [])
-    target_header_with_extra = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount', '']
+    
+    # Known valid headers
+    valid_headers = [
+        ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Subtotal'],
+        ['Invoice #', 'Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'GST', 'Invoice Total'],
+        ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount']
+    ]
     
     for table in tables_data:
         for row in table:
-            if row == target_header_with_extra:
+            # Remove empty strings
+            cleaned_row = [cell for cell in row if cell != '']
+            # If cleaned row matches any template but original row had extra elements (e.g. ''), it's a match
+            if any(cleaned_row == header and row != header for header in valid_headers):
                 return True
     return False
 
+# def clean_tables_data(parsed_data):
+#     """
+#     Clean the tables_data in parsed_data by removing extra empty strings at the end of each row.
+#     """
+#     tables_data = parsed_data.get("tables_data", [])
+    
+#     # Iterate over each table and row to remove trailing empty strings
+#     cleaned_tables_data = []
+#     for table in tables_data:
+#         cleaned_table = []
+#         for row in table:
+#             cleaned_row = row
+#             while cleaned_row and cleaned_row[-1] == '':
+#                 cleaned_row = cleaned_row[:-1]  # Remove the last element if it's an empty string
+#             cleaned_table.append(cleaned_row)
+#         cleaned_tables_data.append(cleaned_table)
+    
+#     # Update the parsed_data with cleaned tables_data
+#     parsed_data["tables_data"] = cleaned_tables_data
+#     return parsed_data
+
 def clean_tables_data(parsed_data):
     """
-    Clean the tables_data in parsed_data by removing extra empty strings at the end of each row.
+    Clean the tables_data in parsed_data by removing empty strings 
+    at the start and end of each row.
     """
     tables_data = parsed_data.get("tables_data", [])
-    
-    # Iterate over each table and row to remove trailing empty strings
+
     cleaned_tables_data = []
     for table in tables_data:
         cleaned_table = []
         for row in table:
-            cleaned_row = row
-            while cleaned_row and cleaned_row[-1] == '':
-                cleaned_row = cleaned_row[:-1]  # Remove the last element if it's an empty string
-            cleaned_table.append(cleaned_row)
+            # Remove empty string from start
+            if row and row[0] == '':
+                row = row[1:]
+            # Remove empty string from end
+            if row and row[-1] == '':
+                row = row[:-1]
+            cleaned_table.append(row)
         cleaned_tables_data.append(cleaned_table)
-    
-    # Update the parsed_data with cleaned tables_data
+
     parsed_data["tables_data"] = cleaned_tables_data
     return parsed_data
-
 
 
 def extract_eml_to_html(blob_data):
@@ -2913,28 +2957,60 @@ def bulkupdateCorpInvoiceStatus():
                             dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
                         # If there's a valid document status update,
                         # add it to the bulk update list
+                        # if documentstatusid:
+                        #     updates.append(
+                        #         {
+                        #             "corp_doc_id": voucherdata.DOCUMENT_ID,
+                        #             "documentstatus": documentstatusid,
+                        #             "documentsubstatus": docsubstatusid,
+                        #             "voucher_id": voucher_id,
+                        #         }
+                        #     )
+                        #     # Collect doc history update data
+                        #     doc_history_updates.append(
+                        #         {
+                        #             "document_id": voucherdata.DOCUMENT_ID,
+                        #             "user_id": userID,
+                        #             "document_status": documentstatusid,
+                        #             "document_desc": dmsg,
+                        #             "created_on": datetime.utcnow().strftime(
+                        #                 "%Y-%m-%d %H:%M:%S"
+                        #             ),  # noqa: E501
+                        #         }
+                        #     )
+                        #     success_count += 1  # Increment success counter
                         if documentstatusid:
-                            updates.append(
-                                {
-                                    "corp_doc_id": voucherdata.DOCUMENT_ID,
-                                    "documentstatus": documentstatusid,
-                                    "documentsubstatus": docsubstatusid,
-                                    "voucher_id": voucher_id,
-                                }
-                            )
-                            # Collect doc history update data
-                            doc_history_updates.append(
-                                {
-                                    "document_id": voucherdata.DOCUMENT_ID,
-                                    "user_id": userID,
-                                    "document_status": documentstatusid,
-                                    "document_desc": dmsg,
-                                    "created_on": datetime.utcnow().strftime(
-                                        "%Y-%m-%d %H:%M:%S"
-                                    ),  # noqa: E501
-                                }
-                            )
-                            success_count += 1  # Increment success counter
+                            # Check if the docsubstatusid for the corp_document_tab already exists in the corp_document_tab table
+                            existing_doc = db.query(model.corp_document_tab).filter(
+                                model.corp_document_tab.corp_doc_id == voucherdata.DOCUMENT_ID,
+                                model.corp_document_tab.documentsubstatus == docsubstatusid
+                            ).first()
+
+                            if not existing_doc:  # Proceed only if no record exists with the same docsubstatusid
+                                # Add to updates if not already present
+                                updates.append(
+                                    {
+                                        "corp_doc_id": voucherdata.documentID,
+                                        "documentstatus": documentstatusid,
+                                        "documentsubstatus": docsubstatusid,
+                                        "voucher_id": voucher_id,
+                                    }
+                                )
+
+                                # Collect doc history update data
+                                doc_history_updates.append(
+                                    {
+                                        "document_id": voucherdata.documentID,
+                                        "user_id": userID,
+                                        "document_status": documentstatusid,
+                                        "document_desc": dmsg,
+                                        "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                                        "document_substatus": docsubstatusid,
+                                    }
+                                )
+                                success_count += 1  # Increment success counter
+                            else:
+                                logger.info(f"Skipping history update for documentID {voucherdata.documentID} as docsubstatusID {docsubstatusid} already exists.")
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
                     # but don't interrupt the batch
@@ -4005,11 +4081,26 @@ def bulkProcessCorpVoucherData():
                     db.commit()
                 except Exception as err:
                     logger.info(f"ErrorUpdatingPostingData: {err}")
-                try:
-                    # userID = 1
-                    corp_update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
-                except Exception as e:
-                    logger.error(f"pfg_sync 501: {str(e)}")
+                
+                # Check if the docSubStatus already exists in the Document table
+                existing_doc = db.query(model.corp_document_tab).filter(
+                    model.corp_document_tab.corp_doc_id == docID,
+                    model.corp_document_tab.documentsubstatus == docSubStatus
+                ).first()
+
+                if not existing_doc:
+                    try:
+                        # Only call update_docHistory if docSubStatus does not exist for this documentID
+                        corp_update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
+                    except Exception as e:
+                        logger.error(f"Error updating document history: {traceback.format_exc()}")
+                else:
+                    logger.info(f"Skipping history update for doc_id:{docID} as docSubStatus {docSubStatus} already exists.")
+                # try:
+                #     # userID = 1
+                #     corp_update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
+                # except Exception as e:
+                #     logger.error(f"pfg_sync 501: {str(e)}")
             except Exception as e:
                 print(
                     "Error in ProcessInvoiceVoucher fun(): ",
