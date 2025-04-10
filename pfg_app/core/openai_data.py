@@ -246,7 +246,7 @@ def extract_invoice_details_using_openai(blob_data):
         max_retries = 50
         while retry_count < max_retries:
             response = requests.post(
-                settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+                settings.open_ai_endpoint, headers=headers, json=data, timeout=120
             )
             # Check and process the response
             if response.status_code == 200:
