@@ -602,40 +602,84 @@ def clean_parsed_data(parsed_data):
         logger.info(f"Error while cleaning parsed data: {traceback.format_exc()}")
         return parsed_data
 
+# def has_extra_empty_strings(parsed_data):
+#     """
+#     Check if any row in tables_data contains the specific header with an extra empty string at the end.
+#     """
+#     tables_data = parsed_data.get("tables_data", [])
+#     target_header_with_extra = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount', '']
+    
+#     for table in tables_data:
+#         for row in table:
+#             if row == target_header_with_extra:
+#                 return True
+#     return False
+
 def has_extra_empty_strings(parsed_data):
     """
-    Check if any row in tables_data contains the specific header with an extra empty string at the end.
+    Check if any row in tables_data resembles a known template header but has extra empty strings.
     """
     tables_data = parsed_data.get("tables_data", [])
-    target_header_with_extra = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount', '']
+    
+    # Known valid headers
+    valid_headers = [
+        ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Subtotal'],
+        ['Invoice #', 'Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'GST', 'Invoice Total'],
+        ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount']
+    ]
     
     for table in tables_data:
         for row in table:
-            if row == target_header_with_extra:
+            # Remove empty strings
+            cleaned_row = [cell for cell in row if cell != '']
+            # If cleaned row matches any template but original row had extra elements (e.g. ''), it's a match
+            if any(cleaned_row == header and row != header for header in valid_headers):
                 return True
     return False
 
+# def clean_tables_data(parsed_data):
+#     """
+#     Clean the tables_data in parsed_data by removing extra empty strings at the end of each row.
+#     """
+#     tables_data = parsed_data.get("tables_data", [])
+    
+#     # Iterate over each table and row to remove trailing empty strings
+#     cleaned_tables_data = []
+#     for table in tables_data:
+#         cleaned_table = []
+#         for row in table:
+#             cleaned_row = row
+#             while cleaned_row and cleaned_row[-1] == '':
+#                 cleaned_row = cleaned_row[:-1]  # Remove the last element if it's an empty string
+#             cleaned_table.append(cleaned_row)
+#         cleaned_tables_data.append(cleaned_table)
+    
+#     # Update the parsed_data with cleaned tables_data
+#     parsed_data["tables_data"] = cleaned_tables_data
+#     return parsed_data
+
 def clean_tables_data(parsed_data):
     """
-    Clean the tables_data in parsed_data by removing extra empty strings at the end of each row.
+    Clean the tables_data in parsed_data by removing empty strings 
+    at the start and end of each row.
     """
     tables_data = parsed_data.get("tables_data", [])
-    
-    # Iterate over each table and row to remove trailing empty strings
+
     cleaned_tables_data = []
     for table in tables_data:
         cleaned_table = []
         for row in table:
-            cleaned_row = row
-            while cleaned_row and cleaned_row[-1] == '':
-                cleaned_row = cleaned_row[:-1]  # Remove the last element if it's an empty string
-            cleaned_table.append(cleaned_row)
+            # Remove empty string from start
+            if row and row[0] == '':
+                row = row[1:]
+            # Remove empty string from end
+            if row and row[-1] == '':
+                row = row[:-1]
+            cleaned_table.append(row)
         cleaned_tables_data.append(cleaned_table)
-    
-    # Update the parsed_data with cleaned tables_data
+
     parsed_data["tables_data"] = cleaned_tables_data
     return parsed_data
-
 
 
 def extract_eml_to_html(blob_data):
