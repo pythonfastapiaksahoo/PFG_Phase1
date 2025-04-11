@@ -549,6 +549,7 @@ def payload_dbUpdate(doc_id,userID,db):
                         {
                             model.corp_document_tab.documentstatus: docStatus,
                             model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.last_updated_by: userID,
                             model.corp_document_tab.retry_count: case(
                                 (model.corp_document_tab.retry_count.is_(None), 1),  # If NULL, set to 1
                                 else_=model.corp_document_tab.retry_count + 1        # Otherwise, increment
@@ -589,6 +590,7 @@ def payload_dbUpdate(doc_id,userID,db):
                         {
                             model.corp_document_tab.documentstatus: docStatus,
                             model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.last_updated_by: userID,
                         }
                     )
                     db.commit()
