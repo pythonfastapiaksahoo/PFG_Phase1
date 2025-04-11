@@ -1557,7 +1557,7 @@ class corp_document_tab(Base):
     vendor_code = Column(String(45), nullable=True)
     uploaded_date = Column(DateTime, nullable=True)
     approver_title = Column(String(45), nullable=True)
-    last_updated_by = Column(String(45), nullable=True)
+    last_updated_by = Column(Integer, nullable=True)
     vendor_id = Column(Integer, nullable=True)
     documentstatus = Column((Integer), nullable=True)
     documentsubstatus = Column((Integer), nullable=True)
