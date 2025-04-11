@@ -93,6 +93,41 @@ def clean_coding_amount(amount_str):
     
     return 0.0
 
+def is_valid_title(title, title_variants, approval_limits):
+    # Normalize input
+    title_key = title.strip().lower()
+    
+    # Map to standardized title
+    normalized_title = title_variants.get(title_key)
+    if not normalized_title:
+        return False  # Unrecognized title
+
+    # Check if normalized title appears in any approval level
+    for roles in approval_limits.values():
+        if normalized_title in roles:
+            return True
+
+    return False
+def is_valid_title(title, title_variants, approval_limits):
+    try:
+        # Normalize input
+        title_key = title.strip().lower()
+
+        # Map to standardized title
+        normalized_title = title_variants.get(title_key)
+        if not normalized_title:
+            return 0  # Unrecognized title
+
+        # Check if normalized title appears in any approval level
+        for roles in approval_limits.values():
+            if normalized_title in roles:
+                return 1
+
+        return 0
+    except Exception:
+        return 0
+
+
 def is_amount_approved(amount: float, title: str) -> bool:
     print(f"Approval limits: {amount}, {title}")
 
@@ -105,6 +140,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     title_variants = {
         "supervisor": "Supervisor",
+        # "superviso": "Supervisor",
         "manager": "Manager",
         "senior manager": "Senior Manager",
         "sr manager": "Senior Manager",
@@ -123,7 +159,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
     title_cleaned = re.sub(r"[^a-zA-Z\s]", "", title)  # Remove special characters
     title_cleaned = re.sub(r"\s+", " ", title_cleaned).strip().lower()  # Normalize spaces
     print("title_cleaned: ",title_cleaned)
-
+    validTitle = is_valid_title(title_cleaned, title_variants, approval_limits)
     normalized_title = None
     for key in title_variants:
         print(key)
@@ -136,16 +172,16 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     if not normalized_title:
         print(f"Title '{title_cleaned}' not recognized. Defaulting to unmatched.")
-        return False  # If no title matches, return False
+        return False,validTitle  # If no title matches, return False
 
     # **Step 3: Check Approval Limits**
     for (lower, upper), allowed_titles in approval_limits.items():
         if lower <= amount <= upper:
             # logger.info(f"Final Normalized Title: {normalized_title}")
             # logger.info(f"Allowed Titles for {amount}: {allowed_titles}")
-            return normalized_title in allowed_titles
+            return normalized_title in allowed_titles,validTitle
 
-    return False
+    return False,validTitle
 
 def update_Credit_data(doc_id, db):
     try:
@@ -1761,13 +1797,32 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                         approval_title_val_msg
                                                                     ],
                                                         }
-
+                                            if credit_ck!=1:
+                                                amt_approved, validTitle = is_amount_approved(float(pdf_invoTotal), coding_approver_title)
+                                                # if (amt_approved or (amount_approval_check == 1)):
+                                                #     logger.info("Amount approved")
+                                                
                                             if credit_ck==1:
                                                 logger.info("Amount limit approval skipped for credit")
                                                 approval_Amt_val_status = 1
                                                 approval_Amt_val_msg = "Amount limit approval skipped for credit"
                                                 eml_status_code = 0
-                                            elif (is_amount_approved(float(pdf_invoTotal), coding_approver_title) or (amount_approval_check == 1)):
+                                            elif validTitle==0:
+                                                docStatus = 24
+                                                docSubStatus = 166
+                                                approval_Amt_val_status =0
+                                                approvrd_ck= approvrd_ck * 0
+                                                eml_status_code = 7
+                                                logger.info("Unrecognized approver title")
+                                                approval_Amt_val_msg = "Unrecognized approver title"
+                                                return_status["Approval title validation"] = {"status": approval_Amt_val_status,
+                                                                    "StatusCode":eml_status_code,
+                                                                    "response": [
+                                                                                    approval_Amt_val_msg
+                                                                                ],
+                                                                    }
+
+                                            elif (amt_approved or (amount_approval_check == 1)):
                                                 logger.info("Amount approved")
                                                 approval_Amt_val_status = 1
                                                 if amount_approval_check==1:
