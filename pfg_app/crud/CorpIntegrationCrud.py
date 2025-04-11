@@ -2871,7 +2871,28 @@ def bulkupdateCorpInvoiceStatus():
                                 )
                                 success_count += 1  # Increment success counter
                             else:
-                                logger.info(f"Skipping history update for documentID {voucherdata.DOCUMENT_ID} as docsubstatusID {docsubstatusid} already exists.")
+                                logger.info(
+                                    f"Substatus {docsubstatusid} already exists for documentID {voucherdata.DOCUMENT_ID}. "
+                                    f"Updating `created_on` in corp_hist_logs."
+                                )
+
+                                # # Update `created_on` timestamp in corp_hist_logs
+                                # db.query(model.corp_hist_logs).filter(
+                                #     model.corp_hist_logs.document_id == voucherdata.DOCUMENT_ID,
+                                #     model.corp_hist_logs.document_substatus == docsubstatusid
+                                # ).update(
+                                #     {"created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+                                # )
+                                # db.commit()
+                                # Update only the latest history log entry's `created_on`
+                                latest_hist_entry = db.query(model.corp_hist_logs).filter(
+                                    model.corp_hist_logs.document_id == voucherdata.DOCUMENT_ID,
+                                    model.corp_hist_logs.document_substatus == docsubstatusid
+                                ).order_by(model.corp_hist_logs.created_on.desc()).first()
+
+                                if latest_hist_entry:
+                                    latest_hist_entry.created_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                                    db.commit()
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
                     # but don't interrupt the batch

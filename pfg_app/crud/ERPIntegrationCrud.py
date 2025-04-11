@@ -1453,7 +1453,19 @@ def newbulkupdateInvoiceStatus():
                                 )
                                 success_count += 1  # Increment success counter
                             else:
-                                logger.info(f"Skipping history update for documentID {voucherdata.documentID} as docsubstatusID {docsubstatusid} already exists.")
+                                logger.info(
+                                    f"Substatus {docsubstatusid} already exists for documentID {voucherdata.DOCUMENT_ID}. "
+                                    f"Updating `CreatedOn` in DocumentHistoryLogs."
+                                )
+                                # Update only the latest history log entry's `created_on`
+                                latest_hist_entry = db.query(model.DocumentHistoryLogs).filter(
+                                    model.DocumentHistoryLogs.documentID == voucherdata.documentID,
+                                    model.DocumentHistoryLogs.documentSubStatusID == docsubstatusid
+                                ).order_by(model.DocumentHistoryLogs.CreatedOn.desc()).first()
+
+                                if latest_hist_entry:
+                                    latest_hist_entry.CreatedOn = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                                    db.commit()
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
                     # but don't interrupt the batch
