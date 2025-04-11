@@ -1938,6 +1938,10 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                             ).update({"is_active": 0})
                         
                         db.flush()
+                    corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+                    if corp_doc_tab:
+                        corp_doc_tab.last_updated_by = user_id
+                        db.add(corp_doc_tab)
                     old_value = json.dumps(old_value) if isinstance(old_value, dict) else str(old_value)
                     new_value = json.dumps(new_value) if isinstance(new_value, dict) else str(new_value)
                     data = {
