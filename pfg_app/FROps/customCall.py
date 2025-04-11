@@ -174,9 +174,12 @@ def getOcrParameters(customerID, db):
 
 #     return req_date, date_status
 
+from datetime import datetime
 
 def date_cnv(doc_date, date_format):
     # Clean date and convert to "yyyy-mm-dd"
+    logger.info(f"Processing date format: {date_format},doc_date: {doc_date}")
+        
     
     get_date = {
         "jan": "01", "feb": "02", "mar": "03", "apr": "04",
@@ -210,7 +213,7 @@ def date_cnv(doc_date, date_format):
                         mm = get_date[month_abbr]
                         break
                 else:
-                    return doc_date, 0  # Return original string if month not found
+                    return doc_date, 0  # Month not found
                 
                 dd = dd.zfill(2)
                 yy = "20" + yy if len(yy) == 2 else yy
@@ -240,7 +243,7 @@ def date_cnv(doc_date, date_format):
                         mm = get_date[month_abbr]
                         break
                 else:
-                    return doc_date, 0  # Return original string if month not found
+                    return doc_date, 0  # Month not found
                 
                 dd = dd.zfill(2)
                 yy = "20" + yy if len(yy) == 2 else yy
@@ -248,7 +251,7 @@ def date_cnv(doc_date, date_format):
                 date_status = 1
 
         # YYYY-MM-DD, YYYY/MM/DD
-        elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd","yyyy-mm-dd"]:
+        elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd", "yyyy-mm-dd"]:
             doc_dt_slt = re.findall(r"\d+", doc_date)
             
             if len(doc_dt_slt) == 3:
@@ -258,11 +261,111 @@ def date_cnv(doc_date, date_format):
                 req_date = f"{yy}-{mm}-{dd}"
                 date_status = 1
 
+        # Validate the date and ensure it’s not in the future
+        if date_status == 1:
+            try:
+                parsed_date = datetime.strptime(req_date, "%Y-%m-%d")
+                if parsed_date > datetime.now():
+                    date_status = 0  # Future date
+                    req_date = doc_date
+            except ValueError:
+                date_status = 0  # Invalid date format
+                req_date = doc_date
+
     except Exception:
         logger.debug(traceback.format_exc())
-        date_status = 0  # Keep original string if an error occurs
+        date_status = 0
     
     return req_date, date_status
+
+# def date_cnv(doc_date, date_format):
+#     # Clean date and convert to "yyyy-mm-dd"
+    
+#     get_date = {
+#         "jan": "01", "feb": "02", "mar": "03", "apr": "04",
+#         "may": "05", "jun": "06", "jul": "07", "aug": "08",
+#         "sep": "09", "oct": "10", "nov": "11", "dec": "12"
+#     }
+
+#     date_status = 0
+#     req_date = doc_date  # Default to original date string if conversion fails
+
+#     try:
+#         # MM-DD-YYYY, MM/DD/YYYY, MM.DD.YY, MMM-DD-YYYY
+#         if date_format in [
+#             "mm.dd.yyyy", "mm-dd-yyyy", "mm/dd/yyyy", "mm dd yyyy",
+#             "mm.dd.yy", "mm/dd/yy", "mmm-dd-yyyy", "mmm dd yyyy"
+#         ]:
+#             doc_dt_slt = re.findall(r"\d+", doc_date)
+            
+#             if len(doc_dt_slt) == 3:
+#                 mm, dd, yy = doc_dt_slt
+#                 dd = dd.zfill(2)
+#                 yy = "20" + yy if len(yy) == 2 else yy
+#                 mm = mm.zfill(2)
+#                 req_date = f"{yy}-{mm}-{dd}"
+#                 date_status = 1
+            
+#             elif len(doc_dt_slt) == 2:
+#                 dd, yy = doc_dt_slt
+#                 for month_abbr in get_date:
+#                     if month_abbr in doc_date.lower():
+#                         mm = get_date[month_abbr]
+#                         break
+#                 else:
+#                     return doc_date, 0  # Return original string if month not found
+                
+#                 dd = dd.zfill(2)
+#                 yy = "20" + yy if len(yy) == 2 else yy
+#                 req_date = f"{yy}-{mm}-{dd}"
+#                 date_status = 1
+
+#         # DD-MM-YYYY, DD/MM/YY, DD/MMM/YYYY
+#         elif date_format in [
+#             "dd-mm-yy", "dd.mm.yy", "dd.mm.yyyy", "dd-mm-yyyy",
+#             "dd mm yyyy", "dd/mmm/yyyy", "dd/mmm/yy", "dd/mm/yy"
+#         ]:
+#             logger.info(f"Processing date format: {date_format}")
+#             doc_dt_slt = re.findall(r"\d+", doc_date)
+            
+#             if len(doc_dt_slt) == 3:
+#                 dd, mm, yy = doc_dt_slt
+#                 dd = dd.zfill(2)
+#                 yy = "20" + yy if len(yy) == 2 else yy
+#                 mm = mm.zfill(2)
+#                 req_date = f"{yy}-{mm}-{dd}"
+#                 date_status = 1
+            
+#             elif len(doc_dt_slt) == 2:
+#                 dd, yy = doc_dt_slt
+#                 for month_abbr in get_date:
+#                     if month_abbr in doc_date.lower():
+#                         mm = get_date[month_abbr]
+#                         break
+#                 else:
+#                     return doc_date, 0  # Return original string if month not found
+                
+#                 dd = dd.zfill(2)
+#                 yy = "20" + yy if len(yy) == 2 else yy
+#                 req_date = f"{yy}-{mm}-{dd}"
+#                 date_status = 1
+
+#         # YYYY-MM-DD, YYYY/MM/DD
+#         elif date_format in ["yyyy mm dd", "yyyy.mm.dd", "yyyy/mm/dd","yyyy-mm-dd"]:
+#             doc_dt_slt = re.findall(r"\d+", doc_date)
+            
+#             if len(doc_dt_slt) == 3:
+#                 yy, mm, dd = doc_dt_slt
+#                 dd = dd.zfill(2)
+#                 mm = mm.zfill(2)
+#                 req_date = f"{yy}-{mm}-{dd}"
+#                 date_status = 1
+
+#     except Exception:
+#         logger.debug(traceback.format_exc())
+#         date_status = 0  # Keep original string if an error occurs
+    
+#     return req_date, date_status
 
 
 
