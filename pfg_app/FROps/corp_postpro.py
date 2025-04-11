@@ -1039,7 +1039,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
         try:
             for doc_id_ in set(lt_corp_doc_id):
                 if doc_id_ != "":
-                    skipConf = 0
+                    skipConf = "0"
                     validate_corpdoc(doc_id_,userID,skipConf, db)
         except Exception:
             logger.error(traceback.format_exc())
