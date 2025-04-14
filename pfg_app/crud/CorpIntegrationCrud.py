@@ -185,102 +185,6 @@ def format_data_for_template1(parsed_data):
         final_json = json.dumps(structured_output, indent=4)
         return final_json
     
-    
-# def format_data_for_template2(parsed_data):
-#     try:
-#         # Extract metadata
-#         email_metadata = parsed_data["email_metadata"]
-
-#         # Extract table data
-#         tables = parsed_data["tables_data"]
-
-#         # Initialize dictionaries
-#         invoice_data = {
-#             "invoice#": [],
-#             "store": [],
-#             "dept": [],
-#             "account": [],
-#             "SL": [],
-#             "project": [],
-#             "activity": [],
-#             "GST": [],
-#             "invoicetotal": [],
-#             "subtotal": None
-#         }
-#         # approver_details = {}
-#         approver_details = {
-#             "approverName": '',
-#             "TMID": '',
-#             "title": ''
-#         }
-#         # Flatten the tables_data list if nested improperly
-#         cleaned_tables = []
-#         for table in tables:
-#             if isinstance(table, list) and all(isinstance(row, list) for row in table):
-#                 cleaned_tables.extend(table)  # Flatten nested lists
-#             else:
-#                 cleaned_tables.append(table)
-
-#         # Process the table
-#         for i, row in enumerate(cleaned_tables):
-#             if isinstance(row, list) and len(row) > 1:
-#                 if "Approver Name:" in row[0]:
-#                     approver_details["approverName"] = row[1]
-#                 elif "Approver TM ID:" in row[0]:
-#                     approver_details["TMID"] = row[1]
-#                 elif "Approval Title:" in row[0]:
-#                     approver_details["title"] = row[1]
-#                 elif "Invoice #" in row[0]:
-#                     headers = row  # Identify header row
-#                 elif len(row) >= 9:  # Ensure valid invoice row with enough columns
-#                     invoice_data["invoice#"].append(row[0])
-#                     invoice_data["store"].append(row[1])
-#                     invoice_data["dept"].append(row[2])
-#                     invoice_data["account"].append(row[3])
-#                     invoice_data["SL"].append(row[4])
-#                     invoice_data["project"].append(row[5])
-#                     invoice_data["activity"].append(row[6])
-#                     invoice_data["GST"].append(row[7])
-#                     invoice_data["invoicetotal"].append(row[8])
-
-#         # Combine into final structured JSON
-#         structured_output = {
-#             "email_metadata": email_metadata,
-#             "invoiceDetails": invoice_data,
-#             "approverDetails": approver_details
-#         }
-
-#         # Convert to JSON and print
-#         final_json = json.dumps(structured_output, indent=4)
-#         # print(final_json)
-#         return final_json
-
-#     except Exception:
-#         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
-#         # Combine into final structured JSON
-#         structured_output = {
-#                         "email_metadata": email_metadata, 
-#                         "invoiceDetails": { 
-#                             "store": [''], 
-#                             "dept": [''], 
-#                             "account": [''], 
-#                             "SL": [''],
-#                             "project": [''],
-#                             "activity": [''], 
-#                             "amount": [''], 
-#                             "invoice#": '', 
-#                             "GST": '', 
-#                             "invoicetotal": '', 
-#                         }, 
-#                         "approverDetails": { 
-#                             "approverName": '', 
-#                             "TMID": '', 
-#                             "title": '',
-#                         }
-#                     }
-#         # Convert to JSON and print
-#         final_json = json.dumps(structured_output, indent=4)
-#         return final_json
 
 def format_data_for_template2(parsed_data):
     try:
@@ -601,41 +505,84 @@ def clean_parsed_data(parsed_data):
         logger.info(f"Error while cleaning parsed data: {traceback.format_exc()}")
         return parsed_data
 
+# def has_extra_empty_strings(parsed_data):
+#     """
+#     Check if any row in tables_data contains the specific header with an extra empty string at the end.
+#     """
+#     tables_data = parsed_data.get("tables_data", [])
+#     target_header_with_extra = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount', '']
+    
+#     for table in tables_data:
+#         for row in table:
+#             if row == target_header_with_extra:
+#                 return True
+#     return False
+
 def has_extra_empty_strings(parsed_data):
     """
-    Check if any row in tables_data contains the specific header with an extra empty string at the end.
+    Check if any row in tables_data resembles a known template header but has extra empty strings.
     """
     tables_data = parsed_data.get("tables_data", [])
-    target_header_with_extra = ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount', '']
+    
+    # Known valid headers
+    valid_headers = [
+        ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Subtotal'],
+        ['Invoice #', 'Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'GST', 'Invoice Total'],
+        ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount']
+    ]
     
     for table in tables_data:
         for row in table:
-            if row == target_header_with_extra:
+            # Remove empty strings
+            cleaned_row = [cell for cell in row if cell != '']
+            # If cleaned row matches any template but original row had extra elements (e.g. ''), it's a match
+            if any(cleaned_row == header and row != header for header in valid_headers):
                 return True
     return False
 
+# def clean_tables_data(parsed_data):
+#     """
+#     Clean the tables_data in parsed_data by removing extra empty strings at the end of each row.
+#     """
+#     tables_data = parsed_data.get("tables_data", [])
+    
+#     # Iterate over each table and row to remove trailing empty strings
+#     cleaned_tables_data = []
+#     for table in tables_data:
+#         cleaned_table = []
+#         for row in table:
+#             cleaned_row = row
+#             while cleaned_row and cleaned_row[-1] == '':
+#                 cleaned_row = cleaned_row[:-1]  # Remove the last element if it's an empty string
+#             cleaned_table.append(cleaned_row)
+#         cleaned_tables_data.append(cleaned_table)
+    
+#     # Update the parsed_data with cleaned tables_data
+#     parsed_data["tables_data"] = cleaned_tables_data
+#     return parsed_data
+
 def clean_tables_data(parsed_data):
     """
-    Clean the tables_data in parsed_data by removing extra empty strings at the end of each row.
+    Clean the tables_data in parsed_data by removing empty strings 
+    at the start and end of each row.
     """
     tables_data = parsed_data.get("tables_data", [])
-    
-    # Iterate over each table and row to remove trailing empty strings
+
     cleaned_tables_data = []
     for table in tables_data:
         cleaned_table = []
         for row in table:
-            cleaned_row = row
-            while cleaned_row and cleaned_row[-1] == '':
-                cleaned_row = cleaned_row[:-1]  # Remove the last element if it's an empty string
-            cleaned_table.append(cleaned_row)
+            # Remove empty string from start
+            if row and row[0] == '':
+                row = row[1:]
+            # Remove empty string from end
+            if row and row[-1] == '':
+                row = row[:-1]
+            cleaned_table.append(row)
         cleaned_tables_data.append(cleaned_table)
-    
-    # Update the parsed_data with cleaned tables_data
+
     parsed_data["tables_data"] = cleaned_tables_data
     return parsed_data
-
-
 
 def extract_eml_to_html(blob_data):
     try:
@@ -2042,6 +1989,10 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                             ).update({"is_active": 0})
                         
                         db.flush()
+                    corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+                    if corp_doc_tab:
+                        corp_doc_tab.last_updated_by = user_id
+                        db.add(corp_doc_tab)
                     old_value = json.dumps(old_value) if isinstance(old_value, dict) else str(old_value)
                     new_value = json.dumps(new_value) if isinstance(new_value, dict) else str(new_value)
                     data = {
@@ -2916,29 +2867,76 @@ def bulkupdateCorpInvoiceStatus():
                             dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
                         # If there's a valid document status update,
                         # add it to the bulk update list
+                        # if documentstatusid:
+                        #     updates.append(
+                        #         {
+                        #             "corp_doc_id": voucherdata.DOCUMENT_ID,
+                        #             "documentstatus": documentstatusid,
+                        #             "documentsubstatus": docsubstatusid,
+                        #             "voucher_id": voucher_id,
+                        #             "last_updated_by": userID,
+                        #         }
+                        #     )
+                        #     # Collect doc history update data
+                        #     doc_history_updates.append(
+                        #         {
+                        #             "document_id": voucherdata.DOCUMENT_ID,
+                        #             "user_id": userID,
+                        #             "document_status": documentstatusid,
+                        #             "document_desc": dmsg,
+                        #             "created_on": datetime.utcnow().strftime(
+                        #                 "%Y-%m-%d %H:%M:%S"
+                        #             ),  # noqa: E501
+                        #         }
+                        #     )
+                        #     success_count += 1  # Increment success counter
                         if documentstatusid:
-                            updates.append(
-                                {
-                                    "corp_doc_id": voucherdata.DOCUMENT_ID,
-                                    "documentstatus": documentstatusid,
-                                    "documentsubstatus": docsubstatusid,
-                                    "voucher_id": voucher_id,
-                                    "last_updated_by": userID,
-                                }
-                            )
-                            # Collect doc history update data
-                            doc_history_updates.append(
-                                {
-                                    "document_id": voucherdata.DOCUMENT_ID,
-                                    "user_id": userID,
-                                    "document_status": documentstatusid,
-                                    "document_desc": dmsg,
-                                    "created_on": datetime.utcnow().strftime(
-                                        "%Y-%m-%d %H:%M:%S"
-                                    ),  # noqa: E501
-                                }
-                            )
-                            success_count += 1  # Increment success counter
+                            # Check if the docsubstatusid for the corp_document_tab already exists in the corp_document_tab table
+                            existing_doc = db.query(model.corp_document_tab).filter(
+                                model.corp_document_tab.corp_doc_id == voucherdata.DOCUMENT_ID,
+                                model.corp_document_tab.documentsubstatus == docsubstatusid
+                            ).first()
+
+                            if not existing_doc:  # Proceed only if no record exists with the same docsubstatusid
+                                # Add to updates if not already present
+                                updates.append(
+                                    {
+                                        "corp_doc_id": voucherdata.DOCUMENT_ID,
+                                        "documentstatus": documentstatusid,
+                                        "documentsubstatus": docsubstatusid,
+                                        "voucher_id": voucher_id,
+                                        "last_updated_by": userID,
+                                        
+                                    }
+                                )
+
+                                # Collect doc history update data
+                                doc_history_updates.append(
+                                    {
+                                        "document_id": voucherdata.DOCUMENT_ID,
+                                        "user_id": userID,
+                                        "document_status": documentstatusid,
+                                        "document_desc": dmsg,
+                                        "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                                        "document_substatus": docsubstatusid,
+                                    }
+                                )
+                                success_count += 1  # Increment success counter
+                            else:
+                                logger.info(
+                                    f"Substatus {docsubstatusid} already exists for documentID {voucherdata.DOCUMENT_ID}. "
+                                    f"Updating `created_on` in corp_hist_logs."
+                                )
+
+                                # Update only the latest history log entry's `created_on`
+                                latest_hist_entry = db.query(model.corp_hist_logs).filter(
+                                    model.corp_hist_logs.document_id == voucherdata.DOCUMENT_ID,
+                                    model.corp_hist_logs.document_substatus == docsubstatusid
+                                ).order_by(model.corp_hist_logs.created_on.desc()).first()
+
+                                if latest_hist_entry:
+                                    latest_hist_entry.created_on = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                                    db.commit()
                 except requests.exceptions.RequestException as e:
                     # Log the error and skip this document,
                     # but don't interrupt the batch
@@ -3249,18 +3247,6 @@ async def read_corp_paginate_doc_inv_list(
             "Duplicate Invoice": 32,
         }
 
-        # # new subquery to increase the loading time
-        # sub_query_desc = (
-        #     db.query(
-        #         model.corp_hist_logs.document_id,
-        #         model.corp_hist_logs.histlog_id,
-        #         model.corp_hist_logs.user_id
-        #     )
-        #     .distinct(model.corp_hist_logs.document_id)
-        #     .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
-        #     .subquery()
-        # )
-
         # Initial query setup for fetching document, status, and related entities
         data_query = (
             db.query(
@@ -3269,7 +3255,7 @@ async def read_corp_paginate_doc_inv_list(
                 model.DocumentSubStatus,
                 model.Vendor,
                 # model.corp_docdata,
-                model.User.firstName.label("last_updated_by"),
+                # model.User.firstName.label("last_updated_by"),
             )
             .options(
                 Load(model.corp_document_tab).load_only(
@@ -3313,20 +3299,10 @@ async def read_corp_paginate_doc_inv_list(
                 isouter=True,
             )
             # .join(
-            #     model.corp_docdata,
-            #     model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
+            #     model.User,
+            #     model.User.idUser == model.corp_document_tab.last_updated_by,
             #     isouter=True,
             # )
-            # .join(
-            #     sub_query_desc,
-            #     sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
-            #     isouter=True,
-            # )
-            .join(
-                model.User,
-                model.User.idUser == model.corp_document_tab.last_updated_by,
-                isouter=True,
-            )
             .filter(
                 model.corp_document_tab.vendor_id.isnot(None),
             )
@@ -3460,9 +3436,57 @@ async def read_corp_paginate_doc_inv_list(
             .offset(off_val)
             .all()
         )
+            
+        document_ids = [doc[0].corp_doc_id for doc in Documentdata if hasattr(doc[0], 'corp_doc_id')]
+        if document_ids:
+            latest_corp_hist_log_query = (
+                db.query(
+                    model.corp_hist_logs.document_id,
+                    model.corp_hist_logs.user_id,
+                )
+                .filter(model.corp_hist_logs.document_id.in_(document_ids))
+                .distinct(model.corp_hist_logs.document_id)  # Ensure distinct document_ids
+                .order_by(
+                    model.corp_hist_logs.document_id, 
+                    model.corp_hist_logs.histlog_id.desc()  # Order by ID in descending order
+                )
+                .subquery()  # Convert to a subquery for joining later
+            )
 
+            # Join the latest history log subquery with User table to get the last_updated_by (firstName)
+            user_query = (
+                db.query(
+                    model.User.firstName.label("last_updated_by"),
+                    latest_corp_hist_log_query.c.document_id  # Access document_id from the subquery
+                )
+                .join(
+                    model.User, 
+                    model.User.idUser == latest_corp_hist_log_query.c.user_id  # Join condition on userID
+                )
+            )
+
+            # Convert the result to a dictionary for fast lookup
+            user_dict = {user.document_id: user.last_updated_by for user in user_query}
+
+            # Add 'last_updated_by' to Documentdata
+            # for doc in Documentdata:
+            #     doc[0].last_updated_by = user_dict.get(doc[0].idDocument)
+            response_data = []
+            for doc in Documentdata:
+                document_obj = {
+                    "corp_document_tab": doc[0].__dict__,
+                    "DocumentStatus": doc[1].__dict__ if doc[1] else {},
+                    "DocumentSubStatus": doc[2].__dict__ if doc[2] else {},
+                    "Vendor": doc[3].__dict__ if doc[3] else {},
+                    "last_updated_by": user_dict.get(doc[0].corp_doc_id)
+                }
+                # Remove _sa_instance_state from each dictionary
+                for k, v in document_obj.items():
+                    if isinstance(v, dict):
+                        v.pop("_sa_instance_state", None)
+                response_data.append(document_obj)
         # Return paginated document data with line items
-        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
+        return {"ok": {"Documentdata": response_data, "TotalCount": total_count}}
 
     except Exception:
         logger.error(traceback.format_exc())
@@ -3517,18 +3541,6 @@ async def download_corp_paginate_doc_inv_list(
             "Duplicate Invoice": 32,
         }
 
-        # # new subquery to increase the loading time
-        # sub_query_desc = (
-        #     db.query(
-        #         model.corp_hist_logs.document_id,
-        #         model.corp_hist_logs.histlog_id,
-        #         model.corp_hist_logs.user_id
-        #     )
-        #     .distinct(model.corp_hist_logs.document_id)
-        #     .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
-        #     .subquery()
-        # )
-
         # Initial query setup for fetching document, status, and related entities
         data_query = (
             db.query(
@@ -3581,21 +3593,6 @@ async def download_corp_paginate_doc_inv_list(
                 model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
                 isouter=True,
             )
-            # .join(
-            #     sub_query_desc,
-            #     sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
-            #     isouter=True,
-            # )
-            # .join(
-            #     sub_query_desc,
-            #     and_(
-            #         sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
-            #         sub_query_desc.c.histlog_id == db.query(func.max(model.corp_hist_logs.histlog_id)).filter(
-            #             model.corp_hist_logs.document_id == model.corp_document_tab.corp_doc_id
-            #         ).scalar_subquery(),
-            #     ),
-            #     isouter=True,
-            # )
             .join(
                 model.User,
                 model.User.idUser == model.corp_document_tab.last_updated_by,

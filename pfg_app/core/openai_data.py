@@ -93,7 +93,7 @@ def extract_invoice_details_using_openai(blob_data):
                                     Return "N/A" if the vendor address is not present in the invoice document.
                 - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present. for example, '01/27/2025 15:53:19' then extract '01/27/2025'.
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
-                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' from invoice document if present else return "N/A", For example- 'Tax $2.23' or 'GST 2.23' or 'Goods and Services Tax' 2.23 then extract 2.23.
+                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' from invoice document if present else return "N/A".
                 - **PST**: Extracted PST from invoice document if present else return "N/A".
                 - **PST-SK**: Extracted PST-SK from invoice document if present else return "N/A".
                 - **PST-BC**: Extracted PST-BC from invoice document if present else return "N/A".
@@ -118,6 +118,9 @@ def extract_invoice_details_using_openai(blob_data):
                         - if the vendor address is not present in the invoice document, return "N/A".
                     - **CreditNote** : if "Credit Memo" or Credit Note" is present in the invoice document, then return "Yes".
                         - if the invoice total fields is in negative or in braces, then return "Yes".for example, '-123.45' or '123.45-' or (123.45) return "Yes".
+                    - **GST** : if "TAX" is present in the invoice document, extract the value after TAX. for example: 'Tax $2.23' then extract 2.23.
+                        - if "GST" is present in the invoice document, extract the value after GST. for example: 'GST $2.23' then extract 2.23.
+                        - if "Goods and Services Tax" is present in the invoice document, extract the value after Goods and Services Tax. for example: 'Goods and Services Tax $2.23' then extract 2.23.
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
                 4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
 
@@ -244,7 +247,7 @@ def extract_invoice_details_using_openai(blob_data):
         max_retries = 50
         while retry_count < max_retries:
             response = requests.post(
-                settings.open_ai_endpoint, headers=headers, json=data, timeout=60
+                settings.open_ai_endpoint, headers=headers, json=data, timeout=120
             )
             # Check and process the response
             if response.status_code == 200:
