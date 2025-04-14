@@ -49,6 +49,19 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def app_startup():
+    try:
+        operation_id = uuid.uuid4().hex
+        set_operation_id(operation_id)
+        db = next(get_db())
+        current_schema = db.execute("SELECT current_schema();").scalar()
+        logger.info(f"Current schema before setting: {current_schema}")
+        db.execute("SET search_path TO pfg_schema;")
+        current_schema = db.execute("SELECT current_schema();").scalar()
+        logger.info(f"Current schema after setting: {current_schema}")
+        return True
+    except Exception:
+        logger.error(traceback.format_exc())
+        return True
     if settings.build_type != "debug":
         operation_id = uuid.uuid4().hex
         set_operation_id(operation_id)
