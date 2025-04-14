@@ -22,7 +22,7 @@ DB = None
 SQLALCHEMY_DATABASE_URL = None
 SCHEMA = "pfg_schema"
 
-if settings.build_type in ["prod"]:
+if settings.build_type in ["prod","dev"]:
 
     # Retrieve the access token using DefaultAzureCredential
     credential = DefaultAzureCredential()
@@ -32,7 +32,8 @@ if settings.build_type in ["prod"]:
 
     # Get the connection string from the environment variable
     conn_string = os.getenv("AZURE_POSTGRESQL_CONNECTIONSTRING")
-
+    if settings.build_type == "dev":
+        conn_string = os.getenv("AZURE_POSTGRESQL_AAD_API_CONNECTION_CONNECTIONSTRING")
     # Convert connection string to RFC1738 format
     db_url, status = build_rfc1738_url(conn_string, access_token)
 
@@ -105,6 +106,8 @@ def refresh_access_token_and_get_session():
 
         # Rebuild the connection string with the new token
         conn_string = os.getenv("AZURE_POSTGRESQL_CONNECTIONSTRING")
+        if settings.build_type == "dev":
+            conn_string = os.getenv("AZURE_POSTGRESQL_AAD_API_CONNECTION_CONNECTIONSTRING")
         db_url, status = build_rfc1738_url(conn_string, access_token)
 
         SQLALCHEMY_DATABASE_URL = db_url + "&options=-csearch_path=pfg_schema"
@@ -137,7 +140,7 @@ def get_db():
     max_retries = 2  # Number of retries (1 original + 1 retry)
     while attempt < max_retries:
         try:
-            if settings.build_type in ["prod"]:
+            if settings.build_type in ["prod","dev"]:
                 # Refresh the token and recreate the session if necessary
                 if attempt > 0:  # Retry logic
                     refresh_access_token_and_get_session()
