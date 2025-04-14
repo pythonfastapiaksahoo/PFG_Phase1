@@ -79,8 +79,8 @@ def clean_coding_amount(amount_str):
         return round(float(amount_str), 2)
     
     try:
-        # Check if the amount is enclosed in parentheses (indicating a negative value)
-        is_negative = "(" in amount_str and ")" in amount_str
+        # Check if the value is negative due to a '-' sign
+        is_negative = "-" in amount_str or ("(" in amount_str and ")" in amount_str)
         
         # Extract numeric values including decimal points
         cleaned_amount = re.findall(r"[\d.]+", amount_str)
@@ -92,6 +92,41 @@ def clean_coding_amount(amount_str):
         return 0.0
     
     return 0.0
+
+def is_valid_title(title, title_variants, approval_limits):
+    # Normalize input
+    title_key = title.strip().lower()
+    
+    # Map to standardized title
+    normalized_title = title_variants.get(title_key)
+    if not normalized_title:
+        return False  # Unrecognized title
+
+    # Check if normalized title appears in any approval level
+    for roles in approval_limits.values():
+        if normalized_title in roles:
+            return True
+
+    return False
+def is_valid_title(title, title_variants, approval_limits):
+    try:
+        # Normalize input
+        title_key = title.strip().lower()
+
+        # Map to standardized title
+        normalized_title = title_variants.get(title_key)
+        if not normalized_title:
+            return 0  # Unrecognized title
+
+        # Check if normalized title appears in any approval level
+        for roles in approval_limits.values():
+            if normalized_title in roles:
+                return 1
+
+        return 0
+    except Exception:
+        return 0
+
 
 def is_amount_approved(amount: float, title: str) -> bool:
     print(f"Approval limits: {amount}, {title}")
@@ -105,6 +140,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     title_variants = {
         "supervisor": "Supervisor",
+        # "superviso": "Supervisor",
         "manager": "Manager",
         "senior manager": "Senior Manager",
         "sr manager": "Senior Manager",
@@ -116,12 +152,14 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "vice president": "VP",
         "vp": "VP",
         "rmpo": "Regional Manager",
+        "generalmanager, pattisson food group":"General Manager",
+        "generalmanager": "General Manager",
     }
 
     title_cleaned = re.sub(r"[^a-zA-Z\s]", "", title)  # Remove special characters
     title_cleaned = re.sub(r"\s+", " ", title_cleaned).strip().lower()  # Normalize spaces
     print("title_cleaned: ",title_cleaned)
-
+    validTitle = is_valid_title(title_cleaned, title_variants, approval_limits)
     normalized_title = None
     for key in title_variants:
         print(key)
@@ -134,16 +172,16 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     if not normalized_title:
         print(f"Title '{title_cleaned}' not recognized. Defaulting to unmatched.")
-        return False  # If no title matches, return False
+        return False,validTitle  # If no title matches, return False
 
     # **Step 3: Check Approval Limits**
     for (lower, upper), allowed_titles in approval_limits.items():
         if lower <= amount <= upper:
             # logger.info(f"Final Normalized Title: {normalized_title}")
             # logger.info(f"Allowed Titles for {amount}: {allowed_titles}")
-            return normalized_title in allowed_titles
+            return normalized_title in allowed_titles,validTitle
 
-    return False
+    return False,validTitle
 
 def update_Credit_data(doc_id, db):
     try:
@@ -157,22 +195,28 @@ def update_Credit_data(doc_id, db):
         if record:
             # Update the values for corp_document_tab
             if record[0]:  # Checking if the corp_document_tab record exists
+                # logger.info(f"Before record[0].invoicetotal: {record[0].invoicetotal}, record[0].gst: {record[0].gst}")
                 record[0].invoicetotal = round(-abs(record[0].invoicetotal or 0), 2)
                 record[0].gst = round(-abs(record[0].gst or 0), 2)
+                # logger.info(f"After record[0].invoicetotal: {record[0].invoicetotal}, record[0].gst: {record[0].gst}")
 
             # Update the values for corp_coding_tab
             if record[1]:  # Checking if the corp_coding_tab record exists
                 # record[1].invoicetotal = round(-abs(record[1].invoicetotal or 0), 2)
+                logger.info(f"Before record[1].invoicetotal: {record[1].invoicetotal}, record[1].gst: {record[1].gst}")
                 record[1].invoicetotal = clean_coding_amount(record[1].invoicetotal or 0)
                 # record[1].gst = round(-abs(record[1].gst or 0), 2)
                 record[1].gst = clean_coding_amount(record[1].gst or 0)
+                logger.info(f"After record[1].invoicetotal: {record[1].invoicetotal}, record[1].gst: {record[1].gst}")
 
                 # Update amount values inside coding_details
                 if record[1].coding_details:
                     for key, value in record[1].coding_details.items():
                         if 'amount' in value and value['amount']:
                             # value['amount'] = round(-abs(value['amount']), 2)
+                            logger.info(f"Before value['amount']: {value['amount']}")
                             value['amount'] = clean_coding_amount(value['amount'])
+                            logger.info(f"After value['amount']: {value['amount']}")
 
 
                     # Mark JSON column as modified
@@ -281,6 +325,10 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     approval_Amt_val_status = 0
     metadata_currency = ""
     VB_status = 0
+    invo_cod_total_mismatch = 0
+    validation_ck_all = 1
+    invo_cod_gst_mismatch = 0
+    rounding_threshold = 0.005
     try:
         corp_document_data = (
             db.query(model.corp_document_tab)
@@ -377,6 +425,173 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             return return_status
             
         if docStatus in (32,2,4,24,21):
+            #----------
+            try:
+                if invoice_id in [None, ""]:
+                 # Query corp_docdata
+                    corp_docdata = (
+                        db.query(model.corp_docdata)
+                        .filter(model.corp_docdata.corp_doc_id == doc_id)
+                        .all()
+                    )
+
+                    # df_corp_coding = pd.DataFrame([row.__dict__ for row in corp_coding_data])
+
+                    df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
+                    try:
+                        # Drop SQLAlchemy internal state column
+                        df_corp_docdata.drop(columns=["_sa_instance_state"], inplace=True, errors="ignore")
+
+                        # Check for empty fields (None or empty strings)
+                        empty_fields_report = df_corp_docdata.isnull() | (df_corp_docdata == '')
+
+                        missing_values_list = []
+
+                        for index, row in df_corp_docdata.iterrows():
+                            missing_columns = empty_fields_report.columns[empty_fields_report.loc[index]].tolist()
+                            missing_values_list.append(missing_columns)
+                        logger.info(f"missing_values_list: {missing_values_list}")
+                        if ['vendor_name', 'vendoraddress', 'customeraddress', 'doc_updates', 'customername', 'invoice_id', 'invoice_date'] in missing_values_list:
+                            docStatus = 4
+                            documentdesc = f"OpenAI extraction failed -  Rate Limit exceeded"
+                            docSubStatus = 165
+                            return_status["OpenAI extraction failed"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Rate limit exceeded,please update the data manually to proceed."
+                                                                    ],
+                                                                }
+                            
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                            ).update(
+                                {
+                                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                                    model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                                    model.corp_document_tab.last_updated_by: userID,
+                                    model.corp_document_tab.updated_on: timeStmp,
+
+                                }
+                            )
+
+                            db.commit()
+                            logger.info(f"Rate Limit exceeded: {return_status}")
+                        else:
+                            return_status["InvoiceID"] = {"status": 0,
+                                                        "StatusCode":0,
+                                                        "response": [
+                                                                        "Invalid."
+                                                                    ],
+                                                                }
+                        return return_status
+                    except Exception as e:
+                        logger.info(traceback.format_exc())
+                        logger.info(f"Error: {e}")
+
+                
+                dupCk_document_data = (
+                db.query(model.corp_document_tab)
+                .filter(
+                    model.corp_document_tab.corp_doc_id != doc_id,
+                    model.corp_document_tab.vendor_id == vendor_id,
+                    model.corp_document_tab.documentstatus != 10,
+                    model.corp_document_tab.invoice_id == invoice_id
+                )
+                .all()
+                )
+
+                
+                df_dupCk_document = pd.DataFrame([
+                    {col: getattr(row, col) for col in model.corp_document_tab.__table__.columns.keys()}
+                    for row in dupCk_document_data
+                ])
+
+                if len(df_dupCk_document)>0:
+                    # duplicate invoice
+                    try:
+                        try:
+                            corp_metadata_qry = (
+                                        db.query(model.corp_metadata)
+                                        .filter(model.corp_metadata.vendorid == vendor_id)
+                                        .all()
+                                    )
+                            df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                                    
+                        except Exception as e:
+                            logger.info(f"Error in getting metadata: {e}")
+                            df_corp_metadata = pd.DataFrame()
+
+                        if not df_corp_metadata.empty:
+                            try:
+                                corp_docdata = (
+                                    db.query(model.corp_docdata)
+                                    .filter(model.corp_docdata.corp_doc_id == doc_id)
+                                    .all()
+                                )
+                                df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
+                                mand_invDate = list(df_corp_docdata['invoice_date'])[0]
+                            except Exception as e:
+                                mand_invDate = ""
+                                logger.info(f"Error: {e}")
+                            # VB_status = 1
+                            # metadata_currency = list(df_corp_metadata['currency'])[0]
+                            date_format = list(df_corp_metadata['dateformat'])[0]
+                            if check_date_format(mand_invDate) == False:
+                                req_date, date_status = date_cnv(mand_invDate, date_format)
+                                if date_status == 1:
+                                    invDate_msg = "Valid Date Format"
+                                    invDate_status = 1
+                                    #update date to table:
+                                    # Update corp_document_tab
+                                    db.query(model.corp_document_tab).filter(
+                                        model.corp_document_tab.corp_doc_id == doc_id
+                                    ).update({model.corp_document_tab.invoice_date: req_date})
+
+                                    # Update corp_docdata
+                                    db.query(model.corp_docdata).filter(
+                                        model.corp_docdata.corp_doc_id == doc_id
+                                    ).update({model.corp_docdata.invoice_date: req_date})
+
+                                    db.commit()
+                                    return_status["Invoice date validation"] = {"status": 1,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            "Success."
+                                                                        ],
+                                                                    }
+                                
+                    except Exception as e:
+                        logger.info(f"Error: {e}")
+
+                    docStatus = 32
+                    documentdesc = f"Duplicate invoice"
+                    docSubStatus = 128
+                    return_status["Status overview"] = {"status": 0,
+                                                "StatusCode":0,
+                                                "response": [
+                                                                "Duplicate invoice."
+                                                            ],
+                                                        }
+                    
+                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                    db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                            model.corp_document_tab.last_updated_by: userID,
+                            model.corp_document_tab.updated_on: timeStmp,
+
+                        }
+                    )
+
+                    db.commit()
+                    logger.info(f"return corp validations(ln 111): {return_status}")
+                    return return_status
+            except Exception as e:
+                logger.info(f"Error in validate_corpdoc: {e}")
+                logger.info(traceback.format_exc())
+                
             # ------
             #check if vendor is active or not: -
             try:
@@ -421,6 +636,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     }
                                 )
                             db.commit()
+                            documentdesc = "Inactive vendor"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
                             return_status["Status overview"] = {"status": 0,
                                                         "StatusCode":9,
                                                         "response": [
@@ -475,6 +692,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         }
                     )
                 db.commit()
+                try:
+                    documentdesc = "Coding - No Coding Lines Found"
+                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                except Exception as e:
+                    logger.info(f"docID: {doc_id} - Coding - No Coding Lines Found")
+                    logger.info(traceback.format_exc())
                 logger.info(f"docID: {doc_id} - Coding - No Coding Lines Found")
                 return_status["Status overview"] = {"status": 0,
                                         "StatusCode":0,
@@ -485,6 +708,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                 logger.info(f"return corp validations(ln 61): {return_status}")
                 return return_status
             if docSubStatus == 130:
+
                 return_status["Status overview"] = {"status": 0,
                                             "StatusCode":0,
                                             "response": [
@@ -533,6 +757,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     docStatus = 4
                                     docSubStatus = 11
                                 else:
+                                    try:
+                                        documentdesc = "Vendor mapping required"
+                                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                    except Exception as e:
+                                        logger.info(traceback.format_exc())
                                     return_status["Vendor mapping required"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -559,6 +788,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 }
                             )
                         db.commit()
+                        try:
+                            documentdesc = "Vendor mapping required"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                        except Exception as e:
+                            logger.info(traceback.format_exc())
                         return_status["Status overview"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -594,6 +828,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                         db.commit()
 
                                     else:
+                                        try:
+                                            documentdesc = "Vendor Code missing."
+                                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                        except Exception as e:
+                                            logger.info(traceback.format_exc())
                                         return_status["Vendor mapping required"] = {"status": 0,
                                                         "StatusCode":0,
                                                         "response": [
@@ -627,17 +866,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     df_corp_coding = pd.DataFrame([row.__dict__ for row in corp_coding_data])
 
                     df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
-                    # if (document_type is not None):
-                    #     if document_type !="":
-                    #         if str(document_type).lower() in ('invoice','credit'):
-                    #             print(document_type)
-
-                    # Get metadata for the document:
-                    
-
-                    
-                    
-                    
+                 
+ 
                     # Check for mandatory fields:
                     mand_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
                     mand_gst = list(df_corp_docdata['gst'])[0]
@@ -669,11 +899,24 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                             VB_documentdesc
                                                                         ],
                                                                     }
+                                try:
+                                    documentdesc = "Vendor not onboarded-User processing invoice manually"
+                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                except Exception as e:
+                                    logger.info(traceback.format_exc())
                             else:
                                 VB_documentdesc = "Onboard vendor/proceess manually"
                                 VB_status = 0
                                 VB_status_code = 10
-                                corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus) 
+                                # corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus) 
+                                #---
+                                try:
+                                    documentdesc = "Vendor not onboarded-Onboard vendor/processing manually required."
+                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                except Exception as e:
+                                    logger.info(traceback.format_exc())
+                            
+                                #---
                                 return_status["Vendor not onboarded"] = {"status": VB_status,
                                                             "StatusCode":VB_status_code,
                                                             "response": [
@@ -713,6 +956,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                 
                             else:
+                                 #---
+                                try:
+                                    documentdesc =  f"Invalid Date Format: {mand_invDate}."
+                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                except Exception as e:
+                                    logger.info(traceback.format_exc())
+                            
+                                #---
                                 invDate_msg = "Invalid Date Format"
                                 invDate_status = 0
                                 return_status["Invoice date validation"] = {"status": 0,
@@ -766,6 +1017,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                 try:
                     cl_invoID =  re.sub(r'[^a-zA-Z0-9\s]', '', invoice_id)
                     if len(cl_invoID)==0:
+                         #---
+                        try:
+                            documentdesc =   "Invoice ID not valid."
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                        except Exception as e:
+                            logger.info(traceback.format_exc())
+                    
+                        #---
                         return_status["Invoice mandatory fields validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -828,9 +1087,72 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                 if len(df_dupCk_document)>0:
                     # duplicate invoice
+                    try:
+                        try:
+                            corp_metadata_qry = (
+                                        db.query(model.corp_metadata)
+                                        .filter(model.corp_metadata.vendorid == vendor_id)
+                                        .all()
+                                    )
+                            df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
+                                    
+                        except Exception as e:
+                            logger.info(f"Error in getting metadata: {e}")
+                            df_corp_metadata = pd.DataFrame()
+
+                        if not df_corp_metadata.empty:
+                            try:
+                                corp_docdata = (
+                                    db.query(model.corp_docdata)
+                                    .filter(model.corp_docdata.corp_doc_id == doc_id)
+                                    .all()
+                                )
+                                df_corp_docdata = pd.DataFrame([row.__dict__ for row in corp_docdata])
+                                mand_invDate = list(df_corp_docdata['invoice_date'])[0]
+                            except Exception as e:
+                                mand_invDate = ""
+                                logger.info(f"Error: {e}")
+                            VB_status = 1
+                            metadata_currency = list(df_corp_metadata['currency'])[0]
+                            date_format = list(df_corp_metadata['dateformat'])[0]
+                            if check_date_format(mand_invDate) == False:
+                                req_date, date_status = date_cnv(mand_invDate, date_format)
+                                if date_status == 1:
+                                    invDate_msg = "Valid Date Format"
+                                    invDate_status = 1
+                                    #update date to table:
+                                    # Update corp_document_tab
+                                    db.query(model.corp_document_tab).filter(
+                                        model.corp_document_tab.corp_doc_id == doc_id
+                                    ).update({model.corp_document_tab.invoice_date: req_date})
+
+                                    # Update corp_docdata
+                                    db.query(model.corp_docdata).filter(
+                                        model.corp_docdata.corp_doc_id == doc_id
+                                    ).update({model.corp_docdata.invoice_date: req_date})
+
+                                    db.commit()
+                                    return_status["Invoice date validation"] = {"status": 1,
+                                                            "StatusCode":0,
+                                                            "response": [
+                                                                            "Success."
+                                                                        ],
+                                                                    }
+                                
+                    except Exception as e:
+                        logger.info(f"Error: {e}")
+                        logger.info(traceback.format_exc())
                     docStatus = 32
                     documentdesc = f"Duplicate invoice"
                     docSubStatus = 128
+                    #---
+                    try:
+                        documentdesc =   "Duplicate invoice."
+                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                    except Exception as e:
+                        logger.info(traceback.format_exc())
+                
+                    #---
                     return_status["Status overview"] = {"status": 0,
                                                 "StatusCode":0,
                                                 "response": [
@@ -985,6 +1307,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 ],
                                                             }
                             else:
+                                #---
+                                try:
+                                    documentdesc =   "Invoice total not valid."
+                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                except Exception as e:
+                                    logger.info(traceback.format_exc())
+                            
+                                #---
                                 invoTotal_status = 0
                                 invoTotal_msg = "Invoice total mismatch"
                                 return_status["Invoice mandatory fields validation"] = {"status": 0,
@@ -998,6 +1328,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             logger.info(traceback.format_exc())
                             invoTotal_status = 0
                             invoTotal_msg = "Please review Total"
+                            try:
+                                documentdesc =   f"Invoice total not valid:{str(e)}."
+                                corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                            except Exception as e:
+                                logger.info(traceback.format_exc())
                             return_status["Invoice mandatory fields validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -1033,6 +1368,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 
 
                             else:
+                                try:
+                                    documentdesc =   f"Invalid Document Type:{mand_document_type}."
+                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                except Exception as e:
+                                    logger.info(traceback.format_exc())
                                 document_type_status = 0
                                 document_type_msg = "Document type mismatch"
                                 return_status["Document identifier validation"] = {"status": 0,
@@ -1049,10 +1389,55 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             document_type_msg = "Please review Document Type"
 
 
-                        
+                    
                         # Mandatory Header Validation:
+                        line_sum = 0
+                        amt_threshold = 25000
+                        cod_invoTotal =  df_corp_coding['invoicetotal']
+                        cod_gst = df_corp_coding['gst']
+                        template_type = df_corp_coding['template_type']
+                        
+                        try:
+                            logger.info(f"invoice total: {float(mand_invoTotal)}, invoice coding total: {float(cod_invoTotal)}")
+                            logger.info(f"invoice gst: {float(mand_gst)}, invoice coding gst: {float(cod_gst)}, rounding_threshold: {rounding_threshold}")
+
+                            if abs(clean_coding_amount(str(mand_invoTotal)) - clean_coding_amount(str(float(cod_invoTotal))))>rounding_threshold:
+                                invo_cod_total_mismatch = 0
+                                
+                                # invoice_status_msg ="Invoice total mismatch with coding total"
+                                
+                            else:
+                                invo_cod_total_mismatch = 1
+                            if abs(clean_coding_amount(str(mand_gst)) - clean_coding_amount(str(float(cod_gst))))>rounding_threshold:
+                                invo_cod_gst_mismatch = 0
+                                
+                            else:
+                                invo_cod_gst_mismatch = 1
+                        except Exception:
+                            logger.info(f"Error in invoice total mismatch: {traceback.format_exc()}")
+
+                        if invo_cod_total_mismatch==0:
+                            return_status["Invoice Total validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Invoice total mismatch with coding total"
+                                                                ],
+                                                            }
+                            validation_ck_all = validation_ck_all*0
+                                    
+                        if invo_cod_gst_mismatch==0:
+                                # invoice_status_msg ="Invoice GST mismatch with coding total"
+                            return_status["Invoice GST validation"] = {"status": 0,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    "Invoice GST mismatch with coding total"
+                                                                ],
+                                                            }
+                            
+                            validation_ck_all = validation_ck_all*0
                         
                         if invDate_status==0:
+                            validation_ck_all = validation_ck_all*0
                             docStatus = 4
                             docSubStatus = 132
                             return_status["Invoice date validation"] = {"status": 0,
@@ -1061,7 +1446,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Invoice date is invalid, Please review."
                                                                 ],
                                                             }
-                        elif invoTotal_status==0:
+                            validation_ck_all = validation_ck_all*0
+                        if invoTotal_status==0:
                             docStatus = 4
                             docSubStatus = 131
                             return_status["invoice Total validation"] = {"status": 0,
@@ -1070,7 +1456,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Invoice total mismatch, Please review."
                                                                 ],
                                                             }
-                        elif document_type_status==0:
+                            validation_ck_all = validation_ck_all*0
+
+                        if document_type_status==0:
                             docStatus = 4
                             docSubStatus = 129
                             return_status["Document identifier validation"] = {"status": 0,
@@ -1079,24 +1467,23 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Document identifier mismatch, Please review."
                                                                 ],
                                                             }
-                        elif currency_ck==0:
+                            validation_ck_all = validation_ck_all*0
+                        if currency_ck==0:
+                            validation_ck_all = validation_ck_all*0
                             docStatus = 4
                             docSubStatus = 100
                         
-                        else:
+                        if validation_ck_all == 1:
                             return_status["Document identifier validation"] = {"status": 1,
                                                     "StatusCode":0,
                                                     "response": [
                                                                     "Success."
                                                                 ],
                                                             }
-                            line_sum = 0
-                            amt_threshold = 25000
-                            cod_invoTotal =  df_corp_coding['invoicetotal']
-                            cod_gst = df_corp_coding['gst']
-                            template_type = df_corp_coding['template_type']
+                            
                             # if template_type is None or (isinstance(template_type, pd.Series) and template_type.isna().all()):
                             #     template_type = ""
+                            
 
                             invoTotal_15 = (cod_invoTotal * 0.15)
 
@@ -1116,7 +1503,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 # consider GST
                             if credit_ck==1:
-                                if abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
+                                if round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) ),2)> rounding_threshold:
                                     docStatus = 4
                                     docSubStatus = 136
                                     documentdesc = "Coding - Line total mismatch"
@@ -1126,6 +1513,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                         "Coding - Line total mismatch"
                                                                     ],
                                                                 }
+                                    try:
+                                        documentdesc =   "Coding - Line total mismatch."
+                                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                    except Exception as e:
+                                        logger.info(traceback.format_exc())
+
                                 else:
                                     return_status["Coding Line validation"] = {"status": 1,
                                                         "StatusCode":0,
@@ -1135,7 +1528,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                     cod_lnMatch = 1
                             # else:
-                            elif abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) )> 0.09:
+                            elif round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) ),2)>rounding_threshold:
                                 docStatus = 4
                                 docSubStatus = 136
                                 documentdesc = "Coding - Line total mismatch"
@@ -1145,6 +1538,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     "Coding - Line total mismatch"
                                                                 ],
                                                             }
+                                try:
+                                    documentdesc =   "Coding - Line total mismatch."
+                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                except Exception as e:
+                                    logger.info(traceback.format_exc())
+
                             else:
                                 return_status["Coding Line validation"] = {"status": 1,
                                                     "StatusCode":0,
@@ -1176,7 +1575,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # else:
                             #line total match success
                             if cod_lnMatch==1:
-                                if (abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >0.09):
+                                if (abs(float(cod_invoTotal.values[0]) - pdf_invoTotal) >rounding_threshold):
                                     docStatus = 4
                                     docSubStatus = 131
                                     documentdesc = "Invoice - Total mismatch with coding total"
@@ -1186,6 +1585,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     f"Invoice - Total mismatch with coding total"
                                                                 ],
                                                             }
+                                    try:
+                                        documentdesc =   f"Invoice - Total mismatch with coding total"
+                                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                    except Exception as e:
+                                        logger.info(traceback.format_exc())
+
                                 else:
                                     if credit_ck == 1:
                                         try: 
@@ -1199,6 +1604,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                             f"Coding - GST exceeding 15% of invoice total"
                                                                         ],
                                                                     }
+                                                try:
+                                                    documentdesc = f"Coding - GST exceeding 15% of invoice total"
+                                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                                except Exception as e:
+                                                    logger.info(traceback.format_exc())
                                             else:
                                                 gst_15_ck = 1
                                         except Exception as e:
@@ -1216,6 +1626,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                         f"Coding - GST exceeding 15% of invoice total"
                                                                     ],
                                                                 }
+                                            try:
+                                                documentdesc = f"Coding - GST exceeding 15% of invoice total"
+                                                corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                            except Exception as e:
+                                                logger.info(traceback.format_exc())
                                         else:
                                             gst_15_ck = 1
                                         # return return_status
@@ -1233,6 +1648,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                         f"Zero $ invoice approval required"
                                                                     ],
                                                                 }
+                                            try:
+                                                documentdesc = "Zero $ invoice approval required"
+                                                corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                            except Exception as e:
+                                                logger.info(traceback.format_exc())
                                             # return return_status
                                             # print("Zero $ invoice approved")
                                         if (pdf_invoTotal > amt_threshold) and amt_threshold_ck == 0:
@@ -1248,6 +1668,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                         f"User approval required for amount"
                                                                     ],
                                                                 }
+                                            try:
+                                                documentdesc = f"User approval required for Invoice toatl({pdf_invoTotal}) greater than {amt_threshold}"
+                                                corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                            except Exception as e:
+                                                logger.info(traceback.format_exc())
                                             # return return_status
                                     
                                         if approval_check_req == 1:
@@ -1291,6 +1716,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                                 "Approver name not found"
                                                                             ],
                                                                 }
+                                                try:
+                                                    documentdesc = "Approver name not found"
+                                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                                except Exception as e:
+                                                    logger.info(traceback.format_exc())
                                                 return return_status
                                             
 
@@ -1303,6 +1733,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     approval_email_val_msg = "Success"
                                                 emal_status_code = 0
                                             else:
+                                                docStatus = 24
+                                                docSubStatus = 70
                                                 emal_status_code = 5
                                                 approvrd_ck=approvrd_ck * 0
                                                 logger.info(f"Email '{coding_approver_email}' does NOT belong to '{coding_approver_name}'")
@@ -1328,6 +1760,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             else:
                                                 score = 0
                                                 if skip_title_check!=1:
+                                                    docStatus = 24
+                                                    docSubStatus = 163
                                                     approvrd_ck = approvrd_ck * 0
                                                     title_status_code = 6
                                                     logger.info("Approver title mismatch")
@@ -1346,23 +1780,49 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     approval_Amt_val_msg = ""
                                                 #amount_approval_check = 7
                                             else:
+                                                docStatus = 24
+                                                docSubStatus = 163
                                                 approvrd_ck = approvrd_ck * 0
                                                 title_status_code = 6
                                                 logger.info("Approver title mismatch")
                                                 approval_title_val_msg = f"Approver title mismatch: Sender title: '{sender_title}' Vs Approver title: '{coding_approver_title}'"
+                                            try:
+                                                # documentdesc = "Approver name not found"
+                                                corp_update_docHistory(doc_id, userID, docStatus, approval_title_val_msg, db,docSubStatus)
+                                            except Exception as e:
+                                                logger.info(traceback.format_exc())
                                             return_status["Approval title validation"] = {"status": approval_title_val_status,
                                                         "StatusCode":title_status_code,
                                                         "response": [
                                                                         approval_title_val_msg
                                                                     ],
                                                         }
-
+                                            if credit_ck!=1:
+                                                amt_approved, validTitle = is_amount_approved(float(pdf_invoTotal), coding_approver_title)
+                                                # if (amt_approved or (amount_approval_check == 1)):
+                                                #     logger.info("Amount approved")
+                                                
                                             if credit_ck==1:
                                                 logger.info("Amount limit approval skipped for credit")
                                                 approval_Amt_val_status = 1
                                                 approval_Amt_val_msg = "Amount limit approval skipped for credit"
                                                 eml_status_code = 0
-                                            elif (is_amount_approved(float(pdf_invoTotal), coding_approver_title) or (amount_approval_check == 1)):
+                                            elif validTitle==0:
+                                                docStatus = 24
+                                                docSubStatus = 166
+                                                approval_Amt_val_status =0
+                                                approvrd_ck= approvrd_ck * 0
+                                                eml_status_code = 7
+                                                logger.info("Unrecognized approver title")
+                                                approval_Amt_val_msg = "Unrecognized approver title"
+                                                return_status["Approval title validation"] = {"status": approval_Amt_val_status,
+                                                                    "StatusCode":eml_status_code,
+                                                                    "response": [
+                                                                                    approval_Amt_val_msg
+                                                                                ],
+                                                                    }
+
+                                            elif (amt_approved or (amount_approval_check == 1)):
                                                 logger.info("Amount approved")
                                                 approval_Amt_val_status = 1
                                                 if amount_approval_check==1:
@@ -1371,6 +1831,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     approval_Amt_val_msg = "Amount approved"
                                                 eml_status_code = 0
                                             else:
+                                                docStatus = 24
+                                                docSubStatus = 164
                                                 approval_Amt_val_status =0
                                                 approvrd_ck= approvrd_ck * 0
                                                 eml_status_code = 7
@@ -1382,6 +1844,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                                     approval_Amt_val_msg
                                                                                 ],
                                                                     }
+                                                try:
+                                                    documentdesc = "Approval limits conformance mismatch"
+                                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                                except Exception as e:
+                                                    logger.info(traceback.format_exc())
 
                                                 #--
                                             
@@ -1410,9 +1877,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                             
                                                 
                                             if approvrd_ck==0:
+                                                if docStatus != 24:
+                                                    docStatus = 24
+                                                    docSubStatus = 137
                                                 validation_status_ck = validation_status_ck * 0
-                                                docStatus = 24
-                                                docSubStatus = 70
+                                                
                                                 documentdesc = "Invoice - Not Approved"
                                                 return_status["Approval Validation"] = {"status": 0,
                                                         "StatusCode":0,
@@ -1420,6 +1889,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                         f"Failed Approval Validation"
                                                                     ],
                                                                 }
+                                                try:
+                                                    # documentdesc = "Approval limits conformance mismatch"
+                                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                                except Exception as e:
+                                                    logger.info(traceback.format_exc())
                                                 # return return_status
                                             elif approvrd_ck ==1:
                                                     
@@ -1475,6 +1949,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     docStatus = 24
                                                     docSubStatus = 137
                                                     documentdesc = "Pending Approval"
+                                                    try:
+                                                        documentdesc = f"Invoice - Pending Approval"
+                                                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                                    except Exception as e:
+                                                        logger.info(traceback.format_exc())
                                                     return_status["Approval needed"] = {"status": 0,
                                                         "StatusCode":3,
                                                         "response": [
@@ -1483,6 +1962,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                                     return return_status
                                             else:
+                                                try:
+                                                    documentdesc = "Invoice - Not Approved."
+                                                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                                except Exception as e:
+                                                    logger.info(traceback.format_exc())
                                                 return_status["Approval needed"] = {"status": 0,
                                                         "StatusCode":3,
                                                         "response": [
@@ -1492,6 +1976,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     except Exception as e:
                         logger.error(f"Error in validate_corpdoc: {e}")
                         logger.info(traceback.format_exc())
+                        try:
+                            documentdesc = f"Error: {e}"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                        except Exception as e:
+                            logger.info(traceback.format_exc())
                         return_status["Validation failed"] = {"status": 0,
                                                     "StatusCode":3,
                                                     "response": [
@@ -1547,6 +2036,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     except Exception as e:
         logger.error(f"Error in validate_corpdoc: {e}")
         logger.info(traceback.format_exc())
+        try:
+            documentdesc = f"Error: {str(e)}"
+            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+        except Exception as e:
+            logger.info(traceback.format_exc())
         return_status["Validation failed"] = {"status": 0,
                                                 "StatusCode":0,
                                                 "response": [

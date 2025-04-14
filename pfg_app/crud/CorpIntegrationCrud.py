@@ -302,7 +302,7 @@ def format_data_for_template3(parsed_data):
             "SL": [],
             "project": [],
             "activity": [],
-            "amount": [],  
+            "amount": [],
             "invoice#": '',
             "GST": '',
             "invoicetotal": '',
@@ -497,7 +497,8 @@ def clean_parsed_data(parsed_data):
             return [clean_parsed_data(item) for item in parsed_data]
         elif isinstance(parsed_data, str):
             # If the data is a string, replace '$\xa0' and any extra whitespace
-            return parsed_data.replace('$\xa0', '').strip()
+            # return parsed_data.replace('$\xa0', '').strip()
+            return parsed_data.replace('\xa0', ' ').replace('$', '').strip()
         else:
             # If it's neither dict, list, nor string, return it as is
             return parsed_data
@@ -664,8 +665,8 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
         # Extract directory and base name from .eml file path
         eml_directory = os.path.dirname(eml_file_path)  # Directory path in the blob container
         eml_base_name = os.path.splitext(os.path.basename(eml_file_path))[0]  # File name without extension
-        blob_name = f"{eml_directory}/{eml_base_name}.pdf"  # PDF will be saved in the same directory
-
+        blob_name = f"{eml_directory}/{eml_base_name}.pdf"
+        
         # Decode the base64 image data
         image_data = base64.b64decode(encoded_image)
         img = Image.open(BytesIO(image_data))
@@ -1738,7 +1739,7 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
                     if field in ["invoice_id", "invoicetotal", "invoice_date", "document_type"]:
                         setattr(corp_doc_tab, field, new_value)
                         consolidated_updates.append(f"{field} (corp_document_tab): {old_value} -> {new_value}")
-
+        
                     # Update the 'last_updated_by' field in corp_document_tab
                     corp_doc_tab.last_updated_by = user_id
         # Updating the consolidated history log for updated fields
@@ -1766,156 +1767,6 @@ async def update_corp_docdata(user_id, corp_doc_id, updates, db):
         logger.info(f"Error updating corp_docdata: {traceback.format_exc()}")
         db.rollback()
         return {"message": "An error occurred while updating", "status": "error"}
-
-# async def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
-#     try:
-#         # Fetch document status
-#         docStatus_id, docSubStatus_id = db.query(
-#             model.corp_document_tab.documentstatus, model.corp_document_tab.documentsubstatus
-#         ).filter(model.corp_document_tab.corp_doc_id == corp_doc_id).first() or (None, None)
-
-#         # Fetch or create corp_coding record
-#         corp_coding = db.query(model.corp_coding_tab).filter_by(corp_doc_id=corp_doc_id).first()
-
-#         if not corp_coding:
-#             # If no record exists, create a new one
-#             corp_coding = model.corp_coding_tab(corp_doc_id=corp_doc_id)
-#             db.add(corp_coding)
-#             is_new_record = True
-#         else:
-#             is_new_record = False
-
-#         consolidated_updates = []
-        
-#         corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
-#         if not corp_doc_tab:
-#             return {"message": "No record found in corp_document_tab for the given corp_doc_id", "status": "error"}
-#         any_updates = False
-#         # Process each update
-#         for update in updates:
-#             field = update.field
-#             old_value = update.OldValue
-#             new_value = update.NewValue
-#             field_type = type(getattr(corp_coding, field))
-#             # Ensure the field exists in the model
-#             if field_type == dict:
-#                 # Compare JSON objects
-#                 if old_value != new_value:
-#                     setattr(corp_coding, field, new_value)  # Store as JSON string
-#                     # Convert old and new values to JSON string before storing
-#                     old_value_str = json.dumps(old_value) if old_value is not None else None
-#                     new_value_str = json.dumps(new_value) if new_value is not None else None
-#                     any_updates = True
-#                     # Log the update in CorpDocumentUpdates with the new logic
-#                     inv_up_data_id = (
-#                         db.query(model.CorpDocumentUpdates.iddocumentupdates)
-#                         .filter_by(doc_id=corp_doc_id)
-#                         .all()
-#                     )
-#                     if len(inv_up_data_id) > 0:
-#                         # If present, set the active status to false for the old row
-#                         if corp_doc_id:
-#                             db.query(model.CorpDocumentUpdates).filter_by(
-#                                 doc_id=corp_doc_id, is_active=1
-#                             ).update({"is_active": 0})
-                        
-#                         db.flush()
-                    
-#                     data = {
-#                         "doc_id": corp_doc_id,
-#                         "updated_field": field,
-#                         "old_value": old_value_str,  # Keep as original type
-#                         "new_value": new_value_str,  # Keep as original type
-#                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-#                         "user_id": user_id,
-#                         "is_active": 1
-#                     }
-                    
-#                     update_log = model.CorpDocumentUpdates(**data)
-#                     db.add(update_log)
-#                     db.flush()
-#                     consolidated_updates.append(f"{field}: JSON Updated")
-
-#             else:
-#                 # Convert new & old values to the correct data type
-#                 if field_type == int:
-#                     old_value = int(old_value) if old_value not in [None, ""] else None
-#                     new_value = int(new_value) if new_value not in [None, ""] else None
-#                 elif field_type == float:
-#                     old_value = float(old_value) if old_value not in [None, ""] else None
-#                     new_value = float(new_value) if new_value not in [None, ""] else None
-#                 elif field_type == str:
-#                     old_value = str(old_value) if old_value is not None else ""
-#                     new_value = str(new_value) if new_value is not None else ""
-#                 # Check if the document update table already has rows present in it
-            
-#                 # Update only if value changes
-#                 if old_value != new_value:
-#                     setattr(corp_coding, field, new_value)
-#                     any_updates = True
-#                     # Log the update in CorpDocumentUpdates with the new logic
-#                     inv_up_data_id = (
-#                         db.query(model.CorpDocumentUpdates.iddocumentupdates)
-#                         .filter_by(doc_id=corp_doc_id)
-#                         .all()
-#                     )
-#                     if len(inv_up_data_id) > 0:
-#                         # If present, set the active status to false for the old row
-#                         if corp_doc_id:
-#                             db.query(model.CorpDocumentUpdates).filter_by(
-#                                 doc_id=corp_doc_id, is_active=1
-#                             ).update({"is_active": 0})
-                        
-#                         db.flush()
-                    
-#                     data = {
-#                         "doc_id": corp_doc_id,
-#                         "updated_field": field,
-#                         "old_value": old_value,  # Keep as original type
-#                         "new_value": new_value,  # Keep as original type
-#                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-#                         "user_id": user_id,
-#                         "is_active": 1
-#                     }
-                    
-#                     update_log = model.CorpDocumentUpdates(**data)
-#                     db.add(update_log)
-#                     db.flush()
-#                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
-
-#                 # If the field is one of the specified ones, update corp_document_tab as well
-#                 if field in ["invoice_id", "invoicetotal", "invoice_date","approver_title"]:
-#                     corp_doc_field = "approved_by" if field == "approver_name" else field
-#                     setattr(corp_doc_tab, corp_doc_field, new_value)
-#                     consolidated_updates.append(f"{corp_doc_field} (corp_document_tab): {old_value} -> {new_value}")
-#         # If it's a new record, insert it
-#         if is_new_record:
-#             db.add(corp_coding)
-
-#         # Updating the consolidated history log
-#         if any_updates:
-#             try:
-#                 corp_update_docHistory(
-#                     corp_doc_id,
-#                     user_id,
-#                     docStatus_id,
-#                     "; ".join(consolidated_updates),
-#                     db,
-#                     docSubStatus_id
-#                 )
-#             except Exception as e:
-#                 logger.info(f"Error updating document history: {traceback.format_exc()}")
-            
-#             # Commit the transaction
-#             db.commit()
-#             return {"result": "updated", "updated_data": data}
-#         else:
-#             return {"message": "Field(s) already exist or are the same", "status": "no_change"}
-        
-#     except Exception as e:
-#         logger.info(f"Error in upsert_coding_line_data: {str(e)}")
-#         db.rollback()
-#         return {"message": "An error occurred while updating", "status": "error"}
 
 
 def upsert_coding_line_data(user_id, corp_doc_id, updates, db): 
@@ -1998,8 +1849,8 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     data = {
                         "doc_id": corp_doc_id,
                         "updated_field": field,
-                        "old_value": old_value,
-                        "new_value": new_value,
+                        "old_value": old_value,  # Convert dict to JSON string
+                        "new_value": new_value,  # Convert dict to JSON string
                         "created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         "user_id": user_id,
                         "is_active": 1
@@ -2008,8 +1859,8 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                     update_log = model.CorpDocumentUpdates(**data)
                     db.add(update_log)
                     db.flush()
+                    # consolidated_updates.append(f"{field}: JSON Updated")
                     consolidated_updates.append(f"{field}: {old_value} -> {new_value}")
-
             else:
                 # Convert new & old values to the correct data type
                 if field_type == int:
@@ -2142,8 +1993,8 @@ def add_uniqueness_to_filename(filename, timestamp):
     if len(parts) == 2:
         return f"{parts[0]}_{timestamp}.{parts[1]}"
     else:
-        return f"{filename}_{timestamp}"    
-
+        return f"{filename}_{timestamp}"
+    
 # CRUD function to process the invoice voucher and send it to peoplesoft
 def processCorpInvoiceVoucher(doc_id, db):
     try:
@@ -2168,7 +2019,6 @@ def processCorpInvoiceVoucher(doc_id, db):
         # Save to DB
         corpvoucherdata.UNIQUE_FILENAME_INVOICE = unique_invoice_file_name
         corpvoucherdata.UNIQUE_FILENAME_EMAIL = unique_email_pdf_file_name
-        
         db.commit()
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -2874,7 +2724,6 @@ def bulkupdateCorpInvoiceStatus():
                         #             "documentstatus": documentstatusid,
                         #             "documentsubstatus": docsubstatusid,
                         #             "voucher_id": voucher_id,
-                        #             "last_updated_by": userID,
                         #         }
                         #     )
                         #     # Collect doc history update data
@@ -2928,6 +2777,14 @@ def bulkupdateCorpInvoiceStatus():
                                     f"Updating `created_on` in corp_hist_logs."
                                 )
 
+                                # # Update `created_on` timestamp in corp_hist_logs
+                                # db.query(model.corp_hist_logs).filter(
+                                #     model.corp_hist_logs.document_id == voucherdata.DOCUMENT_ID,
+                                #     model.corp_hist_logs.document_substatus == docsubstatusid
+                                # ).update(
+                                #     {"created_on": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+                                # )
+                                # db.commit()
                                 # Update only the latest history log entry's `created_on`
                                 latest_hist_entry = db.query(model.corp_hist_logs).filter(
                                     model.corp_hist_logs.document_id == voucherdata.DOCUMENT_ID,
@@ -3453,6 +3310,24 @@ async def read_corp_paginate_doc_inv_list(
                 .subquery()  # Convert to a subquery for joining later
             )
 
+        # Now fetch the last_updated_by field using the document IDs (after pagination)
+        # document_ids = [doc.idDocument for doc in Documentdata]
+        document_ids = [doc[0].corp_doc_id for doc in Documentdata if hasattr(doc[0], 'corp_doc_id')]
+        if document_ids:
+            latest_corp_hist_log_query = (
+                db.query(
+                    model.corp_hist_logs.document_id,
+                    model.corp_hist_logs.user_id,
+                )
+                .filter(model.corp_hist_logs.document_id.in_(document_ids))
+                .distinct(model.corp_hist_logs.document_id)  # Ensure distinct document_ids
+                .order_by(
+                    model.corp_hist_logs.document_id, 
+                    model.corp_hist_logs.histlog_id.desc()  # Order by ID in descending order
+                )
+                .subquery()  # Convert to a subquery for joining later
+            )
+
             # Join the latest history log subquery with User table to get the last_updated_by (firstName)
             user_query = (
                 db.query(
@@ -3485,6 +3360,7 @@ async def read_corp_paginate_doc_inv_list(
                     if isinstance(v, dict):
                         v.pop("_sa_instance_state", None)
                 response_data.append(document_obj)
+                
         # Return paginated document data with line items
         return {"ok": {"Documentdata": response_data, "TotalCount": total_count}}
 
@@ -3957,11 +3833,26 @@ def bulkProcessCorpVoucherData():
                     db.commit()
                 except Exception as err:
                     logger.info(f"ErrorUpdatingPostingData: {err}")
-                try:
-                    # userID = 1
-                    corp_update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
-                except Exception as e:
-                    logger.error(f"pfg_sync 501: {str(e)}")
+                
+                # Check if the docSubStatus already exists in the Document table
+                existing_doc = db.query(model.corp_document_tab).filter(
+                    model.corp_document_tab.corp_doc_id == docID,
+                    model.corp_document_tab.documentsubstatus == docSubStatus
+                ).first()
+
+                if not existing_doc:
+                    try:
+                        # Only call update_docHistory if docSubStatus does not exist for this documentID
+                        corp_update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
+                    except Exception as e:
+                        logger.error(f"Error updating document history: {traceback.format_exc()}")
+                else:
+                    logger.info(f"Skipping history update for doc_id:{docID} as docSubStatus {docSubStatus} already exists.")
+                # try:
+                #     # userID = 1
+                #     corp_update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
+                # except Exception as e:
+                #     logger.error(f"pfg_sync 501: {str(e)}")
             except Exception as e:
                 print(
                     "Error in ProcessInvoiceVoucher fun(): ",
@@ -4054,17 +3945,16 @@ def map_coding_details_by_corp_doc_id(user_id, corp_doc_id, corp_coding_id, db):
             corp_coding.map_type = "user_map"  # Set map_type
             db.add(corp_coding)
             
-            # Fetch and update last_updated_by in corp_document_tab
-            corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
-            if corp_doc_tab:
-                corp_doc_tab.last_updated_by = user_id
-                db.add(corp_doc_tab)
-                
+            # Update last_updated_by in corp_document_tab
+            doc_record = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+            if doc_record:
+                doc_record.last_updated_by = user_id
+                db.add(doc_record)
+            
             db.commit()
             db.refresh(corp_coding)
 
-            dmsg = f"Coding details mapped by user"
-        
+            dmsg = f"Coding details mapped by user."
             try:
                 corp_update_docHistory(
                     corp_doc_id,

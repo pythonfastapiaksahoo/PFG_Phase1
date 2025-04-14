@@ -1,3 +1,5 @@
+#corp_payloadValidations
+
 import traceback
 from sqlalchemy.orm import aliased
 import pandas as pd
@@ -94,7 +96,10 @@ def validate_voucher_distribution(db, vchr_dist_stg):
     sl_msg = []
     prj_msg = []
     act_msg = []
+    misssing_PA = []
+    
     for line, details in vchr_dist_stg.items():
+        prj_fd = 0
         store = details.get("store")
         dept = details.get("dept")
         account = details.get("account")
@@ -108,10 +113,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if store_exists:
                 print("valid store")
             else:
-                # voucher_status[f"store_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Store {store} not found"}
-                # Failed_Code[f"store_{line}"] = {"status": 0, "StatusCode": 0, "status_msg": f"Line {line}: Store {store} not found"}
-                # status_ck = 0
-                store_msg.append(f"Line:{line} - Store:{store}")
+                store_msg.append(f"Line:{line} -{store}")
 
         # Validate Department
         if dept:
@@ -120,8 +122,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if dept_exists:
                 print("valid dept")
             else:
-                dept_msg.append(f"Line:{line} - Dept:{dept}") 
-
+                dept_msg.append(f"Line:{line} -{dept}") 
         # Validate Account
         if account:
             account_exists = db.query(model.PFGAccount).filter_by(ACCOUNT=account).first()
@@ -129,8 +130,7 @@ def validate_voucher_distribution(db, vchr_dist_stg):
                 print("valid account")
             else:
               
-                acc_msg.append(f"Line:{line} - Acc:{account}") 
-
+                acc_msg.append(f"Line:{line} -{account}") 
 
         # Validate Strategic Ledger (SL)
         if sl:
@@ -138,66 +138,85 @@ def validate_voucher_distribution(db, vchr_dist_stg):
             if sl_exists:
                 print("valid SL")
             else:
-                sl_msg.append(f"Line:{line} - SL:{sl}") 
+                sl_msg.append(f"Line:{line} -{sl}") 
 
         # Validate Project
         if project:
+            prj_fd = 1
             project_exists = db.query(model.PFGProject).filter_by(PROJECT_ID=project).first()
             if project_exists:
                 print("Valid project")
+                
             else:
                
-                prj_msg.append(f"Line:{line} - Proj:{project}") 
+                prj_msg.append(f"Line:{line} -{project}") 
 
         # Validate Project Activity
+        if prj_fd == 1:
+            if activity:
+                print("activity exists")
+            else:
+                print("missing activity")
+                misssing_PA.append(f"Line:{line} - Activity missing")
+        else:
+            if activity:
+                print("misssing project")
+                misssing_PA.append(f"Line:{line} - Project missing")
+
         if activity and project:
             activity_exists = db.query(model.PFGProjectActivity).filter_by(PROJECT_ID=project, ACTIVITY_ID=activity).first()
             if activity_exists:
                 print("activity_exists valid")
             else:
-                act_msg.append(f"Line:{line} - Proj/Act:{project}/{activity}") 
+                act_msg.append(f"Line:{line} -{project}/{activity}") 
 
-    val_status_msg = "Invalid data:"   
+    val_status_msg = ""   
     invl_status_cd = 1
     if len(store_msg)>0:
-        val_status_msg = f"{val_status_msg} Store:{store_msg}"
+        val_status_msg = f"Invalid store:{store_msg}"
         invl_status_cd = invl_status_cd * 0
 
     if len(dept_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Department{dept_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Invalid department:{dept_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Department:{dept_msg}"
+            val_status_msg = f"{val_status_msg} | Invalid department: {dept_msg}"
         invl_status_cd = invl_status_cd * 0
 
     if len(acc_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Account:{acc_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Invalid account:{acc_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Account:{acc_msg}"
+            val_status_msg = f"{val_status_msg} | Invalid account::{acc_msg}"
         invl_status_cd = invl_status_cd * 0
 
     if len(sl_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} SL:{sl_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Invalid SL:{sl_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | SL:{sl_msg}"
+            val_status_msg = f"{val_status_msg} | Invalid SL:{sl_msg}"
         invl_status_cd = invl_status_cd * 0     
 
     if len(prj_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Project:{prj_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Invalid project:{prj_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Project:{prj_msg}"
+            val_status_msg = f"{val_status_msg} | Invalid project:{prj_msg}"
         invl_status_cd = invl_status_cd * 0
     print("act_msg:",act_msg)
     if len(act_msg)>0:
-        if val_status_msg=="Invalid data:" :
-            val_status_msg = f"{val_status_msg} Proj & Activity mismatch:{act_msg}"
+        if val_status_msg=="" :
+            val_status_msg = f"Proj & Activity mismatch(Proj/Act):{act_msg}"
         else:
-            val_status_msg = f"{val_status_msg} | Proj & Activity mismatch:{act_msg}"
+            val_status_msg = f"{val_status_msg} | Proj & Activity mismatch(Proj/Act):{act_msg}"
         invl_status_cd = invl_status_cd * 0
-
+    if len(misssing_PA)>0:
+        if val_status_msg=="" :
+            val_status_msg = f"Project/Activity missing:{misssing_PA}"
+        else:
+            val_status_msg = f"{val_status_msg} | Project/Activity missing:{misssing_PA}"
+        invl_status_cd = invl_status_cd * 0
+    logger.info(f"return fomr validate_voucher- invl_status_cd{invl_status_cd}, val_status_msg: {val_status_msg}")
     return invl_status_cd,val_status_msg
 
 
@@ -255,6 +274,7 @@ def payload_dbUpdate(doc_id,userID,db):
                                                                     f"TM ID missing."
                                                                 ],
                                                             }
+        logger.info(f"return line 275: {return_status}")
         return return_status
 
     data = {
@@ -277,7 +297,7 @@ def payload_dbUpdate(doc_id,userID,db):
         "VAT_APPLICABILITY": VAT_APPLICABILITY,
         "VCHR_SRC":"CRP"
     }
-
+    logger.info(f"data: {data}")
     voucher_status = {}
     Failed_Code = {}
     status_ck = 1
@@ -529,6 +549,7 @@ def payload_dbUpdate(doc_id,userID,db):
                         {
                             model.corp_document_tab.documentstatus: docStatus,
                             model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.last_updated_by: userID,
                             model.corp_document_tab.retry_count: case(
                                 (model.corp_document_tab.retry_count.is_(None), 1),  # If NULL, set to 1
                                 else_=model.corp_document_tab.retry_count + 1        # Otherwise, increment
@@ -569,6 +590,7 @@ def payload_dbUpdate(doc_id,userID,db):
                         {
                             model.corp_document_tab.documentstatus: docStatus,
                             model.corp_document_tab.documentsubstatus: docSubStatus,
+                            model.corp_document_tab.last_updated_by: userID,
                         }
                     )
                     db.commit()
@@ -586,6 +608,7 @@ def payload_dbUpdate(doc_id,userID,db):
                     )
                 except Exception:
                     logger.debug(f"{traceback.format_exc()}")
+            
             if docStatus == 4:
                 return_status["Payload Data Error"] = { 
                     "status": SentToPeopleSoft, 
@@ -597,8 +620,8 @@ def payload_dbUpdate(doc_id,userID,db):
                     "status": SentToPeopleSoft,
                     "StatusCode": 0,
                     "response": [dmsg],
-                }
-            
+    }
+
             # return_status["PeopleSoft response"] = {"status": 1,
             #                                     "StatusCode":0,
             #                                     "response": [
@@ -614,11 +637,12 @@ def payload_dbUpdate(doc_id,userID,db):
                                                                 f"Error: {e}"
                                                             ],
                                                         }
+        logger.info(f"return line 617: {return_status}")
         return return_status
     else:
 
         docStatus = 4
-        docSubStatus = 36
+        docSubStatus = 4
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
             ).update(
                 {
@@ -631,5 +655,5 @@ def payload_dbUpdate(doc_id,userID,db):
                 }
             )
         db.commit()
-    
+        logger.info(f"return line 634: {Failed_Code}")
         return Failed_Code

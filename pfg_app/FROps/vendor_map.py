@@ -45,9 +45,9 @@ def compute_cosine_similarity(text1, text2):
 
 # Thresholds
 LEVENSHTEIN_NAME_THRESHOLD = 90
-LEVENSHTEIN_ADDR_THRESHOLD = 60
+LEVENSHTEIN_ADDR_THRESHOLD = 80
 COSINE_NAME_THRESHOLD = 95
-COSINE_ADDR_THRESHOLD = 60
+COSINE_ADDR_THRESHOLD = 80
 
 import json
 
@@ -210,9 +210,10 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
     NotOnboarded_matching_vendors = {}
     matching_vendors = {}
     matching_vendors = find_best_vendor_match_onboarded(openai_vendor_name, openai_vendor_address, corp_metadata_df)
-    logger.info(f"Matching vendor corp: matching_vendors length: {len(matching_vendors)}")
+    logger.info(f"Matching vendor corp: matching_vendors length: {len(matching_vendors)},{matching_vendors}")
 
     if len(matching_vendors)==1:
+        logger.info(f"line 216: matching_vendors: {matching_vendors}")
         if matching_vendors[(list(matching_vendors.keys())[0])]["bestmatch"]=='Full Match':
             vendorFound=1
         elif matching_vendors[(list(matching_vendors.keys())[0])]["bestmatch"]=='Name Match':
@@ -237,7 +238,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         vrd_cd = matching_vendors[list(matching_vendors.keys())[0]]["vendor_code"]
 
         docStatus = 4
-        documentdesc = f"Vendor match found:{vendorID}"
+        documentdesc = f"Vendor match found:{vrd_cd}"
         substatus = 11
         corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
         
@@ -278,7 +279,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         # vendor not found: docStatus = 26 & substatus = 107
         docStatus = 26
         substatus = 107
-        documentdesc = "vendor not found"
+        documentdesc = "Vendor match not found"
         corp_update_docHistory(docID, userID, docStatus, documentdesc, db,docStatus)
         
         
@@ -296,7 +297,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         # vendor not onboarded: docStatus = 25 & substatus = 106
         docStatus = 25
         substatus = 106
-        documentdesc = "vendor not onboarded"
+        documentdesc = "Vendor not onboarded"
         corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
         
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
@@ -311,15 +312,19 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         db.commit()
         
     elif openAIcall_required==1:
+        logger.info(f"OpenAIcall_required: {openAIcall_required}")
         if len(matching_vendors)>1:
             # openAI call with matching_vendors
             vndMth_address_ck, matched_id_vendor = VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
             # matching_vendors
+            logger.info(f"line 319 - vndMth_address_ck: {vndMth_address_ck}, matched_id_vendor: {matched_id_vendor}")
             
         elif len(NotOnboarded_matching_vendors)>1:
+            logger.info(f"NotOnboarded_matching_vendors: {NotOnboarded_matching_vendors}")
             # openAI call with NotOnboarded_matching_vendors
             vndMth_address_ck, matched_id_vendor = VndMatchFn_corp(openai_vendor_name, openai_vendor_address, matching_vendors)
-        if vndMth_address_ck=='yes':
+            logger.info(f"line 325 - vndMth_address_ck: {vndMth_address_ck}, matched_id_vendor: {matched_id_vendor}")
+        if vndMth_address_ck in [1,"yes"]:
             vendorID = matched_id_vendor
             docStatus = 4
             substatus = 11
@@ -336,27 +341,47 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
             db.commit()
 
             # "vendormatchfound": "yes" or "no",  
-            #                           "vendorID": "matching_vendor_id" or ""  
-            
-    else:
-        # update as vendorNotFound:docStatus = 26 & substatus = 107
-        docStatus = 26
-        substatus = 107
-        documentdesc = "vendor not found"
-
-        corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
-        
-        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+            #                           "vendorID": "matching_vendor_id" or "" 
+        else:
+            vendorID = matched_id_vendor
+            if vendorID in [None, ""]:
+                vendorID = 0
+            vendorID = 0
+            docStatus = 4
+            substatus = 8
+            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
             ).update(
                 {
                     model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
                     model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
                     model.corp_document_tab.last_updated_by: userID,
-                    model.corp_document_tab.vendor_id:0,
+                    model.corp_document_tab.vendor_id: vendorID,
+
                 }
             )
-        db.commit()
-        logger.info(f"line 334-vendorFound:{vendorFound} ")
+            db.commit()
+
+            
+    else:
+        if vendorFound!=1:
+            # update as vendorNotFound:docStatus = 26 & substatus = 107
+            docStatus = 26
+            substatus = 107
+            documentdesc = "vendor not found"
+
+            corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+            
+            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+                ).update(
+                    {
+                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                        model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                        model.corp_document_tab.last_updated_by: userID,
+                        model.corp_document_tab.vendor_id:0,
+                    }
+                )
+            db.commit()
+            logger.info(f"line 334-vendorFound:{vendorFound} ")
     return 
             
             

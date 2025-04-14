@@ -1397,8 +1397,8 @@ def newbulkupdateInvoiceStatus():
                             documentstatusid = 14
                             docsubstatusid = 127
                             dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
-                        # # If there's a valid document status update,
-                        # # add it to the bulk update list
+                        # If there's a valid document status update,
+                        # add it to the bulk update list
                         # if documentstatusid:
                         #     updates.append(
                         #         {
@@ -1706,11 +1706,26 @@ def bulkProcessVoucherData():
                     db.commit()
                 except Exception as err:
                     logger.info(f"ErrorUpdatingPostingData: {err}")
-                try:
-                    # userID = 1
-                    update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
-                except Exception as e:
-                    logger.error(f"pfg_sync 501: {str(e)}")
+                    
+                # Check if the docSubStatus already exists in the Document table
+                existing_doc = db.query(model.Document).filter(
+                    model.Document.idDocument == docID,
+                    model.Document.documentsubstatusID == docSubStatus
+                ).first()
+
+                if not existing_doc:
+                    try:
+                        # Only call update_docHistory if docSubStatus does not exist for this documentID
+                        update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
+                    except Exception as e:
+                        logger.error(f"Error updating document history: {traceback.format_exc()}")
+                else:
+                    logger.info(f"Skipping history update for doc_id:{docID} as docSubStatus {docSubStatus} already exists.")
+                # try:
+                #     # userID = 1
+                #     update_docHistory(docID, userID, docStatus, dmsg, db, docSubStatus)
+                # except Exception as e:
+                #     logger.error(f"pfg_sync 501: {str(e)}")
             except Exception as e:
                 print(
                     "Error in ProcessInvoiceVoucher fun(): ",
