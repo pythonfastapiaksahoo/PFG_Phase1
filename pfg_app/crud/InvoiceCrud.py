@@ -109,26 +109,6 @@ async def read_paginate_doc_inv_list_with_ln_items(
             ),
         }
 
-        # # previous subquery 
-        # sub_query_desc = (
-        #     db.query(
-        #     func.max(model.DocumentHistoryLogs.iddocumenthistorylog))
-        #     .group_by(model.DocumentHistoryLogs.documentID)
-        #     .subquery()
-        # )
-        
-        # new subquery to increase the loading time
-        sub_query_desc = (
-            db.query(
-                model.DocumentHistoryLogs.documentID,
-                model.DocumentHistoryLogs.iddocumenthistorylog,
-                model.DocumentHistoryLogs.userID
-            )
-            .distinct(model.DocumentHistoryLogs.documentID)
-            .order_by(model.DocumentHistoryLogs.documentID, model.DocumentHistoryLogs.iddocumenthistorylog.desc())
-            .subquery()
-        )
-
         # Initial query setup for fetching document, status, and related entities
         data_query = (
             db.query(
@@ -137,7 +117,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 model.DocumentSubStatus,
                 inv_choice[inv_type][0],
                 inv_choice[inv_type][1],
-                model.User.firstName.label("last_updated_by"),
+                # model.User.firstName.label("last_updated_by"),
             )
             .options(
                 Load(model.Document).load_only(
@@ -183,35 +163,14 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 == model.Document.documentStatusID,
                 isouter=True,
             )
-            .join(
-                sub_query_desc,
-                sub_query_desc.c.documentID == model.Document.idDocument,
-                isouter=True,
-            )
-            # # previous query
-            # .join(
-            #     model.DocumentHistoryLogs,
-            #     and_(
-            #         model.DocumentHistoryLogs.documentID == model.Document.idDocument,
-            #         # model.DocumentHistoryLogs.CreatedOn == latest_history_log.c.latest_created_on,
-            #         model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
-            #     ),
-            #     isouter=True,
-            # )
             # .join(
             #     model.User,
-            #     model.User.idUser == model.DocumentHistoryLogs.userID,
+            #     model.User.idUser == sub_query_desc.c.userID,
             #     isouter=True,
             # )
-            .join(
-                model.User,
-                model.User.idUser == sub_query_desc.c.userID,
-                isouter=True,
-            )
             .filter(
                 model.Document.idDocumentType == 3,
                 model.Document.vendorAccountID.isnot(None),
-                # model.DocumentHistoryLogs.iddocumenthistorylog.in_(sub_query_desc)
             )
         )
 
@@ -358,9 +317,59 @@ async def read_paginate_doc_inv_list_with_ln_items(
             .offset(off_val)
             .all()
         )
+        # Now fetch the last_updated_by field using the document IDs (after pagination)
+        # document_ids = [doc.idDocument for doc in Documentdata]
+        document_ids = [doc[0].idDocument for doc in Documentdata if hasattr(doc[0], 'idDocument')]
+        if document_ids:
+            latest_history_log_query = (
+                db.query(
+                    model.DocumentHistoryLogs.documentID,
+                    model.DocumentHistoryLogs.userID,
+                )
+                .filter(model.DocumentHistoryLogs.documentID.in_(document_ids))
+                .distinct(model.DocumentHistoryLogs.documentID)  # Ensure distinct documentIDs
+                .order_by(
+                    model.DocumentHistoryLogs.documentID, 
+                    model.DocumentHistoryLogs.iddocumenthistorylog.desc()  # Order by ID in descending order
+                )
+                .subquery()  # Convert to a subquery for joining later
+            )
 
+            # Join the latest history log subquery with User table to get the last_updated_by (firstName)
+            user_query = (
+                db.query(
+                    model.User.firstName.label("last_updated_by"),
+                    latest_history_log_query.c.documentID  # Access documentID from the subquery
+                )
+                .join(
+                    model.User, 
+                    model.User.idUser == latest_history_log_query.c.userID  # Join condition on userID
+                )
+            )
+
+            # Convert the result to a dictionary for fast lookup
+            user_dict = {user.documentID: user.last_updated_by for user in user_query}
+
+            # Add 'last_updated_by' to Documentdata
+            # for doc in Documentdata:
+            #     doc[0].last_updated_by = user_dict.get(doc[0].idDocument)
+            response_data = []
+            for doc in Documentdata:
+                document_obj = {
+                    "Document": doc[0].__dict__,
+                    "DocumentStatus": doc[1].__dict__ if doc[1] else {},
+                    "DocumentSubStatus": doc[2].__dict__ if doc[2] else {},
+                    inv_choice[inv_type][0].__name__: doc[3].__dict__ if doc[3] else {},
+                    inv_choice[inv_type][1].__name__: doc[4].__dict__ if doc[4] else {},
+                    "last_updated_by": user_dict.get(doc[0].idDocument)
+                }
+                # Remove _sa_instance_state from each dictionary
+                for k, v in document_obj.items():
+                    if isinstance(v, dict):
+                        v.pop("_sa_instance_state", None)
+                response_data.append(document_obj)
         # Return paginated document data with line items
-        return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
+        return {"ok": {"Documentdata": response_data, "TotalCount": total_count}}
 
     except Exception:
         logger.error(traceback.format_exc())
@@ -1846,6 +1855,18 @@ async def reject_invoice(userID, invoiceID, reason, db):
         if the operation fails.
     """
     try:
+        reason_to_substatus = {
+            "Coding Error": 162,
+            "Approval Missing": 161,
+            "No Active Models/Templates": 158,
+            "Vendor Not Onboarded": 157,
+            "Duplicate": 156,
+            "Missing Pages": 155,
+            "Invalid Scan": 154,
+            "Invoice Details Missing": 153,
+        }
+        # Determine the appropriate substatus ID, default to 159 if not found
+        substatus_id = reason_to_substatus.get(reason, 159)
         # Fetching the first name of the user performing the rejection
         first_name = (
             db.query(model.User.firstName).filter(model.User.idUser == userID).scalar()
@@ -1856,6 +1877,9 @@ async def reject_invoice(userID, invoiceID, reason, db):
                 "documentStatusID": 10,
                 "documentsubstatusID": 13,
                 "documentDescription": reason + " by " + first_name,
+                "documentsubstatusID": substatus_id,
+                "UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "documentDescription":reason + "- rejected" + " by " + first_name,
             }
         )
         # Commit the changes to the database
