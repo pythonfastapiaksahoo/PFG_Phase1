@@ -112,11 +112,11 @@ def extract_invoice_details_using_openai(blob_data):
                         - If the vendor name is not present at the top of the invoice document,then check if its present at the bottom with prefix 'please remit payment to:' or 'pay to:'
                         - Return "N/A" if the vendor name is not present in the invoice document.
                     - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
-                    - **Vendor Addreess:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
+                    - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                         - Ensure to capture the primary vendor address typically found in the top of the invoice document.
                         - If the vendor address is  not present at the top of the invoice document,then check if its present at the bottom with prefix 'please remit payment to:' or 'pay to:'.
                         - if the vendor address is not present in the invoice document, return "N/A".
-                    - **CreditNote** : if "Credit Memo" or Credit Note" is present in the invoice document, then return "Yes".
+                    - **CreditNote** : if "Credit Memo" or Credit Note" is present in the invoice document, then return "Yes" else return "No"..
                         - if the invoice total fields is in negative or in braces, then return "Yes".for example, '-123.45' or '123.45-' or (123.45) return "Yes".
                     - **GST** : if "TAX" is present in the invoice document, extract the value after TAX. for example: 'Tax $2.23' then extract 2.23.
                         - if "GST" is present in the invoice document, extract the value after GST. for example: 'GST $2.23' then extract 2.23.
