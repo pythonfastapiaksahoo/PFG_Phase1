@@ -32,8 +32,6 @@ if settings.build_type in ["prod","dev"]:
 
     # Get the connection string from the environment variable
     conn_string = os.getenv("AZURE_POSTGRESQL_CONNECTIONSTRING")
-    if settings.build_type == "dev":
-        conn_string = os.getenv("AZURE_POSTGRESQL_AAD_API_CONNECTION_CONNECTIONSTRING")
     # Convert connection string to RFC1738 format
     db_url, status = build_rfc1738_url(conn_string, access_token)
 
@@ -106,8 +104,6 @@ def refresh_access_token_and_get_session():
 
         # Rebuild the connection string with the new token
         conn_string = os.getenv("AZURE_POSTGRESQL_CONNECTIONSTRING")
-        if settings.build_type == "dev":
-            conn_string = os.getenv("AZURE_POSTGRESQL_AAD_API_CONNECTION_CONNECTIONSTRING")
         db_url, status = build_rfc1738_url(conn_string, access_token)
 
         SQLALCHEMY_DATABASE_URL = db_url + "&options=-csearch_path=pfg_schema"
