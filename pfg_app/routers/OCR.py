@@ -146,7 +146,7 @@ def runStatus(
     invoice_type: str = Form(...),
     sender: str = Form(...),
     file: UploadFile = File(...),
-    email_path: str = Form("Test Path"),
+    email_path: str = Form(...),
     subject: str = Form(...),
     # user: AzureUser = Depends(get_user),
     # db=Depends(get_db),
