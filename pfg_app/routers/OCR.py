@@ -255,7 +255,7 @@ def queue_process_task(queue_task: QueueTask):
 
         # Refresh the instance to get the new ID if needed
         db.refresh(new_split_doc)
-
+        splitdoc_id = new_split_doc.splitdoc_id
         # if the execution is from `debug` mode, then get the file from the local path
         if settings.build_type == "debug":
             with open(file_path, "rb") as f:
@@ -458,7 +458,7 @@ def queue_process_task(queue_task: QueueTask):
                 )
             except Exception:
                 logger.error(f"Error in splitDoc: {traceback.format_exc()}")
-                splitdoc_id = new_split_doc.splitdoc_id
+                # splitdoc_id = new_split_doc.splitdoc_id
                 split_doc = (
                     db.query(model.SplitDocTab)
                     .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
@@ -492,7 +492,7 @@ def queue_process_task(queue_task: QueueTask):
 
                 vendorName_df = pd.DataFrame(rows, columns=columns)
 
-                splitdoc_id = new_split_doc.splitdoc_id
+                # splitdoc_id = new_split_doc.splitdoc_id
                 split_doc = (
                     db.query(model.SplitDocTab)
                     .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
@@ -1766,7 +1766,7 @@ def queue_process_task(queue_task: QueueTask):
         except Exception as err:
             logger.error(f"API exception ocr.py: {traceback.format_exc()}")
             status = "error: " + str(err)
-            splitdoc_id = new_split_doc.splitdoc_id
+            # splitdoc_id = new_split_doc.splitdoc_id
             split_doc = (
                 db.query(model.SplitDocTab)
                 .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
@@ -1794,7 +1794,7 @@ def queue_process_task(queue_task: QueueTask):
     except Exception as e:
         logger.error(f"Error in queue_process_task: {traceback.format_exc()}")
         status = "error: " + str(err)
-        splitdoc_id = new_split_doc.splitdoc_id
+        # splitdoc_id = new_split_doc.splitdoc_id
         split_doc = (
             db.query(model.SplitDocTab)
             .filter(model.SplitDocTab.splitdoc_id == splitdoc_id)
@@ -1820,7 +1820,9 @@ def queue_process_task(queue_task: QueueTask):
         # return f"Error: {traceback.format_exc()}"
     finally:
         try:
-            splitdoc_id = new_split_doc.splitdoc_id
+            # splitdoc_id = new_split_doc.splitdoc_id
+            logger.info(f"Inside finally block")
+            logger.info(f"splitdoc_id: {splitdoc_id}")
             # Query all rows in frtrigger_tab with the specific splitdoc_id
             # with db.begin():  # Ensures rollback on failure
             triggers = (
