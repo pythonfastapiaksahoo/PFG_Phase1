@@ -1815,7 +1815,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 approval_Amt_val_status = 1
                                                 approval_Amt_val_msg = "Amount limit approval skipped for credit"
                                                 eml_status_code = 0
-                                            elif validTitle==0:
+                                            elif validTitle==0 and amount_approval_check!=1:
                                                 # if amt_threshold_ck==1 and skip_title_check==1:
 
                                                 docStatus = 24
