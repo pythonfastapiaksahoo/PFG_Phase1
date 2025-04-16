@@ -22,7 +22,7 @@ DB = None
 SQLALCHEMY_DATABASE_URL = None
 SCHEMA = "pfg_schema"
 
-if settings.build_type in ["prod"]:
+if settings.build_type in ["prod", "qa"]:
 
     # Retrieve the access token using DefaultAzureCredential
     credential = DefaultAzureCredential()
@@ -137,15 +137,15 @@ def get_db():
     max_retries = 2  # Number of retries (1 original + 1 retry)
     while attempt < max_retries:
         try:
-            if settings.build_type in ["prod"]:
+            if settings.build_type in ["prod", "qa"]:
                 # Refresh the token and recreate the session if necessary
                 if attempt > 0:  # Retry logic
                     refresh_access_token_and_get_session()
             db = Session()
-            current_schema = db.execute("SELECT current_schema();").scalar()
-            # logger.info(f"Current schema before setting: {current_schema}")
-            db.execute("SET search_path TO pfg_schema;")
-            current_schema = db.execute("SELECT current_schema();").scalar()
+            # current_schema = db.execute("SELECT current_schema();").scalar()
+            # # logger.info(f"Current schema before setting: {current_schema}")
+            # db.execute("SET search_path TO pfg_schema;")
+            # current_schema = db.execute("SELECT current_schema();").scalar()
             # logger.info(f"Current schema after setting: {current_schema}")
             yield db  # Provide the session to the endpoint
             return  # Exit after successful execution
