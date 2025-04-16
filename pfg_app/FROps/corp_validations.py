@@ -1253,6 +1253,14 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 ],
                                                             }
                                     currency_ck_msg = f"Currency validation skipped by user"
+                                elif process_inactive==1:
+                                    currency_ck = 1
+                                    return_status["Currency validation"] = {"status": 1,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    f"User processing manually."
+                                                                ],
+                                                            }
                                 else:
                                     return_status["Currency validation"] = {"status": 0,
                                                     "StatusCode":8,
@@ -1808,6 +1816,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 approval_Amt_val_msg = "Amount limit approval skipped for credit"
                                                 eml_status_code = 0
                                             elif validTitle==0:
+                                                # if amt_threshold_ck==1 and skip_title_check==1:
+
                                                 docStatus = 24
                                                 docSubStatus = 166
                                                 approval_Amt_val_status =0
@@ -1815,7 +1825,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 eml_status_code = 7
                                                 logger.info("Unrecognized approver title")
                                                 approval_Amt_val_msg = "Unrecognized approver title"
-                                                return_status["Approval title validation"] = {"status": approval_Amt_val_status,
+                                                return_status["Unrecognized approver title"] = {"status": approval_Amt_val_status,
                                                                     "StatusCode":eml_status_code,
                                                                     "response": [
                                                                                     approval_Amt_val_msg
