@@ -3201,6 +3201,7 @@ async def read_corp_paginate_doc_inv_list(
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
             "Duplicate Invoice": 32,
+            "Approval Exception": 24,
         }
 
         # Initial query setup for fetching document, status, and related entities
@@ -3498,6 +3499,7 @@ async def download_corp_paginate_doc_inv_list(
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
             "Duplicate Invoice": 32,
+            "Approval Exception": 24,
         }
 
         # new subquery to increase the loading time
