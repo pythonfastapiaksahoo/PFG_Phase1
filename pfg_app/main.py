@@ -277,12 +277,12 @@ async def app_startup():
         corp_worker_thread.start()
         logger.info("CorpIntegration Worker thread started")
         
-        try:
-            logger.info("Fetching and processing unprocessed Graph messages...")
-            fetch_and_process_recent_graph_mails(db=db, operation_id=operation_id)
-            logger.info("Completed initial sync of new Graph messages.")
-        except Exception as e:
-            logger.error(f"Error during startup Graph sync: {e}\n{traceback.format_exc()}")
+        # try:
+        #     logger.info("Fetching and processing unprocessed Graph messages...")
+        #     fetch_and_process_recent_graph_mails(db=db, operation_id=operation_id)
+        #     logger.info("Completed initial sync of new Graph messages.")
+        # except Exception as e:
+        #     logger.error(f"Error during startup Graph sync: {e}\n{traceback.format_exc()}")
     else:
         operation_id = uuid.uuid4().hex
         set_operation_id(operation_id)

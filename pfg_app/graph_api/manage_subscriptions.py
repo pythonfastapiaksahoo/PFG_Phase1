@@ -5,6 +5,7 @@ import json
 import time
 
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
+from pfg_app.graph_api.retry_unprocessed_corp_mails import fetch_and_process_recent_graph_mails
 from pfg_app.logger_module import logger, set_operation_id
 from pfg_app.model import BackgroundTask
 from pfg_app.session.session import get_db
@@ -105,13 +106,10 @@ def subscription_renewal_loop(operation_id):
     try:
         db = next(get_db())
         # get the background task and lock it and if it could not be locked end the thread
-        if settings.build_type == "debug":
-            background_task_name = f"{settings.local_user_name}-subscription_renewal_loop"
-        else:
-            background_task_name = "subscription_renewal_loop"
+        background_task_name = "subscription_renewal_loop"
         logger.info(f"subscription_renewal_loop background_task_name:{background_task_name}")
-        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == background_task_name)
-        # .with_for_update(skip_locked=True).
+        fetch_and_process_recent_graph_mails(operation_id)
+        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == background_task_name).with_for_update(skip_locked=True)
         background_task = background_task.first()
         # If we didn't acquire the lock, exit the thread function gracefully.
         if background_task is None:
