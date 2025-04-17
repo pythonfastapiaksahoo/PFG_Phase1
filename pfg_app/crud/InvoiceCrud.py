@@ -590,6 +590,9 @@ async def read_paginate_doc_inv_list_with_ln_items(
             .all()
         )
 
+        if not Documentdata:
+            return {"ok": {"Documentdata": [], "TotalCount": 0}}
+        
         # Now fetch the last_updated_by field using the document IDs (after pagination)
         # document_ids = [doc.idDocument for doc in Documentdata]
         document_ids = [doc[0].idDocument for doc in Documentdata if hasattr(doc[0], 'idDocument')]
