@@ -1,35 +1,66 @@
 import datetime
 import traceback
+import requests
 import uuid
 from pfg_app import model
 from pfg_app.graph_api.message_processing import process_new_message
 from pfg_app.logger_module import logger, set_operation_id
 from pfg_app.session.session import get_db
+from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
+from pfg_app import settings
 
 
-def retry_unprocessed_corp_mails():
+def fetch_and_process_recent_graph_mails(operation_id: str):
     try:
-      # set_operation_id(uuid.uuid4().hex)
-      operation_id = uuid.uuid4().hex  # Generate a new operation_id
-      set_operation_id(operation_id)  # Set the new operation_id
-      logger.info(f"Generated new operation ID: {operation_id}")  # Log the new operation_id
       db = next(get_db())
-      # Calculate the timestamp for 2 days ago
-      two_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=2)
-
-      # Get all CorpMail records from the last two days
-      recent_corp_mails = db.query(model.CorpMail).filter(model.CorpMail.created_at >= two_days_ago).all()
-
-      # Prepare a set of existing mail_row_keys from CorpQueueTask for quick lookup
-      existing_keys = {
-          row[0] for row in db.query(model.CorpQueueTask.mail_row_key).all()
+      # 1) Get access token for Graph API
+      token_manager = MSGraphAPITokenManager()
+      access_token = token_manager.get_access_token()
+      headers = {
+          "Authorization": f"Bearer {access_token}",
+          "Accept": "application/json"
       }
 
-      for mail in recent_corp_mails:
-          mail_row_key = f"CE-{mail.id}"
-          if mail_row_key not in existing_keys:
-              logger.info(f"Retrying unprocessed mail ID: {mail.id}")
-              process_new_message(mail.message_id, mail.id, operation_id)
+      # 2) Calculate time window for the last 2 days (ISO 8601 format)
+      two_days_ago = (datetime.datetime.utcnow() - datetime.timedelta(days=2)).isoformat() + "Z"
+      url = (
+          f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/messages"
+          f"?$filter=receivedDateTime ge {two_days_ago}"
+          f"&$select=id,receivedDateTime&$orderby=receivedDateTime desc"
+      )
+
+      messages = []
+      while url:
+          resp = requests.get(url, headers=headers)
+          resp.raise_for_status()
+          data = resp.json()
+          messages.extend(data.get("value", []))
+          url = data.get("@odata.nextLink")  # handle paging
+
+      # 3) Load all message_ids from CorpMail for fast comparison
+      existing_message_ids = {
+          row[0] for row in db.query(model.CorpMail.message_id).all()
+      }
+
+      # 4) Process messages
+      for msg in messages:
+          message_id = msg["id"]
+          if message_id not in existing_message_ids:
+              # Insert into CorpMail
+              new_mail = model.CorpMail(message_id=message_id)
+              db.add(new_mail)
+              db.commit()
+              db.refresh(new_mail)
+
+              logger.info(f"New message inserted with ID {new_mail.id}, processing...")
+
+              # Process the message
+              process_new_message(message_id, new_mail.id, operation_id)
 
     except Exception as e:
-      logger.error(f"Failed to retry unprocessed CorpMail messages: {traceback.format_exc()}")
+        logger.error(f"Error in fetch_and_process_recent_graph_mails: {traceback.format_exc()}")
+        
+        
+
+
+

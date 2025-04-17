@@ -34,6 +34,7 @@ from pfg_app.routers import (
     mailListener,
 )
 from pfg_app.session.session import get_db
+from pfg_app.graph_api.retry_unprocessed_corp_mails import fetch_and_process_recent_graph_mails
 
 app = FastAPI(
     title="IDP",
@@ -275,6 +276,13 @@ async def app_startup():
                     kwargs={"operation_id": operation_id})
         corp_worker_thread.start()
         logger.info("CorpIntegration Worker thread started")
+        
+        try:
+            logger.info("Fetching and processing unprocessed Graph messages...")
+            fetch_and_process_recent_graph_mails(db=db, operation_id=operation_id)
+            logger.info("Completed initial sync of new Graph messages.")
+        except Exception as e:
+            logger.error(f"Error during startup Graph sync: {e}\n{traceback.format_exc()}")
     else:
         operation_id = uuid.uuid4().hex
         set_operation_id(operation_id)
@@ -359,7 +367,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.108.15"
+            response.headers["api-version"] = "0.108.16"
 
             logger.info(
                 "Sending response from FastAPI"
