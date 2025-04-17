@@ -34,6 +34,7 @@ def fetch_and_process_recent_graph_mails(operation_id: str):
             resp = requests.get(url, headers=headers)
             resp.raise_for_status()
             data = resp.json()
+            logger.info(f"Fetched {len(data.get('value', []))} messages from Graph API.")
             messages.extend(data.get("value", []))
             url = data.get("@odata.nextLink")  # handle paging
 
