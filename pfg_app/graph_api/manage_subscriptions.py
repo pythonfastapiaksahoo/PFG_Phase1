@@ -145,7 +145,7 @@ def create_or_renew_subscription(background_task,db):
     # from background_task get the subscription_details if it is not present create a new one
     subscription_details = background_task.task_metadata
     if not subscription_details or not subscription_details["SUBSCRIPTION_ID"] or not subscription_details["SUBSCRIPTION_EXPIRATION"]:
-        subscription_details = create_subscriptions(access_token,'https://dev.mail.ia.owfg.com',settings.graph_corporate_mail_id) # TODO:FLAG_GRAPH
+        subscription_details = create_subscriptions(access_token,'https://qa.mail.ia.owfg.com',settings.graph_corporate_mail_id) # TODO:FLAG_GRAPH
         background_task.task_metadata = subscription_details
         db.add(background_task)
         db.commit()
@@ -169,7 +169,7 @@ def create_or_renew_subscription(background_task,db):
     }
     body = {
         "changeType": "created",
-        "notificationUrl": 'https://dev.mail.ia.owfg.com', # TODO:FLAG_GRAPH # 7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook
+        "notificationUrl": 'https://qa.mail.ia.owfg.com', # TODO:FLAG_GRAPH # 7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook
         "resource": f"/users/{settings.graph_corporate_mail_id}/mailFolders('Inbox')/messages", # TODO:FLAG_GRAPH
         "expirationDateTime": expiration_str,
         "clientState": subscription_details["CLIENT_STATE"]
