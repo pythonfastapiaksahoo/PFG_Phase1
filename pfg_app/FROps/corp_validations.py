@@ -1825,7 +1825,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 eml_status_code = 7
                                                 logger.info("Unrecognized approver title")
                                                 approval_Amt_val_msg = "Unrecognized approver title"
-                                                return_status["Unrecognized approver title"] = {"status": approval_Amt_val_status,
+                                                return_status[f"Unrecognized approver title:{coding_approver_title}"] = {"status": approval_Amt_val_status,
                                                                     "StatusCode":eml_status_code,
                                                                     "response": [
                                                                                     approval_Amt_val_msg
