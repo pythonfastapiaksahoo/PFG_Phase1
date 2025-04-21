@@ -32,7 +32,6 @@ if settings.build_type in ["prod", "qa"]:
 
     # Get the connection string from the environment variable
     conn_string = os.getenv("AZURE_POSTGRESQL_CONNECTIONSTRING")
-
     # Convert connection string to RFC1738 format
     db_url, status = build_rfc1738_url(conn_string, access_token)
 

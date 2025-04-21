@@ -185,102 +185,6 @@ def format_data_for_template1(parsed_data):
         final_json = json.dumps(structured_output, indent=4)
         return final_json
     
-    
-# def format_data_for_template2(parsed_data):
-#     try:
-#         # Extract metadata
-#         email_metadata = parsed_data["email_metadata"]
-
-#         # Extract table data
-#         tables = parsed_data["tables_data"]
-
-#         # Initialize dictionaries
-#         invoice_data = {
-#             "invoice#": [],
-#             "store": [],
-#             "dept": [],
-#             "account": [],
-#             "SL": [],
-#             "project": [],
-#             "activity": [],
-#             "GST": [],
-#             "invoicetotal": [],
-#             "subtotal": None
-#         }
-#         # approver_details = {}
-#         approver_details = {
-#             "approverName": '',
-#             "TMID": '',
-#             "title": ''
-#         }
-#         # Flatten the tables_data list if nested improperly
-#         cleaned_tables = []
-#         for table in tables:
-#             if isinstance(table, list) and all(isinstance(row, list) for row in table):
-#                 cleaned_tables.extend(table)  # Flatten nested lists
-#             else:
-#                 cleaned_tables.append(table)
-
-#         # Process the table
-#         for i, row in enumerate(cleaned_tables):
-#             if isinstance(row, list) and len(row) > 1:
-#                 if "Approver Name:" in row[0]:
-#                     approver_details["approverName"] = row[1]
-#                 elif "Approver TM ID:" in row[0]:
-#                     approver_details["TMID"] = row[1]
-#                 elif "Approval Title:" in row[0]:
-#                     approver_details["title"] = row[1]
-#                 elif "Invoice #" in row[0]:
-#                     headers = row  # Identify header row
-#                 elif len(row) >= 9:  # Ensure valid invoice row with enough columns
-#                     invoice_data["invoice#"].append(row[0])
-#                     invoice_data["store"].append(row[1])
-#                     invoice_data["dept"].append(row[2])
-#                     invoice_data["account"].append(row[3])
-#                     invoice_data["SL"].append(row[4])
-#                     invoice_data["project"].append(row[5])
-#                     invoice_data["activity"].append(row[6])
-#                     invoice_data["GST"].append(row[7])
-#                     invoice_data["invoicetotal"].append(row[8])
-
-#         # Combine into final structured JSON
-#         structured_output = {
-#             "email_metadata": email_metadata,
-#             "invoiceDetails": invoice_data,
-#             "approverDetails": approver_details
-#         }
-
-#         # Convert to JSON and print
-#         final_json = json.dumps(structured_output, indent=4)
-#         # print(final_json)
-#         return final_json
-
-#     except Exception:
-#         logger.info(f"Error while extracting coding details for template 2:{traceback.format_exc()}")
-#         # Combine into final structured JSON
-#         structured_output = {
-#                         "email_metadata": email_metadata, 
-#                         "invoiceDetails": { 
-#                             "store": [''], 
-#                             "dept": [''], 
-#                             "account": [''], 
-#                             "SL": [''],
-#                             "project": [''],
-#                             "activity": [''], 
-#                             "amount": [''], 
-#                             "invoice#": '', 
-#                             "GST": '', 
-#                             "invoicetotal": '', 
-#                         }, 
-#                         "approverDetails": { 
-#                             "approverName": '', 
-#                             "TMID": '', 
-#                             "title": '',
-#                         }
-#                     }
-#         # Convert to JSON and print
-#         final_json = json.dumps(structured_output, indent=4)
-#         return final_json
 
 def format_data_for_template2(parsed_data):
     try:
@@ -680,7 +584,6 @@ def clean_tables_data(parsed_data):
 
     parsed_data["tables_data"] = cleaned_tables_data
     return parsed_data
-
 
 def extract_eml_to_html(blob_data):
     try:
@@ -1298,7 +1201,6 @@ async def get_mail_row_key_summary(u_id, off_limit, db, uni_api_filter, date_ran
                 data_to_insert["subject"] = None
                 data_to_insert["status"] = queue_task.status
                 data_to_insert["queue_task_id"] = queue_task.id
-
 
             data.append(data_to_insert)
 
@@ -2117,7 +2019,6 @@ def processCorpInvoiceVoucher(doc_id, db):
         # Save to DB
         corpvoucherdata.UNIQUE_FILENAME_INVOICE = unique_invoice_file_name
         corpvoucherdata.UNIQUE_FILENAME_EMAIL = unique_email_pdf_file_name
-
         db.commit()
         # Validate invoice date format (yyyy-mm-dd)
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -3393,7 +3294,7 @@ async def read_corp_paginate_doc_inv_list(
             .offset(off_val)
             .all()
         )
-
+        
         if not Documentdata:
             return {"ok": {"Documentdata": [], "TotalCount": 0}}
         # Now fetch the last_updated_by field using the document IDs (after pagination)
@@ -3504,18 +3405,6 @@ async def download_corp_paginate_doc_inv_list(
             "Approval Exception": 24,
         }
 
-        # new subquery to increase the loading time
-        sub_query_desc = (
-            db.query(
-                model.corp_hist_logs.document_id,
-                model.corp_hist_logs.histlog_id,
-                model.corp_hist_logs.user_id
-            )
-            .distinct(model.corp_hist_logs.document_id)
-            .order_by(model.corp_hist_logs.document_id, model.corp_hist_logs.histlog_id.desc())
-            .subquery()
-        )
-
         # Initial query setup for fetching document, status, and related entities
         data_query = (
             db.query(
@@ -3568,24 +3457,9 @@ async def download_corp_paginate_doc_inv_list(
                 model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
                 isouter=True,
             )
-            # .join(
-            #     sub_query_desc,
-            #     sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
-            #     isouter=True,
-            # )
-            .join(
-                sub_query_desc,
-                and_(
-                    sub_query_desc.c.document_id == model.corp_document_tab.corp_doc_id,
-                    sub_query_desc.c.histlog_id == db.query(func.max(model.corp_hist_logs.histlog_id)).filter(
-                        model.corp_hist_logs.document_id == model.corp_document_tab.corp_doc_id
-                    ).scalar_subquery(),
-                ),
-                isouter=True,
-            )
             .join(
                 model.User,
-                model.User.idUser == sub_query_desc.c.user_id,
+                model.User.idUser == model.corp_document_tab.last_updated_by,
                 isouter=True,
             )
             # .filter(
@@ -3683,7 +3557,9 @@ async def download_corp_paginate_doc_inv_list(
 
         
         Documentdata = data_query.order_by(model.corp_document_tab.corp_doc_id).all()
-            
+        
+        if not Documentdata:
+            return {"ok": {"Documentdata": [], "TotalCount": 0}}
         # Return paginated document data with line items
         return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
 

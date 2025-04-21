@@ -589,7 +589,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
             .offset(off_val)
             .all()
         )
-
+        
         if not Documentdata:
             return {"ok": {"Documentdata": [], "TotalCount": 0}}
         
@@ -610,7 +610,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 )
                 .subquery()  # Convert to a subquery for joining later
             )
-
+            
             # Join the latest history log subquery with User table to get the last_updated_by (firstName)
             user_query = (
                 db.query(
@@ -2145,7 +2145,6 @@ async def reject_invoice(userID, invoiceID, reason, db):
         }
         # Determine the appropriate substatus ID, default to 159 if not found
         substatus_id = reason_to_substatus.get(reason, 159)
-
         # Fetching the first name of the user performing the rejection
         first_name = (
             db.query(model.User.firstName).filter(model.User.idUser == userID).scalar()
@@ -2155,6 +2154,8 @@ async def reject_invoice(userID, invoiceID, reason, db):
         db.query(model.Document).filter(model.Document.idDocument == invoiceID).update(
             {
                 "documentStatusID": 10,
+                "documentsubstatusID": 13,
+                "documentDescription": reason + " by " + first_name,
                 "documentsubstatusID": substatus_id,
                 "UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                 "documentDescription":reason + "- rejected" + " by " + first_name,

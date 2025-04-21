@@ -53,6 +53,10 @@ if settings.build_type not in ["debug"]:
         {"erp_invoice_status_endpoint": "APPORTAL-ERP-INVOICE-STATUS-ENDPOINT"},
         {"erp_user": "APPORTAL-ERP-USER"},
         {"erp_password": "APPORTAL-ERP-PASSWORD"},
+        {"graph_tenant_id": "MAIL-LISTENER-TENANT"},
+        {"graph_client_id": "MAIL-LISTENER-CLIENT-ID"},
+        {"graph_client_secret": "MAIL-LISTENER-CLIENT-SECRET"},
+        {"graph_corporate_mail_id": "MAIL-LISTENER-CORPORATE-MAIL-ID"},
     ]
     # Retrieve secrets from Key Vault and assign them to the settings object
     # via multiprocessing

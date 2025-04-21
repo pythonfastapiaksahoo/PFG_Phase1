@@ -155,19 +155,19 @@ def get_admin_user(
     #     "CORP_APPortal_User"
     # ],
     if "Admin" in user.roles:
-        try:
-            all_results = []
-            current_schema = db.execute("SELECT current_schema();").fetchall()
-            all_results.append({"current_schema": current_schema})
-            tables = db.execute(
-                "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema = 'pfg_schema';"
-            ).fetchall()
-            all_results.append({"tables_in_schema": tables})
-        except Exception as e:
-            all_results.append({"error": str(e)})
-        finally:
-            logger.info(all_results)
+        # try:
+        #     all_results = []
+        #     current_schema = db.execute("SELECT current_schema();").fetchall()
+        #     all_results.append({"current_schema": current_schema})
+        #     tables = db.execute(
+        #         "SELECT table_name FROM information_schema.tables "
+        #         "WHERE table_schema = 'pfg_schema';"
+        #     ).fetchall()
+        #     all_results.append({"tables_in_schema": tables})
+        # except Exception as e:
+        #     all_results.append({"error": str(e)})
+        # finally:
+        #     logger.info(all_results)
 
         # check if this user exists in the database agaisnt user tabel
         user_in_db = db.query(User).filter(User.azure_id == user.id).first()

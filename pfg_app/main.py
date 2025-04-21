@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry.propagate import extract
 from opentelemetry.trace import SpanKind
+from sqlalchemy.exc import IntegrityError
 
 from pfg_app import scheduler, scheduler_container_client, settings
 from pfg_app.crud.commonCrud import (
@@ -17,8 +18,9 @@ from pfg_app.crud.commonCrud import (
     schedule_bulk_update_invoice_creation_job,
     schedule_bulk_update_invoice_status_job,
 )
+from pfg_app.graph_api.manage_subscriptions import subscription_renewal_loop
 from pfg_app.logger_module import logger, set_operation_id, tracer
-from pfg_app.model import QueueTask, CorpQueueTask
+from pfg_app.model import BackgroundTask, QueueTask, CorpQueueTask
 from pfg_app.routers import (
     FR,
     OCR,
@@ -32,6 +34,7 @@ from pfg_app.routers import (
     mailListener,
 )
 from pfg_app.session.session import get_db
+from pfg_app.graph_api.retry_unprocessed_corp_mails import fetch_and_process_recent_graph_mails
 
 app = FastAPI(
     title="IDP",
@@ -47,6 +50,19 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def app_startup():
+    # try:
+    #     operation_id = uuid.uuid4().hex
+    #     set_operation_id(operation_id)
+    #     db = next(get_db())
+    #     current_schema = db.execute("SELECT current_schema();").scalar()
+    #     logger.info(f"Current schema before setting: {current_schema}")
+    #     db.execute("SET search_path TO pfg_schema;")
+    #     current_schema = db.execute("SELECT current_schema();").scalar()
+    #     logger.info(f"Current schema after setting: {current_schema}")
+    #     return True
+    # except Exception:
+    #     logger.error(traceback.format_exc())
+    #     return True
     if settings.build_type != "debug":
         operation_id = uuid.uuid4().hex
         set_operation_id(operation_id)
@@ -221,7 +237,7 @@ async def app_startup():
             logger.warning(f"Error: {e.error_code} - {e.reason}")
         except Exception as e:
             logger.info(f"Exception: {e}" + traceback.format_exc())
-            
+    
         logger.info("Resetting all queues before starting the application")
         db = next(get_db())
         db.query(QueueTask).filter(QueueTask.status == "processing").update(
@@ -235,6 +251,21 @@ async def app_startup():
         worker_thread.start()
         logger.info("OCR Worker thread started")
         
+        # check if the background task is present and if not create a new one
+        background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == "subscription_renewal_loop").first()
+        if not background_task:
+            try:
+                background_task = BackgroundTask(status="active", task_name="subscription_renewal_loop")
+                db.add(background_task)
+                db.commit()
+            except IntegrityError:
+                logger.error("Background task already exists")
+        logger.info("All Background Tasks reset to active state")
+
+        background_task_thread = threading.Thread(target=subscription_renewal_loop, daemon=True, kwargs={"operation_id": operation_id})
+        background_task_thread.start()
+        logger.info("Subscription Renewal Loop thread started")
+        
         # Resetting Corp Queue task before starting the application
         db.query(CorpQueueTask).filter(CorpQueueTask.status == "processing").update(
             {"status": "queued"}
@@ -245,32 +276,54 @@ async def app_startup():
                     kwargs={"operation_id": operation_id})
         corp_worker_thread.start()
         logger.info("CorpIntegration Worker thread started")
+        
+        # try:
+        #     logger.info("Fetching and processing unprocessed Graph messages...")
+        #     fetch_and_process_recent_graph_mails(db=db, operation_id=operation_id)
+        #     logger.info("Completed initial sync of new Graph messages.")
+        # except Exception as e:
+        #     logger.error(f"Error during startup Graph sync: {e}\n{traceback.format_exc()}")
     else:
         operation_id = uuid.uuid4().hex
         set_operation_id(operation_id)
         logger.info("Resetting all queues before starting the application")
         db = next(get_db())
-        db.query(QueueTask).filter(
-            QueueTask.status == f"{settings.local_user_name}-processing"
-        ).update({"status": f"{settings.local_user_name}-queued"})
-        db.commit()
-        logger.info("All DSD queues reset to queued state")
-        worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
-            "operation_id": operation_id
-        })
-        worker_thread.start()
-        logger.info("OCR Worker thread started")
+        # db.query(QueueTask).filter(
+        #     QueueTask.status == f"{settings.local_user_name}-processing"
+        # ).update({"status": f"{settings.local_user_name}-queued"})
+        # db.commit()
+        # logger.info("All DSD queues reset to queued state")
+        # worker_thread = threading.Thread(target=OCR.queue_worker, daemon=True, kwargs={
+        #     "operation_id": operation_id
+        # })
+        # worker_thread.start()
+        # logger.info("OCR Worker thread started")
+
+        # # check if the background task is present and if not create a new one
+        # background_task = db.query(BackgroundTask).filter(BackgroundTask.task_name == f"{settings.local_user_name}-subscription_renewal_loop").first()
+        # if not background_task:
+        #     try:
+        #         background_task = BackgroundTask(status=f"{settings.local_user_name}-active", task_name=f"{settings.local_user_name}-subscription_renewal_loop")
+        #         db.add(background_task)
+        #         db.commit()
+        #     except IntegrityError:
+        #         logger.error("Background task already exists")
+        # logger.info("All Background Tasks reset to active state")
+
+        # background_task_thread = threading.Thread(target=subscription_renewal_loop, daemon=True, kwargs={"operation_id": operation_id})
+        # background_task_thread.start()
+        # logger.info("Subscription Renewal Loop thread started")
         
-        # Resetting Corp Queue task before starting the application
-        db.query(CorpQueueTask).filter(
-            CorpQueueTask.status == f"{settings.local_user_name}-processing"
-        ).update({"status": f"{settings.local_user_name}-queued"})
-        db.commit()
-        logger.info("All Corp queues reset to queued state")
-        corp_worker_thread = threading.Thread(target=CorpIntegrationapi.corp_queue_worker,
-                    daemon=True,kwargs={"operation_id": operation_id})
-        corp_worker_thread.start()
-        logger.info("CorpIntegration Worker thread started")
+        # # Resetting Corp Queue task before starting the application
+        # db.query(CorpQueueTask).filter(
+        #     CorpQueueTask.status == f"{settings.local_user_name}-processing"
+        # ).update({"status": f"{settings.local_user_name}-queued"})
+        # db.commit()
+        # logger.info("All Corp queues reset to queued state")
+        # corp_worker_thread = threading.Thread(target=CorpIntegrationapi.corp_queue_worker,
+        #             daemon=True,kwargs={"operation_id": operation_id})
+        # corp_worker_thread.start()
+        # logger.info("CorpIntegration Worker thread started")
     logger.info("Application is ready to process requests")
 
 
@@ -314,9 +367,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-
-            response.headers["api-version"] = "0.108.14"
-
+            response.headers["api-version"] = "0.108.16"
 
             logger.info(
                 "Sending response from FastAPI"
