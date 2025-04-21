@@ -589,6 +589,10 @@ async def read_paginate_doc_inv_list_with_ln_items(
             .offset(off_val)
             .all()
         )
+        
+        if not Documentdata:
+            return {"ok": {"Documentdata": [], "TotalCount": 0}}
+        
         # Now fetch the last_updated_by field using the document IDs (after pagination)
         # document_ids = [doc.idDocument for doc in Documentdata]
         document_ids = [doc[0].idDocument for doc in Documentdata if hasattr(doc[0], 'idDocument')]
@@ -606,25 +610,7 @@ async def read_paginate_doc_inv_list_with_ln_items(
                 )
                 .subquery()  # Convert to a subquery for joining later
             )
-
-        # Now fetch the last_updated_by field using the document IDs (after pagination)
-        # document_ids = [doc.idDocument for doc in Documentdata]
-        document_ids = [doc[0].idDocument for doc in Documentdata if hasattr(doc[0], 'idDocument')]
-        if document_ids:
-            latest_history_log_query = (
-                db.query(
-                    model.DocumentHistoryLogs.documentID,
-                    model.DocumentHistoryLogs.userID,
-                )
-                .filter(model.DocumentHistoryLogs.documentID.in_(document_ids))
-                .distinct(model.DocumentHistoryLogs.documentID)  # Ensure distinct documentIDs
-                .order_by(
-                    model.DocumentHistoryLogs.documentID, 
-                    model.DocumentHistoryLogs.iddocumenthistorylog.desc()  # Order by ID in descending order
-                )
-                .subquery()  # Convert to a subquery for joining later
-            )
-
+            
             # Join the latest history log subquery with User table to get the last_updated_by (firstName)
             user_query = (
                 db.query(
@@ -2168,6 +2154,8 @@ async def reject_invoice(userID, invoiceID, reason, db):
         db.query(model.Document).filter(model.Document.idDocument == invoiceID).update(
             {
                 "documentStatusID": 10,
+                "documentsubstatusID": 13,
+                "documentDescription": reason + " by " + first_name,
                 "documentsubstatusID": substatus_id,
                 "UpdatedOn": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                 "documentDescription":reason + "- rejected" + " by " + first_name,
