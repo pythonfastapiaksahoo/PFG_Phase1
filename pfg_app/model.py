@@ -14,6 +14,8 @@ from sqlalchemy import (
     LargeBinary,
     SmallInteger,
     String,
+    Sequence,
+    UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -1773,19 +1775,35 @@ class SetRetryCount(Base):
     updated_at= Column(DateTime, nullable=True) 
     updated_by = Column(String, nullable=True)
     task_name = Column(String, nullable=True )
-    
-    
-class LatestDocumentHistoryLog2(Base):
-    __tablename__ = "latest_documenthistorylog2"
-    
-    documentID = Column(Integer, primary_key=True)
-    iddocumenthistorylog = Column(Integer)
-    userID = Column(Integer)
-    
 
-class LatestDocumentCount(Base):
-    __tablename__ = "latest_document_count"
-    
-    id = Column(Integer, primary_key=True)
-    total_count = Column(Integer)
+class BackgroundTask(Base):
+    __tablename__ = "background_tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    task_name = Column(String, nullable=False, index=False)
+    task_metadata = Column(JSONB, nullable=False, default=dict)  # JSONB column
+    status = Column(String(50), nullable=False, default="inactive")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
+
+    # Define a GIN index on the request_data column
+    __table_args__ = (
+        Index("idx_background_tasks_task_metadata", "task_metadata", postgresql_using="gin"),
+        UniqueConstraint("task_name", name="uq_task_name"),
+    )
+
+corp_mail_id_seq = Sequence('corp_mail_id_seq', start=100000) # 
+class CorpMail(Base):
+    __tablename__ = "corp_mail"
+    # start the `autoincrement from 100000` -- dev its from 100000000
+    id = Column(Integer, corp_mail_id_seq,
+        primary_key=True,
+        index=True,
+        server_default=corp_mail_id_seq.next_value())
+    message_id = Column(String, nullable=False, index=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
     
