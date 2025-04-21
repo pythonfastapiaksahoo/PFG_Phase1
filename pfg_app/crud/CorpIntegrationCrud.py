@@ -3102,6 +3102,7 @@ async def read_corp_paginate_doc_inv_list(
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
             "Duplicate Invoice": 32,
+            "Approval Exception": 24,
         }
 
         # Initial query setup for fetching document, status, and related entities
@@ -3293,23 +3294,9 @@ async def read_corp_paginate_doc_inv_list(
             .offset(off_val)
             .all()
         )
-            
-        document_ids = [doc[0].corp_doc_id for doc in Documentdata if hasattr(doc[0], 'corp_doc_id')]
-        if document_ids:
-            latest_corp_hist_log_query = (
-                db.query(
-                    model.corp_hist_logs.document_id,
-                    model.corp_hist_logs.user_id,
-                )
-                .filter(model.corp_hist_logs.document_id.in_(document_ids))
-                .distinct(model.corp_hist_logs.document_id)  # Ensure distinct document_ids
-                .order_by(
-                    model.corp_hist_logs.document_id, 
-                    model.corp_hist_logs.histlog_id.desc()  # Order by ID in descending order
-                )
-                .subquery()  # Convert to a subquery for joining later
-            )
-
+        
+        if not Documentdata:
+            return {"ok": {"Documentdata": [], "TotalCount": 0}}
         # Now fetch the last_updated_by field using the document IDs (after pagination)
         # document_ids = [doc.idDocument for doc in Documentdata]
         document_ids = [doc[0].corp_doc_id for doc in Documentdata if hasattr(doc[0], 'corp_doc_id')]
@@ -3415,6 +3402,7 @@ async def download_corp_paginate_doc_inv_list(
             "VendorNotOnboarded": 25,
             "VendorUnidentified": 26,
             "Duplicate Invoice": 32,
+            "Approval Exception": 24,
         }
 
         # Initial query setup for fetching document, status, and related entities
@@ -3569,7 +3557,9 @@ async def download_corp_paginate_doc_inv_list(
 
         
         Documentdata = data_query.order_by(model.corp_document_tab.corp_doc_id).all()
-            
+        
+        if not Documentdata:
+            return {"ok": {"Documentdata": [], "TotalCount": 0}}
         # Return paginated document data with line items
         return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
 
