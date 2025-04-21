@@ -93,39 +93,59 @@ def clean_coding_amount(amount_str):
     
     return 0.0
 
-def is_valid_title(title, title_variants, approval_limits):
-    # Normalize input
-    title_key = title.strip().lower()
+# def is_valid_title(title, title_variants, approval_limits):
+#     # Normalize input
+#     title_key = title.strip().lower()
     
-    # Map to standardized title
-    normalized_title = title_variants.get(title_key)
-    if not normalized_title:
-        return False  # Unrecognized title
+#     # Map to standardized title
+#     normalized_title = title_variants.get(title_key)
+#     if not normalized_title:
+#         return False  # Unrecognized title
 
-    # Check if normalized title appears in any approval level
-    for roles in approval_limits.values():
-        if normalized_title in roles:
-            return True
+#     # Check if normalized title appears in any approval level
+#     for roles in approval_limits.values():
+#         if normalized_title in roles:
+#             return True
 
-    return False
+    # return False
+# def is_valid_title(title, title_variants, approval_limits):
+#     try:
+#         # Normalize input
+#         title_key = title.strip().lower()
+
+#         # Map to standardized title
+#         normalized_title = title_variants.get(title_key)
+#         if not normalized_title:
+#             return 0  # Unrecognized title
+
+#         # Check if normalized title appears in any approval level
+#         for roles in approval_limits.values():
+#             if normalized_title in roles:
+#                 return 1
+
+#         return 0
+#     except Exception:
+#         return 0
+
 def is_valid_title(title, title_variants, approval_limits):
     try:
-        # Normalize input
-        title_key = title.strip().lower()
+        title_cleaned = re.sub(r"[^a-zA-Z\s]", "", title).lower()
+        title_cleaned = re.sub(r"\s+", " ", title_cleaned).strip()
 
-        # Map to standardized title
-        normalized_title = title_variants.get(title_key)
-        if not normalized_title:
-            return 0  # Unrecognized title
+        # Try to match using substring (same logic as your main function)
+        for key in title_variants:
+            if key in title_cleaned:
+                normalized_title = title_variants[key]
+                # Check if normalized title appears in any approval level
+                for roles in approval_limits.values():
+                    if normalized_title in roles:
+                        return 1
+                return 0  # Title recognized but not in allowed roles
 
-        # Check if normalized title appears in any approval level
-        for roles in approval_limits.values():
-            if normalized_title in roles:
-                return 1
-
+        return 0  # No title matched
+    except Exception as e:
         return 0
-    except Exception:
-        return 0
+
 
 
 def is_amount_approved(amount: float, title: str) -> bool:
@@ -1825,7 +1845,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                 eml_status_code = 7
                                                 logger.info("Unrecognized approver title")
                                                 approval_Amt_val_msg = "Unrecognized approver title"
-                                                return_status["Unrecognized approver title"] = {"status": approval_Amt_val_status,
+                                                return_status[f"Unrecognized approver title:{coding_approver_title}"] = {"status": approval_Amt_val_status,
                                                                     "StatusCode":eml_status_code,
                                                                     "response": [
                                                                                     approval_Amt_val_msg
