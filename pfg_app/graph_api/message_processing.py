@@ -1,3 +1,4 @@
+import re
 import traceback
 import requests
 import base64
@@ -33,8 +34,12 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
         message_data = meta_resp.json()
 
         # 2.1) Extract the message subject (sanitize if needed)
-        message_subject = message_data.get("subject", "NoSubject")
+        message_sub = message_data.get("subject", "NoSubject")
+        # Remove all special characters, keep only letters and digits
+        message_subject = re.sub(r'[^A-Za-z0-9]', '', message_sub)
 
+        # Trim to first 25 characters
+        message_subject = message_subject[:30]
         # 3) Retrieve the full MIME content (native RFC822 format)
         mime_url = f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/messages/{message_id}/$value" # TODO:FLAG_GRAPH
         mime_headers = {
