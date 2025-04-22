@@ -22,7 +22,9 @@ from sqlalchemy.orm import Load, load_only
 from datetime import datetime, timedelta
 from fastapi import Response
 from azure.storage.blob import BlobServiceClient
+import pytz as tz
 
+tz_region = tz.timezone("US/Pacific")
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 from pfg_app.session.session import get_db
 # def parse_eml(file_path):
@@ -1975,7 +1977,8 @@ def corp_update_docHistory(documentID, userID, documentstatus, documentdesc, db,
         docHistory["user_id"] = userID
         docHistory["document_status"] = documentstatus
         docHistory["document_desc"] = documentdesc
-        docHistory["created_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        # docHistory["created_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        docHistory["created_on"] = datetime.now(tz_region).strftime("%Y-%m-%d %H:%M:%S")
         if docsubstatus!=0:
             docHistory["document_substatus"] = docsubstatus
         db.add(model.corp_hist_logs(**docHistory))
