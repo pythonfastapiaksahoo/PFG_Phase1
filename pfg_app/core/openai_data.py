@@ -54,7 +54,7 @@ def extract_invoice_details_using_openai(blob_data):
     try:
         logger.info(f"OpenAI Extracting invoice details started")
         prompt = """
-                The provided image contains invoice ID, vendor name, vendor address and other details. Extract the relevant information and format it as a list of JSON objects, adhering strictly to the structure provided below:
+                The provided image contains invoice ID, vendor name, vendor address and other details. Extract the relevant information and format it as a single JSON object, adhering strictly to the structure provided below:
 
                 {
                     "NumberOfPages": "Total number of pages in the document",
@@ -76,7 +76,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "Fuel Surcharge": "Extracted Fuel Surcharge",
                     "Freight Charges": "Extracted Fright Charges",
                     "misc": "Extracted miscellaneous charges",
-                    "Currency": "Extracted currency
+                    "Currency": "Extracted currency"
                 }
 
                 ### Instructions:
@@ -122,7 +122,7 @@ def extract_invoice_details_using_openai(blob_data):
                         - if "GST" is present in the invoice document, extract the value after GST. for example: 'GST $2.23' then extract 2.23.
                         - if "Goods and Services Tax" is present in the invoice document, extract the value after Goods and Services Tax. for example: 'Goods and Services Tax $2.23' then extract 2.23.
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
-                4. **Output Format**: Ensure that the JSON output is precise and clean, without any extra text or commentary like ```json```,  it will be processed using json.loads.
+                4. **Output Format**: Return a single JSON object with the extracted information. Do not return a list or array of JSON objects. The output should be a clean, valid JSON object that can be parsed using json.loads().
 
                 ### Example Output:
                 If the extracted text includes:
@@ -145,9 +145,9 @@ def extract_invoice_details_using_openai(blob_data):
                 - misc: "N/A"
                 - Currency: "CAD"
 
-                The expected output should be:
+                The expected output should be a single JSON object:
                 {
-                    "NumberOfPages": "3"
+                    "NumberOfPages": "3",
                     "CreditNote": "No",
                     "VendorName": "ABC Company",
                     "VendorAddress": "123 Main St, Anytown USA",
@@ -168,7 +168,6 @@ def extract_invoice_details_using_openai(blob_data):
                     "misc": "N/A",
                     "Currency": "CAD"
                 }
-
                 """
         # Set Tesseract OCR path (Windows users only, update path accordingly)
         # pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -184,7 +183,7 @@ def extract_invoice_details_using_openai(blob_data):
 
         # Get total number of pages
         total_pages = len(pdf_img)
-        print("Total pages:", total_pages)
+        logger.info(f"Total pages: {total_pages}")
         
         # Get file size in bytes, KB, or MB
         file_size_bytes = len(blob_data)
@@ -244,7 +243,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "Content-Type": "application/json",
                 }
         retry_count = 0
-        max_retries = 50
+        max_retries = 20
         while retry_count < max_retries:
             response = requests.post(
                 settings.open_ai_endpoint, headers=headers, json=data, timeout=120
@@ -267,9 +266,11 @@ def extract_invoice_details_using_openai(blob_data):
                     cleaned_json = json.loads(cl_data)
                 except BaseException:
                     try:
-                        cleaned_json = json.loads(cl_data.replace("'", '"'))
+                        cl_data_corrected = cl_data.replace("'", '"')
+                        cleaned_json = json.loads(cl_data_corrected)
                     except BaseException:
-                        cleaned_json = data
+                        logger.error("Failed to parse JSON response")
+                        raise Exception("Failed to parse JSON response")
                 status = "OpenAI Details Extracted"
                 return cleaned_json, total_pages, file_size_mb, status
                 # break
@@ -314,7 +315,7 @@ def extract_invoice_details_using_openai(blob_data):
         return cleaned_json, total_pages, file_size_mb, status
 
     except Exception:
-        logger.info(traceback.format_exc())
+        logger.error(f"Error while extracting invoice details: {traceback.format_exc()}")
         cleaned_json = {
             "NumberOfPages": "",
             "CreditNote": "",
@@ -337,7 +338,7 @@ def extract_invoice_details_using_openai(blob_data):
             "misc": "",
             "Currency": "CAD"
         }
-    status = "OpenAI - Response not found"
+        status = "OpenAI - Response not found"
     return cleaned_json, total_pages, file_size_mb, status
 
 def extract_approver_details_using_openai(msg):
@@ -373,7 +374,7 @@ def extract_approver_details_using_openai(msg):
             ### Extraction Criteria:  
             - Extract the email address of the sender from the last email sent. Otherwise, return "NA"..  
             - Extract the sent date of the last email and convert it to YYYY-MM-DD format. Otherwise, return "NA".  
-            - Extract the recipient’s email address from the "To" field of the last email sent. Otherwise, return "NA".  
+            - Extract the recipient's email address from the "To" field of the last email sent. Otherwise, return "NA".  
             - Extract the approver name only if explicitly mentioned below the "approved" phrase. Otherwise, return "NA".  
             - Extract the approver's designation only if explicitly stated. Otherwise, return "NA".  
             - Identify if the keyword **"approved"** exists in the approver's email. If it does, set **"Approved keyword"** to `"Approved"`. If a negative phrase such as `"not approved"`, `"cannot be approved"`, or similar is found, set **"Approved keyword"** to `"Not Approved"` and **"Approved keyword exists"** to `"No"`. If neither is present, return `"No"`.  
@@ -478,10 +479,10 @@ def extract_approver_details_using_openai(msg):
                 cl_data_corrected = cl_data.replace("'", '"')
                 cleaned_json = json.loads(cl_data_corrected)
             except BaseException:
-                cleaned_json = data
+                raise Exception("Failed to parse JSON response")
 
     except Exception:
-        logger.info(traceback.format_exc())
+        logger.error(f"Error while extracting approver details: {traceback.format_exc()}")
         status = "OpenAI - Response not found"
         cleaned_json = {
                 "from": "",
