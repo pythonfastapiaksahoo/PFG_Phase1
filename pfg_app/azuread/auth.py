@@ -1,3 +1,4 @@
+import time
 from typing import Any, List
 
 from fastapi import Depends, HTTPException, status
@@ -32,7 +33,7 @@ def get_user(
     user: AzureUser = Depends(authorize),
     db: Session = Depends(get_db),
 ) -> AzureUser:
-
+    insert_uid = 0
     if "User" in user.roles:
         # base_user = AzureUser(
         #     id="generic_id",
@@ -46,6 +47,11 @@ def get_user(
 
         # if user does not exist in the database, create a new user
         if not user_in_db:
+            time.sleep(0.5)
+            user_in_db = db.query(User).filter(User.azure_id == user.id).first()
+            if not user_in_db:
+                insert_uid = 1
+        if insert_uid == 1:
             user_in_db = User(
                 azure_id=user.id,
                 email=user.preferred_username,
@@ -88,11 +94,19 @@ def get_user_dependency(allowed_roles: list[str]):
         user: AzureUser = Depends(authorize), 
         db: Session = Depends(get_db)
     ) -> AzureUser:
+        insert_uid = 0
+
         if any(role in user.roles for role in allowed_roles):
             user_in_db = db.query(User).filter(User.azure_id == user.id).first()
 
             if not user_in_db:
                 # Insert new user
+                time.sleep(0.5)
+                user_in_db = db.query(User).filter(User.azure_id == user.id).first()
+                if not user_in_db:
+                    insert_uid = 1
+                    
+            if insert_uid == 1:
                 user_in_db = User(
                     azure_id=user.id,
                     email=user.preferred_username,
