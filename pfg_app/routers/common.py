@@ -32,7 +32,7 @@ from pfg_app.session.session import get_db
 router = APIRouter(
     prefix="/apiv1.1/Common",
     tags=["Common"],
-    dependencies=[Depends(get_user_dependency(["CORP_ConfigPortal_User","DSD_ConfigPortal_User","DSD_APPortal_User","CORP_APPortal_User","Admin","User"]))],
+    # dependencies=[Depends(get_user_dependency(["CORP_ConfigPortal_User","DSD_ConfigPortal_User","DSD_APPortal_User","CORP_APPortal_User","Admin","User"]))],
     # dependencies=[Depends(get_admin_user)],
     responses={404: {"description": "Not found"}},
 )
