@@ -445,6 +445,35 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             return return_status
             
         if docStatus in (32,2,4,24,21):
+            if vendor_code in (None,'') and vendor_id==0:
+                docStatus = 26
+                docSubStatus = 107
+                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                            model.corp_document_tab.last_updated_by: userID,
+                            model.corp_document_tab.updated_on: timeStmp,
+
+                        }
+                    )
+                db.commit()
+                try:
+                    documentdesc = "Vendor mapping required"
+                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                except Exception as e:
+                    logger.info(traceback.format_exc())
+                return_status["Vendor mapping required"] = {"status": 0,
+                                "StatusCode":0,
+                                "response": [
+                                                "Vendor mapping required"
+                                            ],
+                                    }
+                
+                logger.info(f"return corp validations(ln 70): {return_status}")
+
+                return return_status
             #----------
             #check if vendor is active or not: -
             try:
@@ -504,7 +533,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
             except Exception:
                 logger.info(traceback.format_exc())
-                
+
             try:
                 if invoice_id in [None, ""]:
                  # Query corp_docdata
