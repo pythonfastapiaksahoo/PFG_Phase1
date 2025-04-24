@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import requests
@@ -16,35 +17,41 @@ class MarkAsReadRequest(BaseModel):
     message_id: str
 
 # @router.patch("/mails/mark-as-read")
-def mark_processed_mail_as_read(message_id: str, db: Session = Depends(get_db)):
+def mark_processed_mail_as_read(mail_row_key):
     try:
-      logger.info(f"Marking mail as read")
-      # Get access token
-      token_manager = MSGraphAPITokenManager()
-      access_token = token_manager.get_access_token()
-      headers = {
-          "Authorization": f"Bearer {access_token}",
-          "Content-Type": "application/json"
-      }
+        db = next(get_db())
+        mail_id_str = mail_row_key.split("-")[-1]
+        mail_id = int(mail_id_str)
 
-      # Call Graph API to mark mail as read
-      patch_url = (
-          f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/messages/{message_id}"
-      )
-      body = {
-          "isRead": True
-      }
+        # Query CorpMail to get message_id
+        corp_mail = db.query(model.CorpMail).filter(model.CorpMail.id == mail_id).first()
+        if not corp_mail:
+            raise Exception(f"CorpMail with id {mail_id} not found")
 
-      response = requests.patch(patch_url, json=body, headers=headers)
-      if response.status_code != 200:
-          raise HTTPException(status_code=response.status_code, detail="Failed to update message status")
+        message_id = corp_mail.message_id
+        logger.info(f"Marking mail as read")
+        # Get access token
+        token_manager = MSGraphAPITokenManager()
+        access_token = token_manager.get_access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
 
-      # Optionally update in your local DB if needed
-      mail = db.query(model.CorpMail).filter(model.CorpMail.message_id == message_id).first()
-      if mail:
-          mail_row_key = mail.id
+        # Call Graph API to mark mail as read
+        patch_url = (
+            f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/messages/{message_id}"
+        )
+        body = {
+            "isRead": True
+        }
 
-      return {f"Mail with mail_row_key {mail_row_key} marked as read successfully"}
+        response = requests.patch(patch_url, json=body, headers=headers)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Failed to update message status")
+
+        return {f"Mail with mail_row_key {mail_row_key} marked as read successfully"}
 
     except Exception as e:
+        logger.error(f"Error marking mail as read: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
