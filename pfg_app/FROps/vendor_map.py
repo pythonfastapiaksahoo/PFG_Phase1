@@ -239,7 +239,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
 
         docStatus = 4
         documentdesc = f"Vendor match found:{vrd_cd}"
-        substatus = 11
+        substatus = 7
         corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
         
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
@@ -259,9 +259,9 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         NotOnboarded_matching_vendors = find_best_vendor_match_not_onboarded(openai_vendor_name, openai_vendor_address, vendorName_df)
         logger.info(f"NotOnboarded_matching_vendors: {NotOnboarded_matching_vendors}")
         if len(NotOnboarded_matching_vendors) == 1:
-            if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Full Match' :
-                if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Name Match' :
-                    print("Name Match only") 
+            if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] in ['Full Match','Name Match'] :
+                # if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Name Match' :
+                    logger.info(f"match type:{NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"]}")
                     vendorFound  = 1
                     notOnboarded = 1
             else:
@@ -327,7 +327,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         if vndMth_address_ck in [1,"yes"]:
             vendorID = matched_id_vendor
             docStatus = 4
-            substatus = 11
+            substatus = 7
             db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
             ).update(
                 {

@@ -408,7 +408,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                         
                 docStatus = 4
-                docSubStatus = 11
+                docSubStatus = 7
                 db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
                     ).update(
                         {
@@ -775,7 +775,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     db.commit()
                                     vdr_id_map = 1
                                     docStatus = 4
-                                    docSubStatus = 11
+                                    docSubStatus = 7
                                 else:
                                     try:
                                         documentdesc = "Vendor mapping required"
@@ -1263,8 +1263,19 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                         #currency validation: 
                         try:
-                            if mand_currency != metadata_currency:
+                            if process_inactive==1:
+                                    currency_ck = 1
+                                    currency_ck_msg = "User processing manually."
+                                    return_status["Currency validation"] = {"status": 1,
+                                                    "StatusCode":0,
+                                                    "response": [
+                                                                    f"User processing manually."
+                                                                ],
+                                                            }
+                                    
+                            elif mand_currency != metadata_currency:
                                 if skip_currency_check == 1:
+                                    currency_ck_msg = "Currency validation skipped by user"
                                     currency_ck = 1
                                     return_status["Currency validation"] = {"status": 1,
                                                     "StatusCode":0,
@@ -1273,14 +1284,15 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 ],
                                                             }
                                     currency_ck_msg = f"Currency validation skipped by user"
-                                elif process_inactive==1:
-                                    currency_ck = 1
-                                    return_status["Currency validation"] = {"status": 1,
-                                                    "StatusCode":0,
-                                                    "response": [
-                                                                    f"User processing manually."
-                                                                ],
-                                                            }
+                                # elif process_inactive==1:
+                                #     currency_ck = 1
+                                #     currency_ck_msg = "User processing manually."
+                                #     return_status["Currency validation"] = {"status": 1,
+                                #                     "StatusCode":0,
+                                #                     "response": [
+                                #                                     f"User processing manually."
+                                #                                 ],
+                                #                             }
                                 else:
                                     return_status["Currency validation"] = {"status": 0,
                                                     "StatusCode":8,
@@ -1288,7 +1300,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                     f"Currency validation failed: invoice currency {mand_currency} does not match metadata currency {metadata_currency}"
                                                                 ],
                                                             }
-                                currency_ck_msg = f"Currency validation failed: invoice currency {mand_currency} does not match metadata currency {metadata_currency}"
+                                    currency_ck_msg = f"Currency validation failed: invoice currency {mand_currency} does not match metadata currency {metadata_currency}"
                             else:
                                 currency_ck = 1
                                 return_status["Currency validation"] = {"status": 1,
