@@ -3414,28 +3414,33 @@ async def download_corp_paginate_doc_inv_list(
                 model.corp_document_tab,
                 model.DocumentStatus,
                 model.DocumentSubStatus,
-                # model.Vendor,
-                model.corp_docdata,
-                model.User.firstName.label("last_updated_by"),
+                model.Vendor,
+                # model.corp_docdata,
+                # model.User.firstName.label("last_updated_by"),
             )
             .options(
                 Load(model.corp_document_tab).load_only(
                     "invoice_id",
                     "invoicetotal",
                     "documentstatus",
-                    "created_on",
+                    "updated_on",
                     "documentsubstatus",
                     "sender",
                     "document_type",
                     "invoice_date",
                     "voucher_id",
                     "mail_row_key",
-                    "vendor_code"
+                    "vendor_code",
+                    "approved_by",
+                    "approver_title",
+                    "invoice_type",
+                    "created_on",
+                    "last_updated_by",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
-                Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
-                # Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
+                # Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
+                Load(model.Vendor).load_only("VendorName", "Address", "VendorCode"),
                 
             )
             .join(
@@ -3444,40 +3449,40 @@ async def download_corp_paginate_doc_inv_list(
                 == model.corp_document_tab.documentsubstatus,
                 isouter=True,
             )
-            # .join(
-            #     model.Vendor,
-            #     model.Vendor.idVendor == model.corp_document_tab.vendor_id,
-            #     isouter=True,
-            # )
+            .join(
+                model.Vendor,
+                model.Vendor.idVendor == model.corp_document_tab.vendor_id,
+                isouter=True,
+            )
             .join(
                 model.DocumentStatus,
                 model.DocumentStatus.idDocumentstatus
                 == model.corp_document_tab.documentstatus,
                 isouter=True,
             )
-            .join(
-                model.corp_docdata,
-                model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
-                isouter=True,
-            )
-            .join(
-                model.User,
-                model.User.idUser == model.corp_document_tab.last_updated_by,
-                isouter=True,
-            )
-            # .filter(
-            #     model.corp_document_tab.vendor_id.isnot(None),
+            # .join(
+            #     model.corp_docdata,
+            #     model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
+            #     isouter=True,
             # )
+            # .join(
+            #     model.User,
+            #     model.User.idUser == model.corp_document_tab.last_updated_by,
+            #     isouter=True,
+            # )
+            .filter(
+                model.corp_document_tab.vendor_id.isnot(None),
+            )
         )
 
-        # # Apply vendor ID filter if provided
-        # if ven_id:
-        #     sub_query = db.query(model.corp_document_tab.vendor_id).filter_by(
-        #         vendor_id=ven_id
-        #     )
-        #     data_query = data_query.filter(
-        #         model.corp_document_tab.vendor_id.in_(sub_query)
-        #     )
+        # Apply vendor ID filter if provided
+        if ven_id:
+            sub_query = db.query(model.Vendor.idVendor).filter_by(
+                idVendor=ven_id
+            )
+            data_query = data_query.filter(
+                model.corp_document_tab.vendor_id.in_(sub_query)
+            )
 
         status_list = []
         if stat:
@@ -3490,22 +3495,22 @@ async def download_corp_paginate_doc_inv_list(
                 data_query = data_query.filter(
                     model.corp_document_tab.documentstatus.in_(status_ids)
                 )
-        # # Apply vendor status filter if provided
-        # if ven_status:
-        #     if ven_status == "A":
-        #         data_query = data_query.filter(
-        #             func.jsonb_extract_path_text(
-        #                 model.Vendor.miscellaneous, "VENDOR_STATUS"
-        #             )
-        #             == "A"
-        #         )
-        #     elif ven_status == "I":
-        #         data_query = data_query.filter(
-        #             func.jsonb_extract_path_text(
-        #                 model.Vendor.miscellaneous, "VENDOR_STATUS"
-        #             )
-        #             == "I"
-        #         )
+        # Apply vendor status filter if provided
+        if ven_status:
+            if ven_status == "A":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "A"
+                )
+            elif ven_status == "I":
+                data_query = data_query.filter(
+                    func.jsonb_extract_path_text(
+                        model.Vendor.miscellaneous, "VENDOR_STATUS"
+                    )
+                    == "I"
+                )
 
         # Apply date range filter for documentDate
         if date_range:
@@ -3546,8 +3551,8 @@ async def download_corp_paginate_doc_inv_list(
                     normalize_string(model.corp_document_tab.document_type).ilike(pattern),
                     normalize_string(model.corp_document_tab.voucher_id).ilike(pattern),
                     normalize_string(model.corp_document_tab.mail_row_key).ilike(pattern),
-                    normalize_string(model.corp_docdata.vendor_name).ilike(pattern),
-                    normalize_string(model.corp_docdata.vendoraddress).ilike(pattern),
+                    normalize_string(model.Vendor.VendorName).ilike(pattern),
+                    normalize_string(model.Vendor.Address).ilike(pattern),
                     normalize_string(model.DocumentSubStatus.status).ilike(pattern),
                     normalize_string(model.DocumentStatus.status).ilike(pattern),
                     normalize_string(model.DocumentStatus.description).ilike(pattern),
@@ -3556,7 +3561,7 @@ async def download_corp_paginate_doc_inv_list(
 
         # Get the total count of records before applying limit and offset
         # total_count = data_query.distinct(model.corp_document_tab.corp_doc_id).count()
-        total_count = db.query(func.count(distinct(model.corp_document_tab.corp_doc_id))).scalar()
+        total_count = data_query.distinct(model.corp_document_tab.corp_doc_id).count()
 
         
         Documentdata = data_query.order_by(model.corp_document_tab.corp_doc_id).all()
