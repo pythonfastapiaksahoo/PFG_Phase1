@@ -446,6 +446,65 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
             
         if docStatus in (32,2,4,24,21):
             #----------
+            #check if vendor is active or not: -
+            try:
+                if "9" in str(skipConf):
+                    process_inactive = 1
+                    documentdesc = "Inactive vendor invoice processed by user"
+                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+
+                else:
+                    try:
+                        query = db.query(
+                            model.Vendor.idVendor,
+                            func.jsonb_extract_path_text(model.Vendor.miscellaneous, "VENDOR_STATUS").label("VENDOR_STATUS")
+                        ).filter(
+                            model.Vendor.idVendor == vendor_id
+                        )
+
+                        result = query.first()
+                    
+                        if result:
+                            vendor_status = result.VENDOR_STATUS
+                            if vendor_status == "A":
+                                vrd_status = 1
+                                logger.info(f"Vendor {result.idVendor} is active")
+                            else:
+                                vrd_status = 0
+                                logger.info(f"Vendor {result.idVendor} is inactive")
+                        else:
+                            logger.info("Vendor not found")
+                        if vrd_status==0:
+                            docStatus = 4
+                            docSubStatus = 22
+                            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                                ).update(
+                                    {
+                                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                                        model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                                        model.corp_document_tab.last_updated_by: userID,
+                                        model.corp_document_tab.updated_on: timeStmp,
+                                        model.corp_document_tab.vendor_id: vendor_id,
+
+                                    }
+                                )
+                            db.commit()
+                            documentdesc = "Inactive vendor"
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                            return_status["Status overview"] = {"status": 0,
+                                                        "StatusCode":9,
+                                                        "response": [
+                                                                        "Inactive vendor"
+                                                                    ],
+                                                            }
+                            return return_status
+                    except Exception as e:
+                        logger.error(f"Vendor not found {e}")
+                        logger.info(traceback.format_exc())
+
+            except Exception:
+                logger.info(traceback.format_exc())
+                
             try:
                 if invoice_id in [None, ""]:
                  # Query corp_docdata
@@ -520,7 +579,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                 .all()
                 )
 
-                
+              
                 df_dupCk_document = pd.DataFrame([
                     {col: getattr(row, col) for col in model.corp_document_tab.__table__.columns.keys()}
                     for row in dupCk_document_data
@@ -613,64 +672,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                 logger.info(traceback.format_exc())
                 
             # ------
-            #check if vendor is active or not: -
-            try:
-                if "9" in str(skipConf):
-                    process_inactive = 1
-                    documentdesc = "Inactive vendor invoice processed by user"
-                    corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
-
-                else:
-                    try:
-                        query = db.query(
-                            model.Vendor.idVendor,
-                            func.jsonb_extract_path_text(model.Vendor.miscellaneous, "VENDOR_STATUS").label("VENDOR_STATUS")
-                        ).filter(
-                            model.Vendor.idVendor == vendor_id
-                        )
-
-                        result = query.first()
-                    
-                        if result:
-                            vendor_status = result.VENDOR_STATUS
-                            if vendor_status == "A":
-                                vrd_status = 1
-                                logger.info(f"Vendor {result.idVendor} is active")
-                            else:
-                                vrd_status = 0
-                                logger.info(f"Vendor {result.idVendor} is inactive")
-                        else:
-                            logger.info("Vendor not found")
-                        if vrd_status==0:
-                            docStatus = 4
-                            docSubStatus = 22
-                            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
-                                ).update(
-                                    {
-                                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                                        model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
-                                        model.corp_document_tab.last_updated_by: userID,
-                                        model.corp_document_tab.updated_on: timeStmp,
-                                        model.corp_document_tab.vendor_id: vendor_id,
-
-                                    }
-                                )
-                            db.commit()
-                            documentdesc = "Inactive vendor"
-                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
-                            return_status["Status overview"] = {"status": 0,
-                                                        "StatusCode":9,
-                                                        "response": [
-                                                                        "Inactive vendor"
-                                                                    ],
-                                                            }
-                            return return_status
-                    except Exception as e:
-                        logger.error(f"Vendor not found {e}")
-                        logger.info(traceback.format_exc())
-
-            except Exception:
-                logger.info(traceback.format_exc())
+            
             #-----
 
             nocoding_ck = 0
