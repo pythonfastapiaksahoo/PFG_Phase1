@@ -294,22 +294,51 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
             )
         db.commit()
     elif notOnboarded==1:
-        # vendor not onboarded: docStatus = 25 & substatus = 106
-        docStatus = 25
-        substatus = 106
-        documentdesc = "Vendor not onboarded"
-        corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
-        
-        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
-            ).update(
-                {
-                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                    model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
-                    model.corp_document_tab.last_updated_by: userID,
-                    model.corp_document_tab.vendor_id:0,
-                }
-            )
-        db.commit()
+        if vendorFound==1:
+            try:
+                matched_id_vendor = matching_vendors[list(matching_vendors.keys())[0]]["vendor_id"]
+                vendorID = matched_id_vendor
+                vrd_cd = matching_vendors[list(matching_vendors.keys())[0]]["vendor_code"]
+
+                # docStatus = 4
+                documentdesc = f"Vendor match found:{vrd_cd}, but not onboarded"
+                # substatus = 7
+                docStatus = 25
+                substatus = 106
+                corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+                
+                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+                ).update(
+                    {
+                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                        model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                        model.corp_document_tab.last_updated_by: userID,
+                        model.corp_document_tab.vendor_id: vendorID,
+                        model.corp_document_tab.vendor_code:vrd_cd
+
+                    }
+                )
+                db.commit()
+            except Exception as e:
+                logger.error(f"Error in updating vendorid: {e}")
+                logger.info(traceback.format_exc())
+        else:
+            # vendor not onboarded: docStatus = 25 & substatus = 106
+            docStatus = 25
+            substatus = 106
+            documentdesc = "Vendor not onboarded"
+            corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+            
+            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+                ).update(
+                    {
+                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                        model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                        model.corp_document_tab.last_updated_by: userID,
+                        model.corp_document_tab.vendor_id:0,
+                    }
+                )
+            db.commit()
         
     elif openAIcall_required==1:
         logger.info(f"OpenAIcall_required: {openAIcall_required}")
