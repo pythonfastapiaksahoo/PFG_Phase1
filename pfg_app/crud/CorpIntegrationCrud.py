@@ -3416,7 +3416,7 @@ async def download_corp_paginate_doc_inv_list(
                 model.DocumentSubStatus,
                 model.Vendor,
                 # model.corp_docdata,
-                # model.User.firstName.label("last_updated_by"),
+                model.User.firstName.label("last_updated_by"),
             )
             .options(
                 Load(model.corp_document_tab).load_only(
@@ -3435,7 +3435,6 @@ async def download_corp_paginate_doc_inv_list(
                     "approver_title",
                     "invoice_type",
                     "created_on",
-                    "last_updated_by",
                 ),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
@@ -3460,16 +3459,11 @@ async def download_corp_paginate_doc_inv_list(
                 == model.corp_document_tab.documentstatus,
                 isouter=True,
             )
-            # .join(
-            #     model.corp_docdata,
-            #     model.corp_docdata.corp_doc_id == model.corp_document_tab.corp_doc_id,
-            #     isouter=True,
-            # )
-            # .join(
-            #     model.User,
-            #     model.User.idUser == model.corp_document_tab.last_updated_by,
-            #     isouter=True,
-            # )
+            .join(
+                model.User,
+                model.User.idUser == model.corp_document_tab.last_updated_by,
+                isouter=True,
+            )
             .filter(
                 model.corp_document_tab.vendor_id.isnot(None),
             )
@@ -3572,7 +3566,7 @@ async def download_corp_paginate_doc_inv_list(
         return {"ok": {"Documentdata": Documentdata, "TotalCount": total_count}}
 
     except Exception:
-        logger.error(traceback.format_exc())
+        logger.error(f"Error in fetching document list for downloading: {traceback.format_exc()}")
         return Response(status_code=500)
     finally:
         db.close()
