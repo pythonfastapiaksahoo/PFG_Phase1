@@ -261,7 +261,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         if len(NotOnboarded_matching_vendors) == 1:
             if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] in ['Full Match','Name Match'] :
                 # if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Name Match' :
-                    logger.info(f"match type:{NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"]}")
+                    logger.info(f"match type:{NotOnboarded_matching_vendors}")
                     vendorFound  = 1
                     notOnboarded = 1
             else:
