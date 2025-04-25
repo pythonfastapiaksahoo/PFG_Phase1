@@ -70,6 +70,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                 db.add(corp_mail)
                 db.commit()
                 db.refresh(corp_mail)
+                logger.info(f"New message ID: {message_id}, Mail ID: {corp_mail.id}")
                 # Offload processing to a background task
                 background_tasks.add_task(process_new_message, message_id, corp_mail.id, operation_id)
     logger.info(f"Webhook received {len(notifications)} notifications")
@@ -111,7 +112,14 @@ def delete_subscriptions(subscription_id: str, db: Session = Depends(get_db), us
         if not subscription:
             logger.info(f"Subscription not found in the database")
         else:
-            db.delete(subscription)
+            logger.info(f"Subscription found in the database")
+            # delete the subscription from the database's task_metadata
+            subscription.task_metadata = {
+                "SUBSCRIPTION_ID": None,
+                "SUBSCRIPTION_EXPIRATION": None,
+                "CLIENT_STATE": "mPmirf4hPku74aT0TQjgCA",
+            }
+            db.add(subscription)
             db.commit()
     except Exception:
         logger.info(f"Exception while delete in db {traceback.format_exc() }")

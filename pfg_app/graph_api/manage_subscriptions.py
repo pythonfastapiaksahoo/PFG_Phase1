@@ -6,12 +6,14 @@ import time
 
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
 from pfg_app.graph_api.retry_unprocessed_corp_mails import fetch_and_process_recent_graph_mails
+from pfg_app.graph_api.utils import get_folder_id
 from pfg_app.logger_module import logger, set_operation_id
 from pfg_app.model import BackgroundTask
 from pfg_app.session.session import get_db
 from pfg_app import settings
 
 
+    
 def parse_timestamp(dt_str):
     # dt_str like "2025-01-23T12:34:56Z"
     return time.mktime(time.strptime(dt_str, "%Y-%m-%dT%H:%M:%SZ"))
@@ -80,10 +82,16 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
+    mail_folder_id = get_folder_id("IDP", access_token)
+    if mail_folder_id:
+        logger.info(f"Mail folder IDP found: {mail_folder_id}")
+    else:
+        logger.info(f"Mail folder IDP not found, creating a new one Manually")
+        return False
     body = {
         "changeType": "created",
         "notificationUrl": PUBLIC_ENDPOINT,
-        "resource": f"/users/{EMAIL_ID}/mailFolders('IDP')/messages", # TODO:FLAG_GRAPH
+        "resource": f"/users/{EMAIL_ID}/mailFolders/{mail_folder_id}/messages", # TODO:FLAG_GRAPH
         "expirationDateTime": expiration_str,
         "clientState": subscription_details["CLIENT_STATE"]
     }
@@ -98,6 +106,7 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
         logger.info(f"Created new subscription:{subscription_details['SUBSCRIPTION_ID']} expires:{data['expirationDateTime']}")
         return subscription_details
     else:
+        logger.info(f"body: {body}")
         raise Exception(f"Failed to create subscription: {resp.status_code} {resp.text}")
 
 def subscription_renewal_loop(operation_id):
@@ -179,10 +188,16 @@ def create_or_renew_subscription(background_task,db, notificationUrl):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
+    mail_folder_id = get_folder_id("IDP", access_token)
+    if mail_folder_id:
+        logger.info(f"Mail folder IDP found: {mail_folder_id}")
+    else:
+        logger.info(f"Mail folder IDP not found, creating a new one Manually")
+        return False
     body = {
         "changeType": "created",
         "notificationUrl": notificationUrl, # TODO:FLAG_GRAPH # 7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook
-        "resource": f"/users/{settings.graph_corporate_mail_id}/mailFolders('IDP')/messages", # TODO:FLAG_GRAPH
+        "resource": f"/users/{settings.graph_corporate_mail_id}/mailFolders/{mail_folder_id}/messages", # TODO:FLAG_GRAPH
         "expirationDateTime": expiration_str,
         "clientState": subscription_details["CLIENT_STATE"]
     }
