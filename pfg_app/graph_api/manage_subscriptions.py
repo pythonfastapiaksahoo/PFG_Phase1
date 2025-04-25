@@ -106,6 +106,7 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
         logger.info(f"Created new subscription:{subscription_details['SUBSCRIPTION_ID']} expires:{data['expirationDateTime']}")
         return subscription_details
     else:
+        logger.info(f"body: {body}")
         raise Exception(f"Failed to create subscription: {resp.status_code} {resp.text}")
 
 def subscription_renewal_loop(operation_id):
