@@ -86,7 +86,7 @@ def extract_invoice_details_using_openai(blob_data):
                 - **CreditNote**: Yes/No
                 - **Invoice ID**: Extracted Invoice ID from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
                 - **Vendor Name**:  Extracted vendor name from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections).
-                                    Ensure to capture the primary vendor name typically found at the top of the document. 
+                                    Ensure to capture the primary vendor name typically found in the invoice document (consider 'remit payment to' if present). 
                                     Return "N/A" if the vendor name is not present in the invoice document.
                 - **Vendor Address**: Extracted vendor address from invoice document.
                                     Ensure to capture the primary vendor address typically found in the invoice document (including 'remit payment to' if present).
@@ -109,12 +109,12 @@ def extract_invoice_details_using_openai(blob_data):
                     - **Vendor Name:** : Don't consider the vendor name from 'Sold To' or 'Ship To' or 'Bill To' section.
                         - Ensure to capture the primary vendor name typically found at the top of the document (Excluding 'Pattison Food Group').
                         - Sometime vendor name may be name of person, so ensure to capture name of person with prefix 'Name:', for example 'Barry Smith', then return 'Barry Smith'.
-                        - If the vendor name is not present at the top of the invoice document,then check if its present at the bottom with prefix 'please remit payment to:' or 'pay to:'
+                        - If the vendor name is present at the bottom with prefix 'please remit payment to:' or 'pay to:' then always consider from it instead from the top of the invoice document.
                         - Return "N/A" if the vendor name is not present in the invoice document.
                     - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                     - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                         - Ensure to capture the primary vendor address typically found in the top of the invoice document.
-                        - If the vendor address is  not present at the top of the invoice document,then check if its present at the bottom with prefix 'please remit payment to:' or 'pay to:'.
+                        - If the vendor address is present at the bottom with prefix 'please remit payment to:' or 'pay to:' then always consider from it instead from the top of the invoice document.
                         - if the vendor address is not present in the invoice document, return "N/A".
                     - **CreditNote** : if "Credit Memo" or Credit Note" is present in the invoice document, then return "Yes" else return "No".
                         - if the invoice total fields is in negative or in braces, then return "Yes".for example, '-123.45' or '123.45-' or (123.45) return "Yes".
