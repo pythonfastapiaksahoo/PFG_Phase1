@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.responses import PlainTextResponse
 from pfg_app.azuread.auth import get_admin_user, get_user_dependency
@@ -100,7 +101,25 @@ def delete_subscriptions(subscription_id: str, db: Session = Depends(get_db), us
     """
     Delete a subscription
     """
-    token_manager = MSGraphAPITokenManager()
-    access_token = token_manager.get_access_token()
-    delete_subscription(access_token, subscription_id)
-    return {"message": "Subscription deleted"}
+    # delete from db 
+    try:
+        subscription = db.query(BackgroundTask).filter(
+            BackgroundTask.task_name == "subscription_renewal_loop"
+        ).filter(
+            BackgroundTask.task_metadata["SUBSCRIPTION_ID"].astext == subscription_id
+        ).first()
+        if not subscription:
+            logger.info(f"Subscription not found in the database")
+        else:
+            db.delete(subscription)
+            db.commit()
+    except Exception:
+        logger.info(f"Exception while delete in db {traceback.format_exc() }")
+    try:
+        # delete from graph
+        token_manager = MSGraphAPITokenManager()
+        access_token = token_manager.get_access_token()
+        delete_subscription(access_token, subscription_id)
+        return {"message": "Subscription deleted"}
+    except Exception:
+        return {"error": traceback.format_exc() }
