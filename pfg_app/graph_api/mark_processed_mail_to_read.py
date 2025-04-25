@@ -13,8 +13,8 @@ from pfg_app import settings
 
 router = APIRouter()
 
-class MarkAsReadRequest(BaseModel):
-    message_id: str
+# class MarkAsReadRequest(BaseModel):
+#     message_id: str
 
 # @router.patch("/mails/mark-as-read")
 def mark_processed_mail_as_read(mail_row_key):
@@ -26,7 +26,7 @@ def mark_processed_mail_as_read(mail_row_key):
         # Query CorpMail to get message_id
         corp_mail = db.query(model.CorpMail).filter(model.CorpMail.id == mail_id).first()
         if not corp_mail:
-            raise Exception(f"CorpMail with id {mail_id} not found")
+            logger.error(f"CorpMail with id {mail_id} not found")
 
         message_id = corp_mail.message_id
         logger.info(f"Marking mail as read")
@@ -48,10 +48,14 @@ def mark_processed_mail_as_read(mail_row_key):
 
         response = requests.patch(patch_url, json=body, headers=headers)
         if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="Failed to update message status")
-
-        return {f"Mail with mail_row_key {mail_row_key} marked as read successfully"}
+            # raise HTTPException(status_code=response.status_code, detail="Failed to update message status")
+            logger.error(f"Failed to update message status: {response.status_code}")
+            return "failed"
+            # return {"error": "Failed to update message status"}
+            
+        return "success"
 
     except Exception as e:
         logger.error(f"Error marking mail as read: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return "failed"
+        
