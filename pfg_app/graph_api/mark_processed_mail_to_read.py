@@ -16,6 +16,7 @@ from pfg_app import settings
 
 def mark_processed_mail_as_read(mail_row_key):
     try:
+        logger.info(f"Marking mail as read for mail_row_key: {mail_row_key} initiated.")
         db = next(get_db())
         mail_id_str = mail_row_key.split("-")[-1]
         mail_id = int(mail_id_str)
