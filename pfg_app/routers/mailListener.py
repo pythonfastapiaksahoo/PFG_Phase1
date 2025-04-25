@@ -1,6 +1,8 @@
+import traceback
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.responses import PlainTextResponse
-from pfg_app.azuread.auth import get_admin_user
+from pfg_app.azuread.auth import get_admin_user, get_user_dependency
+from pfg_app.azuread.schemas import AzureUser
 from pfg_app.graph_api.manage_subscriptions import delete_subscription, get_subscriptions
 from pfg_app.graph_api.message_processing import process_new_message
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
@@ -75,7 +77,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
 
 # List all the subscriptions
 @router.get("/subscriptions")
-def list_subscriptions(db: Session = Depends(get_db), admin_user: bool = Depends(get_admin_user)):
+def list_subscriptions(db: Session = Depends(get_db), user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","CORP_APPortal_User","DSD_ConfigPortal_User","CORP_ConfigPortal_User"]))):
     """
     List all the subscriptions
     """
@@ -95,11 +97,29 @@ def list_subscriptions(db: Session = Depends(get_db), admin_user: bool = Depends
 
 # Delete a subscription
 @router.delete("/subscriptions/{subscription_id}")
-def delete_subscriptions(subscription_id: str, db: Session = Depends(get_db), admin_user: bool = Depends(get_admin_user)):
+def delete_subscriptions(subscription_id: str, db: Session = Depends(get_db), user: AzureUser = Depends(get_user_dependency(["DSD_APPortal_User","CORP_APPortal_User","DSD_ConfigPortal_User","CORP_ConfigPortal_User"]))):
     """
     Delete a subscription
     """
-    token_manager = MSGraphAPITokenManager()
-    access_token = token_manager.get_access_token()
-    delete_subscription(access_token, subscription_id)
-    return {"message": "Subscription deleted"}
+    # delete from db 
+    try:
+        subscription = db.query(BackgroundTask).filter(
+            BackgroundTask.task_name == "subscription_renewal_loop"
+        ).filter(
+            BackgroundTask.task_metadata["SUBSCRIPTION_ID"].astext == subscription_id
+        ).first()
+        if not subscription:
+            logger.info(f"Subscription not found in the database")
+        else:
+            db.delete(subscription)
+            db.commit()
+    except Exception:
+        logger.info(f"Exception while delete in db {traceback.format_exc() }")
+    try:
+        # delete from graph
+        token_manager = MSGraphAPITokenManager()
+        access_token = token_manager.get_access_token()
+        delete_subscription(access_token, subscription_id)
+        return {"message": "Subscription deleted"}
+    except Exception:
+        return {"error": traceback.format_exc() }
