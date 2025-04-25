@@ -16,7 +16,7 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
     upload the message as an EML file, recursively process attachments (including emails embedded as attachments)
     and upload them to blob storage, 
     and add an entry to the CorpQueue table.
-    # and finally move the message to the 'inbox' folder.
+    #
     """
     try:
         # 1) Get the access token

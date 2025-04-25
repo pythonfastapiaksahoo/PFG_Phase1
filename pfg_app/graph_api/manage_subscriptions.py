@@ -83,7 +83,7 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
     body = {
         "changeType": "created",
         "notificationUrl": PUBLIC_ENDPOINT,
-        "resource": f"/users/{EMAIL_ID}/mailFolders('Inbox')/messages", # TODO:FLAG_GRAPH
+        "resource": f"/users/{EMAIL_ID}/mailFolders('IDP')/messages", # TODO:FLAG_GRAPH
         "expirationDateTime": expiration_str,
         "clientState": subscription_details["CLIENT_STATE"]
     }
@@ -103,6 +103,18 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
 def subscription_renewal_loop(operation_id):
     logger.info(f"subscription_renewal_loop operation_id:{operation_id}")
     set_operation_id(operation_id)
+    
+    # identify the notificationUrl from the settings build type
+    if settings.build_type == "dev":
+        notificationUrl = 'https://dev.mail.ia.owfg.com' # TODO:FLAG_GRAPH
+    elif settings.build_type == "qa":
+        notificationUrl = 'https://qa.mail.ia.owfg.com'
+    elif settings.build_type == "prod":
+        notificationUrl = 'https://prod.mail.ia.owfg.com'
+    else:
+        logger.error(f"Invalid build type: {settings.build_type}")
+        return False
+    
     try:
         db = next(get_db())
         # get the background task and lock it and if it could not be locked end the thread
@@ -123,7 +135,7 @@ def subscription_renewal_loop(operation_id):
             set_operation_id(operation_id)
             logger.info(f"subscription_renewal_loop loop running")
             try:
-                create_or_renew_subscription(background_task,db)
+                create_or_renew_subscription(background_task,db, notificationUrl)
             except Exception:
                 logger.error(f"create_or_renew_subscription_task error: {traceback.format_exc()}")
             logger.info(f"subscription_renewal_loop loop sleeping for 5 minutes")
@@ -134,9 +146,9 @@ def subscription_renewal_loop(operation_id):
     except Exception:
         logger.error(f"subscription_renewal_loop error: {traceback.format_exc()}")
 
-def create_or_renew_subscription(background_task,db):
+def create_or_renew_subscription(background_task,db, notificationUrl):
     """
-    Create or renew a subscription for the user's Inbox to get notifications when new messages arrive.
+    Create or renew a subscription for the user's IDP to get notifications when new messages arrive.
     """
  
     now_ts = time.time()
@@ -145,7 +157,7 @@ def create_or_renew_subscription(background_task,db):
     # from background_task get the subscription_details if it is not present create a new one
     subscription_details = background_task.task_metadata
     if not subscription_details or not subscription_details["SUBSCRIPTION_ID"] or not subscription_details["SUBSCRIPTION_EXPIRATION"]:
-        subscription_details = create_subscriptions(access_token,'https://qa.mail.ia.owfg.com',settings.graph_corporate_mail_id) # TODO:FLAG_GRAPH
+        subscription_details = create_subscriptions(access_token, notificationUrl,settings.graph_corporate_mail_id) # TODO:FLAG_GRAPH
         background_task.task_metadata = subscription_details
         db.add(background_task)
         db.commit()
@@ -169,8 +181,8 @@ def create_or_renew_subscription(background_task,db):
     }
     body = {
         "changeType": "created",
-        "notificationUrl": 'https://qa.mail.ia.owfg.com', # TODO:FLAG_GRAPH # 7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook
-        "resource": f"/users/{settings.graph_corporate_mail_id}/mailFolders('Inbox')/messages", # TODO:FLAG_GRAPH
+        "notificationUrl": notificationUrl, # TODO:FLAG_GRAPH # 7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook
+        "resource": f"/users/{settings.graph_corporate_mail_id}/mailFolders('IDP')/messages", # TODO:FLAG_GRAPH
         "expirationDateTime": expiration_str,
         "clientState": subscription_details["CLIENT_STATE"]
     }
