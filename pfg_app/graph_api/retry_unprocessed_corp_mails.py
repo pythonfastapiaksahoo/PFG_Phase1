@@ -3,6 +3,7 @@ import traceback
 import requests
 import uuid
 from pfg_app import model
+from pfg_app.graph_api.manage_subscriptions import get_folder_id
 from pfg_app.graph_api.message_processing import process_new_message
 from pfg_app.logger_module import logger, set_operation_id
 from pfg_app.session.session import get_db
@@ -20,11 +21,17 @@ def fetch_and_process_recent_graph_mails(operation_id: str):
             "Authorization": f"Bearer {access_token}",
             "Accept": "application/json"
         }
+        mail_folder_id = get_folder_id("IDP", access_token)
+        if mail_folder_id:
+            logger.info(f"Mail folder IDP found: {mail_folder_id}")
+        else:
+            logger.info(f"Mail folder IDP not found, creating a new one Manually")
+            return False
 
         # 2) Calculate time window for the last 2 days (ISO 8601 format)
         two_days_ago = (datetime.datetime.utcnow() - datetime.timedelta(days=2)).isoformat() + "Z"
         url = (
-            f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/messages"
+            f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/mailFolders/{mail_folder_id}/messages"
             f"?$filter=receivedDateTime ge {two_days_ago}"
             f"&$select=id,receivedDateTime&$orderby=receivedDateTime desc"
         )
