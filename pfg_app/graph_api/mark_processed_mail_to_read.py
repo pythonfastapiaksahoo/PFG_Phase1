@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from pfg_app import model
+from pfg_app.graph_api.manage_subscriptions import get_folder_id
 from pfg_app.logger_module import logger
 from pfg_app.session.session import get_db
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
@@ -37,10 +38,16 @@ def mark_processed_mail_as_read(mail_row_key):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
         }
+        mail_folder_id = get_folder_id("IDP", access_token)
+        if mail_folder_id:
+            logger.info(f"Mail folder IDP found: {mail_folder_id}")
+        else:
+            logger.info(f"Mail folder IDP not found, creating a new one Manually")
+            return False
 
         # Call Graph API to mark mail as read
         patch_url = (
-            f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/messages/{message_id}"
+            f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/mailFolders/{mail_folder_id}/messages/{message_id}"
         )
         body = {
             "isRead": True
