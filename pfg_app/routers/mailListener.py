@@ -70,6 +70,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                 db.add(corp_mail)
                 db.commit()
                 db.refresh(corp_mail)
+                logger.info(f"New message ID: {message_id}, Mail ID: {corp_mail.id}")
                 # Offload processing to a background task
                 background_tasks.add_task(process_new_message, message_id, corp_mail.id, operation_id)
     logger.info(f"Webhook received {len(notifications)} notifications")
