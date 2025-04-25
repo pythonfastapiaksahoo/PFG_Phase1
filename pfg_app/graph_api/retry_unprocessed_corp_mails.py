@@ -3,8 +3,8 @@ import traceback
 import requests
 import uuid
 from pfg_app import model
-from pfg_app.graph_api.manage_subscriptions import get_folder_id
 from pfg_app.graph_api.message_processing import process_new_message
+from pfg_app.graph_api.utils import get_folder_id
 from pfg_app.logger_module import logger, set_operation_id
 from pfg_app.session.session import get_db
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager

@@ -6,31 +6,13 @@ import time
 
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
 from pfg_app.graph_api.retry_unprocessed_corp_mails import fetch_and_process_recent_graph_mails
+from pfg_app.graph_api.utils import get_folder_id
 from pfg_app.logger_module import logger, set_operation_id
 from pfg_app.model import BackgroundTask
 from pfg_app.session.session import get_db
 from pfg_app import settings
 
-# Function to get the folder ID for a specific folder name
-def get_folder_id(folder_name, access_token):
-    url = f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/mailFolders"
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json'
-    }
-    
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code == 200:
-        mail_folders = response.json().get('value', [])
-        for folder in mail_folders:
-            if folder['displayName'] == folder_name:
-                return folder['id']
-        print(f"Folder '{folder_name}' not found.")
-        return None
-    else:
-        print(f"Error fetching folders: {response.status_code}, {response.text}")
-        return None
+
     
 def parse_timestamp(dt_str):
     # dt_str like "2025-01-23T12:34:56Z"
