@@ -6,18 +6,14 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from pfg_app import model
-from pfg_app.graph_api.manage_subscriptions import get_folder_id
+from pfg_app.graph_api.utils import get_folder_id
 from pfg_app.logger_module import logger
 from pfg_app.session.session import get_db
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
 from pfg_app import settings
 
-router = APIRouter()
 
-# class MarkAsReadRequest(BaseModel):
-#     message_id: str
 
-# @router.patch("/mails/mark-as-read")
 def mark_processed_mail_as_read(mail_row_key):
     try:
         db = next(get_db())
