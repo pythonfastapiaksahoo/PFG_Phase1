@@ -11,7 +11,27 @@ from pfg_app.model import BackgroundTask
 from pfg_app.session.session import get_db
 from pfg_app import settings
 
-
+# Function to get the folder ID for a specific folder name
+def get_folder_id(folder_name, access_token):
+    url = f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/mailFolders"
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        mail_folders = response.json().get('value', [])
+        for folder in mail_folders:
+            if folder['displayName'] == folder_name:
+                return folder['id']
+        print(f"Folder '{folder_name}' not found.")
+        return None
+    else:
+        print(f"Error fetching folders: {response.status_code}, {response.text}")
+        return None
+    
 def parse_timestamp(dt_str):
     # dt_str like "2025-01-23T12:34:56Z"
     return time.mktime(time.strptime(dt_str, "%Y-%m-%dT%H:%M:%SZ"))
@@ -80,10 +100,16 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
+    mail_folder_id = get_folder_id("IDP", access_token)
+    if mail_folder_id:
+        logger.info(f"Mail folder IDP found: {mail_folder_id}")
+    else:
+        logger.info(f"Mail folder IDP not found, creating a new one Manually")
+        return False
     body = {
         "changeType": "created",
         "notificationUrl": PUBLIC_ENDPOINT,
-        "resource": f"/users/{EMAIL_ID}/mailFolders('Inbox')/messages", # TODO:FLAG_GRAPH
+        "resource": f"/users/{EMAIL_ID}/mailFolders/{mail_folder_id}/messages", # TODO:FLAG_GRAPH
         "expirationDateTime": expiration_str,
         "clientState": subscription_details["CLIENT_STATE"]
     }
@@ -103,6 +129,18 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
 def subscription_renewal_loop(operation_id):
     logger.info(f"subscription_renewal_loop operation_id:{operation_id}")
     set_operation_id(operation_id)
+    
+    # identify the notificationUrl from the settings build type
+    if settings.build_type == "dev":
+        notificationUrl = 'https://dev.mail.ia.owfg.com' # TODO:FLAG_GRAPH
+    elif settings.build_type == "qa":
+        notificationUrl = 'https://qa.mail.ia.owfg.com'
+    elif settings.build_type == "prod":
+        notificationUrl = 'https://prod.mail.ia.owfg.com'
+    else:
+        logger.error(f"Invalid build type: {settings.build_type}")
+        return False
+    
     try:
         db = next(get_db())
         # get the background task and lock it and if it could not be locked end the thread
@@ -123,7 +161,7 @@ def subscription_renewal_loop(operation_id):
             set_operation_id(operation_id)
             logger.info(f"subscription_renewal_loop loop running")
             try:
-                create_or_renew_subscription(background_task,db)
+                create_or_renew_subscription(background_task,db, notificationUrl)
             except Exception:
                 logger.error(f"create_or_renew_subscription_task error: {traceback.format_exc()}")
             logger.info(f"subscription_renewal_loop loop sleeping for 5 minutes")
@@ -134,9 +172,9 @@ def subscription_renewal_loop(operation_id):
     except Exception:
         logger.error(f"subscription_renewal_loop error: {traceback.format_exc()}")
 
-def create_or_renew_subscription(background_task,db):
+def create_or_renew_subscription(background_task,db, notificationUrl):
     """
-    Create or renew a subscription for the user's Inbox to get notifications when new messages arrive.
+    Create or renew a subscription for the user's IDP to get notifications when new messages arrive.
     """
  
     now_ts = time.time()
@@ -145,7 +183,7 @@ def create_or_renew_subscription(background_task,db):
     # from background_task get the subscription_details if it is not present create a new one
     subscription_details = background_task.task_metadata
     if not subscription_details or not subscription_details["SUBSCRIPTION_ID"] or not subscription_details["SUBSCRIPTION_EXPIRATION"]:
-        subscription_details = create_subscriptions(access_token,'https://dev.mail.ia.owfg.com',settings.graph_corporate_mail_id) # TODO:FLAG_GRAPH
+        subscription_details = create_subscriptions(access_token, notificationUrl,settings.graph_corporate_mail_id) # TODO:FLAG_GRAPH
         background_task.task_metadata = subscription_details
         db.add(background_task)
         db.commit()
@@ -167,10 +205,16 @@ def create_or_renew_subscription(background_task,db):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
+    mail_folder_id = get_folder_id("IDP", access_token)
+    if mail_folder_id:
+        logger.info(f"Mail folder IDP found: {mail_folder_id}")
+    else:
+        logger.info(f"Mail folder IDP not found, creating a new one Manually")
+        return False
     body = {
         "changeType": "created",
-        "notificationUrl": 'https://dev.mail.ia.owfg.com', # TODO:FLAG_GRAPH # 7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook
-        "resource": f"/users/{settings.graph_corporate_mail_id}/mailFolders('Inbox')/messages", # TODO:FLAG_GRAPH
+        "notificationUrl": notificationUrl, # TODO:FLAG_GRAPH # 7c7c-209-52-125-81.ngrok-free.app/apiv1.1/MailListener/webhook
+        "resource": f"/users/{settings.graph_corporate_mail_id}/mailFolders/{mail_folder_id}/messages", # TODO:FLAG_GRAPH
         "expirationDateTime": expiration_str,
         "clientState": subscription_details["CLIENT_STATE"]
     }
