@@ -17,7 +17,7 @@ from pfg_app import settings
 from pfg_app.core.azure_fr import analyze_form
 from pfg_app.core.utils import get_credential
 from pfg_app.logger_module import logger
-
+from pytesseract import TesseractError
 
 def get_open_ai_token():
     credential = get_credential()
@@ -26,30 +26,36 @@ def get_open_ai_token():
     return access_token
 
 def correct_orientation(image):
-    """Check and correct image orientation to 0 degrees if needed."""
-    # Convert PIL image to OpenCV format
-    open_cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    try:
+        
+        """Check and correct image orientation to 0 degrees if needed."""
+        # Convert PIL image to OpenCV format
+        open_cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        
+        # OCR to detect text orientation
+        osd = pytesseract.image_to_osd(open_cv_image)
+        
+        # Extract rotation angle
+        rotation_angle = int(osd.split("\n")[2].split(":")[-1].strip())
+
+        if rotation_angle == 0:
+            logger.info(f"Image is already at 0 degrees. No rotation needed.")
+            return image, rotation_angle  # No rotation needed
+
+        # Rotate image to 0 degrees based on detected angle
+        if rotation_angle == 90:
+            image = image.rotate(-90, expand=True)  # Counterclockwise
+        elif rotation_angle == 180:
+            image = image.rotate(-180, expand=True)  # Upside down
+        elif rotation_angle == 270:
+            image = image.rotate(-270, expand=True)  # Clockwise
+
+        return image, rotation_angle
+
+    except TesseractError:
+        logger.error(f"Tesseract failed to detect orientation: Returning original image.")
+        return image, 0  # Return original image with 0 rotation
     
-    # OCR to detect text orientation
-    osd = pytesseract.image_to_osd(open_cv_image)
-    
-    # Extract rotation angle
-    rotation_angle = int(osd.split("\n")[2].split(":")[-1].strip())
-
-    if rotation_angle == 0:
-        logger.info(f"Image is already at 0 degrees. No rotation needed.")
-        return image, rotation_angle  # No rotation needed
-
-    # Rotate image to 0 degrees based on detected angle
-    if rotation_angle == 90:
-        image = image.rotate(-90, expand=True)  # Counterclockwise
-    elif rotation_angle == 180:
-        image = image.rotate(-180, expand=True)  # Upside down
-    elif rotation_angle == 270:
-        image = image.rotate(-270, expand=True)  # Clockwise
-
-    return image, rotation_angle
-
 def extract_invoice_details_using_openai(blob_data):
     try:
         logger.info(f"OpenAI Extracting invoice details started")
@@ -191,7 +197,7 @@ def extract_invoice_details_using_openai(blob_data):
         file_size_mb = file_size_kb / 1024
         
         # Check if total pages are more than 30
-        if total_pages > 5:
+        if total_pages > 8:
             # Append only the first page
             pages_to_process = [pdf_img[0]]
         else:

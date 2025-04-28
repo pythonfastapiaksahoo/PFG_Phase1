@@ -4,8 +4,9 @@ import requests
 import base64
 from pfg_app import settings
 from pfg_app.core.utils import upload_blob_securely
+from pfg_app.graph_api.mark_processed_mail_to_read import mark_processed_mail_as_read
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
-from pfg_app.logger_module import get_operation_id, logger
+from pfg_app.logger_module import logger
 from pfg_app.model import CorpQueueTask
 from pfg_app.routers.CorpIntegrationapi import save_to_database
 
@@ -115,7 +116,17 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
         )
         # Retry logic encapsulated in save_to_database
         task_id = save_to_database(new_task)
-        logger.info(f"CorpQueueTask submitted successfully with ID: {task_id}")
+        if task_id:
+            logger.info(f"CorpQueueTask submitted successfully with ID: {task_id}")
+            try:
+                marked_status = mark_processed_mail_as_read(new_mail_id, message_id)
+                if marked_status == "success":
+                    logger.info(f"Mail marked as read for mail_row_key {new_mail_id} sucessfully.")
+                else:
+                    logger.error(f"Failed to mark mail as read for mail_row_key {new_mail_id} successfully.")    
+
+            except Exception as e:
+                logger.error(f"Failed to mark mail as read for mail_row_key {new_mail_id}: {e}")
 
         # # 8) Move the message to the "inbox" folder
         # move_url = f"{settings.MS_GRAPH_BASE_URL}/users/{settings.EMAIL_ID}/messages/{message_id}/move"
