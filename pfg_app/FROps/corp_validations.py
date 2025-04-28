@@ -1296,7 +1296,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                         #currency validation: 
                         try:
-                            if process_inactive==1:
+                            if ("A" in str(skipConf)) or (process_inactive==1) :
+                            # if process_inactive==1:
                                     currency_ck = 1
                                     currency_ck_msg = "User processing manually."
                                     return_status["Currency validation"] = {"status": 1,
