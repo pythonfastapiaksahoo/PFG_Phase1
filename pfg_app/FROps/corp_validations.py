@@ -350,6 +350,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     invo_cod_gst_mismatch = 0
     rounding_threshold = 0.005
     try:
+        logger.info(f"docID: {doc_id}, skipConf: {skipConf}")
         corp_document_data = (
             db.query(model.corp_document_tab)
             .filter(model.corp_document_tab.corp_doc_id == doc_id)
@@ -533,8 +534,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
             except Exception:
                 logger.info(traceback.format_exc())
-
+            
             try:
+                logger.info(f"docID: {doc_id}, invoice_id: {invoice_id},process_inactive: {process_inactive}")
                 if invoice_id in [None, ""]:
                  # Query corp_docdata
                     corp_docdata = (
