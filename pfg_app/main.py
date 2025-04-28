@@ -367,7 +367,8 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.108.50"
+
+            response.headers["api-version"] = "0.108.53"
 
 
             logger.info(
