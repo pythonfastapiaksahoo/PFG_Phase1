@@ -54,9 +54,22 @@ def is_match(title1, title2, threshold=85):
     # Fuzzy match score
     similarity = fuzz.ratio(title1_norm, title2_norm)
 
-    # Check if acronym match OR fuzzy similarity is high
+    # # Check if acronym match OR fuzzy similarity is high
+    # if is_acronym_match(title1, title2) or similarity >= threshold:
+    #     return True, similarity
+
+     # Check if acronym match OR fuzzy similarity is high
     if is_acronym_match(title1, title2) or similarity >= threshold:
         return True, similarity
+    elif fuzz.token_set_ratio(title1_norm, title2_norm)==100:
+        try:
+            logger.info(f"token_set_ratio: { fuzz.token_set_ratio(title1_norm, title2_norm)}")
+        except Exception as e:
+            logger.info(f"Error in token_set_ratio: {e}")
+            logger.info(traceback.format_exc())
+        similarity = fuzz.token_set_ratio(title1_norm, title2_norm)
+        return True, similarity
+
 
     return False, similarity
 
