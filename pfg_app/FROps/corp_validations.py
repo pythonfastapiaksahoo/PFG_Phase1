@@ -1514,6 +1514,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     
                         if invo_cod_gst_mismatch==0:
                                 # invoice_status_msg ="Invoice GST mismatch with coding total"
+                            docStatus = 4
+                            docSubStatus = 17
                             return_status["Invoice GST validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
