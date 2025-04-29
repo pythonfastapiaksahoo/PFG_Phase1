@@ -14,6 +14,7 @@ from opentelemetry import trace
 from pfg_app import settings
 from pfg_app.core.utils import build_rfc1738_url
 from pfg_app.logger_module import logger
+import urllib.parse
 
 engine = None
 Session = None
@@ -62,10 +63,21 @@ else:
     DB = settings.db_name
     SCHEMA = settings.db_schema
 
-    SQLALCHEMY_DATABASE_URL = (
-        f"postgresql://{USR}:{PWD}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
-    )
+    # SQLALCHEMY_DATABASE_URL = (
+    #     f"postgresql://{USR}:{PWD}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
+    # )
+    # Get AAD token (no base64, just plain)
+    credential = DefaultAzureCredential()
+    token = credential.get_token("https://ossrdbms-aad.database.windows.net")
+    aad_token = token.token
 
+    # Escape special characters in token
+    escaped_token = urllib.parse.quote_plus(aad_token)
+    SSL_MODE = "require"
+    # Construct SQLAlchemy URL
+    SQLALCHEMY_DATABASE_URL = (
+        f"postgresql+psycopg2://{USR}:{escaped_token}@{HOST}/{DB}?sslmode={SSL_MODE}&options=-csearch_path=pfg_schema"
+    )
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_recycle=1800,
