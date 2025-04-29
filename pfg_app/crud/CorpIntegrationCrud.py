@@ -2715,30 +2715,6 @@ def bulkupdateCorpInvoiceStatus():
                             documentstatusid = 14
                             docsubstatusid = 127
                             dmsg = InvoiceVoucherSchema.VOUCHER_TEMPLATE
-                        # If there's a valid document status update,
-                        # add it to the bulk update list
-                        # if documentstatusid:
-                        #     updates.append(
-                        #         {
-                        #             "corp_doc_id": voucherdata.DOCUMENT_ID,
-                        #             "documentstatus": documentstatusid,
-                        #             "documentsubstatus": docsubstatusid,
-                        #             "voucher_id": voucher_id,
-                        #         }
-                        #     )
-                        #     # Collect doc history update data
-                        #     doc_history_updates.append(
-                        #         {
-                        #             "document_id": voucherdata.DOCUMENT_ID,
-                        #             "user_id": userID,
-                        #             "document_status": documentstatusid,
-                        #             "document_desc": dmsg,
-                        #             "created_on": datetime.utcnow().strftime(
-                        #                 "%Y-%m-%d %H:%M:%S"
-                        #             ),  # noqa: E501
-                        #         }
-                        #     )
-                        #     success_count += 1  # Increment success counter
                         if documentstatusid:
                             # Check if the docsubstatusid for the corp_document_tab already exists in the corp_document_tab table
                             existing_doc = db.query(model.corp_document_tab).filter(
@@ -2747,6 +2723,11 @@ def bulkupdateCorpInvoiceStatus():
                             ).first()
 
                             if not existing_doc:  # Proceed only if no record exists with the same docsubstatusid
+                                get_user_id = db.query(model.corp_document_tab).filter(
+                                    model.corp_document_tab.corp_doc_id == voucherdata.DOCUMENT_ID
+                                ).first()
+                                if get_user_id:
+                                    userID = get_user_id.last_updated_by
                                 # Add to updates if not already present
                                 updates.append(
                                     {

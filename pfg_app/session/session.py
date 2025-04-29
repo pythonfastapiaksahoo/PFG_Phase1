@@ -65,7 +65,7 @@ else:
     SQLALCHEMY_DATABASE_URL = (
         f"postgresql://{USR}:{PWD}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
     )
-
+    
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_recycle=1800,
