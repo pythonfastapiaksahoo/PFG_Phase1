@@ -71,7 +71,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "InvoiceDate": "Extracted invoice date",
                     "SubTotal": "Extracted subtotal",
                     "invoicetotal": "Extracted invoice total",
-                    "GST": "Extracted GST or Goods and Services Tax or Tax",
+                    "GST": "Extracted GST or Goods and Services Tax or Tax or Federal tax or sales tax",
                     "PST": "Extracted PST",
                     "PST-SK": "Extracted PST-SK",
                     "PST-BC": "Extracted PST-BC",
@@ -99,7 +99,7 @@ def extract_invoice_details_using_openai(blob_data):
                                     Return "N/A" if the vendor address is not present in the invoice document.
                 - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present. for example, '01/27/2025 15:53:19' then extract '01/27/2025'.
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
-                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' from invoice document if present else return "N/A".
+                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' from invoice document if present else return "N/A".
                 - **PST**: Extracted PST from invoice document if present else return "N/A".
                 - **PST-SK**: Extracted PST-SK from invoice document if present else return "N/A".
                 - **PST-BC**: Extracted PST-BC from invoice document if present else return "N/A".
@@ -116,7 +116,14 @@ def extract_invoice_details_using_openai(blob_data):
                         - Ensure to capture the primary vendor name typically found at the top of the document (Excluding 'Pattison Food Group').
                         - Sometime vendor name may be name of person, so ensure to capture name of person with prefix 'Name:', for example 'Barry Smith', then return 'Barry Smith'.
                         - If the vendor name is present at the bottom with prefix 'please remit payment to:' or 'pay to:' then always consider from it instead from the top of the invoice document.
+                        - if 'Amazon.com.ca' is present in the document then extract it as 'Amazon.com.ca ULC'.
                         - Return "N/A" if the vendor name is not present in the invoice document.
+                    - **InvoiceID** : Please ensure that the following characters are treated as distinct and non-interchangeable in all inputs, outputs, validations, and processing logic:
+                        - The digit '1' (one) and the uppercase letter 'I' (i)
+                        - The digit '0' (zero) and the uppercase letter 'O' (o)
+                        - The digit '2' (two) and the uppercase letter 'Z' (z)
+                        - Additionally, the alphanumeric sequence of the Invoice ID must be preserved exactly as entered, without any modification, reordering, or normalization of characters.
+                        - No substitutions or auto-corrections should be applied to the Invoice ID.
                     - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                     - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                         - Ensure to capture the primary vendor address typically found in the top of the invoice document.
@@ -127,6 +134,8 @@ def extract_invoice_details_using_openai(blob_data):
                     - **GST** : if "TAX" is present in the invoice document, extract the value after TAX. for example: 'Tax $2.23' then extract 2.23.
                         - if "GST" is present in the invoice document, extract the value after GST. for example: 'GST $2.23' then extract 2.23.
                         - if "Goods and Services Tax" is present in the invoice document, extract the value after Goods and Services Tax. for example: 'Goods and Services Tax $2.23' then extract 2.23.
+                        - if Federal tax is present, then extract the value after it. for example: 'Federal tax $142.23' then extract 142.23.
+                        - if Sales Tax is present, then extract the value after it. for example: 'Sales Tax $12.23' then extract 12.23
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
                 4. **Output Format**: Return a single JSON object with the extracted information. Do not return a list or array of JSON objects. The output should be a clean, valid JSON object that can be parsed using json.loads().
 
