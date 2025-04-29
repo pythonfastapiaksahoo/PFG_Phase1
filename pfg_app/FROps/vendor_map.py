@@ -1,3 +1,4 @@
+# vendor_map
 import json
 from Levenshtein import ratio as levenshtein_ratio
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -239,7 +240,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
 
         docStatus = 4
         documentdesc = f"Vendor match found:{vrd_cd}"
-        substatus = 11
+        substatus = 7
         corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
         
         db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
@@ -259,9 +260,9 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         NotOnboarded_matching_vendors = find_best_vendor_match_not_onboarded(openai_vendor_name, openai_vendor_address, vendorName_df)
         logger.info(f"NotOnboarded_matching_vendors: {NotOnboarded_matching_vendors}")
         if len(NotOnboarded_matching_vendors) == 1:
-            if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Full Match' :
-                if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Name Match' :
-                    print("Name Match only") 
+            if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] in ['Full Match','Name Match'] :
+                # if NotOnboarded_matching_vendors[(list(NotOnboarded_matching_vendors.keys())[0])]["bestmatch"] == 'Name Match' :
+                    logger.info(f"match type:{NotOnboarded_matching_vendors}")
                     vendorFound  = 1
                     notOnboarded = 1
             else:
@@ -294,22 +295,66 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
             )
         db.commit()
     elif notOnboarded==1:
-        # vendor not onboarded: docStatus = 25 & substatus = 106
-        docStatus = 25
-        substatus = 106
-        documentdesc = "Vendor not onboarded"
-        corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
-        
-        db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
-            ).update(
-                {
-                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
-                    model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
-                    model.corp_document_tab.last_updated_by: userID,
-                    model.corp_document_tab.vendor_id:0,
-                }
-            )
-        db.commit()
+        if vendorFound==1:
+            try:
+                matched_id_vendor = NotOnboarded_matching_vendors[list(NotOnboarded_matching_vendors.keys())[0]]["vendor_id"]
+                vendorID = matched_id_vendor
+                vrd_cd = NotOnboarded_matching_vendors[list(NotOnboarded_matching_vendors.keys())[0]]["vendor_code"]
+
+                # docStatus = 4
+                documentdesc = f"Vendor match found:{vrd_cd}, but not onboarded"
+                # substatus = 7
+                docStatus = 25
+                substatus = 106
+                corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+                
+                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+                ).update(
+                    {
+                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                        model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                        model.corp_document_tab.last_updated_by: userID,
+                        model.corp_document_tab.vendor_id: vendorID,
+                        model.corp_document_tab.vendor_code:vrd_cd
+
+                    }
+                )
+                db.commit()
+            except Exception as e:
+                logger.error(f"Error in updating vendorid: {e}")
+                logger.info(traceback.format_exc())
+                docStatus = 25
+                substatus = 106
+                documentdesc = "Vendor not onboarded"
+                corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+                
+                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+                    ).update(
+                        {
+                            model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                            model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                            model.corp_document_tab.last_updated_by: userID,
+                            model.corp_document_tab.vendor_id:0,
+                        }
+                    )
+                db.commit()
+        else:
+            # vendor not onboarded: docStatus = 25 & substatus = 106
+            docStatus = 25
+            substatus = 106
+            documentdesc = "Vendor not onboarded"
+            corp_update_docHistory(docID, userID, docStatus, documentdesc, db,substatus)
+            
+            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
+                ).update(
+                    {
+                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                        model.corp_document_tab.documentsubstatus: substatus,  # noqa: E501
+                        model.corp_document_tab.last_updated_by: userID,
+                        model.corp_document_tab.vendor_id:0,
+                    }
+                )
+            db.commit()
         
     elif openAIcall_required==1:
         logger.info(f"OpenAIcall_required: {openAIcall_required}")
@@ -327,7 +372,7 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         if vndMth_address_ck in [1,"yes"]:
             vendorID = matched_id_vendor
             docStatus = 4
-            substatus = 11
+            substatus = 7
             db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == docID
             ).update(
                 {
