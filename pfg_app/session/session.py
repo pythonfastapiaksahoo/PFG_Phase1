@@ -14,7 +14,6 @@ from opentelemetry import trace
 from pfg_app import settings
 from pfg_app.core.utils import build_rfc1738_url
 from pfg_app.logger_module import logger
-import urllib.parse
 
 engine = None
 Session = None
@@ -66,6 +65,7 @@ else:
     SQLALCHEMY_DATABASE_URL = (
         f"postgresql://{USR}:{PWD}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
     )
+    
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_recycle=1800,
