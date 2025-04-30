@@ -25,37 +25,37 @@ def get_open_ai_token():
     access_token = token.token
     return access_token
 
-def preprocess_image_for_ocr(pil_image):
-    # Convert to OpenCV BGR
-    cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+# def preprocess_image_for_ocr(pil_image):
+#     # Convert to OpenCV BGR
+#     cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
     
-    # Upscale EARLY to preserve detail
-    cv_image = cv2.resize(cv_image, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+#     # Upscale EARLY to preserve detail
+#     cv_image = cv2.resize(cv_image, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
 
-    # Convert to grayscale
-    gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+#     # Convert to grayscale
+#     gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-    # Enhance contrast with CLAHE
-    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-    contrast = clahe.apply(gray)
+#     # Enhance contrast with CLAHE
+#     clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+#     contrast = clahe.apply(gray)
 
-    # Denoise
-    denoised = cv2.fastNlMeansDenoising(contrast, h=25)
+#     # Denoise
+#     denoised = cv2.fastNlMeansDenoising(contrast, h=25)
 
-    # Adaptive thresholding
-    thresh = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                   cv2.THRESH_BINARY, 11, 2)
+#     # Adaptive thresholding
+#     thresh = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
+#                                    cv2.THRESH_BINARY, 11, 2)
 
-    # Morphological closing to bridge gaps
-    kernel = np.ones((2, 2), np.uint8)
-    closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+#     # Morphological closing to bridge gaps
+#     kernel = np.ones((2, 2), np.uint8)
+#     closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
 
-    # Sharpening
-    sharpened = cv2.filter2D(closed, -1, np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]))
+#     # Sharpening
+#     sharpened = cv2.filter2D(closed, -1, np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]))
 
-    # Return PIL image
-    return Image.fromarray(sharpened)
+#     # Return PIL image
+#     return Image.fromarray(sharpened)
 
 def correct_orientation(image):
     try:
@@ -248,16 +248,16 @@ def extract_invoice_details_using_openai(blob_data):
         for i, page in enumerate(pages_to_process, start=1):
             # Correct orientation if necessary
             corrected_page, angle = correct_orientation(page)
-            # Apply preprocessing only to the first page
-            if i == 1:
-                corrected_page1 = preprocess_image_for_ocr(corrected_page)
-                # Run OCR with config
-                custom_config = r"--oem 3 --psm 12 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/:#"
-                text = pytesseract.image_to_string(corrected_page1, config=custom_config)
-                # Limit to first 50 lines
-                limited_lines = text.splitlines()[:50]
-                text_limited = "\n".join(limited_lines)
-                # print(f"text: {text_limited}")
+            # # Apply preprocessing only to the first page
+            # if i == 1:
+            #     corrected_page1 = preprocess_image_for_ocr(corrected_page)
+            #     # Run OCR with config
+            #     custom_config = r"--oem 3 --psm 12 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/:#"
+            #     text = pytesseract.image_to_string(corrected_page1, config=custom_config)
+            #     # Limit to first 50 lines
+            #     limited_lines = text.splitlines()[:50]
+            #     text_limited = "\n".join(limited_lines)
+            #     # print(f"text: {text_limited}")
             buffered = BytesIO()
             corrected_page.save(buffered, format="PNG")
             # Encode image to base64
@@ -284,7 +284,6 @@ def extract_invoice_details_using_openai(blob_data):
             },{
                 "role": "user",
                 "content": [
-                        {"type": "text", "text": text_limited},
                         *image_content
                         
                 ]
