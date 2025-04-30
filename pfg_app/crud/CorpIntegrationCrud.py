@@ -506,6 +506,31 @@ def clean_parsed_data(parsed_data):
         logger.info(f"Error while cleaning parsed data: {traceback.format_exc()}")
         return parsed_data
 
+
+def filter_valid_tables(parsed_data):
+    """
+    Keep only tables that contain at least one valid header row.
+    """
+    valid_headers = [
+        ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Subtotal'],
+        ['Invoice #', 'Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'GST', 'Invoice Total'],
+        ['Store', 'Dept', 'Account', 'SL', 'Project', 'Activity', 'Amount']
+    ]
+
+    def contains_valid_header(table):
+        for row in table:
+            for header in valid_headers:
+                if row[:len(header)] == header:
+                    return True
+        return False
+
+    parsed_data['tables_data'] = [
+        table for table in parsed_data.get('tables_data', [])
+        if contains_valid_header(table)
+    ]
+    return parsed_data
+
+
 # def has_extra_empty_strings(parsed_data):
 #     """
 #     Check if any row in tables_data contains the specific header with an extra empty string at the end.
