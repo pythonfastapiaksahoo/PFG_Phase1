@@ -1810,11 +1810,19 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
             
             mail_row_key = corp_trigger.mail_row_key if corp_trigger else None
             queue_task_id = corp_trigger.corp_queue_id if corp_trigger else None
-
+            get_sender_details = db.query(model.corp_coding_tab).filter_by(mail_rw_key=mail_row_key).first()
+            if get_sender_details:
+                sender_name = get_sender_details.sender_name if get_sender_details.sender_name else None
+                sender_email = get_sender_details.sender_email if get_sender_details.sender_email else None 
+                sender_title = get_sender_details.sender_title if get_sender_details.sender_title else None
+        
             corp_coding = model.corp_coding_tab(
                 corp_doc_id=corp_doc_id,
                 mail_rw_key=mail_row_key,
                 queue_task_id=queue_task_id,
+                sender_name=sender_name,
+                sender_email=sender_email,  
+                sender_title=sender_title,
                 map_type="manual_map"  # Set map_type
             )
             db.add(corp_coding)
