@@ -955,6 +955,21 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     logger.info(f"df_corp_metadata: {df_corp_metadata}")
                     try: 
                         if df_corp_metadata.empty: 
+                            docSubStatus = 106
+                            docStatus = 25
+                            corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                            db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                            ).update(
+                                {
+                                    model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                                    model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                                    model.corp_document_tab.last_updated_by: userID,
+                                    model.corp_document_tab.updated_on: timeStmp,
+
+                                }
+                            )
+
+                            db.commit()
                             if "A" in str(skipConf):
                                 VB_documentdesc = "User processing invoice manually"
                                 VB_status = 1
