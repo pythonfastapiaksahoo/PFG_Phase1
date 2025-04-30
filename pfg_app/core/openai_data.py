@@ -250,10 +250,10 @@ def extract_invoice_details_using_openai(blob_data):
             corrected_page, angle = correct_orientation(page)
             # Apply preprocessing only to the first page
             if i == 1:
-                corrected_page = preprocess_image_for_ocr(corrected_page)
+                corrected_page1 = preprocess_image_for_ocr(corrected_page)
                 # Run OCR with config
                 custom_config = r"--oem 3 --psm 12 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/:#"
-                text = pytesseract.image_to_string(corrected_page, config=custom_config)
+                text = pytesseract.image_to_string(corrected_page1, config=custom_config)
                 # Limit to first 50 lines
                 limited_lines = text.splitlines()[:50]
                 text_limited = "\n".join(limited_lines)
