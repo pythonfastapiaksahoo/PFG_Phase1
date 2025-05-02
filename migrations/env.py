@@ -4,10 +4,39 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+import urllib.parse
+from azure.identity import DefaultAzureCredential
+
+from sqlalchemy.engine.url import URL
+from pfg_app import settings
+
+# main db config
+PWD = settings.db_password
+USR = settings.db_user
+HOST = settings.db_host
+PORT = settings.db_port
+DB = settings.db_name
+SCHEMA = settings.db_schema
+
+# Get AAD token (no base64, just plain)
+credential = DefaultAzureCredential()
+token = credential.get_token("https://ossrdbms-aad.database.windows.net")
+aad_token = token.token
+
+# Escape special characters in token
+escaped_token = urllib.parse.quote_plus(aad_token)
+SSL_MODE = "require"
+# Construct SQLAlchemy URL
+SQLALCHEMY_DATABASE_URL = (
+    f"postgresql+psycopg2://{USR}:{escaped_token}@{HOST}/{DB}?sslmode={SSL_MODE}&options=-csearch_path=pfg_schema"
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Override URL in config
+config.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
