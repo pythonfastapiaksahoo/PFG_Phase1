@@ -980,6 +980,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 VB_documentdesc = "User processing invoice manually"
                                 VB_status = 1
                                 VB_status_code = 0
+                                docSubStatus = 106
+                                docStatus = 25
                                 return_status["Vendor not onboarded"] = {"status": VB_status,
                                                             "StatusCode":VB_status_code,
                                                             "response": [
@@ -993,6 +995,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     logger.info(traceback.format_exc())
                             else:
                                 VB_documentdesc = "Onboard vendor/proceess manually"
+                                docSubStatus = 106
+                                docStatus = 25
                                 VB_status = 0
                                 VB_status_code = 10
                                 # corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus) 
@@ -2009,8 +2013,23 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     logger.info(traceback.format_exc())
                                                 # return return_status
                                             elif approvrd_ck ==1:
-                                                    
-                                                if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
+                                                if ((list(df_corp_coding['approval_status'])[0]) in ["",None]) and skip_approval_ck != 1:
+                                                    docStatus = 24
+                                                    docSubStatus = 137
+                                                    documentdesc = "Pending Approval"
+                                                    try:
+                                                        documentdesc = f"Invoice - Pending Approval"
+                                                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                                    except Exception as e:
+                                                        logger.info(traceback.format_exc())
+                                                    return_status["Approval needed"] = {"status": 0,
+                                                        "StatusCode":3,
+                                                        "response": [
+                                                                        f"Invoice - Pending Approval"
+                                                                    ],
+                                                                }
+                                                    return return_status
+                                                elif (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
                                                     docStatus = 2
                                                     docSubStatus = 31
                                                     documentdesc = "Invoice approved"
