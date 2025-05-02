@@ -1102,7 +1102,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                     
                 try:
-                    cl_invoID =  re.sub(r'[^a-zA-Z0-9\s]', '', invoice_id)
+                    # cl_invoID =  re.sub(r'[^a-zA-Z0-9\s]', '', invoice_id)
+                    cl_invoID = re.sub(r'[^a-zA-Z0-9\s]', '', invoice_id).upper()
                     if len(cl_invoID)==0:
                          #---
                         try:
