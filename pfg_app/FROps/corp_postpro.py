@@ -84,7 +84,7 @@ def clean_invoice_ids(data):
     def clean_value(value):
         if isinstance(value, str):
             cleaned = re.sub(r'[^a-zA-Z0-9]', '', value)  # Remove special characters
-            lower_cleaned = cleaned.lower()
+            lower_cleaned = cleaned.upper()
             invoID_lw[lower_cleaned] = cleaned  # Store lowercase key → original cleaned value
             return lower_cleaned  # Store lowercase version in cleaned_data
         return value
