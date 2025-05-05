@@ -1815,7 +1815,9 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                 sender_name = get_sender_details.sender_name if get_sender_details.sender_name else None
                 sender_email = get_sender_details.sender_email if get_sender_details.sender_email else None 
                 sender_title = get_sender_details.sender_title if get_sender_details.sender_title else None
-        
+                approver_name = get_sender_details.approver_name if get_sender_details.approver_name else None
+                approval_status = get_sender_details.approval_status if get_sender_details.approval_status else None
+                
             corp_coding = model.corp_coding_tab(
                 corp_doc_id=corp_doc_id,
                 mail_rw_key=mail_row_key,
@@ -1823,9 +1825,21 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                 sender_name=sender_name,
                 sender_email=sender_email,  
                 sender_title=sender_title,
+                approver_name=approver_name,
+                approval_status=approval_status,
                 map_type="manual_map"  # Set map_type
             )
             db.add(corp_coding)
+            
+            try:
+                # update corp_document_tab with approver_name
+                corp_doc_tab = db.query(model.corp_document_tab).filter_by(corp_doc_id=corp_doc_id).first()
+                if corp_doc_tab and approver_name:
+                    corp_doc_tab.approved_by = approver_name
+                    corp_doc_tab.last_updated_by = user_id
+                    db.add(corp_doc_tab)
+            except Exception:
+                logger.error(f"Error updating corp_document_tab: {traceback.format_exc()}")
             # is_new_record = True
             try:
                 corp_update_docHistory(
@@ -3284,7 +3298,8 @@ async def read_corp_paginate_doc_inv_list(
             "Status": model.DocumentStatus.status,
             "Sub Status": model.DocumentSubStatus.status,
             "Amount": model.corp_document_tab.invoicetotal,
-            "Upload Date": model.corp_document_tab.created_on,
+            "Uploaded On": model.corp_document_tab.created_on,
+            "Updated On": model.corp_document_tab.updated_on,
         }
 
         if sort_column in sort_columns_map:
