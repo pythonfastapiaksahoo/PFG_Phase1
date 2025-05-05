@@ -955,7 +955,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     logger.info(f"df_corp_metadata: {df_corp_metadata}")
                     try: 
                         if df_corp_metadata.empty: 
-                            
+                            documentdesc = "Vendor not onboarded."
                             docSubStatus = 106
                             docStatus = 25
                             try:
