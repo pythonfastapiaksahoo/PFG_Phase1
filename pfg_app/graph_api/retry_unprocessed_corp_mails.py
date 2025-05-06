@@ -29,10 +29,10 @@ def fetch_and_process_recent_graph_mails(operation_id: str):
             return False
 
         # 2) Calculate time window for the last 2 days (ISO 8601 format)
-        two_days_ago = (datetime.datetime.utcnow() - datetime.timedelta(days=2)).isoformat() + "Z"
+        seven_days_ago = (datetime.datetime.utcnow() - datetime.timedelta(days=7)).isoformat() + "Z"
         url = (
             f"https://graph.microsoft.com/v1.0/users/{settings.graph_corporate_mail_id}/mailFolders/{mail_folder_id}/messages"
-            f"?$filter=receivedDateTime ge {two_days_ago}"
+            f"?$filter=receivedDateTime ge {seven_days_ago}"
             f"&$select=id,receivedDateTime&$orderby=receivedDateTime desc"
         )
 
