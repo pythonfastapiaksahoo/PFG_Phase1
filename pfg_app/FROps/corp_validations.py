@@ -165,7 +165,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
     print(f"Approval limits: {amount}, {title}")
 
     approval_limits = {
-        (0, 24999): {"Supervisor", "Manager", "Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
+        (0, 24999): {"Supervisor", "Manager", "Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP","General Counsel"},
         (0, 74999): {"Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
         (0, 499999): {"Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
         (0, float("inf")): {"Managing Director", "VP"},
@@ -184,6 +184,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "managing director": "Managing Director",
         "vice president": "VP",
         "vp": "VP",
+        "general counsel":"General Counsel",
         "rmpo": "Regional Manager",
         "generalmanager, pattisson food group":"General Manager",
         "generalmanager": "General Manager",
