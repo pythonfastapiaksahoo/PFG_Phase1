@@ -184,6 +184,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "managing director": "Managing Director",
         "vice president": "VP",
         "vp": "VP",
+        "general counsel":"General Counsel",
         "rmpo": "Regional Manager",
         "generalmanager, pattisson food group":"General Manager",
         "generalmanager": "General Manager",
