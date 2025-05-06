@@ -209,7 +209,7 @@ def extract_invoice_details_using_openai(blob_data):
         # Check if total pages are more than 30
         if total_pages > 8:
             # Append only the first page
-            pages_to_process = [pdf_img[0]]
+            pages_to_process = [pdf_img[0], pdf_img[-1]]
         else:
             # Process all pages
             pages_to_process = pdf_img
