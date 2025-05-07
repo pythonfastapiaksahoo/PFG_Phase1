@@ -166,6 +166,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
 
     approval_limits = {
         (0, 24999): {"Supervisor", "Manager", "Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP","General Counsel"},
+
         (0, 74999): {"Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
         (0, 499999): {"Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
         (0, float("inf")): {"Managing Director", "VP"},
@@ -181,6 +182,7 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "director": "Director",
         "regional manager": "Regional Manager",
         "general manager": "General Manager",
+        "general counsel" : "General Counsel",
         "managing director": "Managing Director",
         "vice president": "VP",
         "vp": "VP",
@@ -1161,16 +1163,27 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             logger.info(f"Error in cleaning invoice ID: {e}")
                             logger.info(traceback.format_exc())
 
+                # dupCk_document_data = (
+                # 
+                # db.query(model.corp_document_tab)
+                # .filter(
+                #     model.corp_document_tab.corp_doc_id != doc_id,
+                #     model.corp_document_tab.vendor_id == vendor_id,
+                #     model.corp_document_tab.documentstatus != 10,
+                #     model.corp_document_tab.invoice_id in (invoice_id,invoice_id.lower(),invoice_id.upper())
+                # )
+                # .all()
+                # )
                 dupCk_document_data = (
-                db.query(model.corp_document_tab)
-                .filter(
-                    model.corp_document_tab.corp_doc_id != doc_id,
-                    model.corp_document_tab.vendor_id == vendor_id,
-                    model.corp_document_tab.documentstatus != 10,
-                    model.corp_document_tab.invoice_id == invoice_id
-                )
-                .all()
-                )
+                    db.query(model.corp_document_tab)
+                        .filter(
+                            model.corp_document_tab.corp_doc_id != doc_id,
+                            model.corp_document_tab.vendor_id == vendor_id,
+                            model.corp_document_tab.documentstatus != 10,
+                            model.corp_document_tab.invoice_id.in_([invoice_id, invoice_id.lower(), invoice_id.upper()])
+                        )
+                        .all())
+
 
                 
                 df_dupCk_document = pd.DataFrame([
