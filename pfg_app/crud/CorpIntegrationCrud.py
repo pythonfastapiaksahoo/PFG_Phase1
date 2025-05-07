@@ -744,46 +744,103 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
         logger.error(f"An error occurred converting image to pdf: {traceback.format_exc()}")
 
 
-def create_or_update_corp_metadata(u_id, v_id, metadata, db):
+# def create_or_update_corp_metadata(u_id, v_id, metadata, db):
+#     try:
+#         existing_record = (
+#             db.query(model.corp_metadata)
+#             .filter(model.corp_metadata.vendorid == v_id)
+#             .first()
+#         )
+#         # Check if the vendor exists
+#         vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == v_id).first()
+#         if not vendor:
+#             return (f"Vendor with id {v_id} does not exist", 404)
+#         if existing_record:
+#             # Update existing record
+#             update_data = {}
+#             if metadata.synonyms_name is not None:
+#                 # update_data["synonyms_name"] = metadata.synonyms_name  # Directly store list
+#                 update_data["synonyms_name"] = json.dumps(metadata.synonyms_name)
+#             if metadata.synonyms_address is not None:
+#                 # update_data["synonyms_address"] = metadata.synonyms_address  # Directly store list
+#                 update_data["synonyms_address"] = json.dumps(metadata.synonyms_address)
+#             if metadata.dateformat:
+#                 update_data["dateformat"] = metadata.dateformat
+#             update_data["updated_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+#             db.query(model.corp_metadata).filter(
+#                 model.corp_metadata.vendorid == v_id
+#             ).update(update_data)
+
+#             db.commit()
+#             return {"result": "Updated", "record": update_data}
+#         else:
+#             # Insert new record
+#             new_metadata = model.corp_metadata(
+#                 vendorid=v_id,
+#                 synonyms_name=json.dumps(metadata.synonyms_name) if metadata.synonyms_name else [],
+#                 synonyms_address=json.dumps(metadata.synonyms_address) if metadata.synonyms_address else [],
+#                 dateformat=metadata.dateformat,
+#                 status="Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded",
+#                 created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+#                 vendorcode= vendor.VendorCode,
+#                 vendorname=vendor.VendorName,
+#                 vendoraddress=vendor.Address,
+#                 currency=vendor.currency,
+#             )
+#             db.add(new_metadata)
+#             db.commit()
+#             db.refresh(new_metadata)
+#             return {"result": "Inserted", "record": new_metadata}
+
+#     except Exception as e:
+#         db.rollback()
+#         logger.error(f"Error processing corp_metadata: {traceback.format_exc()}")
+#         return {"result": "Failed", "error": str(e)}
+#     finally:
+#         db.close()
+
+def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
     try:
+        # Look up vendor using vendorcode (not vendorid)
+        vendor = db.query(model.Vendor).filter(model.Vendor.VendorCode == vendor_code).first()
+        if not vendor:
+            return (f"Vendor with code {vendor_code} does not exist", 404)
+
+        # Check if metadata record already exists for this vendor code
         existing_record = (
             db.query(model.corp_metadata)
-            .filter(model.corp_metadata.vendorid == v_id)
+            .filter(model.corp_metadata.vendorcode == vendor_code)
             .first()
         )
-        # Check if the vendor exists
-        vendor = db.query(model.Vendor).filter(model.Vendor.idVendor == v_id).first()
-        if not vendor:
-            return (f"Vendor with id {v_id} does not exist", 404)
+
         if existing_record:
             # Update existing record
             update_data = {}
             if metadata.synonyms_name is not None:
-                # update_data["synonyms_name"] = metadata.synonyms_name  # Directly store list
                 update_data["synonyms_name"] = json.dumps(metadata.synonyms_name)
             if metadata.synonyms_address is not None:
-                # update_data["synonyms_address"] = metadata.synonyms_address  # Directly store list
                 update_data["synonyms_address"] = json.dumps(metadata.synonyms_address)
             if metadata.dateformat:
                 update_data["dateformat"] = metadata.dateformat
             update_data["updated_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
             db.query(model.corp_metadata).filter(
-                model.corp_metadata.vendorid == v_id
+                model.corp_metadata.vendorcode == vendor_code
             ).update(update_data)
 
             db.commit()
             return {"result": "Updated", "record": update_data}
         else:
-            # Insert new record
+            # Insert new metadata record
             new_metadata = model.corp_metadata(
-                vendorid=v_id,
-                synonyms_name=json.dumps(metadata.synonyms_name) if metadata.synonyms_name else [],
-                synonyms_address=json.dumps(metadata.synonyms_address) if metadata.synonyms_address else [],
+                vendorid=vendor.idVendor,
+                vendorcode=vendor.VendorCode,
+                synonyms_name=json.dumps(metadata.synonyms_name) if metadata.synonyms_name else "[]",
+                synonyms_address=json.dumps(metadata.synonyms_address) if metadata.synonyms_address else "[]",
                 dateformat=metadata.dateformat,
                 status="Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded",
                 created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                vendorcode= vendor.VendorCode,
                 vendorname=vendor.VendorName,
                 vendoraddress=vendor.Address,
                 currency=vendor.currency,
@@ -799,7 +856,6 @@ def create_or_update_corp_metadata(u_id, v_id, metadata, db):
         return {"result": "Failed", "error": str(e)}
     finally:
         db.close()
-
 
 async def readpaginatedcorpvendorlist(
     u_id,
@@ -4039,4 +4095,29 @@ async def readcorpvendorname(u_id, db):
         db.close()
         
 
-# 
+def disable_corp_metadata(u_id, v_id, db):
+    """
+    Set status='NotOnboarded' in corp_metadata for the first matching vendor ID.
+
+    :param u_id: User ID performing the action (for audit/logging if needed).
+    :param v_id: Vendor ID to disable.
+    :param db: SQLAlchemy session.
+    :return: Success or error response.
+    """
+    try:
+        record = db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
+
+        if not record:
+            return {"message": f"No corp_metadata found for vendor ID {v_id}"}  
+
+        record.status = "NotOnboarded"
+        db.commit()
+
+        return {"message": f"Vendor ID {v_id} corp_metadata status set to NotOnboarded", "updated_by": u_id}
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to disable corp_metadata for vendor {v_id}: {str(e)}")
+        return {"error": "Database error", "details": str(e)}           
+    finally:
+        db.close()
