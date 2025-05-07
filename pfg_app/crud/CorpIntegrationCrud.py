@@ -879,18 +879,18 @@ async def readpaginatedcorpvendorlist(
         # Subquery to determine onboarding status correctly
         subquery = (
             db.query(
-                model.Vendor.idVendor,
+                model.Vendor.VendorCode,
                 case(
-                    (func.count(model.corp_metadata.vendorid) > 0, "Onboarded"),
+                    (func.count(model.corp_metadata.vendorcode) > 0, "Onboarded"),
                     else_="Not-Onboarded",
                 ).label("OnboardedStatus"),
             )
             .outerjoin(
                 model.corp_metadata,
-                (model.Vendor.idVendor == model.corp_metadata.vendorid) &
+                (model.Vendor.VendorCode == model.corp_metadata.vendorcode) &
                 (model.corp_metadata.status == "Onboarded")  # Ensures only valid onboarded vendors
             )
-            .group_by(model.Vendor.idVendor)
+            .group_by(model.Vendor.VendorCode)
             .subquery()
         )
 
@@ -905,7 +905,7 @@ async def readpaginatedcorpvendorlist(
                     "VendorName", "VendorCode", "vendorType", "Address", "City"
                 ),
             )
-            .outerjoin(subquery, model.Vendor.idVendor == subquery.c.idVendor)
+            .outerjoin(subquery, model.Vendor.VendorCode == subquery.c.VendorCode)
         )
 
         def normalize_string(input_str):
@@ -1111,7 +1111,7 @@ async def get_metadata_data(u_id, v_id, db):
     -------
     corp_metadata instance or None
     """
-    return db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
+    return db.query(model.corp_metadata).filter(model.corp_metadata.vendorcode == v_id).first()
 
 
 async def delete_metadata_values(u_id, v_id, delmetadata, db):
@@ -4095,25 +4095,35 @@ async def readcorpvendorname(u_id, db):
         db.close()
         
 
-def disable_corp_metadata(u_id, v_id, db):
+def set_corp_metadata_status(u_id, v_id, db, action="disable"):
     """
-    Set status='NotOnboarded' in corp_metadata for the first matching vendor ID.
+    Enable or disable onboarding status in corp_metadata for a specific vendor ID.
 
-    :param u_id: User ID performing the action (for audit/logging if needed).
-    :param v_id: Vendor ID to disable.
+    :param u_id: User ID performing the action.
+    :param v_id: Vendor ID to update.
     :param db: SQLAlchemy session.
+    :param action: 'enable' to set status to 'Onboarded', 'disable' to set to 'NotOnboarded'.
     :return: Success or error response.
     """
     try:
-        record = db.query(model.corp_metadata).filter(model.corp_metadata.vendorid == v_id).first()
+        record = db.query(model.corp_metadata).filter(model.corp_metadata.vendorcode == v_id).first()
 
         if not record:
             return {"message": f"No corp_metadata found for vendor ID {v_id}"}  
 
-        record.status = "NotOnboarded"
+        if action == "enable":
+            record.status = "Onboarded"
+        elif action == "disable":
+            record.status = "NotOnboarded"
+        else:
+            return {"message": "Invalid action. Use 'enable' or 'disable'."}
+            
+
         db.commit()
 
-        return {"message": f"Vendor ID {v_id} corp_metadata status set to NotOnboarded", "updated_by": u_id}
+        return {
+            "message": f"corp_metadata status set to {record.status}"
+        }
 
     except Exception as e:
         db.rollback()
