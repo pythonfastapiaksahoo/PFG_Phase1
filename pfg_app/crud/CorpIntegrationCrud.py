@@ -879,18 +879,18 @@ async def readpaginatedcorpvendorlist(
         # Subquery to determine onboarding status correctly
         subquery = (
             db.query(
-                model.Vendor.VendorCode,
+                model.Vendor.idVendor,
                 case(
-                    (func.count(model.corp_metadata.vendorcode) > 0, "Onboarded"),
+                    (func.count(model.corp_metadata.vendorid) > 0, "Onboarded"),
                     else_="Not-Onboarded",
                 ).label("OnboardedStatus"),
             )
             .outerjoin(
                 model.corp_metadata,
-                (model.Vendor.VendorCode == model.corp_metadata.vendorcode) &
+                (model.Vendor.idVendor == model.corp_metadata.vendorid) &
                 (model.corp_metadata.status == "Onboarded")  # Ensures only valid onboarded vendors
             )
-            .group_by(model.Vendor.VendorCode)
+            .group_by(model.Vendor.idVendor)
             .subquery()
         )
 
@@ -905,7 +905,7 @@ async def readpaginatedcorpvendorlist(
                     "VendorName", "VendorCode", "vendorType", "Address", "City"
                 ),
             )
-            .outerjoin(subquery, model.Vendor.VendorCode == subquery.c.VendorCode)
+            .outerjoin(subquery, model.Vendor.idVendor == subquery.c.idVendor)
         )
 
         def normalize_string(input_str):
