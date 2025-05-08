@@ -139,7 +139,7 @@ def extract_invoice_details_using_openai(blob_data):
                         - if Federal tax is present, then extract the value after it. for example: 'Federal tax $142.23' then extract 142.23.
                         - if Sales Tax is present, then extract the value after it. for example: 'Sales Tax $12.23' then extract 12.23
                         - if 'Sales Tax/Tax de vente BC' is present, then extract the value as GST only after it not PST-BC. for example: 'Sales Tax/Tax de vente BC $121.23' then extract 121.23
-                        - if there is no GST value present, don't calculate the value from mentioned % value. for example. if GST (5% if applicable) has no value, return N/A
+                        - if 'GST (5% if applicable)' is present without any value, don't calculate the value from mentioned %, instead return N/A.
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
                 4. **Output Format**: Return a single JSON object with the extracted information. Do not return a list or array of JSON objects. The output should be a clean, valid JSON object that can be parsed using json.loads().
 
