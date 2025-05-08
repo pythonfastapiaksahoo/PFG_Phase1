@@ -72,7 +72,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "InvoiceDate": "Extracted invoice date",
                     "SubTotal": "Extracted subtotal",
                     "invoicetotal": "Extracted invoice total",
-                    "GST": "Extracted GST or Goods and Services Tax or Tax or Federal tax or sales tax",
+                    "GST": "Extracted GST or Goods and Services Tax or Tax or Federal tax or sales tax or Sales Tax/Tax de vente BC",
                     "PST": "Extracted PST",
                     "PST-SK": "Extracted PST-SK",
                     "PST-BC": "Extracted PST-BC",
@@ -125,6 +125,7 @@ def extract_invoice_details_using_openai(blob_data):
                         - The digit '2' (two) and the uppercase letter 'Z' (z)
                         - Additionally, the alphanumeric sequence of the Invoice ID must be preserved exactly as entered, without any modification, reordering, or normalization of characters.
                         - No substitutions or auto-corrections should be applied to the Invoice ID.
+                        - if the vendor name is 'ST. JOHN AMBULANCE' then make sure the first character of InvoiceID is uppercase 'I' but not '1' only if it present.
                     - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                     - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                         - Ensure to capture the primary vendor address typically found in the top of the invoice document.
@@ -137,6 +138,8 @@ def extract_invoice_details_using_openai(blob_data):
                         - if "Goods and Services Tax" is present in the invoice document, extract the value after Goods and Services Tax. for example: 'Goods and Services Tax $2.23' then extract 2.23.
                         - if Federal tax is present, then extract the value after it. for example: 'Federal tax $142.23' then extract 142.23.
                         - if Sales Tax is present, then extract the value after it. for example: 'Sales Tax $12.23' then extract 12.23
+                        - if 'Sales Tax/Tax de vente BC' is present, then extract the value as GST after it. for example: 'Sales Tax/Tax de vente BC $121.23' then extract 121.23
+                        - if there is no GST value present, don't calculate the value from mentioned % value. for example. if GST (5% if applicable) has no value, return N/A
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
                 4. **Output Format**: Return a single JSON object with the extracted information. Do not return a list or array of JSON objects. The output should be a clean, valid JSON object that can be parsed using json.loads().
 
