@@ -100,7 +100,7 @@ def extract_invoice_details_using_openai(blob_data):
                                     Return "N/A" if the vendor address is not present in the invoice document.
                 - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present. for example, '01/27/2025 15:53:19' then extract '01/27/2025'.
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
-                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' from invoice document if present else return "N/A".
+                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' or 'Sales Tax/Tax de vente BC' from invoice document if present else return "N/A".
                 - **PST**: Extracted PST from invoice document if present else return "N/A".
                 - **PST-SK**: Extracted PST-SK from invoice document if present else return "N/A".
                 - **PST-BC**: Extracted PST-BC from invoice document if present else return "N/A".
@@ -138,7 +138,7 @@ def extract_invoice_details_using_openai(blob_data):
                         - if "Goods and Services Tax" is present in the invoice document, extract the value after Goods and Services Tax. for example: 'Goods and Services Tax $2.23' then extract 2.23.
                         - if Federal tax is present, then extract the value after it. for example: 'Federal tax $142.23' then extract 142.23.
                         - if Sales Tax is present, then extract the value after it. for example: 'Sales Tax $12.23' then extract 12.23
-                        - if 'Sales Tax/Tax de vente BC' is present, then extract the value as GST after it. for example: 'Sales Tax/Tax de vente BC $121.23' then extract 121.23
+                        - if 'Sales Tax/Tax de vente BC' is present, then extract the value as GST only after it not PST-BC. for example: 'Sales Tax/Tax de vente BC $121.23' then extract 121.23
                         - if there is no GST value present, don't calculate the value from mentioned % value. for example. if GST (5% if applicable) has no value, return N/A
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
                 4. **Output Format**: Return a single JSON object with the extracted information. Do not return a list or array of JSON objects. The output should be a clean, valid JSON object that can be parsed using json.loads().
@@ -234,7 +234,7 @@ def extract_invoice_details_using_openai(blob_data):
                 }
             )
         endpoint = settings.form_recognizer_endpoint
-        resp = analyze_form(blob_data, endpoint, "2023-07-31", "prebuilt-read")
+        resp = analyze_form(blob_data, endpoint, "2024-11-30", "prebuilt-read")
         
         # # Safely get OCR text
         # if "message" not in resp and "analyzeResult" in resp:
