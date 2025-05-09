@@ -237,7 +237,7 @@ def extract_invoice_details_using_openai(blob_data):
                 }
             )
         endpoint = settings.form_recognizer_endpoint
-        resp = analyze_form(blob_data, endpoint, "2024-11-30", "prebuilt-read")
+        resp = analyze_form(blob_data, endpoint, "2023-07-31", "prebuilt-read")
         
         # # Safely get OCR text
         # if "message" not in resp and "analyzeResult" in resp:
