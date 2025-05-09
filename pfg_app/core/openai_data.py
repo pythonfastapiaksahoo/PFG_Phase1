@@ -72,7 +72,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "InvoiceDate": "Extracted invoice date",
                     "SubTotal": "Extracted subtotal",
                     "invoicetotal": "Extracted invoice total",
-                    "GST": "Extracted GST or Goods and Services Tax or Tax or Federal tax or sales tax or Sales Tax/Tax de vente BC (5%)",
+                    "GST": "Extracted GST or Goods and Services Tax or Tax or Federal tax or sales tax or Sales Tax/Tax de vente BC (5%) or Total - Sales Tax or Taxe de vente totale",
                     "PST": "Extracted PST",
                     "PST-SK": "Extracted PST-SK",
                     "PST-BC": "Extracted PST-BC",
@@ -100,7 +100,7 @@ def extract_invoice_details_using_openai(blob_data):
                                     Return "N/A" if the vendor address is not present in the invoice document.
                 - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present.
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
-                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' or 'Sales Tax/Tax de vente BC (5%)' from invoice document if present else return "N/A".
+                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' or 'Sales Tax/Tax de vente BC (5%)' or 'Total - Sales Tax' or 'Taxe de vente totale' from invoice document if present else return "N/A".
                 - **PST**: Extracted PST from invoice document if present else return "N/A".
                 - **PST-SK**: Extracted PST-SK from invoice document if present else return "N/A".
                 - **PST-BC**: Extracted PST-BC from invoice document if present else return "N/A".
@@ -140,8 +140,8 @@ def extract_invoice_details_using_openai(blob_data):
                         - if Federal tax is present, then extract the value after it. for example: 'Federal tax $142.23' then extract 142.23.
                         - if Sales Tax is present, then extract the value after it. for example: 'Sales Tax $12.23' then extract 12.23
                         - if 'Sales Tax/Tax de vente BC (5%)' is present, then extract the value as GST only after it. for example: 'Sales Tax/Tax de vente BC (5%) $121.23' then extract 121.23
-                        - Make sure don't consider 'Sales Tax/Tax de vente BC (5%)' as 'PST-BC' but always be 'GST' only
                         - if 'Total - Sales Tax' or 'Taxe de vente totale' is present, then extract the value as GST only after it.
+                        - Make sure don't consider 'Sales Tax/Tax de vente BC (5%)' or 'Total - Sales Tax' or 'Taxe de vente totale' as 'PST-BC' but always be 'GST' only
                         - if 'GST (5% if applicable)' is present without any value, don't calculate the value from mentioned %, instead return N/A.
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
                 4. **Output Format**: Return a single JSON object with the extracted information. Do not return a list or array of JSON objects. The output should be a clean, valid JSON object that can be parsed using json.loads().
