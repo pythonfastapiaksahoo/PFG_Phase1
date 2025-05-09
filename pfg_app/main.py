@@ -266,12 +266,12 @@ async def app_startup():
         background_task_thread.start()
         logger.info("Subscription Renewal Loop thread started")
         
-        # Resetting Corp Queue task before starting the application
-        db.query(CorpQueueTask).filter(CorpQueueTask.status == "processing").update(
-            {"status": "queued"}
-        )
-        db.commit()
-        logger.info("All Corp queues reset to queued state")
+        # # Resetting Corp Queue task before starting the application
+        # db.query(CorpQueueTask).filter(CorpQueueTask.status == "processing").update(
+        #     {"status": "queued"}
+        # )
+        # db.commit()
+        # logger.info("All Corp queues reset to queued state")
         corp_worker_thread = threading.Thread(target=CorpIntegrationapi.corp_queue_worker, daemon=True,
                     kwargs={"operation_id": operation_id})
         corp_worker_thread.start()
@@ -367,7 +367,7 @@ async def add_operation_id(request: Request, call_next):
             response = await call_next(request)
             response.headers["x-operation-id"] = operation_id or "unknown"
 
-            response.headers["api-version"] = "0.108.83"
+            response.headers["api-version"] = "0.108.84"
 
             logger.info(
                 "Sending response from FastAPI"
