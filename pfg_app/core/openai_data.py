@@ -98,7 +98,7 @@ def extract_invoice_details_using_openai(blob_data):
                 - **Vendor Address**: Extracted vendor address from invoice document.
                                     Ensure to capture the primary vendor address typically found in the invoice document (including 'remit payment to' if present).
                                     Return "N/A" if the vendor address is not present in the invoice document.
-                - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present. for example, '01/27/2025 15:53:19' then extract '01/27/2025'.
+                - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present.
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
                 - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' or 'Sales Tax/Tax de vente BC (5%)' from invoice document if present else return "N/A".
                 - **PST**: Extracted PST from invoice document if present else return "N/A".
@@ -126,6 +126,7 @@ def extract_invoice_details_using_openai(blob_data):
                         - Additionally, the alphanumeric sequence of the Invoice ID must be preserved exactly as entered, without any modification, reordering, or normalization of characters.
                         - No substitutions or auto-corrections should be applied to the Invoice ID.
                         - if the vendor name is 'ST. JOHN AMBULANCE' then make sure the first character of InvoiceID is uppercase 'I' but not '1' only if it present.
+                    -**InvoiceDate**: Extract the invoice date in same format that its there in invoice and don't change the format
                     - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                     - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                         - Ensure to capture the primary vendor address typically found in the top of the invoice document.
