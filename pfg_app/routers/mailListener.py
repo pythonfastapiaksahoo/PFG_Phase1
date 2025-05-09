@@ -71,13 +71,17 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                 if existing_mail:
                     logger.info(f"Message ID {message_id} already exists in the database")
                     continue
-                corp_mail = CorpMail(message_id=message_id)
-                db.add(corp_mail)
-                db.commit()
-                db.refresh(corp_mail)
-                logger.info(f"New message ID: {message_id}, Mail ID: {corp_mail.id}")
-                # Offload processing to a background task
-                background_tasks.add_task(process_new_message, message_id, corp_mail.id, operation_id)
+                try:
+                    corp_mail = CorpMail(message_id=message_id)
+                    db.add(corp_mail)
+                    db.commit()
+                    db.refresh(corp_mail)
+                    logger.info(f"New message ID: {message_id}, Mail ID: {corp_mail.id}")
+                    # Offload processing to a background task
+                    background_tasks.add_task(process_new_message, message_id, corp_mail.id, operation_id)
+                except Exception as e:
+                    logger.error(f"Error processing message ID {message_id}: {e}")
+                    continue
     logger.info(f"Webhook received {len(notifications)} notifications")
     return Response(status_code=202)
 

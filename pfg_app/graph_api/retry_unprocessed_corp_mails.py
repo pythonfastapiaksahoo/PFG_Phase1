@@ -55,15 +55,17 @@ def fetch_and_process_recent_graph_mails(operation_id: str):
             message_id = msg["id"]
             if message_id not in existing_message_ids:
                 # Insert into CorpMail
-                new_mail = model.CorpMail(message_id=message_id)
-                db.add(new_mail)
-                db.commit()
-                db.refresh(new_mail)
-
-                logger.info(f"New message inserted with ID {new_mail.id}, processing...")
-
-                # Process the message
-                process_new_message(message_id, new_mail.id, operation_id)
+                try:
+                    new_mail = model.CorpMail(message_id=message_id)
+                    db.add(new_mail)
+                    db.commit()
+                    db.refresh(new_mail)
+                    logger.info(f"New message inserted with ID {new_mail.id}, processing...")
+                    # Process the message
+                    process_new_message(message_id, new_mail.id, operation_id)
+                except Exception as e:
+                    logger.error(f"Error processing message ID {message_id}: {e}")
+                    continue
 
     except Exception as e:
         logger.error(f"Error in fetch_and_process_recent_graph_mails: {traceback.format_exc()}")

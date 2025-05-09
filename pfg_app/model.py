@@ -1801,7 +1801,7 @@ class CorpMail(Base):
         primary_key=True,
         index=True,
         server_default=corp_mail_id_seq.next_value())
-    message_id = Column(String, nullable=False, index=False)
+    message_id = Column(String, nullable=False, index=False, unique=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
