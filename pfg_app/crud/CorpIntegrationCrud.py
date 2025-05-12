@@ -3511,7 +3511,7 @@ async def download_corp_paginate_doc_inv_list(
                 model.DocumentStatus,
                 model.DocumentSubStatus,
                 model.Vendor,
-                # model.corp_docdata,
+                model.corp_coding_tab,
                 model.User.firstName.label("last_updated_by"),
             )
             .options(
@@ -3527,11 +3527,11 @@ async def download_corp_paginate_doc_inv_list(
                     "voucher_id",
                     "mail_row_key",
                     "vendor_code",
-                    "approved_by",
                     "approver_title",
                     "invoice_type",
                     "created_on",
                 ),
+                Load(model.corp_coding_tab).load_only("approver_name"),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
                 # Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
@@ -3553,6 +3553,11 @@ async def download_corp_paginate_doc_inv_list(
                 model.DocumentStatus,
                 model.DocumentStatus.idDocumentstatus
                 == model.corp_document_tab.documentstatus,
+                isouter=True,
+            )
+            .join(
+                model.corp_coding_tab,
+                model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id,
                 isouter=True,
             )
             .join(
