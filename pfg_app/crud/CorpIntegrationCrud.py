@@ -3196,7 +3196,7 @@ async def read_corp_paginate_doc_inv_list(
                 model.DocumentStatus,
                 model.DocumentSubStatus,
                 model.Vendor,
-                # model.corp_docdata,
+                model.corp_coding_tab,
                 # model.User.firstName.label("last_updated_by"),
             )
             .options(
@@ -3212,11 +3212,11 @@ async def read_corp_paginate_doc_inv_list(
                     "voucher_id",
                     "mail_row_key",
                     "vendor_code",
-                    "approved_by",
                     "approver_title",
                     "invoice_type",
                     "created_on",
                 ),
+                Load(model.corp_coding_tab).load_only("approver_name"),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
                 # Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
@@ -3238,6 +3238,11 @@ async def read_corp_paginate_doc_inv_list(
                 model.DocumentStatus,
                 model.DocumentStatus.idDocumentstatus
                 == model.corp_document_tab.documentstatus,
+                isouter=True,
+            )
+            .join(
+                model.corp_coding_tab,
+                model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id,
                 isouter=True,
             )
             # .join(
@@ -3427,6 +3432,10 @@ async def read_corp_paginate_doc_inv_list(
                     "Vendor": doc[3].__dict__ if doc[3] else {},
                     "last_updated_by": user_dict.get(doc[0].corp_doc_id)
                 }
+                # Override approved_by with approver_name
+                document_obj["corp_document_tab"]["approved_by"] = (
+                    doc[4].approver_name if doc[4] and hasattr(doc[4], "approver_name") else None
+                )
                 # Remove _sa_instance_state from each dictionary
                 for k, v in document_obj.items():
                     if isinstance(v, dict):

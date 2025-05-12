@@ -74,6 +74,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "invoicetotal": "Extracted invoice total",
                     "GST": "Extracted GST or Goods and Services Tax or Tax or Federal tax or sales tax or Sales Tax/Tax de vente BC",
                     "PST": "Extracted PST",
+                    "HST": "Extracted HST",
                     "PST-SK": "Extracted PST-SK",
                     "PST-BC": "Extracted PST-BC",
                     "Bottle Deposit": "Extracted Bottle Deposit",
@@ -102,6 +103,7 @@ def extract_invoice_details_using_openai(blob_data):
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
                 - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' from invoice document if present else return "N/A".
                 - **PST**: Extracted PST from invoice document if present else return "N/A".
+                - **HST**: Extracted HST from invoice document if present else return "N/A".
                 - **PST-SK**: Extracted PST-SK from invoice document if present else return "N/A".
                 - **PST-BC**: Extracted PST-BC from invoice document if present else return "N/A".
                 - **Bottle Deposit**: Extracted bottle deposit from invoice document if present else return "N/A".
@@ -153,6 +155,7 @@ def extract_invoice_details_using_openai(blob_data):
                 - invoicetotal: "123.45"
                 - GST: "0.5"
                 - PST: "2.23"
+                - HST: "3.25"
                 - PST-SK: "N/A"
                 - PST-BC: "N/A"
                 - Bottle Deposit: "N/A"
@@ -176,6 +179,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "invoicetotal": "123.45",
                     "GST": "0.5",
                     "PST": "2.23",
+                    "HST": "3.25",
                     "PST-SK": "N/A",
                     "PST-BC": "N/A",
                     "Bottle Deposit": "N/A",
@@ -336,6 +340,7 @@ def extract_invoice_details_using_openai(blob_data):
             "invoicetotal": "",
             "GST": "",
             "PST": "",
+            "HST": "",
             "PST-SK": "",
             "PST-BC": "",
             "Bottle Deposit": "",
@@ -363,6 +368,7 @@ def extract_invoice_details_using_openai(blob_data):
             "invoicetotal": "",
             "GST": "",
             "PST": "",
+            "HST": "",
             "PST-SK": "",
             "PST-BC": "",
             "Bottle Deposit": "",
