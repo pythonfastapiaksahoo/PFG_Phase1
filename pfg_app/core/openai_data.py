@@ -128,6 +128,7 @@ def extract_invoice_details_using_openai(blob_data):
                         - Additionally, the alphanumeric sequence of the Invoice ID must be preserved exactly as entered, without any modification, reordering, or normalization of characters.
                         - No substitutions or auto-corrections should be applied to the Invoice ID.
                         - if the vendor name is 'ST. JOHN AMBULANCE' then make sure the first character of InvoiceID is uppercase 'I' but not '1' only if it present.
+                        - if 'ACCOUNT NO:' is present then extract InvoiceID from that only.
                     -**InvoiceDate**: Extract the invoice date in same format that its there in invoice and don't change the format
                     - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                     - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
