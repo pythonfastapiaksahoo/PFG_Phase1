@@ -14,7 +14,7 @@ from opentelemetry import trace
 from pfg_app import settings
 from pfg_app.core.utils import build_rfc1738_url
 from pfg_app.logger_module import logger
-
+import urllib.parse
 engine = None
 Session = None
 Base = None
@@ -62,10 +62,21 @@ else:
     DB = settings.db_name
     SCHEMA = settings.db_schema
 
+    # SQLALCHEMY_DATABASE_URL = (
+    #     f"postgresql://{USR}:{PWD}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
+    # )
+    # Get AAD token (no base64, just plain)
+    credential = DefaultAzureCredential()
+    token = credential.get_token("https://ossrdbms-aad.database.windows.net")
+    aad_token = token.token
+
+    # Escape special characters in token
+    escaped_token = urllib.parse.quote_plus(aad_token)
+    SSL_MODE = "require"
+    # Construct SQLAlchemy URL
     SQLALCHEMY_DATABASE_URL = (
-        f"postgresql://{USR}:{PWD}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
+        f"postgresql+psycopg2://{USR}:{escaped_token}@{HOST}/{DB}?sslmode={SSL_MODE}&options=-csearch_path=pfg_schema"
     )
-    
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_recycle=1800,
@@ -133,13 +144,14 @@ def refresh_access_token_and_get_session():
 def get_db():
     global Session
     attempt = 0
-    max_retries = 2  # Number of retries (1 original + 1 retry)
-    while attempt < max_retries:
+    # max_retries = 2  # Number of retries (1 original + 1 retry)
+    while True:
         try:
             if settings.build_type in ["prod","dev"]:
                 # Refresh the token and recreate the session if necessary
                 if attempt > 0:  # Retry logic
                     refresh_access_token_and_get_session()
+                    attempt = 0
             db = Session()
             # current_schema = db.execute("SELECT current_schema();").scalar()
             # # logger.info(f"Current schema before setting: {current_schema}")
@@ -151,13 +163,13 @@ def get_db():
         except OperationalError as e:
             logger.error(f"Operational error in get_db: {e}. Attempt: {attempt + 1}")
             attempt += 1
-            if attempt >= max_retries:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Database connection failed after retrying. Please retry.",
-                )
+            # if attempt >= max_retries:
+            #     raise HTTPException(
+            #         status_code=500,
+            #         detail="Database connection failed after retrying. Please retry.",
+            #     )
         except Exception as e:
             logger.error(f"General error in get_db: {e} => {traceback.format_exc()}")
-            raise e
+            # raise e
         finally:
             db.close()  # Always close the session
