@@ -815,7 +815,11 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
             .filter(model.corp_metadata.vendorcode == vendor_code)
             .first()
         )
-
+        currency = None
+        try:
+            currency = vendor.miscellaneous["VENDOR_LOC"][0]["CURRENCY_CD"]
+        except (KeyError, IndexError, TypeError):
+            logger.error(f"Could not extract currency for vendor {vendor_code} from miscellaneous JSON.")
         if existing_record:
             # Update existing record
             update_data = {}
@@ -825,6 +829,8 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
                 update_data["synonyms_address"] = json.dumps(metadata.synonyms_address)
             if metadata.dateformat:
                 update_data["dateformat"] = metadata.dateformat
+            if currency:
+                update_data["currency"] = currency
             update_data["updated_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
             db.query(model.corp_metadata).filter(
@@ -845,7 +851,7 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
                 created_on=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                 vendorname=vendor.VendorName,
                 vendoraddress=vendor.Address,
-                currency=vendor.currency,
+                currency=currency,
             )
             db.add(new_metadata)
             db.commit()
