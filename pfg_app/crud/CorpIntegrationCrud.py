@@ -804,6 +804,7 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
 
 def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
     try:
+        currency = None
         # Look up vendor using vendorcode (not vendorid)
         vendor = db.query(model.Vendor).filter(model.Vendor.VendorCode == vendor_code).first()
         if not vendor:
@@ -815,11 +816,13 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
             .filter(model.corp_metadata.vendorcode == vendor_code)
             .first()
         )
-        currency = None
-        try:
-            currency = vendor.miscellaneous["VENDOR_LOC"][0]["CURRENCY_CD"]
-        except (KeyError, IndexError, TypeError):
-            logger.error(f"Could not extract currency for vendor {vendor_code} from miscellaneous JSON.")
+        if vendor.currency:
+            currency = vendor.currency
+        else:
+            try:
+                currency = vendor.miscellaneous["VENDOR_LOC"][0]["CURRENCY_CD"]
+            except (KeyError, IndexError, TypeError):
+                logger.error(f"Could not extract currency for vendor {vendor_code} from miscellaneous JSON.")
         if existing_record:
             # Update existing record
             update_data = {}
