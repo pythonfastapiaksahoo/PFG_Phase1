@@ -1638,6 +1638,7 @@ class corp_docdata(Base):
     document_type = Column(String, nullable=True)
     approver = Column(String, nullable=True)
     approver_title = Column(String, nullable=True)
+    hst = Column(Float, nullable=True)
 
 class corp_metadata(Base):
     __tablename__ = "corp_metadata"
