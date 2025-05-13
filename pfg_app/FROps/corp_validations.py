@@ -1660,7 +1660,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 # consider GST
                             if credit_ck==1:
-                                if round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) ),2)> rounding_threshold:
+                                if round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst)) ),2)> rounding_threshold:
                                     docStatus = 4
                                     docSubStatus = 136
                                     documentdesc = "Coding - Line total mismatch"
@@ -1685,7 +1685,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                     cod_lnMatch = 1
                             # else:
-                            elif round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) ),2)>rounding_threshold:
+                            elif round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst)) ),2)>rounding_threshold:
                                 docStatus = 4
                                 docSubStatus = 136
                                 documentdesc = "Coding - Line total mismatch"
