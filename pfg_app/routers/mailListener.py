@@ -43,21 +43,9 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Webhook JSON parsing error: {e}")
         raise HTTPException(status_code=400, detail="Invalid JSON payload.")
-    db = next(get_db())
+    
     notifications = data.get("value")
     for notification in notifications:
-        # (A) Verify clientState to ensure authenticity
-        # fetch the subscription details from the database
-        subscription_details = db.query(BackgroundTask).filter(BackgroundTask.task_name == "subscription_renewal_loop").first() # TODO: FLAG_GRAPH
-        if not subscription_details:
-            logger.error("Subscription details not found in the database")
-            continue
-        subscription_details = subscription_details.task_metadata
-        if notification.get("clientState") != subscription_details.get("CLIENT_STATE"):
-            # Ignore if mismatch
-            logger.error("clientState mismatch. Possible spoofed request.")
-            continue
-
         # (B) Handle creation event
         if notification.get("changeType") == "created":
             resource = notification.get("resource", "")
@@ -65,14 +53,31 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
             parts = resource.split("/")
             if len(parts) >= 4:
                 message_id = parts[-1]
-                # Save the message_id to the database
-                corp_mail = CorpMail(message_id=message_id)
-                db.add(corp_mail)
-                db.commit()
-                db.refresh(corp_mail)
-                logger.info(f"New message ID: {message_id}, Mail ID: {corp_mail.id}")
-                # Offload processing to a background task
-                background_tasks.add_task(process_new_message, message_id, corp_mail.id, operation_id)
+                logger.info(f"New Message ID {message_id} detected")
+                db = next(get_db())
+                # (A) Verify clientState to ensure authenticity
+                # fetch the subscription details from the database
+                subscription_details = db.query(BackgroundTask).filter(BackgroundTask.task_name == "subscription_renewal_loop").first() # TODO: FLAG_GRAPH
+                if not subscription_details:
+                    logger.error("Subscription details not found in the database")
+                    continue
+                subscription_details = subscription_details.task_metadata
+                if notification.get("clientState") != subscription_details.get("CLIENT_STATE"):
+                    # Ignore if mismatch
+                    logger.error("clientState mismatch. Possible spoofed request.")
+                    continue
+                try:
+                    # Save the message_id to the database
+                    corp_mail = CorpMail(message_id=message_id)
+                    db.add(corp_mail)
+                    db.commit()
+                    db.refresh(corp_mail)
+                    logger.info(f"New message ID: {message_id}, Mail ID: {corp_mail.id}")
+                    # Offload processing to a background task
+                    background_tasks.add_task(process_new_message, message_id, corp_mail.id, operation_id)
+                except Exception:
+                    logger.error(f"Error processing message ID {message_id}")
+                    continue
     logger.info(f"Webhook received {len(notifications)} notifications")
     return Response(status_code=202)
 
