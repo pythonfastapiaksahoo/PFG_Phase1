@@ -1821,6 +1821,8 @@ def queue_process_task(queue_task: QueueTask):
     finally:
         try:
             # splitdoc_id = new_split_doc.splitdoc_id
+            logger.info(f"Inside finally block")
+            logger.info(f"splitdoc_id: {splitdoc_id}")
             # Query all rows in frtrigger_tab with the specific splitdoc_id
             # with db.begin():  # Ensures rollback on failure
             triggers = (

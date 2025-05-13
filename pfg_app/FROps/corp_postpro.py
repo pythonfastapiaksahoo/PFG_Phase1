@@ -84,7 +84,7 @@ def clean_invoice_ids(data):
     def clean_value(value):
         if isinstance(value, str):
             cleaned = re.sub(r'[^a-zA-Z0-9]', '', value)  # Remove special characters
-            lower_cleaned = cleaned.lower()
+            lower_cleaned = cleaned.upper()
             invoID_lw[lower_cleaned] = cleaned  # Store lowercase key → original cleaned value
             return lower_cleaned  # Store lowercase version in cleaned_data
         return value
@@ -609,8 +609,8 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                                     "invo_filepath": pdf_blobpath,
                                     "email_filepath_pdf":email_filepath_pdf,
                                     "sender": sender,
-                                    "approved_by":op_1['approval_details']['Approver'],
-                                    "approver_title":op_1['approval_details']['Designation'],
+                                    "approved_by":coding_approverName,
+                                    "approver_title":coding_approver_Designation,
                                 }
                     
                     try:

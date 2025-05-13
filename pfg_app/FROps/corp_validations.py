@@ -54,9 +54,22 @@ def is_match(title1, title2, threshold=85):
     # Fuzzy match score
     similarity = fuzz.ratio(title1_norm, title2_norm)
 
-    # Check if acronym match OR fuzzy similarity is high
+    # # Check if acronym match OR fuzzy similarity is high
+    # if is_acronym_match(title1, title2) or similarity >= threshold:
+    #     return True, similarity
+
+     # Check if acronym match OR fuzzy similarity is high
     if is_acronym_match(title1, title2) or similarity >= threshold:
         return True, similarity
+    elif fuzz.token_set_ratio(title1_norm, title2_norm)==100:
+        try:
+            logger.info(f"token_set_ratio: { fuzz.token_set_ratio(title1_norm, title2_norm)}")
+        except Exception as e:
+            logger.info(f"Error in token_set_ratio: {e}")
+            logger.info(traceback.format_exc())
+        similarity = fuzz.token_set_ratio(title1_norm, title2_norm)
+        return True, similarity
+
 
     return False, similarity
 
@@ -152,7 +165,8 @@ def is_amount_approved(amount: float, title: str) -> bool:
     print(f"Approval limits: {amount}, {title}")
 
     approval_limits = {
-        (0, 24999): {"Supervisor", "Manager", "Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
+        (0, 24999): {"Supervisor", "Manager", "Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP","General Counsel"},
+
         (0, 74999): {"Senior Manager", "Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
         (0, 499999): {"Director", "Regional Manager", "General Manager", "Managing Director", "VP"},
         (0, float("inf")): {"Managing Director", "VP"},
@@ -168,9 +182,11 @@ def is_amount_approved(amount: float, title: str) -> bool:
         "director": "Director",
         "regional manager": "Regional Manager",
         "general manager": "General Manager",
+        "general counsel" : "General Counsel",
         "managing director": "Managing Director",
         "vice president": "VP",
         "vp": "VP",
+        "general counsel":"General Counsel",
         "rmpo": "Regional Manager",
         "generalmanager, pattisson food group":"General Manager",
         "generalmanager": "General Manager",
@@ -942,10 +958,33 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     logger.info(f"df_corp_metadata: {df_corp_metadata}")
                     try: 
                         if df_corp_metadata.empty: 
+                            documentdesc = "Vendor not onboarded."
+                            docSubStatus = 106
+                            docStatus = 25
+                            try:
+
+                                corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                db.query(model.corp_document_tab).filter( model.corp_document_tab.corp_doc_id == doc_id
+                                ).update(
+                                    {
+                                        model.corp_document_tab.documentstatus: docStatus,  # noqa: E501
+                                        model.corp_document_tab.documentsubstatus: docSubStatus,  # noqa: E501
+                                        model.corp_document_tab.last_updated_by: userID,
+                                        model.corp_document_tab.updated_on: timeStmp,
+
+                                    }
+                                )
+
+                                db.commit()
+                            except Exception as e:
+                                logger.error(f"Error in updating corp_docdata: {e}")
+                                logger.info(traceback.format_exc())
                             if "A" in str(skipConf):
                                 VB_documentdesc = "User processing invoice manually"
                                 VB_status = 1
                                 VB_status_code = 0
+                                docSubStatus = 106
+                                docStatus = 25
                                 return_status["Vendor not onboarded"] = {"status": VB_status,
                                                             "StatusCode":VB_status_code,
                                                             "response": [
@@ -959,6 +998,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     logger.info(traceback.format_exc())
                             else:
                                 VB_documentdesc = "Onboard vendor/proceess manually"
+                                docSubStatus = 106
+                                docStatus = 25
                                 VB_status = 0
                                 VB_status_code = 10
                                 # corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus) 
@@ -1068,7 +1109,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                     
                 try:
-                    cl_invoID =  re.sub(r'[^a-zA-Z0-9\s]', '', invoice_id)
+                    # cl_invoID =  re.sub(r'[^a-zA-Z0-9\s]', '', invoice_id)
+                    cl_invoID = re.sub(r'[^a-zA-Z0-9\s]', '', invoice_id).upper()
                     if len(cl_invoID)==0:
                          #---
                         try:
@@ -1121,16 +1163,27 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             logger.info(f"Error in cleaning invoice ID: {e}")
                             logger.info(traceback.format_exc())
 
+                # dupCk_document_data = (
+                # 
+                # db.query(model.corp_document_tab)
+                # .filter(
+                #     model.corp_document_tab.corp_doc_id != doc_id,
+                #     model.corp_document_tab.vendor_id == vendor_id,
+                #     model.corp_document_tab.documentstatus != 10,
+                #     model.corp_document_tab.invoice_id in (invoice_id,invoice_id.lower(),invoice_id.upper())
+                # )
+                # .all()
+                # )
                 dupCk_document_data = (
-                db.query(model.corp_document_tab)
-                .filter(
-                    model.corp_document_tab.corp_doc_id != doc_id,
-                    model.corp_document_tab.vendor_id == vendor_id,
-                    model.corp_document_tab.documentstatus != 10,
-                    model.corp_document_tab.invoice_id == invoice_id
-                )
-                .all()
-                )
+                    db.query(model.corp_document_tab)
+                        .filter(
+                            model.corp_document_tab.corp_doc_id != doc_id,
+                            model.corp_document_tab.vendor_id == vendor_id,
+                            model.corp_document_tab.documentstatus != 10,
+                            model.corp_document_tab.invoice_id.in_([invoice_id, invoice_id.lower(), invoice_id.upper()])
+                        )
+                        .all())
+
 
                 
                 df_dupCk_document = pd.DataFrame([
@@ -1501,6 +1554,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                     
                         if invo_cod_gst_mismatch==0:
                                 # invoice_status_msg ="Invoice GST mismatch with coding total"
+                            docStatus = 4
+                            docSubStatus = 17
                             return_status["Invoice GST validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
@@ -1972,8 +2027,23 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                     logger.info(traceback.format_exc())
                                                 # return return_status
                                             elif approvrd_ck ==1:
-                                                    
-                                                if (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
+                                                if ((list(df_corp_coding['approval_status'])[0]) in ["",None]) and skip_approval_ck != 1:
+                                                    docStatus = 24
+                                                    docSubStatus = 137
+                                                    documentdesc = "Pending Approval"
+                                                    try:
+                                                        documentdesc = f"Invoice - Pending Approval"
+                                                        corp_update_docHistory(doc_id, userID, docStatus, documentdesc, db,docSubStatus)
+                                                    except Exception as e:
+                                                        logger.info(traceback.format_exc())
+                                                    return_status["Approval needed"] = {"status": 0,
+                                                        "StatusCode":3,
+                                                        "response": [
+                                                                        f"Invoice - Pending Approval"
+                                                                    ],
+                                                                }
+                                                    return return_status
+                                                elif (list(df_corp_coding['approval_status'])[0].lower() == "approved") or (skip_approval_ck == 1):
                                                     docStatus = 2
                                                     docSubStatus = 31
                                                     documentdesc = "Invoice approved"
