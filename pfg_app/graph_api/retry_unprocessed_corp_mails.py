@@ -66,7 +66,7 @@ def fetch_and_process_recent_graph_mails(operation_id: str):
                 except Exception as e:
                     logger.error(f"Error processing message ID {message_id}: {e}")
                     continue
-
+    except Exception as e:
         logger.error(f"Error in fetch_and_process_recent_graph_mails: {traceback.format_exc()}")
         
         
