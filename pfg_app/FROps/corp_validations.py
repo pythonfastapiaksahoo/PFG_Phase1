@@ -1535,6 +1535,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             else:
                                 gst_hst_mismatch = 1
                         except Exception:
+                            logger.info(traceback.format_exc())
                             gst_hst_mismatch = 0  
 
                         try:
