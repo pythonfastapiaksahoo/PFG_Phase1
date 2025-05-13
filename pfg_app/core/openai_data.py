@@ -120,6 +120,7 @@ def extract_invoice_details_using_openai(blob_data):
                         - Sometime vendor name may be name of person, so ensure to capture name of person with prefix 'Name:', for example 'Barry Smith', then return 'Barry Smith'.
                         - If the vendor name is present at the bottom with prefix 'please remit payment to:' or 'pay to:' then always consider from it instead from the top of the invoice document.
                         - if 'Amazon.com.ca' is present in the document then extract it as 'Amazon.com.ca ULC'.
+                        - if 'ADT SECURITY SERVICES CANADA' is present in the document then extract it as 'ADT SECURITY SERVICES CANADA' only.
                         - Return "N/A" if the vendor name is not present in the invoice document.
                     - **InvoiceID** : Please ensure that the following characters are treated as distinct and non-interchangeable in all inputs, outputs, validations, and processing logic:
                         - The digit '1' (one) and the uppercase letter 'I' (i)
