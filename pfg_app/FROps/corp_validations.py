@@ -1,7 +1,5 @@
 #corp_validations:
 
-#corp_validations
-
 import re
 from pfg_app import model
 from pfg_app.FROps.corp_payloadValidation import payload_dbUpdate
@@ -1020,7 +1018,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 return return_status
                     except Exception as e:
                         logger.info(traceback.format_exc())
-                        
+
                     if not df_corp_metadata.empty:
                         VB_status = 1
                         metadata_currency = list(df_corp_metadata['currency'])[0]
@@ -1200,8 +1198,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                         .filter(model.corp_metadata.vendorid == vendor_id)
                                         .all()
                                     )
+                            
                             df_corp_metadata = pd.DataFrame([row.__dict__ for row in corp_metadata_qry])
-                                    
+                            
                         except Exception as e:
                             logger.info(f"Error in getting metadata: {e}")
                             df_corp_metadata = pd.DataFrame()
@@ -1219,7 +1218,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 mand_invDate = ""
                                 logger.info(f"Error: {e}")
                             VB_status = 1
-                            metadata_currency = list(df_corp_metadata['currency'])[0]
+                            # metadata_currency = list(df_corp_metadata['currency'])[0]
                             date_format = list(df_corp_metadata['dateformat'])[0]
                             if check_date_format(mand_invDate) == False:
                                 req_date, date_status = date_cnv(mand_invDate, date_format)

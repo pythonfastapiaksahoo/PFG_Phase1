@@ -775,6 +775,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                                 "litterdeposit":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["Litter Deposit"]),
                                 "gst":pdf_gst,
                                 "pst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST"]),
+                                "hst":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["HST"]),
                                 "created_on":timestmp,
                                 "pst_sk":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-SK"]),
                                 "pst_bc":cleanAmt_all(credit_invo,doc_dt_rw[list(doc_dt_rw.keys())[0]]["PST-BC"]),
@@ -782,6 +783,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                                 "misc":misc_amt,
                                 "approver": invoice_ApproverName ,
                                 "approver_title": invo_approver_Designation
+                                
                                 }
                     
 
@@ -1022,6 +1024,7 @@ def corp_postPro(op_unCl_1,mail_row_key,file_path,sender,mail_rw_dt,queue_task_i
                             "litterdeposit":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["Litter Deposit"]),
                             "gst":pdf_gst,
                             "pst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST"]),
+                            "hst":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["HST"]),
                             "created_on":timestmp,
                             "pst_sk":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-SK"]),
                             "pst_bc":cleanAmt_all(credit_invo,miss_code[list(miss_code.keys())[0]]["PST-BC"]),
