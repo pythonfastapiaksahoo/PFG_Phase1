@@ -134,7 +134,8 @@ def find_best_vendor_match_onboarded(openai_vendor_name, openai_vendor_address, 
         elif levenshtein_name_match or cosine_name_match:
             match_score["bestmatch"] = "Name Match"
         elif levenshtein_addr_match or cosine_addr_match:
-            match_score["bestmatch"] = "Address Match"
+            if round(max_levenshtein_addr, 2) > 99 or round(max_cosine_addr, 2) > 99:
+                match_score["bestmatch"] = "Address Match"
         else:
             continue  # Skip if no match at all
 
@@ -218,6 +219,8 @@ def matchVendorCorp(openai_vendor_name,openai_vendor_address,corp_metadata_df,ve
         if matching_vendors[(list(matching_vendors.keys())[0])]["bestmatch"]=='Full Match':
             vendorFound=1
         elif matching_vendors[(list(matching_vendors.keys())[0])]["bestmatch"]=='Name Match':
+            vendorFound=1
+        elif matching_vendors[(list(matching_vendors.keys())[0])]["bestmatch"]=='Address Match':
             vendorFound=1
         # else:
         #     openAIcall_required = 1
