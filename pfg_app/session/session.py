@@ -133,13 +133,14 @@ def refresh_access_token_and_get_session():
 def get_db():
     global Session
     attempt = 0
-    max_retries = 2  # Number of retries (1 original + 1 retry)
-    while attempt < max_retries:
+    # max_retries = 2  # Number of retries (1 original + 1 retry)
+    while True:
         try:
             if settings.build_type in ["prod", "qa"]:
                 # Refresh the token and recreate the session if necessary
                 if attempt > 0:  # Retry logic
                     refresh_access_token_and_get_session()
+                    attempt = 0
             db = Session()
             # current_schema = db.execute("SELECT current_schema();").scalar()
             # # logger.info(f"Current schema before setting: {current_schema}")
@@ -151,13 +152,13 @@ def get_db():
         except OperationalError as e:
             logger.error(f"Operational error in get_db: {e}. Attempt: {attempt + 1}")
             attempt += 1
-            if attempt >= max_retries:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Database connection failed after retrying. Please retry.",
-                )
+            # if attempt >= max_retries:
+            #     raise HTTPException(
+            #         status_code=500,
+            #         detail="Database connection failed after retrying. Please retry.",
+            #     )
         except Exception as e:
             logger.error(f"General error in get_db: {e} => {traceback.format_exc()}")
-            raise e
+            # raise e
         finally:
             db.close()  # Always close the session
