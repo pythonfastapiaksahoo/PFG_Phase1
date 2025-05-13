@@ -1529,11 +1529,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         try:
                             calculated_gst_hst = clean_coding_amount(mand_gst) + clean_coding_amount(mand_hst)
                             cod_gst_cleaned = clean_coding_amount(cod_gst)
-
+                            logger.info(f"mand_gst: {mand_gst}, mand_hst: {mand_hst}, calculated_gst_hst: {calculated_gst_hst}, cod_gst_cleaned: {cod_gst_cleaned}")
                             if abs(calculated_gst_hst - cod_gst_cleaned) > rounding_threshold:
-                                gst_hst_mismatch = 1
-                            else:
                                 gst_hst_mismatch = 0
+                            else:
+                                gst_hst_mismatch = 1
                         except Exception:
                             gst_hst_mismatch = 0  
 
@@ -1573,7 +1573,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             return_status["Invoice GST validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
-                                                                    "Invoice GST + HST mismatch with coding total"
+                                                                    "Invoice GST + HST mismatch with coding GST"
                                                                 ],
                                                         }
                             
