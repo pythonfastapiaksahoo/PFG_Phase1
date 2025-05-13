@@ -946,6 +946,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     mand_subTotal = list(df_corp_docdata['subtotal'])[0]
                     mand_document_type = list(df_corp_docdata['document_type'])[0]
                     mand_currency = list(df_corp_docdata['currency'])[0]
+                    cod_gst = list(df_corp_coding['gst'])[0]
                     try:
                         corp_metadata_qry = (
                                     db.query(model.corp_metadata)
@@ -1411,7 +1412,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                             logger.info(f"Validating invoice total- invoicetotal:{mand_invoTotal}, subtotal:{mand_subTotal}, gst:{mand_gst}")
                             if float(mand_invoTotal) or  float(mand_invoTotal)==0:
-                                subtotal = float(mand_invoTotal)- float(mand_gst)
+                                subtotal = float(mand_invoTotal)- float(mand_gst) - float(cod_gst)
                                 if (float(mand_invoTotal) - (float(mand_subTotal)+float(mand_gst))) != 0:
                                     db.query(model.corp_docdata).filter(
                                     
@@ -1524,7 +1525,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         line_sum = 0
                         amt_threshold = 25000
                         cod_invoTotal =  df_corp_coding['invoicetotal']
-                        cod_gst = df_corp_coding['gst']
+                        
                         template_type = df_corp_coding['template_type']
                         logger.info(f"template_type: {template_type}, invoicetotal: {cod_invoTotal}, gst: {cod_gst}, mand_gst: {mand_gst}, mand_hst: {mand_hst}, ")
                         try:
