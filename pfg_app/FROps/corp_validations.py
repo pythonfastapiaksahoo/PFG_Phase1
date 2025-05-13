@@ -84,6 +84,7 @@ def email_belongs_to_name(name, email):
     return any(part in email_prefix for part in name_parts)  # Check if any name part is in the email
 
 def clean_coding_amount(amount_str):
+    logger.info(f"amount_str: {amount_str}")
     if amount_str in [None, ""]:
         return 0.0
     if isinstance(amount_str, (float, int)):
@@ -945,6 +946,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                     mand_subTotal = list(df_corp_docdata['subtotal'])[0]
                     mand_document_type = list(df_corp_docdata['document_type'])[0]
                     mand_currency = list(df_corp_docdata['currency'])[0]
+                    cod_gst = list(df_corp_coding['gst'])[0]
                     try:
                         corp_metadata_qry = (
                                     db.query(model.corp_metadata)
@@ -1410,7 +1412,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                             logger.info(f"Validating invoice total- invoicetotal:{mand_invoTotal}, subtotal:{mand_subTotal}, gst:{mand_gst}")
                             if float(mand_invoTotal) or  float(mand_invoTotal)==0:
-                                subtotal = float(mand_invoTotal)- float(mand_gst)
+                                subtotal = float(mand_invoTotal)- float(mand_gst) - float(cod_gst)
                                 if (float(mand_invoTotal) - (float(mand_subTotal)+float(mand_gst))) != 0:
                                     db.query(model.corp_docdata).filter(
                                     
@@ -1523,12 +1525,12 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         line_sum = 0
                         amt_threshold = 25000
                         cod_invoTotal =  df_corp_coding['invoicetotal']
-                        cod_gst = df_corp_coding['gst']
+                        
                         template_type = df_corp_coding['template_type']
                         logger.info(f"template_type: {template_type}, invoicetotal: {cod_invoTotal}, gst: {cod_gst}, mand_gst: {mand_gst}, mand_hst: {mand_hst}, ")
                         try:
-                            calculated_gst_hst = clean_coding_amount(mand_gst) + clean_coding_amount(mand_hst)
-                            cod_gst_cleaned = clean_coding_amount(cod_gst)
+                            calculated_gst_hst = clean_coding_amount(str(mand_gst)) + clean_coding_amount(str(mand_hst))
+                            cod_gst_cleaned = clean_coding_amount(str(cod_gst))
                             logger.info(f"calculated_gst_hst: {calculated_gst_hst}, cod_gst_cleaned: {cod_gst_cleaned}")
                             if abs(calculated_gst_hst - cod_gst_cleaned) > rounding_threshold:
                                 gst_hst_mismatch = 0
