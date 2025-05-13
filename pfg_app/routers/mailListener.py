@@ -67,11 +67,11 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                     logger.error("clientState mismatch. Possible spoofed request.")
                     continue
                 # # Save the message_id to the database
-                # # Check if the message_id already exists in the database
-                # existing_mail = db.query(CorpMail).filter(CorpMail.message_id == message_id).first()
-                # if existing_mail:
-                #     logger.info(f"Message ID {message_id} already exists in the database")
-                #     continue
+                # Check if the message_id already exists in the database
+                existing_mail = db.query(CorpMail).filter(CorpMail.message_id == message_id).first()
+                if existing_mail:
+                    logger.info(f"Message ID {message_id} already exists in the database")
+                    continue
                 try:
                     corp_mail = CorpMail(message_id=message_id)
                     db.add(corp_mail)
