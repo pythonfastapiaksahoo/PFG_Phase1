@@ -84,6 +84,7 @@ def email_belongs_to_name(name, email):
     return any(part in email_prefix for part in name_parts)  # Check if any name part is in the email
 
 def clean_coding_amount(amount_str):
+    logger.info(f"amount_str: {amount_str}")
     if amount_str in [None, ""]:
         return 0.0
     if isinstance(amount_str, (float, int)):
@@ -1527,8 +1528,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         template_type = df_corp_coding['template_type']
                         logger.info(f"template_type: {template_type}, invoicetotal: {cod_invoTotal}, gst: {cod_gst}, mand_gst: {mand_gst}, mand_hst: {mand_hst}, ")
                         try:
-                            calculated_gst_hst = clean_coding_amount(mand_gst) + clean_coding_amount(mand_hst)
-                            cod_gst_cleaned = clean_coding_amount(cod_gst)
+                            calculated_gst_hst = clean_coding_amount(str(mand_gst)) + clean_coding_amount(str(mand_hst))
+                            cod_gst_cleaned = clean_coding_amount(str(cod_gst))
                             logger.info(f"calculated_gst_hst: {calculated_gst_hst}, cod_gst_cleaned: {cod_gst_cleaned}")
                             if abs(calculated_gst_hst - cod_gst_cleaned) > rounding_threshold:
                                 gst_hst_mismatch = 0
