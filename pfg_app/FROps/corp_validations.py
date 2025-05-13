@@ -363,6 +363,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     validation_ck_all = 1
     invo_cod_gst_mismatch = 0
     rounding_threshold = 0.005
+    mand_hst = 0
+    gst_hst_mismatch = 0
     try:
         logger.info(f"docID: {doc_id}, skipConf: {skipConf}")
         corp_document_data = (
@@ -937,6 +939,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
  
                     # Check for mandatory fields:
                     mand_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
+                    mand_hst = list(df_corp_docdata['hst'])[0]
                     mand_gst = list(df_corp_docdata['gst'])[0]
                     mand_invDate = list(df_corp_docdata['invoice_date'])[0]
                     mand_subTotal = list(df_corp_docdata['subtotal'])[0]
@@ -1522,7 +1525,18 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         cod_invoTotal =  df_corp_coding['invoicetotal']
                         cod_gst = df_corp_coding['gst']
                         template_type = df_corp_coding['template_type']
-                        
+
+                        try:
+                            calculated_gst_hst = clean_coding_amount(mand_gst) + clean_coding_amount(mand_hst)
+                            cod_gst_cleaned = clean_coding_amount(cod_gst)
+
+                            if abs(calculated_gst_hst - cod_gst_cleaned) > rounding_threshold:
+                                gst_hst_mismatch = 1
+                            else:
+                                gst_hst_mismatch = 0
+                        except Exception:
+                            gst_hst_mismatch = 0  
+
                         try:
                             logger.info(f"invoice total: {float(mand_invoTotal)}, invoice coding total: {float(cod_invoTotal)}")
                             logger.info(f"invoice gst: {float(mand_gst)}, invoice coding gst: {float(cod_gst)}, rounding_threshold: {rounding_threshold}")
@@ -1534,11 +1548,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 
                             else:
                                 invo_cod_total_mismatch = 1
-                            if abs(clean_coding_amount(str(mand_gst)) - clean_coding_amount(str(float(cod_gst))))>rounding_threshold:
-                                invo_cod_gst_mismatch = 0
+                            # if abs(clean_coding_amount(str(mand_gst)) - clean_coding_amount(str(float(cod_gst))))>rounding_threshold:
+                            #     invo_cod_gst_mismatch = 0
                                 
-                            else:
-                                invo_cod_gst_mismatch = 1
+                            # else:
+                            #     invo_cod_gst_mismatch = 1
                         except Exception:
                             logger.info(f"Error in invoice total mismatch: {traceback.format_exc()}")
 
@@ -1551,18 +1565,30 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                             validation_ck_all = validation_ck_all*0
                                     
-                        if invo_cod_gst_mismatch==0:
+                        if gst_hst_mismatch==0:
                                 # invoice_status_msg ="Invoice GST mismatch with coding total"
+                            # if gst_hst_mismatch==0:
                             docStatus = 4
                             docSubStatus = 17
                             return_status["Invoice GST validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
-                                                                    "Invoice GST mismatch with coding total"
+                                                                    "Invoice GST + HST mismatch with coding total"
                                                                 ],
-                                                            }
+                                                        }
                             
                             validation_ck_all = validation_ck_all*0
+                            # else:
+                            #     docStatus = 4
+                            #     docSubStatus = 17
+                            #     return_status["Invoice GST validation"] = {"status": 0,
+                            #                             "StatusCode":0,
+                            #                             "response": [
+                            #                                             "Invoice GST mismatch with coding total"
+                            #                                         ],
+                            #                                     }
+                                
+                            #     validation_ck_all = validation_ck_all*0
                         
                         if invDate_status==0:
                             validation_ck_all = validation_ck_all*0
