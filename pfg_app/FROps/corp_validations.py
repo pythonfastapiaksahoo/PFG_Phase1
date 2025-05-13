@@ -1525,11 +1525,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         cod_invoTotal =  df_corp_coding['invoicetotal']
                         cod_gst = df_corp_coding['gst']
                         template_type = df_corp_coding['template_type']
-
+                        logger.info(f"template_type: {template_type}, invoicetotal: {cod_invoTotal}, gst: {cod_gst}, mand_gst: {mand_gst}, mand_hst: {mand_hst}, ")
                         try:
                             calculated_gst_hst = clean_coding_amount(mand_gst) + clean_coding_amount(mand_hst)
                             cod_gst_cleaned = clean_coding_amount(cod_gst)
-                            logger.info(f"mand_gst: {mand_gst}, mand_hst: {mand_hst}, calculated_gst_hst: {calculated_gst_hst}, cod_gst_cleaned: {cod_gst_cleaned}")
+                            logger.info(f"calculated_gst_hst: {calculated_gst_hst}, cod_gst_cleaned: {cod_gst_cleaned}")
                             if abs(calculated_gst_hst - cod_gst_cleaned) > rounding_threshold:
                                 gst_hst_mismatch = 0
                             else:
