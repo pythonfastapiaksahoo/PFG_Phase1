@@ -43,7 +43,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Webhook JSON parsing error: {e}")
         raise HTTPException(status_code=400, detail="Invalid JSON payload.")
-    
+    # db = next(get_db())
     notifications = data.get("value")
     for notification in notifications:
         # (B) Handle creation event
@@ -65,6 +65,12 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                 if notification.get("clientState") != subscription_details.get("CLIENT_STATE"):
                     # Ignore if mismatch
                     logger.error("clientState mismatch. Possible spoofed request.")
+                    continue
+                # # Save the message_id to the database
+                # Check if the message_id already exists in the database
+                existing_mail = db.query(CorpMail).filter(CorpMail.message_id == message_id).first()
+                if existing_mail:
+                    logger.info(f"Message ID {message_id} already exists in the database")
                     continue
                 try:
                     # Save the message_id to the database

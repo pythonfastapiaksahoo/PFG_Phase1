@@ -1560,6 +1560,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             logger.info(f"Error in invoice total mismatch: {traceback.format_exc()}")
 
                         if invo_cod_total_mismatch==0:
+                            docStatus = 4
+                            docSubStatus = 131
                             return_status["Invoice Total validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [

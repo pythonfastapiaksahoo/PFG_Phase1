@@ -89,7 +89,7 @@ def extract_invoice_details_using_openai(blob_data):
 
                 ### Instructions:
                 1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly.
-                2. **Data Extraction**: Extract only the information specified:
+                2. **Data Extraction**: Extract only the information specified (look for the summary of header details from first page if present. else extract from other pages):
                 - **Invoice Document**: Yes/No
                 - **CreditNote**: Yes/No
                 - **Invoice ID**: Extracted Invoice ID from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
@@ -120,6 +120,9 @@ def extract_invoice_details_using_openai(blob_data):
                         - Sometime vendor name may be name of person, so ensure to capture name of person with prefix 'Name:', for example 'Barry Smith', then return 'Barry Smith'.
                         - If the vendor name is present at the bottom with prefix 'please remit payment to:' or 'pay to:' then always consider from it instead from the top of the invoice document.
                         - if 'Amazon.com.ca' is present in the document then extract it as 'Amazon.com.ca ULC'.
+                        - if 'ADT SECURITY SERVICES CANADA' is present in the document then extract it as 'ADT SECURITY SERVICES CANADA' only.
+                        - if 'Telus' is is present in the document then extract the corresponding name.
+                        - if ' Paying your bill' is present anywhere in document, then always consider vendorname from it instead from the top of the invoice document.
                         - Return "N/A" if the vendor name is not present in the invoice document.
                     - **InvoiceID** : Please ensure that the following characters are treated as distinct and non-interchangeable in all inputs, outputs, validations, and processing logic:
                         - The digit '1' (one) and the uppercase letter 'I' (i)
@@ -134,6 +137,8 @@ def extract_invoice_details_using_openai(blob_data):
                     - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                         - Ensure to capture the primary vendor address typically found in the top of the invoice document.
                         - If the vendor address is present at the bottom with prefix 'please remit payment to:' or 'pay to:' then always consider from it instead from the top of the invoice document.
+                        - if 'Telus' is is present in the document then extract the corresponding vendor address.
+                        - if ' Paying your bill' is present anywhere in document, then always consider vendoraddress from it instead from the top of the invoice document.
                         - if the vendor address is not present in the invoice document, return "N/A".
                     - **CreditNote** : if "Credit Memo" or Credit Note" is present in the invoice document, then return "Yes" else return "No".
                         - if the invoice total fields is in negative or in braces, then return "Yes".for example, '-123.45' or '123.45-' or (123.45) return "Yes".
