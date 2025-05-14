@@ -1532,6 +1532,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "currency",
                     "gst",
                     "pst",
+                    "hst",
                     "invoicetotal",
                     "subtotal",
                     "doc_updates",
