@@ -249,7 +249,8 @@ def payload_dbUpdate(doc_id,userID,db):
     df_corp_document = pd.DataFrame([{k: v for k, v in vars(row[1]).items() if k != "_sa_instance_state"} for row in result])
     df_corp_coding_tab = pd.DataFrame([{k: v for k, v in vars(row[2]).items() if k != "_sa_instance_state"} for row in result])
 
-    gst_amt = list(df_corp_header_data['gst'])[0]
+    # gst_amt = list(df_corp_header_data['gst'])[0]
+    gst_amt = list(df_corp_coding_tab['gst'])[0]
     VAT_APPLICABILITY = 'T' if gst_amt > 0 else 'O'
     try:
         get_tmid_qry = (
