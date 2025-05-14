@@ -1496,9 +1496,10 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                 isouter=True,
             )
             .filter(model.corp_document_tab.corp_doc_id == inv_id)  # Use correct field in filter
-            .one()
+            .first()
         )
-
+        if invdat == None:
+            return {f"No Invoice Data found for document id: {inv_id}"}
         # provide vendor details
         if invdat.corp_document_tab.vendor_id:
             vendordata = (
@@ -1585,7 +1586,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
 
     except Exception:
         logger.error(f"Error in line item :{traceback.format_exc()}")
-        return Response(status_code=500, headers={"codeError": "Server Error"})
+        return {"message": "Invoice not found"}
     finally:
         db.close()
         
