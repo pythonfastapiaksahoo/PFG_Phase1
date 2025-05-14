@@ -84,6 +84,7 @@ def email_belongs_to_name(name, email):
     return any(part in email_prefix for part in name_parts)  # Check if any name part is in the email
 
 def clean_coding_amount(amount_str):
+    logger.info(f"amount_str: {amount_str}")
     if amount_str in [None, ""]:
         return 0.0
     if isinstance(amount_str, (float, int)):
@@ -363,6 +364,8 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
     validation_ck_all = 1
     invo_cod_gst_mismatch = 0
     rounding_threshold = 0.005
+    mand_hst = 0
+    gst_hst_mismatch = 0
     try:
         logger.info(f"docID: {doc_id}, skipConf: {skipConf}")
         corp_document_data = (
@@ -937,11 +940,13 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
  
                     # Check for mandatory fields:
                     mand_invoTotal = list(df_corp_docdata['invoicetotal'])[0]
+                    mand_hst = list(df_corp_docdata['hst'])[0]
                     mand_gst = list(df_corp_docdata['gst'])[0]
                     mand_invDate = list(df_corp_docdata['invoice_date'])[0]
                     mand_subTotal = list(df_corp_docdata['subtotal'])[0]
                     mand_document_type = list(df_corp_docdata['document_type'])[0]
                     mand_currency = list(df_corp_docdata['currency'])[0]
+                    cod_gst = list(df_corp_coding['gst'])[0]
                     try:
                         corp_metadata_qry = (
                                     db.query(model.corp_metadata)
@@ -1407,7 +1412,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                             logger.info(f"Validating invoice total- invoicetotal:{mand_invoTotal}, subtotal:{mand_subTotal}, gst:{mand_gst}")
                             if float(mand_invoTotal) or  float(mand_invoTotal)==0:
-                                subtotal = float(mand_invoTotal)- float(mand_gst)
+                                subtotal = float(mand_invoTotal)- float(mand_gst) - float(cod_gst)
                                 if (float(mand_invoTotal) - (float(mand_subTotal)+float(mand_gst))) != 0:
                                     db.query(model.corp_docdata).filter(
                                     
@@ -1520,9 +1525,21 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                         line_sum = 0
                         amt_threshold = 25000
                         cod_invoTotal =  df_corp_coding['invoicetotal']
-                        cod_gst = df_corp_coding['gst']
-                        template_type = df_corp_coding['template_type']
                         
+                        template_type = df_corp_coding['template_type']
+                        logger.info(f"template_type: {template_type}, invoicetotal: {cod_invoTotal}, gst: {cod_gst}, mand_gst: {mand_gst}, mand_hst: {mand_hst}, ")
+                        try:
+                            calculated_gst_hst = clean_coding_amount(str(mand_gst)) + clean_coding_amount(str(mand_hst))
+                            cod_gst_cleaned = clean_coding_amount(str(cod_gst))
+                            logger.info(f"calculated_gst_hst: {calculated_gst_hst}, cod_gst_cleaned: {cod_gst_cleaned}")
+                            if abs(calculated_gst_hst - cod_gst_cleaned) > rounding_threshold:
+                                gst_hst_mismatch = 0
+                            else:
+                                gst_hst_mismatch = 1
+                        except Exception:
+                            logger.info(traceback.format_exc())
+                            gst_hst_mismatch = 0  
+
                         try:
                             logger.info(f"invoice total: {float(mand_invoTotal)}, invoice coding total: {float(cod_invoTotal)}")
                             logger.info(f"invoice gst: {float(mand_gst)}, invoice coding gst: {float(cod_gst)}, rounding_threshold: {rounding_threshold}")
@@ -1534,11 +1551,11 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                 
                             else:
                                 invo_cod_total_mismatch = 1
-                            if abs(clean_coding_amount(str(mand_gst)) - clean_coding_amount(str(float(cod_gst))))>rounding_threshold:
-                                invo_cod_gst_mismatch = 0
+                            # if abs(clean_coding_amount(str(mand_gst)) - clean_coding_amount(str(float(cod_gst))))>rounding_threshold:
+                            #     invo_cod_gst_mismatch = 0
                                 
-                            else:
-                                invo_cod_gst_mismatch = 1
+                            # else:
+                            #     invo_cod_gst_mismatch = 1
                         except Exception:
                             logger.info(f"Error in invoice total mismatch: {traceback.format_exc()}")
 
@@ -1551,18 +1568,30 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                             }
                             validation_ck_all = validation_ck_all*0
                                     
-                        if invo_cod_gst_mismatch==0:
+                        if gst_hst_mismatch==0:
                                 # invoice_status_msg ="Invoice GST mismatch with coding total"
+                            # if gst_hst_mismatch==0:
                             docStatus = 4
                             docSubStatus = 17
                             return_status["Invoice GST validation"] = {"status": 0,
                                                     "StatusCode":0,
                                                     "response": [
-                                                                    "Invoice GST mismatch with coding total"
+                                                                    "Invoice GST + HST mismatch with coding GST"
                                                                 ],
-                                                            }
+                                                        }
                             
                             validation_ck_all = validation_ck_all*0
+                            # else:
+                            #     docStatus = 4
+                            #     docSubStatus = 17
+                            #     return_status["Invoice GST validation"] = {"status": 0,
+                            #                             "StatusCode":0,
+                            #                             "response": [
+                            #                                             "Invoice GST mismatch with coding total"
+                            #                                         ],
+                            #                                     }
+                                
+                            #     validation_ck_all = validation_ck_all*0
                         
                         if invDate_status==0:
                             validation_ck_all = validation_ck_all*0
@@ -1631,7 +1660,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 # consider GST
                             if credit_ck==1:
-                                if round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) ),2)> rounding_threshold:
+                                if round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst)) ),2)> rounding_threshold:
                                     docStatus = 4
                                     docSubStatus = 136
                                     documentdesc = "Coding - Line total mismatch"
@@ -1656,7 +1685,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                                                                 }
                                     cod_lnMatch = 1
                             # else:
-                            elif round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst.values[0])) ),2)>rounding_threshold:
+                            elif round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst)) ),2)>rounding_threshold:
                                 docStatus = 4
                                 docSubStatus = 136
                                 documentdesc = "Coding - Line total mismatch"
