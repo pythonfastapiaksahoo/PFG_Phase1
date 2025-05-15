@@ -150,6 +150,8 @@ def extract_invoice_details_using_openai(blob_data):
                         - if 'Sales Tax/Tax de vente BC (5%)' is present, then extract the value as GST only after it. for example: 'Sales Tax/Tax de vente BC (5%) $121.23' then extract 121.23
                         - if 'Total - Sales Tax' or 'Taxe de vente totale' is present, then extract the value as GST only after it.
                         - if 'TAX' is present in the invoice document, extract the value as GST only after it. for example: 'Tax $0.23 CAD' then extract GST as 0.23.
+                        - Make sure don't consider 'TAX' as 'HST' but always be 'GST' only
+                        - if 'GST/HST' is present in the invoice document, extract the value as GST only after it and HST as N/A.
                         - Make sure don't consider 'Sales Tax/Tax de vente BC (5%)' or 'Total - Sales Tax' or 'Taxe de vente totale' as 'PST-BC' but always be 'GST' only
                         - if 'GST (5% if applicable)' is present without any value, don't calculate the value from mentioned %, instead return N/A.
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
