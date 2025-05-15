@@ -1412,8 +1412,9 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
 
                             logger.info(f"Validating invoice total- invoicetotal:{mand_invoTotal}, subtotal:{mand_subTotal}, gst:{mand_gst}")
                             if float(mand_invoTotal) or  float(mand_invoTotal)==0:
-                                subtotal = float(mand_invoTotal)- float(mand_gst) - float(cod_gst)
-                                if (float(mand_invoTotal) - (float(mand_subTotal)+float(mand_gst))) != 0:
+                                subtotal = float(mand_invoTotal)- float(cod_gst)
+                                logger.info(f"subtotal calculated: {subtotal}")
+                                if (float(mand_invoTotal) - (float(mand_subTotal)+float(cod_gst))) != 0:
                                     db.query(model.corp_docdata).filter(
                                     
                                         model.corp_docdata.corp_doc_id == doc_id
@@ -1662,7 +1663,7 @@ def validate_corpdoc(doc_id,userID,skipConf,db):
                             # if template_type.iloc[0].lower() in ['template 3', 'template 1']:
                                 # consider GST
                             if credit_ck==1:
-                                if round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst)) ),2)> rounding_threshold:
+                                if (round(abs(float(cod_invoTotal.values[0])- (line_sum + float(cod_gst)) ),2)> rounding_threshold) and (abs(float(subtotal)- line_sum  )> rounding_threshold):
                                     docStatus = 4
                                     docSubStatus = 136
                                     documentdesc = "Coding - Line total mismatch"
