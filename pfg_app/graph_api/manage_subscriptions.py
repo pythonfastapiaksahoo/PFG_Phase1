@@ -82,11 +82,11 @@ def create_subscriptions(access_token,PUBLIC_ENDPOINT,EMAIL_ID):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
-    mail_folder_id = get_folder_id("IDP", access_token)
+    mail_folder_id = get_folder_id("Inbox", access_token)
     if mail_folder_id:
-        logger.info(f"Mail folder IDP found: {mail_folder_id}")
+        logger.info(f"Mail folder Inbox found: {mail_folder_id}")
     else:
-        logger.info(f"Mail folder IDP not found, creating a new one Manually")
+        logger.info(f"Mail folder Inbox not found, creating a new one Manually")
         return False
     body = {
         "changeType": "created",
@@ -157,7 +157,7 @@ def subscription_renewal_loop(operation_id):
 
 def create_or_renew_subscription(background_task,db, notificationUrl):
     """
-    Create or renew a subscription for the user's IDP to get notifications when new messages arrive.
+    Create or renew a subscription for the user's Inbox to get notifications when new messages arrive.
     """
  
     now_ts = time.time()
@@ -188,11 +188,11 @@ def create_or_renew_subscription(background_task,db, notificationUrl):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
-    mail_folder_id = get_folder_id("IDP", access_token)
+    mail_folder_id = get_folder_id("Inbox", access_token)
     if mail_folder_id:
-        logger.info(f"Mail folder IDP found: {mail_folder_id}")
+        logger.info(f"Mail folder Inbox found: {mail_folder_id}")
     else:
-        logger.info(f"Mail folder IDP not found, creating a new one Manually")
+        logger.info(f"Mail folder Inbox not found, creating a new one Manually")
         return False
     body = {
         "changeType": "created",

@@ -3,7 +3,7 @@ import traceback
 import requests
 import base64
 from pfg_app import settings
-from pfg_app.core.utils import upload_blob_securely
+from pfg_app.core.utils import sanitize_blob_name, upload_blob_securely
 from pfg_app.graph_api.mark_processed_mail_to_read import mark_processed_mail_as_read
 from pfg_app.graph_api.ms_graphapi_token_manager import MSGraphAPITokenManager
 from pfg_app.logger_module import logger
@@ -62,7 +62,9 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
                 att_type = att.get("@odata.type", "")
                 if att_type == "#microsoft.graph.fileAttachment":
                     # Regular file attachment
-                    filename = att.get("name", "unnamed")
+                    filename = att.get("name", "unnamed.txt")
+                    # clean the filename to avoid special characters
+                    filename = sanitize_blob_name(filename)
                     content_b64 = att.get("contentBytes", "")
                     if content_b64:
                         file_content = base64.b64decode(content_b64)
@@ -75,6 +77,8 @@ def process_new_message(message_id: str, corp_mail_id: int, operation_id: str):
                     # Save the nested email as an EML file.
                     nested_subject = item.get("subject", "NoSubject")
                     nested_eml_filename = f"{folder_path}/{nested_subject}.eml"
+                    # Clean the filename to avoid special characters
+                    nested_eml_filename = sanitize_blob_name(nested_eml_filename)
                     # Since raw MIME isn’t available here, we serialize the email JSON.
                     import json
                     nested_email_content = json.dumps(item, indent=2)
