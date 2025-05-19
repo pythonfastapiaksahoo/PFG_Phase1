@@ -1819,7 +1819,7 @@ class DSDConfigTmptLog(Base):
     Model_Id = Column(String, nullable=True)
     Created_on =Column(DateTime, nullable=True)
     Change_type = Column(String, nullable=True)
-    Updated_by = Column(DateTime, nullable=True)
+    Updated_by = Column(String, nullable=True)
     Template_name = Column(String, nullable=True)
 
 
