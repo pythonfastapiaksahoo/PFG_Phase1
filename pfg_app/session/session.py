@@ -10,7 +10,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from tenacity import retry, stop_after_attempt, wait_exponential
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry import trace
-
+from sqlalchemy.pool import QueuePool
 from pfg_app import settings
 from pfg_app.core.utils import build_rfc1738_url
 from pfg_app.logger_module import logger
@@ -41,10 +41,11 @@ if settings.build_type in ["prod","dev"]:
     # Create the SQLAlchemy engine
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
+        poolclass=QueuePool,
         pool_recycle=1800,
-        pool_size=20,
-        max_overflow=2,
-        pool_timeout=30,
+        pool_size=50,
+        max_overflow=10,
+        pool_timeout=60,
     )
     Session = scoped_session(
         sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -65,12 +66,14 @@ else:
     SQLALCHEMY_DATABASE_URL = (
         f"postgresql://{USR}:{PWD}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
     )
+    
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
+        poolclass=QueuePool,
         pool_recycle=1800,
-        pool_size=25,
-        max_overflow=5,
-        pool_timeout=30,
+        pool_size=50,
+        max_overflow=10,
+        pool_timeout=60,
     )
     SQLAlchemyInstrumentor().instrument(
         engine=engine,
@@ -111,10 +114,11 @@ def refresh_access_token_and_get_session():
         engine.dispose()  # Dispose of the old engine
         engine = create_engine(
             SQLALCHEMY_DATABASE_URL,
+            poolclass=QueuePool,
             pool_recycle=1800,
-            pool_size=20,
-            max_overflow=2,
-            pool_timeout=30,
+            pool_size=50,
+            max_overflow=10,
+            pool_timeout=60,
         )
         Session = scoped_session(
             sessionmaker(autocommit=False, autoflush=False, bind=engine)
