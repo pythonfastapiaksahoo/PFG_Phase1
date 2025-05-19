@@ -24,11 +24,11 @@ def mark_processed_mail_as_read(new_mail_id, message_id):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
         }
-        mail_folder_id = get_folder_id("IDP", access_token)
+        mail_folder_id = get_folder_id("Inbox", access_token)
         if mail_folder_id:
-            logger.info(f"Mail folder IDP found: {mail_folder_id}")
+            logger.info(f"Mail folder Inbox found: {mail_folder_id}")
         else:
-            logger.info(f"Mail folder IDP not found, creating a new one Manually")
+            logger.info(f"Mail folder Inbox not found, creating a new one Manually")
             return "failed"
         
         # Call Graph API to mark mail as read
@@ -74,11 +74,11 @@ def mark_processed_mail_as_read(new_mail_id, message_id):
 #             "Authorization": f"Bearer {access_token}",
 #             "Content-Type": "application/json"
 #         }
-#         mail_folder_id = get_folder_id("IDP", access_token)
+#         mail_folder_id = get_folder_id("Inbox", access_token)
 #         if mail_folder_id:
-#             logger.info(f"Mail folder IDP found: {mail_folder_id}")
+#             logger.info(f"Mail folder Inbox found: {mail_folder_id}")
 #         else:
-#             logger.info(f"Mail folder IDP not found, creating a new one Manually")
+#             logger.info(f"Mail folder Inbox not found, creating a new one Manually")
 #             return "failed"
 
 #         # Call Graph API to mark mail as read

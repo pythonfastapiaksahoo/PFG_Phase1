@@ -460,12 +460,12 @@ class UserAccess(Base):
     UserID = Column(Integer, ForeignKey("user.idUser"))
     EntityID = Column(Integer, ForeignKey("entity.idEntity"))
     EntityBodyID = Column(Integer, ForeignKey("entitybody.idEntityBody"))
-    DepartmentID = Column(Integer, ForeignKey("department.idDepartment"))
+    DepartmentID = Column(Integer, nullable=True)
     isActive = Column(Integer, nullable=True)
     CreatedBy = Column(Integer, nullable=True)
     CreatedOn = Column(DateTime, nullable=True)
     UpdatedOn = Column(DateTime, nullable=True)
-    categoryID = Column(Integer, ForeignKey("category.idCategory"))
+    categoryID = Column(Integer, nullable=True)
     maxAmount = Column(Float, nullable=True)
     userPriority = Column(Integer, nullable=True)
     preApprove = Column(Integer, nullable=True)
@@ -703,7 +703,7 @@ class AccountCostAllocation(Base):
     )
     interco = Column(String(45), nullable=True)
     departmentID = Column(
-        Integer, ForeignKey("department.idDepartment"), nullable=False
+        Integer, nullable=False
     )
     description = Column(String(255), nullable=True)
     mainAccount = Column(String(255), nullable=True)
@@ -958,7 +958,7 @@ class UserItemMapping(Base):
 
     iduserItemMapping = Column(Integer, primary_key=True, autoincrement=True)
     idDocumentModel = Column(
-        Integer, ForeignKey("documentModel.idDocumentModel"), nullable=True
+        Integer, nullable=True
     )
     itemCodePO = Column(String(45), nullable=True)
     itemCodeInvoice = Column(String(45), nullable=True)
@@ -981,7 +981,7 @@ class GeneralConfig(Base):
     customerID = Column(SmallInteger, nullable=True)
     isRoleBased = Column(SmallInteger, nullable=True)
     delayednotification = Column(SmallInteger, nullable=True)
-    serviceBatchConf = Column(JSON, primary_key=True, autoincrement=True)
+    serviceBatchConf = Column(JSON, nullable=True)
     vendorBatchConf = Column(JSON, nullable=True)
     itemMetaDataConf = Column(JSON, nullable=True)
     updatedBy = Column(Integer, nullable=True)
@@ -1048,8 +1048,7 @@ class DocumentRuleupdates(Base):
     iddocumenthistorylog = Column(Integer, primary_key=True, index=True)
     documentID = Column(Integer, ForeignKey("document.idDocument"))
     documentSubStatusID = Column(
-        Integer, ForeignKey("documentsubstatus.idDocumentSubStatus")
-    )
+        Integer, nullable=True)
     IsActive = Column(Integer, nullable=True)
     userID = Column(SmallInteger, ForeignKey("user.idUser"), nullable=True)
     oldrule = Column(String(45), nullable=True)
@@ -1408,21 +1407,6 @@ class PFGStrategicLedger(Base):
     DESCR = Column(String(50), nullable=True)
     DESCRSHORT = Column(String(10), nullable=True)
     
-
-class StampData(Base):
-    __tablename__ = "stampdata"
-    STAMP_ID = Column(Integer, primary_key=True, autoincrement=True)
-    DOCUMENT_ID = Column(Integer, nullable=False)
-    CREATED_ON = Column(DateTime, nullable=True)
-    UPDATED_ON = Column(DateTime, nullable=True)
-    DEPTNAME = Column(String, nullable=True)
-    RECEIVING_DATE = Column(String, nullable=True)
-    CONFIRMATION_NUMBER = Column(String, nullable=True)
-    RECEIVER = Column(String, nullable=True)
-    SELECTED_DEPT = Column(String, nullable=True)
-    storenumber = Column(String, nullable=True)
-
-
 class StampDataValidation(Base):
     __tablename__ = "stampdatavalidation"
     StampDataValidationID = Column(Integer, primary_key=True, autoincrement=True)
@@ -1794,10 +1778,10 @@ class BackgroundTask(Base):
         UniqueConstraint("task_name", name="uq_task_name"),
     )
 
-corp_mail_id_seq = Sequence('corp_mail_id_seq', start=100000000)
+corp_mail_id_seq = Sequence('corp_mail_id_seq', start=100000) # 
 class CorpMail(Base):
     __tablename__ = "corp_mail"
-    # start the `autoincrement from 100000000`
+    # start the `autoincrement from 100000` -- dev its from 100000000
     id = Column(Integer, corp_mail_id_seq,
         primary_key=True,
         index=True,

@@ -1,6 +1,8 @@
 import traceback
 from datetime import date, datetime, timedelta
 from urllib.parse import quote_plus
+import re
+import urllib.parse
 
 # from azure.core.credentials import AzureKeyCredential
 from azure.core.exceptions import AzureError
@@ -325,3 +327,84 @@ def build_rfc1738_url(conn_string, access_token):
     except Exception as e:
         print(f"An error occurred: {str(e)}")
         return str(e), False
+
+def sanitize_blob_name(
+    raw_name: str,
+    *,
+    encode_reserved: bool = True,
+    hierarchical_namespace: bool = True,
+    truncate: bool = True
+) -> str:
+    """
+    Convert an arbitrary string into a valid Azure blob name.
+
+    Parameters
+    ----------
+    raw_name : str
+        Candidate blob name. May include path separators (/ or \\).
+    encode_reserved : bool, default True
+        Percent-encodes URL-reserved characters instead of replacing
+        them with '_'. Keeps '/' so folder-like paths survive.
+    hierarchical_namespace : bool, default True
+        Set to False if the storage account is a legacy (non-HNS) account.
+        Set to True if the storage account has Hierarchical Namespace
+        (HNS / ADLS Gen2) enabled.  Limits path segments to 63 instead
+        of 254.
+    truncate : bool, default True
+        If the cleaned name exceeds 1 024 bytes, trim it.
+
+    Returns
+    -------
+    str
+        A blob-safe name that obeys
+        * length ≤ 1 024 bytes
+        * 1 ≤ path segments ≤ 254 (or 63 w/ HNS)
+        * no segment ends with '.'  
+        * no overall name ends with '.' or '/' or '\\'
+    """
+    if not raw_name:
+        raise ValueError("Blob name must contain at least one character")
+
+    # 1 Strip surrounding whitespace
+    name = raw_name.strip()
+
+    # 2 Normalise path separator (back-slashes → forward-slashes)
+    name = name.replace("\\", "/")
+
+    # 3 Handle reserved URL characters
+    if encode_reserved:
+        # urllib.parse.quote keeps '/' so virtual folder structure remains
+        name = urllib.parse.quote(name, safe="/")
+    else:
+        name = re.sub(r'[?#%:;@&=+$,<>\[\]{}|^~`"\' ]', "_", name)
+
+    # 4 Ensure no segment (and the whole path) ends with '.'
+    cleaned_segments = []
+    for segment in name.split("/"):
+        segment = segment.rstrip(".")          # remove trailing dots
+        cleaned_segments.append(segment or "_")  # avoid empty segments
+    name = "/".join(cleaned_segments).rstrip("/.")
+
+    # 5 Path-segment limits
+    max_segments = 63 if hierarchical_namespace else 254
+    seg_count = len(name.split("/"))
+    if seg_count > max_segments:
+        raise ValueError(
+            f"Blob name has {seg_count} path segments, "
+            f"but the limit is {max_segments} for this account type."
+        )
+
+    # 6 Overall length limit but preserve the file extension if any
+    if truncate:
+        if "." in name:
+            # Split the name into base and extension
+            base, ext = name.rsplit(".", 1)
+            # Check if the base part exceeds the limit
+            if len(base) > 1_024 - len(ext) - 1:  # -1 for the dot
+                base = base[:1_024 - len(ext) - 1]  # Truncate the base part
+            name = f"{base}.{ext}"
+        else:
+            # If no extension, just truncate the whole name
+            name = name[:1_024]
+
+    return name
