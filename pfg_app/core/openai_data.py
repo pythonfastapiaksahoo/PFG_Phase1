@@ -72,7 +72,7 @@ def extract_invoice_details_using_openai(blob_data):
                     "InvoiceDate": "Extracted invoice date",
                     "SubTotal": "Extracted subtotal",
                     "invoicetotal": "Extracted invoice total",
-                    "GST": "Extracted GST or Goods and Services Tax or Tax or Federal tax or sales tax or Sales Tax/Tax de vente BC",
+                    "GST": "Extracted 'GST' or 'Goods and Services Tax' or 'TAX' or 'Federal tax' or 'sales tax' or Sales Tax/Tax de vente BC (5%)' or 'Total - Sales Tax' or 'Taxe de vente totale'",
                     "PST": "Extracted PST",
                     "HST": "Extracted HST",
                     "PST-SK": "Extracted PST-SK",
@@ -89,7 +89,7 @@ def extract_invoice_details_using_openai(blob_data):
 
                 ### Instructions:
                 1. **Orientation Correction**: Check if the invoice orientation is portrait or landscape. If its landscape, rotate it to portrait to extract stamp data correctly.
-                2. **Data Extraction**: Extract only the information specified:
+                2. **Data Extraction**: Extract only the information specified (look for the summary of header details from first page if present. else extract from other pages):
                 - **Invoice Document**: Yes/No
                 - **CreditNote**: Yes/No
                 - **Invoice ID**: Extracted Invoice ID from invoice document (excluding 'Sold To', 'Ship To', or 'Bill To' sections)
@@ -99,9 +99,9 @@ def extract_invoice_details_using_openai(blob_data):
                 - **Vendor Address**: Extracted vendor address from invoice document.
                                     Ensure to capture the primary vendor address typically found in the invoice document (including 'remit payment to' if present).
                                     Return "N/A" if the vendor address is not present in the invoice document.
-                - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present. for example, '01/27/2025 15:53:19' then extract '01/27/2025'.
+                - **InvoiceDate**: Extract the invoice date only from the invoice document and exclude time if present.
                 - **Currency**: Identified by currency symbols (e.g., CAD, USD). If the currency is not explicitly identified as USD, default to CAD.
-                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' from invoice document if present else return "N/A".
+                - **GST**: Extracted 'GST' or 'Goods and Services Tax' or 'Tax' or 'Federal tax' or 'sales tax' or 'Sales Tax/Tax de vente BC (5%)' or 'Total - Sales Tax' or 'Taxe de vente totale' from invoice document if present else return "N/A".
                 - **PST**: Extracted PST from invoice document if present else return "N/A".
                 - **HST**: Extracted HST from invoice document if present else return "N/A".
                 - **PST-SK**: Extracted PST-SK from invoice document if present else return "N/A".
@@ -120,6 +120,9 @@ def extract_invoice_details_using_openai(blob_data):
                         - Sometime vendor name may be name of person, so ensure to capture name of person with prefix 'Name:', for example 'Barry Smith', then return 'Barry Smith'.
                         - If the vendor name is present at the bottom with prefix 'please remit payment to:' or 'pay to:' then always consider from it instead from the top of the invoice document.
                         - if 'Amazon.com.ca' is present in the document then extract it as 'Amazon.com.ca ULC'.
+                        - if 'ADT SECURITY SERVICES CANADA' is present in the document then extract it as 'ADT SECURITY SERVICES CANADA' only.
+                        - if 'Telus' is is present in the document then extract the corresponding name.
+                        - if ' Paying your bill' is present anywhere in document, then always consider vendorname from it instead from the top of the invoice document.
                         - Return "N/A" if the vendor name is not present in the invoice document.
                     - **InvoiceID** : Please ensure that the following characters are treated as distinct and non-interchangeable in all inputs, outputs, validations, and processing logic:
                         - The digit '1' (one) and the uppercase letter 'I' (i)
@@ -128,10 +131,14 @@ def extract_invoice_details_using_openai(blob_data):
                         - Additionally, the alphanumeric sequence of the Invoice ID must be preserved exactly as entered, without any modification, reordering, or normalization of characters.
                         - No substitutions or auto-corrections should be applied to the Invoice ID.
                         - if the vendor name is 'ST. JOHN AMBULANCE' then make sure the first character of InvoiceID is uppercase 'I' but not '1' only if it present.
+                        - if 'ACCOUNT NO:' is present then extract InvoiceID from that only.
+                    -**InvoiceDate**: Extract the invoice date in same format that its there in invoice and don't change the format
                     - **Currency**: Must be three character only as 'CAD' or 'USD'. If it's unclear kept it as 'CAD' as default.
                     - **Vendor Address:** : Don't consider the vendor address from 'Sold To' or 'Ship To' or 'Bill To' section
                         - Ensure to capture the primary vendor address typically found in the top of the invoice document.
                         - If the vendor address is present at the bottom with prefix 'please remit payment to:' or 'pay to:' then always consider from it instead from the top of the invoice document.
+                        - if 'Telus' is is present in the document then extract the corresponding vendor address.
+                        - if ' Paying your bill' is present anywhere in document, then always consider vendoraddress from it instead from the top of the invoice document.
                         - if the vendor address is not present in the invoice document, return "N/A".
                     - **CreditNote** : if "Credit Memo" or Credit Note" is present in the invoice document, then return "Yes" else return "No".
                         - if the invoice total fields is in negative or in braces, then return "Yes".for example, '-123.45' or '123.45-' or (123.45) return "Yes".
@@ -140,8 +147,11 @@ def extract_invoice_details_using_openai(blob_data):
                         - if "Goods and Services Tax" is present in the invoice document, extract the value after Goods and Services Tax. for example: 'Goods and Services Tax $2.23' then extract 2.23.
                         - if Federal tax is present, then extract the value after it. for example: 'Federal tax $142.23' then extract 142.23.
                         - if Sales Tax is present, then extract the value after it. for example: 'Sales Tax $12.23' then extract 12.23
-                        - if 'Sales Tax/Tax de vente BC' is present, then extract the value as GST after it. for example: 'Sales Tax/Tax de vente BC $121.23' then extract 121.23
-                        - if there is no GST value present, don't calculate the value from mentioned % value. for example. if GST (5% if applicable) has no value, return N/A
+                        - if 'Sales Tax/Tax de vente BC (5%)' is present, then extract the value as GST only after it. for example: 'Sales Tax/Tax de vente BC (5%) $121.23' then extract 121.23
+                        - if 'Total - Sales Tax' or 'Taxe de vente totale' is present, then extract the value as GST only after it.
+                        - if 'TAX' is present in the invoice document, extract the value as GST only after it. for example: 'Tax $0.23 CAD' then extract GST as 0.23.
+                        - Make sure don't consider 'Sales Tax/Tax de vente BC (5%)' or 'Total - Sales Tax' or 'Taxe de vente totale' as 'PST-BC' but always be 'GST' only
+                        - if 'GST (5% if applicable)' is present without any value, don't calculate the value from mentioned %, instead return N/A.
                     - Ensure that the amounts(Subtotal,invoicetotal,GST,PST and other charges) to be extracted from last page only if  multiple amounts details are present in line items of all the pages. 
                 4. **Output Format**: Return a single JSON object with the extracted information. Do not return a list or array of JSON objects. The output should be a clean, valid JSON object that can be parsed using json.loads().
 
@@ -216,7 +226,7 @@ def extract_invoice_details_using_openai(blob_data):
         # Check if total pages are more than 30
         if total_pages > 8:
             # Append only the first page
-            pages_to_process = [pdf_img[0]]
+            pages_to_process = [pdf_img[0], pdf_img[-1]]
         else:
             # Process all pages
             pages_to_process = pdf_img

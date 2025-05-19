@@ -22,7 +22,9 @@ from sqlalchemy.orm import Load, load_only
 from datetime import datetime, timedelta
 from fastapi import Response
 from azure.storage.blob import BlobServiceClient
+import pytz as tz
 
+tz_region = tz.timezone("US/Pacific")
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
 from pfg_app.session.session import get_db
 # def parse_eml(file_path):
@@ -802,6 +804,7 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
 
 def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
     try:
+        currency = None
         # Look up vendor using vendorcode (not vendorid)
         vendor = db.query(model.Vendor).filter(model.Vendor.VendorCode == vendor_code).first()
         if not vendor:
@@ -813,11 +816,13 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
             .filter(model.corp_metadata.vendorcode == vendor_code)
             .first()
         )
-        currency = None
-        try:
-            currency = vendor.miscellaneous["VENDOR_LOC"][0]["CURRENCY_CD"]
-        except (KeyError, IndexError, TypeError):
-            logger.error(f"Could not extract currency for vendor {vendor_code} from miscellaneous JSON.")
+        if vendor.currency:
+            currency = vendor.currency
+        else:
+            try:
+                currency = vendor.miscellaneous["VENDOR_LOC"][0]["CURRENCY_CD"]
+            except (KeyError, IndexError, TypeError):
+                logger.error(f"Could not extract currency for vendor {vendor_code} from miscellaneous JSON.")
         if existing_record:
             # Update existing record
             update_data = {}
@@ -1491,9 +1496,10 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                 isouter=True,
             )
             .filter(model.corp_document_tab.corp_doc_id == inv_id)  # Use correct field in filter
-            .one()
+            .first()
         )
-
+        if invdat == None:
+            return {f"No Invoice Data found for document id: {inv_id}"}
         # provide vendor details
         if invdat.corp_document_tab.vendor_id:
             vendordata = (
@@ -1528,6 +1534,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
                     "gst",
                     "hst",
                     "pst",
+                    "hst",
                     "invoicetotal",
                     "subtotal",
                     "doc_updates",
@@ -1580,7 +1587,7 @@ async def read_corp_invoice_data(u_id, inv_id, db):
 
     except Exception:
         logger.error(f"Error in line item :{traceback.format_exc()}")
-        return Response(status_code=500, headers={"codeError": "Server Error"})
+        return {"message": "Invoice not found"}
     finally:
         db.close()
         
@@ -1880,7 +1887,7 @@ def upsert_coding_line_data(user_id, corp_doc_id, updates, db):
                 sender_title = get_sender_details.sender_title if get_sender_details.sender_title else None
                 approver_name = get_sender_details.approver_name if get_sender_details.approver_name else None
                 approval_status = get_sender_details.approval_status if get_sender_details.approval_status else None
-                
+        
             corp_coding = model.corp_coding_tab(
                 corp_doc_id=corp_doc_id,
                 mail_rw_key=mail_row_key,
@@ -2085,7 +2092,8 @@ def corp_update_docHistory(documentID, userID, documentstatus, documentdesc, db,
         docHistory["user_id"] = userID
         docHistory["document_status"] = documentstatus
         docHistory["document_desc"] = documentdesc
-        docHistory["created_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        # docHistory["created_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        docHistory["created_on"] = datetime.now(tz_region).strftime("%Y-%m-%d %H:%M:%S")
         if docsubstatus!=0:
             docHistory["document_substatus"] = docsubstatus
         db.add(model.corp_hist_logs(**docHistory))
@@ -3367,7 +3375,8 @@ async def read_corp_paginate_doc_inv_list(
             "Sub Status": model.DocumentSubStatus.status,
             "Amount": model.corp_document_tab.invoicetotal,
             "Uploaded On": model.corp_document_tab.created_on,
-            "Updated On": model.corp_document_tab.updated_on,
+            "Updated On": model.corp_document_tab.updated_on, 
+            
         }
 
         if sort_column in sort_columns_map:
@@ -3437,7 +3446,8 @@ async def read_corp_paginate_doc_inv_list(
                     "DocumentStatus": doc[1].__dict__ if doc[1] else {},
                     "DocumentSubStatus": doc[2].__dict__ if doc[2] else {},
                     "Vendor": doc[3].__dict__ if doc[3] else {},
-                    "last_updated_by": user_dict.get(doc[0].corp_doc_id)
+                    "last_updated_by": user_dict.get(doc[0].corp_doc_id),
+                    # "approved_by": doc[4].approver_name if doc[4] and hasattr(doc[4], 'approver_name') else None
                 }
                 # Override approved_by with approver_name
                 document_obj["corp_document_tab"]["approved_by"] = (
@@ -3513,7 +3523,7 @@ async def download_corp_paginate_doc_inv_list(
                 model.DocumentStatus,
                 model.DocumentSubStatus,
                 model.Vendor,
-                # model.corp_docdata,
+                model.corp_coding_tab,
                 model.User.firstName.label("last_updated_by"),
             )
             .options(
@@ -3529,11 +3539,11 @@ async def download_corp_paginate_doc_inv_list(
                     "voucher_id",
                     "mail_row_key",
                     "vendor_code",
-                    "approved_by",
                     "approver_title",
                     "invoice_type",
                     "created_on",
                 ),
+                Load(model.corp_coding_tab).load_only("approver_name"),
                 Load(model.DocumentSubStatus).load_only("status"),
                 Load(model.DocumentStatus).load_only("status", "description"),
                 # Load(model.corp_docdata).load_only("vendor_name", "vendoraddress"),
@@ -3555,6 +3565,11 @@ async def download_corp_paginate_doc_inv_list(
                 model.DocumentStatus,
                 model.DocumentStatus.idDocumentstatus
                 == model.corp_document_tab.documentstatus,
+                isouter=True,
+            )
+            .join(
+                model.corp_coding_tab,
+                model.corp_coding_tab.corp_doc_id == model.corp_document_tab.corp_doc_id,
                 isouter=True,
             )
             .join(
@@ -3653,7 +3668,7 @@ async def download_corp_paginate_doc_inv_list(
 
         # Get the total count of records before applying limit and offset
         # total_count = data_query.distinct(model.corp_document_tab.corp_doc_id).count()
-        total_count = db.query(func.count(distinct(model.corp_document_tab.corp_doc_id))).scalar()
+        total_count = data_query.distinct(model.corp_document_tab.corp_doc_id).count()
 
         
         Documentdata = data_query.order_by(model.corp_document_tab.corp_doc_id).all()

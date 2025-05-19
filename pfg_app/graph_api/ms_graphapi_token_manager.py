@@ -24,7 +24,8 @@ class MSGraphAPITokenManager:
         
         self._access_token = None
         self._token_expiration = 0
-        
+        logger.info(f"Initializing MSGraphAPITokenManager, client_id: {self.client_id}, tenant_id: {self.tenant_id}, client_secret: {self.client_secret}")
+        # Initialize the MSAL ConfidentialClientApplication
         self._app = ConfidentialClientApplication(
             client_id=self.client_id,
             authority=f"https://login.microsoftonline.com/{self.tenant_id}",
