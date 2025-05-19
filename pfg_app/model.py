@@ -1808,3 +1808,42 @@ class CorpMail(Base):
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
     
+
+
+
+class DSDConfigTmptLog(Base):
+    __tablename__ = "dsd_config_tmpt_log"
+
+    config_template_id = Column(Integer, primary_key=True, autoincrement=True)
+    VendorID = Column(Integer, nullable=True)
+    Model_Id = Column(String, nullable=True)
+    Created_on =Column(DateTime, nullable=True)
+    Change_type = Column(String, nullable=True)
+    Updated_by = Column(DateTime, nullable=True)
+    Template_name = Column(String, nullable=True)
+
+
+
+class dsd_config_metadata_log(Base):
+    __tablename__ = "dsd_config_metadata_log"
+
+    metadata_id = Column(Integer, primary_key=True, autoincrement=True)
+    config_template_id = Column(Integer, nullable=True)
+    Updated_by = Column(String, nullable=True)
+    Created_on =Column(DateTime, nullable=True)
+    change_type  = Column(String, nullable=True)
+    old_data  = Column(JSON, nullable=True)
+    new_data = Column(JSON, nullable=True)
+
+
+class dsd_config_model_logs(Base):
+    __tablename__ = "dsd_config_model_logs"
+
+    m_id = Column(Integer, primary_key=True, autoincrement=True)
+    config_template_id = Column(Integer, nullable=True)
+    Updated_by = Column(String, nullable=True)
+    created_on =Column(DateTime, nullable=True)
+    model_status  = Column(String, nullable=True)
+    fr_model_id   =  Column(String, nullable=True)
+    model_type = Column(String, nullable=True)
+    composed_models =  Column(String, nullable=True)
