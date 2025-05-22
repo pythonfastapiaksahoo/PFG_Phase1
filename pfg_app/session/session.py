@@ -31,17 +31,18 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize Azure credential: {e}")
     # raise
- 
+
 def create_sqlalchemy_engine(url: str):
     try:
         eng = create_engine(
             url,
             poolclass=QueuePool,
-            pool_recycle=3600,
-            pool_size=100,
+            pool_size=200,
             max_overflow=10,
+            pool_recycle=3600,
+            pool_pre_ping = True,
         )
- 
+
         @event.listens_for(eng, "do_connect")
         def inject_token(dialect, conn_rec, cargs, cparams):
             logger.info("Injecting AAD token into connection parameters")
@@ -51,44 +52,43 @@ def create_sqlalchemy_engine(url: str):
             except Exception as e:
                 logger.error(f"Failed to retrieve AAD token: {e}")
                 # raise
- 
+
         return eng
     except Exception as e:
         logger.critical(f"Failed to create SQLAlchemy engine: {e}")
         # raise
- 
- 
+
+
 try:
     if settings.build_type in ["prod", "dev"]:
         try:
             conn_string = os.getenv("AZURE_POSTGRESQL_CONNECTIONSTRING")
             if not conn_string:
                 logger.error(f"AZURE_POSTGRESQL_CONNECTIONSTRING not found in environment")
- 
+
             db_url, status = build_rfc1738_url(conn_string, "")  # Password will be injected
             SQLALCHEMY_DATABASE_URL = db_url + "&options=-csearch_path=pfg_schema"
- 
+
             engine = create_sqlalchemy_engine(SQLALCHEMY_DATABASE_URL)
             logger.info(f"Database URL (AAD): {SQLALCHEMY_DATABASE_URL}")
         except Exception as e:
             logger.critical(f"Error configuring AAD-based connection: {e}")
             # raise
- 
+
     else:
         try:
             USR = settings.db_user
-            PWD = settings.db_password
             HOST = settings.db_host
             PORT = settings.db_port
             DB = settings.db_name
             SCHEMA = settings.db_schema
- 
+
             SQLALCHEMY_DATABASE_URL = (
-                f"postgresql://{USR}:{PWD}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
+                f"postgresql://{USR}@{HOST}:{PORT}/{DB}?options=-csearch_path={SCHEMA}"
             )
- 
+
             engine = create_sqlalchemy_engine(SQLALCHEMY_DATABASE_URL)
- 
+
             SQLAlchemyInstrumentor().instrument(
                 engine=engine,
                 tracer_provider=trace.get_tracer_provider(),
@@ -97,16 +97,16 @@ try:
             logger.info(f"Database URL: {SQLALCHEMY_DATABASE_URL}")
         except Exception as e:
             logger.critical(f"Error configuring local database connection: {e}")
- 
- 
+
+
     # Finalize session and base after successful engine creation
     Session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
     Base = declarative_base()
- 
+
 except Exception as final_error:
     logger.critical(f"Database initialization failed: {final_error}")
- 
- 
+
+
 def get_db():
     """
     FastAPI dependency: yields a session and closes it when done.
