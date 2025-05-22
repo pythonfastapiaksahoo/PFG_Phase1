@@ -114,11 +114,11 @@ def get_db():
     global Session
     try:
         db = Session()
-        logger.info(f"Opening DB session")
+        # logger.info(f"Opening DB session")
         yield db
-        logger.info(f"Committing DB session")
+        # logger.info(f"Committing DB session")
     except Exception as e:
         logger.error(f"General error in get_db: {e} => {traceback.format_exc()}")
     finally:
-        logger.info("Closing DB session")
+        # logger.info("Closing DB session")
         db.close()
