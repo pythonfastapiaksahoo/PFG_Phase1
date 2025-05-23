@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from fastapi import Response
 from azure.storage.blob import BlobServiceClient
 import pytz as tz
+from sqlalchemy import not_
 
 tz_region = tz.timezone("US/Pacific")
 from pfg_app.schemas.pfgtriggerSchema import InvoiceVoucherSchema
@@ -4164,3 +4165,69 @@ def set_corp_metadata_status(u_id, v_id, db, action="disable"):
         return {"error": "Database error", "details": str(e)}           
     finally:
         db.close()
+        
+
+def reset_stuck_corp_queue_tasks():
+    """
+    Resets 'processing' CorpQueueTask records (updated in last 2 days)
+    to 'queued' if all related corp_trigger_tab records are not 'processed'.
+    Deletes the related corp_trigger_tab records before resetting.
+    """
+    try:
+        db = next(get_db())
+        if settings.build_type == "debug":
+            queued_status = f"{settings.local_user_name}-queued"
+            processing_status = f"{settings.local_user_name}-processing"
+        else:
+            queued_status = "queued"
+            processing_status = "processing"
+        # Step 1: Calculate 2 days ago
+        two_days_ago = datetime.utcnow() - timedelta(days=2)
+
+        # Step 2: Subquery to check for 'processed' corp_trigger_tab records
+        subq = db.query(model.corp_trigger_tab).filter(
+            model.corp_trigger_tab.corp_queue_id == model.CorpQueueTask.id,
+            model.corp_trigger_tab.status == 'processed'
+        ).exists()
+
+        # Step 3: Fetch tasks in 'processing' state with no 'processed' triggers
+        processing_tasks = db.query(model.CorpQueueTask).filter(
+            model.CorpQueueTask.status == processing_status,
+            model.CorpQueueTask.updated_at >= two_days_ago,
+            not_(subq)
+        ).all()
+
+        # Step 4: Process each task
+        for task in processing_tasks:
+            try:
+                # Delete related model.corp_trigger_tab records
+                previous_records = db.query(model.corp_trigger_tab).filter(
+                    model.corp_trigger_tab.corp_queue_id == task.id
+                ).all()
+
+                if previous_records:
+                    for record in previous_records:
+                        db.delete(record)
+                    db.commit()
+
+                # Merge and update task status
+                task = db.merge(task)
+                task.status = queued_status
+                db.commit()
+                db.refresh(task)
+
+                # Logging
+                logger.info(f"Task {task.id} updated to queued")
+                print(f"Updated status: {task.status}")
+
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Error retrying task {task.id}: {traceback.format_exc()}")
+                
+
+        return {"message": f"{len(processing_tasks)} tasks reset successfully."}
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Global error in resetting tasks: {traceback.format_exc()}")
+        
