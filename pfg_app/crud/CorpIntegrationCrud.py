@@ -4167,14 +4167,13 @@ def set_corp_metadata_status(u_id, v_id, db, action="disable"):
         db.close()
         
 
-def reset_stuck_corp_queue_tasks():
+def reset_stuck_corp_queue_tasks(u_id, db):
     """
     Resets 'processing' CorpQueueTask records (updated in last 2 days)
     to 'queued' if all related corp_trigger_tab records are not 'processed'.
     Deletes the related corp_trigger_tab records before resetting.
     """
     try:
-        db = next(get_db())
         if settings.build_type == "debug":
             queued_status = f"{settings.local_user_name}-queued"
             processing_status = f"{settings.local_user_name}-processing"
