@@ -122,3 +122,5 @@ def get_db():
     finally:
         # logger.info("Closing DB session")
         db.close()
+
+

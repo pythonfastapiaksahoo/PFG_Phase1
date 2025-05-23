@@ -661,9 +661,11 @@ def html_to_base64_image(html_content):
         # config = imgkit.config(wkhtmltoimage=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe")
         # Options for imgkit
         options = {
-            "format": "png",  # Output format
-            "quality": "95",  # Image quality
-            "width": 800      # Set the width of the output image
+            "format": "png",
+            "quality": "95",
+            "width": 800,
+            "no-images": "",
+            "disable-javascript": ""
         }
 
         # Generate image in memory using imgkit and get binary data

@@ -1,7 +1,7 @@
 import threading
 import traceback
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.blob import BlobLeaseClient
@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry.propagate import extract
 from opentelemetry.trace import SpanKind
 from sqlalchemy.exc import IntegrityError
-
+from sqlalchemy import not_
 from pfg_app import scheduler, scheduler_container_client, settings
 from pfg_app.crud.commonCrud import (
     schedule_bulk_update_corp_invoice_creation_job,
@@ -20,7 +20,7 @@ from pfg_app.crud.commonCrud import (
 )
 from pfg_app.graph_api.manage_subscriptions import subscription_renewal_loop
 from pfg_app.logger_module import logger, set_operation_id, tracer
-from pfg_app.model import BackgroundTask, QueueTask, CorpQueueTask
+from pfg_app.model import BackgroundTask, QueueTask, CorpQueueTask, corp_trigger_tab
 from pfg_app.routers import (
     FR,
     OCR,
@@ -266,6 +266,31 @@ async def app_startup():
         background_task_thread.start()
         logger.info("Subscription Renewal Loop thread started")
         
+        # Calculate datetime 2 days ago
+        two_days_ago = datetime.utcnow() - timedelta(days=2)
+
+        # Subquery to check if ANY corp_trigger_tab has status='processed' for a queue task
+        subq = db.query(corp_trigger_tab).filter(
+            corp_trigger_tab.corp_queue_id == CorpQueueTask.id,
+            corp_trigger_tab.status == 'Processed'
+        ).exists()
+
+        # Main query: fetch corp_queue_tasks that are "processing" in last 2 days
+        # and have no 'processed' corp_trigger_tab rows
+        processing_tasks = db.query(CorpQueueTask).filter(
+            CorpQueueTask.status == "processing",
+            CorpQueueTask.updated_at >= two_days_ago,
+            not_(subq)
+        ).all()
+
+        # If such records exist, update them to 'queued'
+        if processing_tasks:
+            db.query(CorpQueueTask).filter(
+                CorpQueueTask.id.in_([task.id for task in processing_tasks])
+            ).update({"status": "queued"}, synchronize_session=False)
+
+            db.commit()
+            logger.info("All Corp queues reset to queued state")
         # # Resetting Corp Queue task before starting the application
         # db.query(CorpQueueTask).filter(CorpQueueTask.status == "processing").update(
         #     {"status": "queued"}
