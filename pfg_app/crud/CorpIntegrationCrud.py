@@ -1,3 +1,4 @@
+# CorpIntCrud
 import email
 import json
 import base64
@@ -805,15 +806,44 @@ def dynamic_split_and_convert_to_pdf(encoded_image, eml_file_path):
 #     finally:
 #         db.close()
 
+def corp_log_update(vendorcode,u_id,data_updated,updatetype,old_data,db):
+    
+    try:
+        tm_smp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"data_updated: {data_updated},u_id: {u_id},vendor_code: {vendorcode}, updatetype: {updatetype} at: {tm_smp}")
+    except Exception as e:
+        logger.error(f"Error processing corp_log_update: {traceback.format_exc()}")
+        tm_smp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        corp_log_update = model.corp_config_metadata_logs(
+                        vendor_code=vendorcode,
+                        Updated_by=str(u_id),
+                        Created_on=tm_smp,
+                        update_type = updatetype,
+                        old_data=old_data,
+                        new_data=data_updated,
+            )
+        db.add(corp_log_update)
+        db.commit()
+        
+         
+    except Exception as e:
+        
+        logger.error(f"Error processing corp_metadata fn: {traceback.format_exc()}")
+
+    
 def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
     try:
         currency = None
+        tm_stmp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+       
         # Look up vendor using vendorcode (not vendorid)
         vendor = db.query(model.Vendor).filter(model.Vendor.VendorCode == vendor_code).first()
         if not vendor:
             return (f"Vendor with code {vendor_code} does not exist", 404)
 
         # Check if metadata record already exists for this vendor code
+
         existing_record = (
             db.query(model.corp_metadata)
             .filter(model.corp_metadata.vendorcode == vendor_code)
@@ -827,8 +857,10 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
             except (KeyError, IndexError, TypeError):
                 logger.error(f"Could not extract currency for vendor {vendor_code} from miscellaneous JSON.")
         if existing_record:
+            
             # Update existing record
             update_data = {}
+            logger.info(metadata)
             if metadata.synonyms_name is not None:
                 update_data["synonyms_name"] = json.dumps(metadata.synonyms_name)
             if metadata.synonyms_address is not None:
@@ -837,13 +869,20 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
                 update_data["dateformat"] = metadata.dateformat
             if currency:
                 update_data["currency"] = currency
-            update_data["updated_on"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            update_data["updated_on"] = tm_stmp
 
             db.query(model.corp_metadata).filter(
                 model.corp_metadata.vendorcode == vendor_code
             ).update(update_data)
 
             db.commit()
+            try:
+                old_data = json.dumps(existing_record)
+                updatetype = "update"
+                corp_log_update(vendor_code,u_id,update_data,updatetype,old_data,db)
+            except Exception as e:
+                logger.error(f"Error in corp_log_update line 884: {traceback.format_exc()}")
+
             return {"result": "Updated", "record": update_data}
         else:
             # Insert new metadata record
@@ -859,6 +898,23 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
                 vendoraddress=vendor.Address,
                 currency=currency,
             )
+            try:
+                old_data = {}
+                updatetype = "Insert"
+                update_data ={"vendorid":vendor.idVendor,
+                              "vendorcode":vendor.VendorCode,
+                              "synonyms_name":json.dumps(metadata.synonyms_name) if metadata.synonyms_name else "[]",
+                              "synonyms_address":json.dumps(metadata.synonyms_address) if metadata.synonyms_address else "[]",
+                              "dateformat":metadata.dateformat,
+                              "status":"Onboarded" if metadata.dateformat != "Not Onboarded" else "Not Onboarded",
+                              "created_on":datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                              "vendorname":vendor.VendorName,
+                              "vendoraddress":vendor.Address,
+                              "currency":currency,
+                              }
+                corp_log_update(vendor_code,u_id,update_data,updatetype,old_data,db)
+            except Exception as e:
+                logger.error(f"Error in corp_log_update line 884: {traceback.format_exc()}")
             db.add(new_metadata)
             db.commit()
             db.refresh(new_metadata)
@@ -4141,10 +4197,18 @@ def set_corp_metadata_status(u_id, v_id, db, action="disable"):
     """
     try:
         record = db.query(model.corp_metadata).filter(model.corp_metadata.vendorcode == v_id).first()
+        # update corp history tab
 
         if not record:
             return {"message": f"No corp_metadata found for vendor ID {v_id}"}  
-
+        try:
+            update_data = {"action":action}
+            updatetype = "update"
+            old_data = {"action":record.status}
+            corp_log_update(v_id,u_id,update_data,updatetype,old_data,db)
+        except Exception as e:
+            logger.error(f"Error in corp_log_update line 4207: {traceback.format_exc()}")
+            
         if action == "enable":
             record.status = "Onboarded"
         elif action == "disable":
