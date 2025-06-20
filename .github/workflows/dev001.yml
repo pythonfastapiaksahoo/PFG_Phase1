@@ -13,7 +13,8 @@ on:
 
 jobs:
   build:
-    runs-on: azure-private-ghhostedrunner-nonprod-001
+    runs-on:
+      group: azure-sharedservices-group-002
 
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +46,7 @@ jobs:
             !venv/
 
   deploy:
-    runs-on: azure-private-ghhostedrunner-nonprod-001
+      group: azure-sharedservices-group-002
     needs: build
     environment:
       name: 'dev'
