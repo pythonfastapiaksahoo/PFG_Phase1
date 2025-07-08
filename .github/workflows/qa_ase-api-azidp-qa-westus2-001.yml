@@ -12,7 +12,9 @@ on:
 
 jobs:
   build:
-    runs-on: azure-private-ghhostedrunner-nonprod-001
+    runs-on:
+      group: azure-sharedservices-group-002
+
 
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +46,8 @@ jobs:
             !venv/
 
   deploy:
-    runs-on: azure-private-ghhostedrunner-nonprod-001
+    runs-on:
+      group: azure-sharedservices-group-002
     needs: build
     environment:
       name: 'qa'
@@ -60,7 +63,6 @@ jobs:
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
-
 
       - name: Login to Azure
         uses: azure/login@v2
