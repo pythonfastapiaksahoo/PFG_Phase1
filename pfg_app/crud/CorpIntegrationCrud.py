@@ -869,6 +869,7 @@ def create_or_update_corp_metadata(u_id, vendor_code, metadata, db):
                 update_data["dateformat"] = metadata.dateformat
             if currency:
                 update_data["currency"] = currency
+            update_data["vendorid"] = vendor.idVendor
             update_data["updated_on"] = tm_stmp
 
             db.query(model.corp_metadata).filter(
